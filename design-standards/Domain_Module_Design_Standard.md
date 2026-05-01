@@ -494,8 +494,20 @@ COMMENT ON COLUMN {EntityName}_H.is_deleted IS
 -- COMMENT ON COLUMN {EntityName}_H.transaction_from_dts IS 'When this version was inserted into the database';
 -- COMMENT ON COLUMN {EntityName}_H.transaction_to_dts IS 'When this version was superseded in the database';
 
--- Add comments for entity-specific attributes (Designer supplies)
--- COMMENT ON COLUMN {EntityName}_H.{attribute_name} IS '{Business meaning and purpose of this attribute}';
+-- Business attribute columns — REQUIRED for EVERY attribute, no exceptions.
+-- Copy and complete this line once per attribute; do not move to implementation.
+-- COMMENT ON COLUMN {EntityName}_H.{attribute_name} IS
+--     '{Business meaning, units/scale if numeric, PII/SENSITIVE flag if applicable,
+--       source field name, and any FK reference. Max 255 characters.}';
+-- Standard tracking columns (if included in your implementation)
+-- COMMENT ON COLUMN {EntityName}_H.source_system IS
+--     'Code identifying the originating source system (e.g. CRM, LOS, CMS)';
+-- COMMENT ON COLUMN {EntityName}_H.source_key IS
+--     'Natural key from the originating source system, for lineage tracing back to source records';
+-- COMMENT ON COLUMN {EntityName}_H.created_dt IS
+--     'Timestamp when this row was first inserted into the domain table (domain load time, not source time)';
+-- COMMENT ON COLUMN {EntityName}_H.updated_dt IS
+--     'Timestamp when this row was last updated in the domain table';
 ```
 
 **Flexibility**: The specific temporal columns, audit columns, and metadata columns are designer choices.
@@ -616,6 +628,41 @@ COMMENT ON COLUMN {Entity1}{Entity2}_H.is_deleted IS
 
 -- Add comments for temporal columns (Designer supplies based on temporal strategy)
 -- Add comments for relationship-specific attributes (Designer supplies based on business requirements)
+```
+
+### 4.4 Surrogate Key Allocation Pattern (Keymap)
+
+For FK-target entities, allocate surrogate keys in a separate table so the
+same surrogate is used consistently across all SCD versions. See Advocated
+Data Management Standards Section 4 for the full Keymap decision tree.
+
+```sql
+CREATE TABLE {EntityName}_Keymap (
+    {entity}_id     BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    {entity}_key    VARCHAR(100) NOT NULL,   -- natural key from source system
+    source_system   VARCHAR(50),
+    created_dt      TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+)
+UNIQUE PRIMARY INDEX ({entity}_key);
+
+COMMENT ON TABLE {EntityName}_Keymap IS
+'{Entity} surrogate key allocation table. One row per unique {entity}_key.
+Generates the stable {entity}_id referenced by {Entity}_H and all child
+tables across all SCD versions.';
+
+COMMENT ON COLUMN {EntityName}_Keymap.{entity}_id IS
+'System-generated surrogate key for the {Entity} entity. Allocated once per
+unique {entity}_key; never reused or recycled.';
+
+COMMENT ON COLUMN {EntityName}_Keymap.{entity}_key IS
+'Natural key from source system. One row per unique source identifier.
+Maps to {entity}_id for all domain tables.';
+
+COMMENT ON COLUMN {EntityName}_Keymap.source_system IS
+'Source system that first introduced this natural key.';
+
+COMMENT ON COLUMN {EntityName}_Keymap.created_dt IS
+'Timestamp when this surrogate key was first allocated. Immutable once set.';
 ```
 
 ---
@@ -783,6 +830,30 @@ SELECT * FROM Product_Current WHERE product_key = 'SKU-456';
 - [ ] All entities have `{Entity}_Current` view
 - [ ] Query patterns documented in Semantic module
 
+### 6.5 Metadata Coverage Validation
+
+Run before marking deploy complete. Must return zero rows.
+
+```sql
+-- Verify all physical table columns have DBC comments
+SELECT TableName,
+       COUNT(*) AS total_columns,
+       SUM(CASE WHEN CommentString IS NOT NULL
+                 AND TRIM(CommentString) <> '' THEN 1 ELSE 0 END) AS commented,
+       COUNT(*) - SUM(CASE WHEN CommentString IS NOT NULL
+                 AND TRIM(CommentString) <> '' THEN 1 ELSE 0 END) AS missing
+FROM DBC.ColumnsV
+WHERE DatabaseName = '{ProductName}_Domain'
+  AND (TableName LIKE '%_H'
+    OR TableName LIKE '%_R'
+    OR TableName LIKE '%_Keymap')
+GROUP BY TableName
+HAVING missing > 0
+ORDER BY missing DESC;
+-- Zero rows returned = deploy can proceed.
+-- Any rows returned = add the missing COMMENT ON COLUMN statements first.
+```
+
 ---
 
 ## 7. Designer Responsibilities
@@ -856,6 +927,8 @@ SELECT * FROM Product_Current WHERE product_key = 'SKU-456';
 - [ ] Has temporal tracking that supports point-in-time reconstruction
 - [ ] Has is_current and is_deleted indicators
 - [ ] All columns have COMMENT metadata
+- [ ] DBC comment coverage validation query (Section 6.5) returns 0 rows
+- [ ] column_metadata populated for every column in {ProductName}_Semantic (verify: SELECT COUNT(*) FROM {ProductName}_Semantic.column_metadata               WHERE database_name = '{ProductName}_Domain' AND is_active = 1;   must equal total physical column count across all _H, _R, _Keymap tables)
 - [ ] Foreign key patterns follow standard (Section 5)
 - [ ] Standard views defined (Section 5.3)
 - [ ] Physical design choices documented and justified
