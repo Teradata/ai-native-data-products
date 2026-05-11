@@ -66,6 +66,37 @@ and document any deviations.**
 **Database layout preference:**
 [Separate database per module (enterprise default) or single database with module prefixes (simpler)]
 
+**Object Placement Standard:**
+[Path or filename of your organisation's conforming implementation of the Object Placement Standard
+Spec — e.g. `/standards/Object_Placement_Impl_Teradata.md`. This governs which database each
+object type goes in. If you do not have one, write "NONE" and Claude will ask the questions needed
+to establish container naming before any DDL is written.]
+
+**Physical Storage Standard:**
+[Path or filename of your Physical Storage Standard implementation, if object storage (S3, ADLS, GCS)
+is in use. Write "NOT APPLICABLE" if the platform uses only block storage.]
+
+---
+
+### Platform Standards Pre-flight
+
+**Before writing any DDL**, confirm the following. Claude will ask these questions at the start
+of Deliverable 1 if you have not answered them here.
+
+1. **Object Placement Standard** — if one exists, Claude will read it before generating any
+   CREATE TABLE, CREATE VIEW, or CREATE PROCEDURE statement. If none exists, Claude will ask:
+   *"Before I generate any objects, I need to know where each object type belongs. Are tables and
+   views in separate databases, or co-located? What is the naming convention for those databases?"*
+   Do not skip this step — wrong object placement is expensive to remediate.
+
+2. **Physical Storage Standard** — required if any tables use an Open Table Format (Iceberg,
+   Delta Lake) backed by object storage. If present, Claude will derive physical paths alongside
+   logical container names.
+
+3. **Access Layer** — three roles are always created: `{ProductName}_ROLE_READ`,
+   `{ProductName}_ROLE_AGENT`, and `{ProductName}_ROLE_ADMIN`. Deliverable 4.5 produces the
+   DCL file. If your organisation uses a different role naming convention, state it here.
+
 ---
 
 ### Design Sequence
@@ -131,6 +162,47 @@ group questions so I am never answering more than 3–4 at a time.
 
 ---
 
+#### Deliverable 4.5 — Access Layer (DCL)
+
+The Access Layer is a **mandatory artefact** for every AI-Native data product. Without it,
+all module databases are physically deployed but operationally invisible — every consumer
+receives `Error 3523: The user does not have SELECT access` regardless of how fully the
+modules are deployed.
+
+Produce the complete DCL file `00-access/{ProductName}_access_layer.dcl` containing:
+
+**Role creation:**
+- `CREATE ROLE {ProductName}_ROLE_READ` — for analysts, BI tools, and ad-hoc SQL users
+- `CREATE ROLE {ProductName}_ROLE_AGENT` — for AI agents, MCP servers, and automated tools
+  (kept separate from ROLE_READ for independent lifecycle management and optional write-back
+  extension to Memory)
+- `CREATE ROLE {ProductName}_ROLE_ADMIN` — for the data product owner and data steward
+- `COMMENT ON ROLE` for all three, following the standard wording from the Access Layer Design Standard
+
+**Phase 1.5 grants** — apply immediately after Memory and Semantic are deployed:
+- `GRANT SELECT ON {ProductName}_Semantic TO` all three roles
+- `GRANT SELECT ON {ProductName}_Memory TO` all three roles
+
+**Phase 2.5 grants** — apply immediately after Domain and Observability are deployed:
+- `GRANT SELECT ON {ProductName}_Domain TO` all three roles
+- `GRANT SELECT ON {ProductName}_Observability TO` all three roles
+
+**Commented-out blocks** for Search and Prediction — ready to uncomment when those modules deploy
+
+**User assignment comments** — template placeholders for agent service account, analyst user,
+and product owner; note that user-to-role assignments are operational events, not design artefacts
+
+**Artefact location:** `{ProductName}/00-access/{ProductName}_access_layer.dcl` — the `00-` prefix
+marks it as a pre-requisite visible alongside all module directories
+
+**Documentation record:** produce the `DD-ACCESS-001` Design_Decision INSERT statement for
+`{ProductName}_Memory.Design_Decision` (see Access Layer Design Standard Section 8 for the
+mandatory content)
+
+*Stop here and wait for review.*
+
+---
+
 #### Deliverable 5 — Additional Module Schemas
 
 Repeat for each selected module in this order:
@@ -144,7 +216,7 @@ For each module:
 
 **When designing the Memory module, the following are mandatory in addition to the standard DDL:**
 - `Module_Registry` — one row for **every module considered** during this design (not just deployed ones), with `deployment_status` set to DEPLOYED, PLANNED, or DEPRECATED
-- `Design_Decision` entries for every module that is deferred or excluded (rationale from D1), and for the two mandatory scope decisions: database layout choice (DD-SCOPE-001) and module scope rationale (DD-SCOPE-002)
+- `Design_Decision` entries for every module that is deferred or excluded (rationale from D1), and for the three mandatory scope decisions: database layout choice (DD-SCOPE-001), module scope rationale (DD-SCOPE-002), and access layer role model (DD-ACCESS-001 — generated in D4.5)
 - `Query_Cookbook` entry `QC-SEMANTIC-002` — the standard ERD generation recipe (template in Memory Module Design Standard Section 8.4)
 - At least one cross-module `Query_Cookbook` entry per deployed module pair
 
@@ -181,6 +253,8 @@ For each module:
 - **Agent-native** — agents are primary consumers; every design decision should support autonomous discovery and querying
 - **No data duplication** — each module owns its data; other modules join back, never copy
 - **Platform-optimised** — physical design choices (indexing strategy, co-location, compression, statistics collection) are part of the design, not afterthoughts; apply the relevant Platform Profile for your deployment target
+- **Object placement first** — before any DDL is written, the Object Placement Standard governs which database each object type belongs in; never assume co-location; never place objects in parent or structural containers
+- **Access is a deliverable** — the three-role Access Layer (ROLE_READ, ROLE_AGENT, ROLE_ADMIN) is a mandatory product artefact, not an operational afterthought; it is produced in D4.5 and deployed in two phases alongside the modules it grants access to
 
 ---
 

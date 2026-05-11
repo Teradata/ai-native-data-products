@@ -34,8 +34,11 @@ ai-native-data-product.skill (zip)
       ├── search.md             ← read when designing Search module
       ├── prediction.md         ← read when designing Prediction module
       ├── observability.md      ← read when designing Observability module
-      └── memory.md             ← read when designing Memory module
-                                   (includes Documentation Sub-Module)
+      ├── memory.md             ← read when designing Memory module
+      │                            (includes Documentation Sub-Module)
+      └── access-layer.md       ← read when generating the Access Layer DCL
+                                   three-role model, two-phase deployment,
+                                   DD-ACCESS-001 documentation record
 ```
 
 **SKILL.md** is read by every agent — orchestrator and sub-agents alike.
@@ -59,8 +62,12 @@ assume SKILL.md has been read and do not repeat its content.
    - `Prediction_Module_Design_Standard.md`
    - `Observability_Module_Design_Standard.md`
    - `Memory_Module_Design_Standard.md`
-3. Attach `Advocated_Data_Management_Standards.md`
-4. Paste this prompt
+   - `Access_Layer_Design_Standard.md`
+3. Attach platform standard interface specifications:
+   - `platform-standards/Object_Placement_Standard_Spec.md`
+   - `platform-standards/Physical_Storage_Standard_Spec.md`
+4. Attach `Advocated_Data_Management_Standards.md`
+5. Paste this prompt
 
 **To update the skill after design documents change:**
 1. Attach the updated design document(s)
@@ -229,6 +236,41 @@ Each module file must contain, in this order:
    Does not repeat universal conventions from SKILL.md.
    Includes: functional validation queries; anti-pattern checks.
 
+**Special instructions for `access-layer.md`:**
+
+The access layer file is short (target 100–150 lines). It must contain:
+
+1. **Header** — "Every AI-Native Data Product requires an Access Layer. Without it, all module
+   databases are deployed but operationally invisible (Error 3523)."
+2. **Three-role model** — ROLE_READ, ROLE_AGENT, ROLE_ADMIN with naming pattern and the rationale
+   for keeping ROLE_AGENT separate from ROLE_READ
+3. **Two-phase deployment** — Phase 1.5 (Semantic + Memory) and Phase 2.5 (Domain + Observability)
+   with explicit note that Phase 1.5 is the minimum viable access grant
+4. **DCL template** — the complete parameterised DCL from Section 6 of the Access Layer Design
+   Standard: COMMENT ON ROLE statements, phase-separated GRANT blocks, commented-out Search and
+   Prediction blocks, user assignment template comments
+5. **Artefact location** — `{ProductName}/00-access/{ProductName}_access_layer.dcl`
+6. **Documentation record** — complete `DD-ACCESS-001` Design_Decision INSERT template
+7. **Checklist** — the 9-item checklist from Section 10 of the Access Layer Design Standard
+
+**Object Placement Standard — SKILL.md protocol addition (universal convention):**
+
+SKILL.md must include the following (this applies before every CREATE statement, not to one module):
+
+> **Object Placement Protocol:** Before generating any CREATE TABLE, CREATE VIEW, CREATE PROCEDURE,
+> or CREATE FUNCTION statement, locate the organisation's conforming implementation of the Object
+> Placement Standard. Priority order: (1) explicit path in conversation, (2)
+> `/mnt/skills/user/object-placement/SKILL.md`, (3) any file matching
+> `Object_Placement_Standard*.md` in the project context. If none found: stop and ask
+> *"Which database should this object type go in?"* before writing any DDL.
+
+> **Physical Storage Protocol:** If object storage (S3, ADLS, GCS) is in use, also locate the
+> Physical Storage Standard implementation before generating any OTF table DDL.
+
+Both belong in SKILL.md, not in module files.
+
+---
+
 **Module-specific content that must be preserved exactly (do not paraphrase):**
 - Recursive CTEs (Semantic `v_relationship_paths`)
 - TD_VectorDistance function calls (Search)
@@ -278,7 +320,9 @@ at the top of the DDL section with a note: "apply to all temporal tables."
 - [ ] No DDL or query syntax
 - [ ] Documentation capture protocol complete and accurate
 - [ ] Sub-agent routing instructions clear and unambiguous
-- [ ] All six modules listed in module file index
+- [ ] All six modules AND access-layer.md listed in module file index
+- [ ] Object Placement Protocol present (locate standard before any CREATE statement)
+- [ ] Physical Storage Protocol present (locate standard before any OTF table DDL)
 
 **Each module file:**
 - [ ] Under 500 lines
@@ -345,8 +389,10 @@ The skill name must not change between versions: `ai-native-data-product`
 |------|--------|-----------|
 | `SKILL.md` | 100–150 lines | 175 lines |
 | Any single module file | 300–400 lines | 500 lines |
-| Total (all files combined) | < 2,800 lines | 3,200 lines |
+| `access-layer.md` | 100–150 lines | 175 lines (compact standard) |
+| Total (all files combined) | < 3,000 lines | 3,400 lines |
 | Typical sub-agent context (SKILL.md + 1 module) | 400–550 lines | — |
+| Access layer context (SKILL.md + access-layer.md) | 200–325 lines | — |
 
 ## Reference: Skill Directory Structure
 
@@ -359,7 +405,8 @@ ai-native-data-product/
     ├── search.md
     ├── prediction.md
     ├── observability.md
-    └── memory.md
+    ├── memory.md
+    └── access-layer.md   ← always required; three roles, two-phase DCL, DD-ACCESS-001
 ```
 
 ## Reference: Module Deployment Order
@@ -383,3 +430,8 @@ ai-native-data-product/
 | Prediction | DD-PREDICTION- | CL-PREDICTION- | QC-PREDICTION- | IN-PREDICTION- |
 | Observability | DD-OBSERVABILITY- | CL-OBSERVABILITY- | QC-OBSERVABILITY- | IN-OBSERVABILITY- |
 | Memory | DD-MEMORY- | CL-MEMORY- | QC-MEMORY- | IN-MEMORY- |
+| Access Layer | DD-ACCESS- | CL-ACCESS- | QC-ACCESS- | IN-ACCESS- |
+
+> Access Layer decisions live in the general `{ProductName}_Memory.Design_Decision` table.
+> `DD-ACCESS-001` is the mandatory three-tier role model decision record (see Access Layer
+> Design Standard Section 8).

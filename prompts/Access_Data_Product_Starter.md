@@ -114,6 +114,27 @@ ORDER BY hop_count;
 - Format: 'Domain.Party_H, Prediction.customer_features'
 - Query with LIKE: `WHERE referenced_tables LIKE '%Party_H%'`
 
+### Access Roles
+
+Every AI-Native Data Product creates three standard roles:
+
+| Role | Purpose | Your connecting user should hold |
+|------|---------|----------------------------------|
+| `{Product}_ROLE_AGENT` | AI agents and automated tools | ✅ Yes — use this role |
+| `{Product}_ROLE_READ` | Human analysts and BI tools | ❌ Not for agents |
+| `{Product}_ROLE_ADMIN` | Data product owner / steward | ❌ Not for routine agent use |
+
+**If you receive `Error 3523` (no SELECT access):** The Access Layer may not have been deployed
+yet, or your service account has not been granted `{Product}_ROLE_AGENT`. Do not attempt to work
+around this by requesting direct grants to individual databases. Ask the data product owner to run
+Phase 1.5 and Phase 2.5 of the Access Layer DCL (`00-access/{Product}_access_layer.dcl`).
+
+**If you need to generate DDL (not just query):** Before writing any CREATE statement, locate the
+organisation's Object Placement Standard implementation. It specifies which database each object
+type belongs in. Never assume co-location or invent database names.
+
+---
+
 ### Standard Discovery Queries (Execute These First)
 
 When starting work on a new data product:
@@ -122,22 +143,27 @@ When starting work on a new data product:
 -- Step 1: Find Semantic database
 -- (Use naming convention: {Product}_Semantic)
 
--- Step 2: Discover modules
+-- Step 2: Confirm your agent role exists and is accessible
+SELECT RoleName
+FROM DBC.RoleInfoV
+WHERE RoleName = '{Product}_ROLE_AGENT';
+
+-- Step 3: Discover modules
 SELECT module_name, database_name, primary_tables
 FROM {Product}_Semantic.data_product_map
 WHERE is_active = 1;
 
--- Step 3: Discover entities
+-- Step 4: Discover entities
 SELECT entity_name, table_name, module_name
 FROM {Product}_Semantic.entity_metadata
 WHERE is_active = 1;
 
--- Step 4: Learn relationships
+-- Step 5: Learn relationships
 SELECT relationship_name, source_table, target_table
 FROM {Product}_Semantic.table_relationship
 WHERE is_active = 1;
 
--- Step 5: Ready to generate queries!
+-- Step 6: Ready to generate queries!
 ```
 
 ### Error Handling
@@ -184,11 +210,13 @@ WHERE p.is_current = 1;
 
 **Always start with**:
 1. Know data product name
-2. Find Semantic module (`{Product}_Semantic`)
-3. Query `data_product_map` for module locations
-4. Query `entity_metadata` for table details
-5. Query `table_relationship` for join patterns
-6. Generate SQL using discovered metadata
+2. Confirm `{Product}_ROLE_AGENT` exists and is granted to your service account
+3. Find Semantic module (`{Product}_Semantic`)
+4. Query `data_product_map` for module locations
+5. Query `entity_metadata` for table details
+6. Query `table_relationship` for join patterns
+7. Generate SQL using discovered metadata
+8. If generating DDL: locate the Object Placement Standard before any CREATE statement
 
 This protocol enables fully autonomous navigation of any AI-Native Data Product on Teradata.
 ```
