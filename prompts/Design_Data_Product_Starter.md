@@ -7,11 +7,11 @@
 
 1. Copy this entire prompt
 2. Replace all `[PLACEHOLDER]` values with your specifics
-3. Paste into a new Claude conversation
-4. Answer the opening questions — then let Claude drive one deliverable at a time
+3. Paste into a new agent/chat conversation
+4. Answer the opening questions — then let the agent drive one deliverable at a time
 
 > **Note**: This prompt is designed for use with the AI-Native module design skills installed.
-> Claude will draw on those skills automatically as each deliverable is built —
+> The agent will draw on those skills automatically as each deliverable is built —
 > no need to attach the design standard documents separately.
 
 ---
@@ -69,7 +69,7 @@ and document any deviations.**
 **Object Placement Standard:**
 [Path or filename of your organisation's conforming implementation of the Object Placement Standard
 Spec — e.g. `/standards/Object_Placement_Impl_Teradata.md`. This governs which database each
-object type goes in. If you do not have one, write "NONE" and Claude will ask the questions needed
+object type goes in. If you do not have one, write "NONE" and the agent will ask the questions needed
 to establish container naming before any DDL is written.]
 
 **Physical Storage Standard:**
@@ -80,17 +80,17 @@ is in use. Write "NOT APPLICABLE" if the platform uses only block storage.]
 
 ### Platform Standards Pre-flight
 
-**Before writing any DDL**, confirm the following. Claude will ask these questions at the start
+**Before writing any DDL**, confirm the following. The agent will ask these questions at the start
 of Deliverable 1 if you have not answered them here.
 
-1. **Object Placement Standard** — if one exists, Claude will read it before generating any
-   CREATE TABLE, CREATE VIEW, or CREATE PROCEDURE statement. If none exists, Claude will ask:
+1. **Object Placement Standard** — if one exists, the agent will read it before generating any
+   CREATE TABLE, CREATE VIEW, or CREATE PROCEDURE statement. If none exists, the agent will ask:
    *"Before I generate any objects, I need to know where each object type belongs. Are tables and
    views in separate databases, or co-located? What is the naming convention for those databases?"*
    Do not skip this step — wrong object placement is expensive to remediate.
 
 2. **Physical Storage Standard** — required if any tables use an Open Table Format (Iceberg,
-   Delta Lake) backed by object storage. If present, Claude will derive physical paths alongside
+   Delta Lake) backed by object storage. If present, the agent will derive physical paths alongside
    logical container names.
 
 3. **Access Layer** — three roles are always created: `{ProductName}_ROLE_READ`,

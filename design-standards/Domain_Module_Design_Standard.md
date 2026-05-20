@@ -305,19 +305,61 @@ CREATE TABLE PartyRole_H (
 
 ```sql
 -- Standard view pattern 1: Current active records
-CREATE VIEW Party_Current AS
-SELECT * FROM Party_H
-WHERE is_current = 1 AND is_deleted = 0;
+-- View contract makes returned columns explicit — agents read the header, not the SELECT body
+CREATE VIEW Party_Current
+(
+    party_id,
+    party_key,
+    legal_name,
+    tax_identifier,
+    valid_from_dts,
+    valid_to_dts
+    -- ... all remaining Party_H columns listed explicitly
+)
+AS
+SELECT
+    party_id,
+    party_key,
+    legal_name,
+    tax_identifier,
+    valid_from_dts,
+    valid_to_dts
+    -- ... all remaining Party_H columns
+FROM Party_H
+WHERE is_current = 1
+  AND is_deleted = 0;
 
-CREATE VIEW Product_Current AS
-SELECT * FROM Product_H
-WHERE is_current = 1 AND is_deleted = 0;
+CREATE VIEW Product_Current
+(
+    product_id,
+    product_key,
+    -- ... all remaining Product_H columns listed explicitly
+)
+AS
+SELECT
+    product_id,
+    product_key
+    -- ... all remaining Product_H columns
+FROM Product_H
+WHERE is_current = 1
+  AND is_deleted = 0;
 
 -- Agent learns: "{Entity}_Current views always give me active records"
 
 -- Standard view pattern 2: Enriched with common joins
-CREATE VIEW Party_Enriched AS
-SELECT p.*, [common join data]
+CREATE VIEW Party_Enriched
+(
+    party_id,
+    party_key,
+    legal_name,
+    -- ... all Party_H columns plus joined columns, listed explicitly
+)
+AS
+SELECT
+    p.party_id,
+    p.party_key,
+    p.legal_name,
+    [common join data]
 FROM Party_Current p
 LEFT JOIN [common related data];
 
@@ -739,18 +781,38 @@ WHERE pred.is_current = 1;
 
 ```sql
 -- Current version view (always create)
-CREATE VIEW {Entity}_Current AS
-SELECT {entity}_id, {entity}_key, [business columns]
+-- View contract makes returned columns explicit — agents read the header, not the SELECT body
+CREATE VIEW {Entity}_Current
+(
+    {entity}_id,
+    {entity}_key,
+    [all business columns listed explicitly]
+)
+AS
+SELECT
+    {entity}_id,
+    {entity}_key,
+    [business columns]
 FROM {Entity}_H
-WHERE is_current = 1 AND is_deleted = 0;
+WHERE is_current = 1
+  AND is_deleted = 0;
 
 COMMENT ON VIEW {Entity}_Current IS 
 'Current active {entity} records - filters to current non-deleted versions for simplified querying';
 
 -- Enriched view (when joining to other modules is common)
-CREATE VIEW {Entity}_Enriched AS
+CREATE VIEW {Entity}_Enriched
+(
+    {entity}_id,
+    {entity}_key,
+    [all business columns from {Entity}_Current],
+    [all additional columns from joined modules, listed explicitly]
+)
+AS
 SELECT 
-    e.*,
+    e.{entity}_id,
+    e.{entity}_key,
+    [all business columns],
     [columns from other modules]
 FROM {Entity}_Current e
 LEFT JOIN [other modules];

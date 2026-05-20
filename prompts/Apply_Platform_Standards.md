@@ -25,10 +25,10 @@ The Object Placement Standard governs the **logical layer** — which database (
 each object type belongs in, how databases are named, and what access principals can reach them.
 
 **It is an interface specification, not a naming convention.** Your organisation provides a
-conforming implementation that answers the eight required questions. Claude reads your
+conforming implementation that answers the eight required questions. Your agent reads your
 implementation; it does not invent placement rules.
 
-Before generating any DDL, Claude will:
+Before generating any DDL, your agent will:
 1. Locate your implementation (see priority order below)
 2. Read all eight required sections
 3. Call the Derivation Function to determine the target database for each object
@@ -42,7 +42,7 @@ The Physical Storage Standard governs the **physical layer** — object store pa
 partition strategies, and physical access controls — for platforms using object storage.
 
 **It extends the Object Placement Standard.** Both must be present when object storage is in use.
-Claude reads the Object Placement Standard first to derive the logical container name, then reads
+Your agent reads the Object Placement Standard first to derive the logical container name, then reads
 the Physical Storage Standard to derive the physical path.
 
 ---
@@ -210,7 +210,7 @@ Environment inputs for Derivation Function:
 **Integration with Design_Data_Product_Starter.md:**
 This fragment is referenced by the Platform Standards Pre-flight in the Design Starter.
 When using the Design Starter, the pre-flight handles the location questions — this
-fragment provides the operational protocol that Claude applies during DDL generation.
+fragment provides the operational protocol that your agent applies during DDL generation.
 
 **Integration with Access Layer:**
 The Object Placement Standard's Access Model section (Section 7) and the Access Layer

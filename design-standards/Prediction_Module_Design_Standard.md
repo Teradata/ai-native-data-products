@@ -672,7 +672,18 @@ WHERE entity_id = 1001
 
 ```sql
 -- View 1: Current features only (engineered features from Prediction)
-CREATE VIEW Prediction.v_customer_features_current AS
+CREATE VIEW Prediction.v_customer_features_current
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    party_id,
+    age_normalized,
+    income_normalized,
+    credit_score_normalized,
+    recency_score,
+    transaction_velocity,
+    observation_dts
+)
+AS
 SELECT 
     cf.party_id,
     cf.age_normalized,        -- Engineered: normalized to 0-1
@@ -689,7 +700,23 @@ COMMENT ON VIEW Prediction.v_customer_features_current IS
 
 -- View 2: Features with Domain context (JOIN without duplication)
 -- This pattern avoids duplicating domain attributes in Prediction module
-CREATE VIEW Prediction.v_customer_features_enriched AS
+CREATE VIEW Prediction.v_customer_features_enriched
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    party_key,
+    legal_name,
+    party_type_code,
+    birth_date,
+    annual_income_amt,
+    credit_limit_amt,
+    age_normalized,
+    income_normalized,
+    credit_score_normalized,
+    recency_score,
+    transaction_velocity,
+    observation_dts
+)
+AS
 SELECT 
     -- Domain attributes (NOT duplicated in Prediction)
     p.party_key,
@@ -717,7 +744,18 @@ COMMENT ON VIEW Prediction.v_customer_features_enriched IS
 
 -- View 3: Point-in-Time Feature Reconstruction
 -- For training with historical features
-CREATE VIEW Prediction.v_customer_features_pit AS
+CREATE VIEW Prediction.v_customer_features_pit
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    party_key,
+    legal_name,
+    age_normalized,
+    income_normalized,
+    observation_dts,
+    valid_from_dts,
+    valid_to_dts
+)
+AS
 SELECT 
     p.party_key,
     p.legal_name,

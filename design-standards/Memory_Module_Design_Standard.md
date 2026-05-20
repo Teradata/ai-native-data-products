@@ -844,7 +844,25 @@ WHERE success_count * 1.0 / total_count > 0.8;
 
 ```sql
 -- View: Agent interactions summary (no JSON parsing needed!)
-CREATE VIEW Memory.v_interactions_summary AS
+CREATE VIEW Memory.v_interactions_summary
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    session_id,
+    interaction_seq,
+    interaction_type,
+    user_input,
+    action_taken,
+    sql_executed,
+    query_result_count,
+    execution_time_ms,
+    outcome_status,
+    user_feedback,
+    referenced_tables,
+    scope_level,
+    scope_identifier,
+    interaction_dts
+)
+AS
 SELECT 
     ai.session_id,
     ai.interaction_seq,

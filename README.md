@@ -13,7 +13,7 @@ Data Products. The standards define a six-module architecture where each
 module has a distinct responsibility, its own data model, and integrates
 with the others through consistent patterns.
 
-**Design documents are the single source of truth.** The unified Claude
+**Design documents are the single source of truth.** The unified agent
 skill (generated from these documents via the conversion prompt) is a
 compressed, agent-optimised rendering of the standards — never edited
 directly.
@@ -26,6 +26,7 @@ directly.
 ai-native-data-products/
 ├── design-standards/        ← master source of truth
 │   ├── AI_Native_Data_Product_Master_Design.md
+│   ├── Access_Layer_Design_Standard.md
 │   ├── Advocated_Data_Management_Standards.md
 │   ├── Domain_Module_Design_Standard.md
 │   ├── Semantic_Module_Design_Standard.md
@@ -89,7 +90,7 @@ with no external dependencies.
 ## Prompts
 
 ### Skill_Conversion_Prompt.md
-Converts all design standard documents into a single unified Claude skill
+Converts all design standard documents into a single unified agent skill
 (`ai-native-data-product.skill`) with progressive disclosure:
 - `SKILL.md` — always read by orchestrator and sub-agents; architecture,
   naming conventions, documentation capture protocol, routing instructions

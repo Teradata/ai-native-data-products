@@ -561,7 +561,25 @@ The following views are deployed into the `{ProductName}_Semantic` database to e
 Transforms the **definitional** `data_lineage` table into a two-leg edge list (source → job, job → target) compatible with typically used Graph standards. Reads active flows only — no duplicate edges from repeated executions.
 
 ```sql
-REPLACE VIEW Semantic.lineage_graph AS
+REPLACE VIEW Semantic.lineage_graph
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    Src_Object_Name_FQ,
+    Src_Container_Name,
+    Src_Object_Name,
+    Src_Kind,
+    Src_Display_Name,
+    Edge_Relationship,
+    Transformation_Type,
+    Transformation_Logic,
+    Lineage_ID,
+    Tgt_Object_Name_FQ,
+    Tgt_Container_Name,
+    Tgt_Object_Name,
+    Tgt_Kind,
+    Tgt_Display_Name
+)
+AS
 /*
  * lineage_graph
  * ───────────────
@@ -721,7 +739,27 @@ LOCKING ROW FOR ACCESS
 Convenience view joining each active lineage definition to its most recent execution. Useful for dashboards showing "last run status" alongside the blueprint.
 
 ```sql
-REPLACE VIEW Semantic.lineage_run_latest AS
+REPLACE VIEW Semantic.lineage_run_latest
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    lineage_id,
+    source_database,
+    source_table,
+    job_name,
+    target_database,
+    target_table,
+    transformation_type,
+    is_active,
+    lineage_run_id,
+    last_run_dts,
+    last_run_status,
+    last_run_duration_ms,
+    last_records_read,
+    last_records_written,
+    last_records_rejected,
+    last_error_message
+)
+AS
 LOCKING ROW FOR ACCESS
 SELECT
      dl.lineage_id

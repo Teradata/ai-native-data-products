@@ -439,7 +439,17 @@ COMMENT ON COLUMN Semantic.table_relationship.updated_at IS
 ### 5.1 v_relationship_paths View (TESTED ✅)
 
 ```sql
-CREATE VIEW Semantic.v_relationship_paths AS
+CREATE VIEW Semantic.v_relationship_paths
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    source_table,
+    target_table,
+    path_tables,
+    path_joins,
+    hop_count,
+    path_description
+)
+AS
 WITH RECURSIVE relationship_paths (
     source_table,
     target_table,

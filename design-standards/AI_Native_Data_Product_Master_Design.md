@@ -1,7 +1,7 @@
 # AI-Native Data Product - Master Design Standard
 
-**Version:** 1.9  
-**Date:** April 15, 2026  
+**Version:** 2.0  
+**Date:** 2026-05-07  
 **Document Type:** Design Standard / Reusable Template  
 **Purpose:** Define the architectural blueprint and design standards for modular, AI-native data products optimized for agentic consumption
 
@@ -25,6 +25,7 @@ The architecture enables progressive enhancement - starting with traditional dat
 ```
 LAYER 1: DESIGN STANDARDS (This Document + Module Standards)
 ├── Master Design Standard ← You are here
+├── Access Layer Design Standard (roles, grants, deployment timing)
 └── Module Design Standards (6 documents - created separately)
     ├── Domain/Subject Data Design Standard
     ├── Search Module Design Standard
@@ -533,7 +534,7 @@ Tables within each database:
 
 **Benefits**:
 - ✅ Clear module boundaries
-- ✅ Independent access control per module (GRANT DATABASE)
+- ✅ Independent access control per module (GRANT DATABASE) — see Access Layer Design Standard
 - ✅ Modules can be deployed incrementally
 - ✅ Separate space management per module
 - ✅ Aligns with modular architecture concept
@@ -697,13 +698,19 @@ The following considerations apply regardless of platform:
 
 Both must exist before any other module deploys.
 
+**Phase 1.5: Access Layer — initial grant**
+3. Create the three product roles (`{ProductName}_ROLE_READ`, `{ProductName}_ROLE_AGENT`, `{ProductName}_ROLE_ADMIN`) and grant SELECT on the Semantic and Memory databases. This is the minimum grant required for agents and operational tools to discover and read the data product. See _Access Layer Design Standard_.
+
 **Phase 2: Foundation (Domain & Observability)**
-3. Domain — core business entities; documentation and Semantic registration written on deploy
-4. Observability — begins monitoring Domain immediately; coverage expands as later modules deploy
+4. Domain — core business entities; documentation and Semantic registration written on deploy
+5. Observability — begins monitoring Domain immediately; coverage expands as later modules deploy
+
+**Phase 2.5: Access Layer — extend grants**
+6. Extend role grants to Domain and Observability databases. Apply further grants as Search and Prediction are deployed in Phase 3.
 
 **Phase 3: Enhancement (Search & Prediction)**
-5. Search — requires Domain entities to embed
-6. Prediction — requires Domain entities to featurise
+7. Search — requires Domain entities to embed
+8. Prediction — requires Domain entities to featurise
 
 ### Module Dependencies
 ```
@@ -712,16 +719,54 @@ Semantic ───────────────→ (hosts discovery metad
     │
     Both must exist first
     │
+Access Layer (1.5) ─────→ ROLE_READ, ROLE_AGENT, ROLE_ADMIN created
+                          SELECT granted on Semantic + Memory
+    │
 Domain ────────┬────────→ Search
                ├────────→ Prediction
                └────────→ (entity foundation for all modules)
 
 Observability ──────────→ Memory (closed-loop learning feedback)
+
+Access Layer (2.5) ─────→ SELECT extended to Domain + Observability
+                          (and Search, Prediction as deployed)
 ```
 
 ---
 
+## Access Layer
+
+Every AI-Native Data Product must deploy an Access Layer alongside its module DDL. The Access Layer creates standard database roles and grants them SELECT access to each module's databases, making the data product discoverable and queryable by agents and consumers as each module is deployed.
+
+### Why it is mandatory
+
+Without an Access Layer, a correctly deployed data product is operationally invisible: every consumer — agents, dashboards, reporting tools, and analysts — will be denied access regardless of how completely the module databases have been deployed.
+
+### Three standard roles
+
+Three roles are created per product, named `{ProductName}_ROLE_{TIER}`:
+
+| Role | Consumers | Purpose |
+|------|-----------|---------|
+| `{ProductName}_ROLE_READ` | Analysts, BI tools, ad-hoc SQL users | SELECT on module databases |
+| `{ProductName}_ROLE_AGENT` | AI agents, MCP servers, automated tools | SELECT on module databases; kept separate to allow independent lifecycle management |
+| `{ProductName}_ROLE_ADMIN` | Data product owner, data steward | SELECT on all databases |
+
+The roles themselves are data product artefacts — created once and owned by the data product team. Assigning specific users or service accounts to those roles is an operational event, not a design standard concern.
+
+### Relationship to Physical Naming Approaches
+
+In the recommended Approach 1 (separate databases per module), each module database receives its own grant — for example: `GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_READ`. In Approach 2 (single database), a single grant covers all modules: `GRANT SELECT ON {ProductName} TO {ProductName}_ROLE_READ`.
+
+In deployments that separate base tables and views into distinct databases, consumers should be granted access to the view-layer database only — not the base table database.
+
+**Full specification**: see `Access_Layer_Design_Standard.md`.
+
+---
+
 ## Glossary
+
+**Access Layer**: The mandatory access control artefact of an AI-Native Data Product. Creates standard database roles (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) and grants them SELECT access to module databases, making the data product discoverable and queryable by all consumers. Deployed in two phases interleaved with the module deployment sequence. See _Access Layer Design Standard_.
 
 **Agent**: An autonomous software entity that can perceive, reason, and act - consuming data products to achieve goals.
 
@@ -767,6 +812,7 @@ Observability ──────────→ Memory (closed-loop learning fee
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.0 | 2026-05-07 | Paul Dancer, Worldwide Data Architecture Team, Teradata | Added mandatory Access Layer. New section defining three standard roles (ROLE_READ, ROLE_AGENT, ROLE_ADMIN), two-phase grant timing (Phase 1.5 after Memory+Semantic, Phase 2.5 after Domain+Observability), and guidance for both naming approaches. Updated Documentation Hierarchy tree, Recommended Implementation Order, Module Dependencies diagram, Approach 1 benefits, and Glossary. Full specification in Access_Layer_Design_Standard.md. |
 | 1.9 | 2026-04-15 | Nathan Green, Worldwide Data Architecture Team, Teradata | Established platform neutrality throughout. Updated Executive Summary and Zero Data Duplication principle to remove Teradata-specific language. Added Platform-Neutral Design as Guiding Principle 7. Added Platform Profiles section defining the concept, structure, and current implementations. Refactored Design Constraints section: removed Teradata-Specific Optimizations subsection, added Platform Implementation Notes framing directing implementors to Platform Profiles. Updated Performance Considerations to be platform-neutral. |
 | 1.8 | 2026-03-20 | Nathan Green, Worldwide Data Architecture Team, Teradata | Corrected module deployment order. Memory and Semantic are now Phase 1 (both must exist before any other module deploys — Memory hosts documentation tables, Semantic hosts discovery metadata). Domain and Observability are Phase 2. Search and Prediction are Phase 3. Updated Implementation Order section and Module Dependencies diagram. |
 | 1.7 | 2026-03-20 | Nathan Green, Worldwide Data Architecture Team, Teradata | Fixed = 'Y' filter values in agent discovery example queries to = 1 to align with platform boolean standard. |

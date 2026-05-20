@@ -525,7 +525,20 @@ INSERT INTO Search.party_embedding (
 
 ```sql
 -- View combines embeddings with actual content (efficient join)
-CREATE VIEW Search.v_party_searchable AS
+CREATE VIEW Search.v_party_searchable
+(
+    -- View contract: agents see all returned columns without parsing the SELECT body
+    party_id,
+    party_key,
+    legal_name,
+    description,
+    notes,
+    embedding_vector,
+    embedding_model,
+    embedding_dimensions,
+    generated_dts
+)
+AS
 SELECT 
     -- Entity identification
     p.party_id,

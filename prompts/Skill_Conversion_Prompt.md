@@ -1,12 +1,12 @@
 # AI-Native Data Product — Unified Skill Conversion Prompt
-## Converting Design Standard Documents into a Single Claude Skill
+## Converting Design Standard Documents into a Single Agent Skill
 
 ---
 
 ## Purpose
 
 This prompt converts the full set of AI-Native Data Product design standard
-documents into a single unified Claude skill with progressive disclosure.
+documents into a single unified agent skill with progressive disclosure.
 
 The **design standard documents are the master source of truth**.
 The skill is a compressed, agent-optimised rendering of those documents —
@@ -53,7 +53,7 @@ assume SKILL.md has been read and do not repeat its content.
 ## How to Use This Prompt
 
 **To generate the full unified skill from scratch:**
-1. Start a new Claude conversation
+1. Start a new AI agent/chat conversation
 2. Attach all design standard documents:
    - `AI_Native_Data_Product_Master_Design.md`
    - `Domain_Module_Design_Standard.md`
@@ -80,7 +80,7 @@ assume SKILL.md has been read and do not repeat its content.
 ## Conversion Prompt
 
 You are converting the AI-Native Data Product design standard documents
-into a single unified Claude skill. The skill creator tool is available
+into a single unified agent skill. The skill creator tool is available
 in your skills library — use it to package the final output.
 
 The design standard documents are the **master source of truth**.
@@ -343,7 +343,7 @@ at the top of the DDL section with a note: "apply to all temporal tables."
 Use the skill creator packaging tool:
 
 ```bash
-python -m scripts.package_skill /home/claude/ai-native-data-product /home/claude
+python -m scripts.package_skill /home/agent/ai-native-data-product /home/agent
 ```
 
 The validator must return `✅ Skill is valid!` before proceeding.
