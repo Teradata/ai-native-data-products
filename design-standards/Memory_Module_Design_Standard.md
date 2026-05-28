@@ -1,5 +1,5 @@
 # Memory Module Design Standard
-## AI-Native Data Product Architecture - Version 1.7
+## AI-Native Data Product Architecture - Version 1.8
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.7 |
+| **Version** | 1.8 |
 | **Status** | STANDARD |
-| **Last Updated** | 2026-03-20 |
+| **Last Updated** | 2026-05-28 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Memory Module (Agent State, Learning & Documentation Sub-Module) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -1012,6 +1012,10 @@ For any module with `deployment_status` of `PLANNED` or `DEPRECATED`, a correspo
 
 **Minimum: one `Module_Registry` row per module considered, with `deployment_status` set correctly.**
 
+#### Documentation column naming
+
+Use `module_name` only in `Module_Registry`, where it identifies the registered module row. Documentation tables that record which module produced an entry must use `source_module`; this includes `Design_Decision`, `Change_Log`, `Business_Glossary`, `Query_Cookbook`, and `Implementation_Note`. Generated seed DML must not use `module_name` for those source-module fields.
+
 #### Design_Decision — scope decisions
 
 At a minimum, the following design decisions must be documented at first deployment:
@@ -1086,6 +1090,7 @@ This is not a compliance step — it is how the data product communicates design
 - [ ] Min. 3 `Design_Decision` INSERTs generated per deployed module
 - [ ] All deviations from design standards captured in `Design_Decision`
 - [ ] `Change_Log` initial release entry generated
+- [ ] Documentation seed DML validated against the target table DDL (no `INSERT` or `UPDATE` references to undefined columns)
 - [ ] Min. 3 `Business_Glossary` terms captured
 - [ ] Min. 1 `Query_Cookbook` recipe per deployed module
 - [ ] ERD generation recipe (`QC-SEMANTIC-002`) captured
@@ -1103,6 +1108,7 @@ This is not a compliance step — it is how the data product communicates design
 - ✅ Learn from Observability outcomes
 - ✅ Use JSON for flexible context storage
 - ✅ Implement retention policies
+- ✅ Validate generated documentation seed DML against the canonical table DDL
 - ✅ Have a `Module_Registry` row for every module considered during design
 - ✅ Capture design decisions (min. 3 per deployed module) in `Design_Decision`
 - ✅ Document all deviations from standards in `Design_Decision`
@@ -1164,12 +1170,12 @@ When any module is designed for this data product, it generates INSERT statement
 **Module registration protocol:**
 ```sql
 INSERT INTO Memory.Module_Registry
-(module_name, database_name, module_version, module_purpose,
- key_entities, dependencies, dependents, data_owner, technical_owner,
+(module_name, database_name, deployment_status, module_version, module_purpose,
+ module_scope, key_entities, dependencies, dependents, data_owner, technical_owner,
  version_date, is_current, valid_from, valid_to)
 VALUES
-('{MODULE_NAME}', '{ProductName}_{Module}', '1.0.0',
- '{purpose}', '{entity_list}',
+('{MODULE_NAME}', '{ProductName}_{Module}', 'DEPLOYED', '1.0.0',
+ '{purpose}', '{scope}', '{entity_list}',
  '{upstream_modules}', '{downstream_modules}',
  '{owner}', '{tech_contact}',
  CURRENT_DATE, 1, CURRENT_DATE, DATE '9999-12-31');
@@ -1298,6 +1304,15 @@ COMMENT ON COLUMN Memory.Module_Registry.valid_from IS
 COMMENT ON COLUMN Memory.Module_Registry.valid_to IS
 'Temporal validity end — 9999-12-31 for current version';
 ```
+
+**Compatibility note for generated products based on earlier revisions:** if an existing `Module_Registry` table was generated before `deployment_status` was added, add the column before deploying seed DML that writes lifecycle status.
+
+```sql
+ALTER TABLE Memory.Module_Registry
+ADD deployment_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED';
+```
+
+Do not add a duplicate `module_name` column to `Design_Decision` or other documentation tables. Correct older generated DML to write the existing `source_module` column instead.
 
 #### Design_Decision
 
@@ -1775,6 +1790,7 @@ Discovered Patterns:    Indefinite if validated
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 1.8 | 2026-05-28 | Clarified documentation column naming: `module_name` is reserved for `Module_Registry`; documentation event tables use `source_module`. Updated the `Module_Registry` seed template to populate `deployment_status` explicitly, added DML-against-DDL validation guidance, and documented the compatibility fix for older generated products. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 1.7 | 2026-04-15 | Added `deployment_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED'` to `Module_Registry` DDL, enabling DEPLOYED/PLANNED/DEPRECATED lifecycle tracking for all modules considered during design. Expanded Section 7 with Minimum Seed Data Requirements (7.2), Deviation Documentation Convention (7.3), updated Design Checklist (7.4), and Quality Criteria (7.5). Key additions: Module_Registry row required for every module considered; Design_Decision entries required for deferred/excluded modules and all standards deviations; ERD generation recipe (QC-SEMANTIC-002) mandatory; cross-module cookbook recipes required per deployed module pair. Added standard ERD recipe INSERT template to Section 8.4. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 1.6 | 2026-03-20 | Fixed = 'Y' filter value in Search integration example (Section 6.3) to = 1. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 1.5 | 2026-03-20 | Revised Documentation Sub-Module (Section 8) to align with data product self-containment principle. Removed shared dp_documentation cross-product database pattern. Documentation tables now reside in the same {ProductName}_Memory database as runtime memory tables, framed as "design memory" alongside "runtime memory". Removed data_product column from all 6 table DDL definitions. Removed cross-product (data_product = 'ALL') pattern. Simplified temporal queries. Collapsed 3 workflows to 2 (Bootstrap removed — documentation tables created as part of Memory DDL). Updated Section 6.5 example INSERT to use Memory.Design_Decision. | Nathan Green, Worldwide Data Architecture Team, Teradata |
