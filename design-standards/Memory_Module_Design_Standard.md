@@ -1030,6 +1030,10 @@ For any module with `deployment_status` of `PLANNED` or `DEPRECATED`, a correspo
 
 **Minimum: one `Module_Registry` row per module considered, with `deployment_status` set correctly.**
 
+#### Documentation column naming
+
+Use `module_name` only in `Module_Registry`, where it identifies the registered module row. Documentation tables that record which module produced an entry must use `source_module`; this includes `Design_Decision`, `Change_Log`, `Business_Glossary`, `Query_Cookbook`, and `Implementation_Note`. Generated seed DML must not use `module_name` for those source-module fields.
+
 #### Design_Decision — scope decisions
 
 At a minimum, the following design decisions must be documented at first deployment:
@@ -1104,6 +1108,7 @@ This is not a compliance step — it is how the data product communicates design
 - [ ] Min. 3 `Design_Decision` INSERTs generated per deployed module
 - [ ] All deviations from design standards captured in `Design_Decision`
 - [ ] `Change_Log` initial release entry generated
+- [ ] Documentation seed DML validated against the target table DDL (no `INSERT` or `UPDATE` references to undefined columns)
 - [ ] Min. 3 `Business_Glossary` terms captured
 - [ ] Min. 1 `Query_Cookbook` recipe per deployed module
 - [ ] ERD generation recipe (`QC-SEMANTIC-002`) captured
@@ -1121,6 +1126,7 @@ This is not a compliance step — it is how the data product communicates design
 - ✅ Learn from Observability outcomes
 - ✅ Use JSON for flexible context storage
 - ✅ Implement retention policies
+- ✅ Validate generated documentation seed DML against the canonical table DDL
 - ✅ Have a `Module_Registry` row for every module considered during design
 - ✅ Capture design decisions (min. 3 per deployed module) in `Design_Decision`
 - ✅ Document all deviations from standards in `Design_Decision`
@@ -1182,12 +1188,12 @@ When any module is designed for this data product, it generates INSERT statement
 **Module registration protocol:**
 ```sql
 INSERT INTO Memory.Module_Registry
-(module_name, database_name, module_version, module_purpose,
- key_entities, dependencies, dependents, data_owner, technical_owner,
+(module_name, database_name, deployment_status, module_version, module_purpose,
+ module_scope, key_entities, dependencies, dependents, data_owner, technical_owner,
  version_date, is_current, valid_from, valid_to)
 VALUES
-('{MODULE_NAME}', '{ProductName}_{Module}', '1.0.0',
- '{purpose}', '{entity_list}',
+('{MODULE_NAME}', '{ProductName}_{Module}', 'DEPLOYED', '1.0.0',
+ '{purpose}', '{scope}', '{entity_list}',
  '{upstream_modules}', '{downstream_modules}',
  '{owner}', '{tech_contact}',
  CURRENT_DATE, 1, CURRENT_DATE, DATE '9999-12-31');
@@ -1316,6 +1322,15 @@ COMMENT ON COLUMN Memory.Module_Registry.valid_from IS
 COMMENT ON COLUMN Memory.Module_Registry.valid_to IS
 'Temporal validity end — 9999-12-31 for current version';
 ```
+
+**Compatibility note for generated products based on earlier revisions:** if an existing `Module_Registry` table was generated before `deployment_status` was added, add the column before deploying seed DML that writes lifecycle status.
+
+```sql
+ALTER TABLE Memory.Module_Registry
+ADD deployment_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED';
+```
+
+Do not add a duplicate `module_name` column to `Design_Decision` or other documentation tables. Correct older generated DML to write the existing `source_module` column instead.
 
 #### Design_Decision
 
