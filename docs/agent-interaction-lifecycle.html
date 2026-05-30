@@ -469,8 +469,10 @@
             <span class="badge badge-semantic">Semantic</span>
             <span class="badge op-read">READ</span>
           </div>
-          <div class="step-db">{Product}_Semantic</div>
+          <div class="step-db">MCP orientation manifest &nbsp;·&nbsp; governance &nbsp;·&nbsp; {Product}_Semantic</div>
           <ul class="step-bullets">
+            <li>Read the MCP product manifest first; the client should discover the product before any tables.</li>
+            <li>Use <code>governance.data_product_registry</code> as the backing catalogue for product contract, metadata surfaces, and approved entrypoint.</li>
             <li>Query <code>{Product}_Semantic.data_product_map</code> to find deployed modules and databases.</li>
             <li>Query <code>{Product}_Semantic.entity_metadata</code> to list all tables and their business purpose.</li>
             <li>Query <code>{Product}_Semantic.table_relationship</code> to learn join patterns and multi-hop paths.</li>

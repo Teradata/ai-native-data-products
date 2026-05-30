@@ -147,7 +147,12 @@ group questions so I am never answering more than 3–4 at a time.
 #### Deliverable 4 — Semantic Module Schema & Seed Data
 
 - DDL for all Semantic tables
+- Data Product Orientation Manifest content:
+  - product id, name, and version
+  - MCP resource entrypoints for manifest, contract, semantic model, lineage, quality, policy, physical map, and approved data access
+  - recommended navigation order: contract → semantic model → policy → quality → lineage → data access
 - Seed `INSERT` statements for this data product:
+  - `data_product_registry` — one current product-level registry row backing the orientation manifest and approved entrypoint
   - `data_product_map` — one row per **deployed** module only (agents use this for discovery; undeployed modules are recorded in Memory — see D5)
   - `entity_metadata` — one row per table across all modules
   - `naming_standard` — full set for this product's conventions
@@ -216,7 +221,7 @@ For each module:
 
 **When designing the Memory module, the following are mandatory in addition to the standard DDL:**
 - `Module_Registry` — one row for **every module considered** during this design (not just deployed ones), with `deployment_status` set to DEPLOYED, PLANNED, or DEPRECATED
-- `Design_Decision` entries for every module that is deferred or excluded (rationale from D1), and for the three mandatory scope decisions: database layout choice (DD-SCOPE-001), module scope rationale (DD-SCOPE-002), and access layer role model (DD-ACCESS-001 — generated in D4.5)
+- `Design_Decision` entries for every module that is deferred or excluded (rationale from D1), and for the mandatory product decisions: database layout choice (DD-SCOPE-001), module scope rationale (DD-SCOPE-002), Data Product Orientation Layer rationale (DD-DISCOVERY-001), and access layer role model (DD-ACCESS-001 — generated in D4.5)
 - `Query_Cookbook` entry `QC-SEMANTIC-002` — the standard ERD generation recipe (template in Memory Module Design Standard Section 8.4)
 - At least one cross-module `Query_Cookbook` entry per deployed module pair
 

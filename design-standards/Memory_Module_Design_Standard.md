@@ -1,5 +1,5 @@
 # Memory Module Design Standard
-## AI-Native Data Product Architecture - Version 1.8
+## AI-Native Data Product Architecture - Version 1.9
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Status** | STANDARD |
-| **Last Updated** | 2026-05-29 |
+| **Last Updated** | 2026-05-30 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Memory Module (Agent State, Learning & Documentation Sub-Module) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -1042,15 +1042,44 @@ At a minimum, the following design decisions must be documented at first deploym
 |---|---|
 | `DD-SCOPE-001` | Database layout choice (separate databases per module vs. single database) |
 | `DD-SCOPE-002` | Which modules are in scope and which are deferred or excluded, with rationale |
+| `DD-DISCOVERY-001` | Data Product Orientation Layer: why agents read the product manifest before metadata maps or data |
 | `DD-{MODULE}-001` | Each module's primary index strategy and temporal pattern choice |
 
 Any deviation from the AI-Native Data Product design standards must also be captured as a `Design_Decision` with `decision_category = 'ARCHITECTURE'`. See Section 7.3 for the deviation convention.
+
+Every data product that exposes a Data Product Orientation Layer must capture the rationale in Memory. The purpose of this row is to make the manifest-first discovery contract self-describing to future agents, not just visible in repository history.
+
+```sql
+INSERT INTO Memory.Design_Decision (
+    decision_id, decision_version, decision_title,
+    decision_description, context, alternatives_considered,
+    rationale, consequences,
+    decision_status, decision_category,
+    source_module, module_version, affects_table,
+    decided_by, decided_date,
+    valid_from, valid_to, is_current,
+    created_timestamp, updated_timestamp
+) VALUES (
+    'DD-DISCOVERY-001', 1,
+    'Expose a Data Product Orientation Layer before metadata and data access',
+    'Agents and MCP clients list products, read the selected product manifest, inspect contract, semantic model, policy, quality, lineage, and physical map, and only then query data through the approved access path.',
+    'data_product_map is a module inventory inside the Semantic module. It does not tell a client which product version is current, which metadata surface to query first, which policies apply, or which data entrypoint is approved.',
+    'Continue deriving Semantic database names by convention; query data_product_map first; expose physical schemas first; or publish the discovery contract only in external documentation.',
+    'A manifest-first orientation layer gives clients a safe product-level handshake: discover products, read the manifest, follow recommended navigation, and keep data access behind approved entrypoints backed by policy and quality context.',
+    'Agents have a deterministic bootstrap path and do not need to guess where to start. Product owners must maintain the manifest and registry rows, including inactive or deleted products using BYTEINT lifecycle flags.',
+    'ACCEPTED', 'ARCHITECTURE',
+    'SEMANTIC', '2.7.0', 'governance.data_product_registry',
+    'Worldwide Data Architecture Team', CURRENT_DATE,
+    CURRENT_DATE, DATE '9999-12-31', 1,
+    CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)
+);
+```
 
 #### Query_Cookbook — minimum entries
 
 | Recipe ID pattern | Required content |
 |---|---|
-| `QC-SEMANTIC-001` | Agent bootstrap: query `data_product_map` then `entity_metadata` |
+| `QC-SEMANTIC-001` | Agent bootstrap: read product manifest, then query `data_product_registry`, `data_product_map`, and `entity_metadata` as needed |
 | `QC-SEMANTIC-002` | ERD generation: query `table_relationship` to produce entity-relationship output |
 | `QC-{MODULE}-001` | At least one representative query per deployed module |
 | `QC-XMODULE-{NNN}` | At least one cross-module join example per deployed module pair |
@@ -1105,6 +1134,7 @@ This is not a compliance step — it is how the data product communicates design
 - [ ] Privacy policies documented
 - [ ] `Module_Registry` INSERT generated for **every module considered** (DEPLOYED, PLANNED, or DEPRECATED)
 - [ ] `Design_Decision` entries generated for all deferred/excluded modules
+- [ ] `DD-DISCOVERY-001` generated when the Data Product Orientation Layer is deployed
 - [ ] Min. 3 `Design_Decision` INSERTs generated per deployed module
 - [ ] All deviations from design standards captured in `Design_Decision`
 - [ ] `Change_Log` initial release entry generated
@@ -1824,6 +1854,7 @@ Discovered Patterns:    Indefinite if validated
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 1.9 | 2026-05-30 | Added `DD-DISCOVERY-001` as the required native Memory decision record for the Data Product Orientation Layer. Updated the Semantic bootstrap recipe requirement so agents read the product manifest before metadata maps or data access, preserving the rationale inside the data product itself. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 1.8 | 2026-05-29 | Clarified `Query_Cookbook` lifecycle requirements. Documented `is_active`, `valid_from`, `valid_to`, `created_timestamp`, and `updated_timestamp` as the standard columns for active-row filtering, temporal validity, auditability, and append-oriented recipe correction. Updated the standard ERD recipe seed template to populate timestamp columns explicitly. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 1.7 | 2026-04-15 | Added `deployment_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED'` to `Module_Registry` DDL, enabling DEPLOYED/PLANNED/DEPRECATED lifecycle tracking for all modules considered during design. Expanded Section 7 with Minimum Seed Data Requirements (7.2), Deviation Documentation Convention (7.3), updated Design Checklist (7.4), and Quality Criteria (7.5). Key additions: Module_Registry row required for every module considered; Design_Decision entries required for deferred/excluded modules and all standards deviations; ERD generation recipe (QC-SEMANTIC-002) mandatory; cross-module cookbook recipes required per deployed module pair. Added standard ERD recipe INSERT template to Section 8.4. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 1.6 | 2026-03-20 | Fixed = 'Y' filter value in Search integration example (Section 6.3) to = 1. | Nathan Green, Worldwide Data Architecture Team, Teradata |

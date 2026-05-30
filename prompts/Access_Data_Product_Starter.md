@@ -13,7 +13,54 @@ This prompt fragment enables AI agents to discover and navigate AI-Native Data P
 
 You have access to an AI-Native Data Product on Teradata designed for autonomous agent consumption. Follow this discovery protocol to understand the data product structure and generate correct SQL queries.
 
-### Discovery Tier 1: Identify Semantic Module Location
+### Discovery Tier 1: Read the Data Product Orientation Manifest
+
+**Best starting point**: If your environment exposes MCP resources, list products and read the product manifest before deriving database names or querying metadata tables. The manifest tells you where the contract, Semantic model, policy, quality, lineage, physical map, and approved data access surfaces are.
+
+```text
+/resources
+  /products
+  /products/{product_id}/manifest
+  /products/{product_id}/contract
+  /products/{product_id}/semantic
+  /products/{product_id}/lineage
+  /products/{product_id}/quality
+  /products/{product_id}/policy
+  /products/{product_id}/physical-map
+```
+
+Read the manifest first. Follow its `recommended_navigation` order:
+
+1. contract
+2. semantic_model
+3. policy
+4. quality
+5. lineage
+6. data_access
+
+Do not expose or query tables first. Discover the product first, then the contract and meaning, then the approved data path.
+
+**Registry fallback**: If MCP resources are not available, query the product registry before deriving database names. The registry backs the orientation manifest.
+
+```sql
+-- Discover current data product contract and approved entrypoint
+SELECT product_id,
+       product_name,
+       product_version,
+       semantic_database,
+       memory_database,
+       observability_database,
+       approved_entrypoint,
+       approved_access_mode
+FROM governance.data_product_registry
+WHERE is_active = 1
+  AND is_deleted = 0
+  AND product_name = '{DataProductName}';
+```
+
+**Expected result**: Product metadata and the Semantic database name to use in the next tier.
+
+### Discovery Tier 2: Identify Semantic Module Location
 
 **Given**: Data product name (e.g., "Customer360", "FraudDetection")
 
@@ -29,7 +76,7 @@ WHERE DatabaseName LIKE '{DataProductName}_Semantic';
 
 **Expected result**: Database name for Semantic module (e.g., "Customer360_Semantic")
 
-### Discovery Tier 2: Query Module Map
+### Discovery Tier 3: Query Module Map
 
 **Once you know Semantic database location, query the module map**:
 
@@ -55,7 +102,7 @@ ORDER BY module_name;
 - Key tables in each module (entry points)
 - Naming pattern used (separate databases vs single database with prefixes)
 
-### Discovery Tier 3: Explore Schema Metadata
+### Discovery Tier 4: Explore Schema Metadata
 
 **Now you can query Semantic module tables for detailed schema knowledge**:
 
@@ -145,33 +192,45 @@ type belongs in. Never assume co-location or invent database names.
 When starting work on a new data product:
 
 ```sql
--- Step 1: Find Semantic database
--- (Use naming convention: {Product}_Semantic)
+-- Step 1: Discover product contract and approved entrypoint if registry exists
+SELECT product_id, semantic_database, approved_entrypoint, approved_access_mode
+FROM governance.data_product_registry
+WHERE is_active = 1
+  AND is_deleted = 0
+  AND product_name = '{Product}';
 
 -- Step 2: Confirm your agent role exists and is accessible
 SELECT RoleName
 FROM DBC.RoleInfoV
 WHERE RoleName = '{Product}_ROLE_AGENT';
 
--- Step 3: Discover modules
+-- Step 3: If no registry row is available, find Semantic database by convention
+-- (Use naming convention: {Product}_Semantic)
+
+-- Step 4: Discover modules
 SELECT module_name, database_name, primary_tables
 FROM {Product}_Semantic.data_product_map
 WHERE is_active = 1;
 
--- Step 4: Discover entities
+-- Step 5: Discover entities
 SELECT entity_name, table_name, module_name
 FROM {Product}_Semantic.entity_metadata
 WHERE is_active = 1;
 
--- Step 5: Learn relationships
+-- Step 6: Learn relationships
 SELECT relationship_name, source_table, target_table
 FROM {Product}_Semantic.table_relationship
 WHERE is_active = 1;
 
--- Step 6: Ready to generate queries!
+-- Step 7: Ready to generate queries through approved_entrypoint!
 ```
 
 ### Error Handling
+
+**If data_product_registry doesn't exist or has no row for the product**:
+- Fall back to Semantic database discovery by convention
+- Continue with `data_product_map`
+- Prefer the registry when it is later deployed
 
 **If data_product_map doesn't exist**:
 - Data product may not follow AI-Native standards
@@ -188,24 +247,32 @@ WHERE is_active = 1;
 ```sql
 -- Given: Work with "Customer360" data product
 
--- 1. Discover Semantic location
+-- 1. Discover product registry row if available
+SELECT product_id, semantic_database, approved_entrypoint
+FROM governance.data_product_registry
+WHERE is_active = 1
+  AND is_deleted = 0
+  AND product_name = 'Customer360';
+-- Result: semantic_database = Customer360_Semantic
+
+-- 2. Discover Semantic location if registry is not available
 SELECT DatabaseName FROM DBC.DatabasesV 
 WHERE DatabaseName = 'Customer360_Semantic';
 -- Result: Customer360_Semantic exists
 
--- 2. Discover modules
+-- 3. Discover modules
 SELECT module_name, database_name FROM Customer360_Semantic.data_product_map
 WHERE is_active = 1;
 -- Result: Domain → Customer360_Domain
 --         Prediction → Customer360_Prediction
 
--- 3. Discover Domain entities
+-- 4. Discover Domain entities
 SELECT entity_name, table_name FROM Customer360_Semantic.entity_metadata
 WHERE is_active = 1
   AND module_name = 'Domain';
 -- Result: Party → Party_H, Product → Product_H
 
--- 4. Now ready to query
+-- 5. Now ready to query via approved entrypoint
 SELECT p.party_key, p.legal_name
 FROM Customer360_Domain.Party_H p
 WHERE p.is_current = 1;
@@ -216,12 +283,14 @@ WHERE p.is_current = 1;
 **Always start with**:
 1. Know data product name
 2. Confirm `{Product}_ROLE_AGENT` exists and is granted to your service account
-3. Find Semantic module (`{Product}_Semantic`)
-4. Query `data_product_map` for module locations
-5. Query `entity_metadata` for table details
-6. Query `table_relationship` for join patterns
-7. Generate SQL using discovered metadata
-8. If generating DDL: locate the Object Placement Standard before any CREATE statement
+3. Read the MCP product manifest when available
+4. Follow manifest navigation: contract → semantic model → policy → quality → lineage → data access
+5. Query `governance.data_product_registry` if MCP resources are not available
+6. Find Semantic module (`{Product}_Semantic`) if no registry row is available
+7. Query `data_product_map` for module locations
+8. Query `entity_metadata` and `table_relationship` for table details and join patterns
+9. Generate SQL using discovered metadata and the approved entrypoint
+10. If generating DDL: locate the Object Placement Standard before any CREATE statement
 
 This protocol enables fully autonomous navigation of any AI-Native Data Product on Teradata.
 ```

@@ -1,5 +1,5 @@
 # Semantic Module Design Standard
-## AI-Native Data Product Architecture - Version 2.6 (Tested & Validated)
+## AI-Native Data Product Architecture - Version 2.7 (Tested & Validated)
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.6 |
+| **Version** | 2.7 |
 | **Status** | STANDARD - Tested on Teradata |
-| **Last Updated** | 2026-03-20 |
+| **Last Updated** | 2026-05-30 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Semantic Module (Knowledge & Meaning) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -246,7 +246,221 @@ COMMENT ON COLUMN Semantic.naming_standard.created_at IS
 'Timestamp when naming standard was documented';
 ```
 
-### 3.4 data_product_map (Module Discovery)
+### 3.4 data_product_registry (Product Discovery)
+
+**Purpose**: Enable agents and MCP clients to discover the data product, its current metadata contract, and its approved data access entrypoint before navigating module metadata or querying data.
+
+`data_product_registry` is the product-level storage anchor for the **Data Product Orientation Layer**. It complements `data_product_map`: agents and MCP clients discover the product and read its manifest first, then use the manifest to locate the product's contract, Semantic model, Memory guidance, Observability evidence, policy, quality, lineage, physical map, and approved data access surfaces. They then query `data_product_map` inside the Semantic module for deployed module locations.
+
+The key principle is **product first, not tables first**. Clients must not start by guessing physical databases or listing tables.
+
+```sql
+CREATE MULTISET TABLE governance.data_product_registry
+(
+    product_id             VARCHAR(128) NOT NULL
+   ,product_name           VARCHAR(256) NOT NULL
+   ,product_version        VARCHAR(32) NOT NULL
+   ,product_description    VARCHAR(1000)
+   ,product_status         VARCHAR(32) NOT NULL
+   ,owner_team             VARCHAR(256)
+   ,semantic_database      VARCHAR(128)
+   ,memory_database        VARCHAR(128)
+   ,observability_database VARCHAR(128)
+   ,manifest_json          CLOB
+   ,contract_uri           VARCHAR(1000)
+   ,semantic_uri           VARCHAR(1000)
+   ,quality_uri            VARCHAR(1000)
+   ,lineage_uri            VARCHAR(1000)
+   ,policy_uri             VARCHAR(1000)
+   ,glossary_uri           VARCHAR(1000)
+   ,query_cookbook_uri     VARCHAR(1000)
+   ,approved_entrypoint    VARCHAR(1000)
+   ,approved_access_mode   VARCHAR(32)
+   ,is_active              BYTEINT NOT NULL
+   ,is_deleted             BYTEINT NOT NULL
+   ,created_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+   ,updated_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (product_id);
+
+COMMENT ON TABLE governance.data_product_registry IS
+'Product-level registry - agents and MCP clients discover current data products, metadata contracts, and approved access entrypoints';
+
+COMMENT ON COLUMN governance.data_product_registry.product_id IS
+'Stable product identifier used by agents, MCP resources, manifests, lineage, policies, and contracts';
+
+COMMENT ON COLUMN governance.data_product_registry.product_name IS
+'Human-readable data product name';
+
+COMMENT ON COLUMN governance.data_product_registry.product_version IS
+'Current data product contract or release version';
+
+COMMENT ON COLUMN governance.data_product_registry.product_description IS
+'Business description of the product purpose, scope, and intended consumers';
+
+COMMENT ON COLUMN governance.data_product_registry.product_status IS
+'Lifecycle status - DRAFT, ACTIVE, DEPRECATED, or RETIRED';
+
+COMMENT ON COLUMN governance.data_product_registry.owner_team IS
+'Owning team or steward responsible for product contract, policy, and support';
+
+COMMENT ON COLUMN governance.data_product_registry.semantic_database IS
+'Semantic module database to query after registry discovery';
+
+COMMENT ON COLUMN governance.data_product_registry.memory_database IS
+'Memory module database containing Business_Glossary, Query_Cookbook, and design memory';
+
+COMMENT ON COLUMN governance.data_product_registry.observability_database IS
+'Observability module database containing lineage, quality, and usage telemetry where deployed';
+
+COMMENT ON COLUMN governance.data_product_registry.manifest_json IS
+'Machine-readable product orientation manifest for agents and MCP clients';
+
+COMMENT ON COLUMN governance.data_product_registry.contract_uri IS
+'URI for the product contract or external contract document';
+
+COMMENT ON COLUMN governance.data_product_registry.semantic_uri IS
+'URI for Semantic metadata, an MCP resource, or related documentation';
+
+COMMENT ON COLUMN governance.data_product_registry.quality_uri IS
+'URI for data quality rules, reports, or MCP resource';
+
+COMMENT ON COLUMN governance.data_product_registry.lineage_uri IS
+'URI for lineage metadata, graph, or MCP resource';
+
+COMMENT ON COLUMN governance.data_product_registry.policy_uri IS
+'URI for policy, usage, classification, or access-control guidance';
+
+COMMENT ON COLUMN governance.data_product_registry.glossary_uri IS
+'URI for business glossary metadata, typically backed by Memory.Business_Glossary';
+
+COMMENT ON COLUMN governance.data_product_registry.query_cookbook_uri IS
+'URI for validated query recipes, typically backed by Memory.Query_Cookbook';
+
+COMMENT ON COLUMN governance.data_product_registry.approved_entrypoint IS
+'Approved first data access surface, such as an access view, semantic view, or MCP tool resource';
+
+COMMENT ON COLUMN governance.data_product_registry.approved_access_mode IS
+'Approved access mode - VIEW, MCP_TOOL, SEMANTIC_QUERY, or site-defined equivalent';
+
+COMMENT ON COLUMN governance.data_product_registry.is_active IS
+'Registry row active indicator - 1 = current and discoverable, 0 = inactive';
+
+COMMENT ON COLUMN governance.data_product_registry.is_deleted IS
+'Soft delete indicator - 1 = logically deleted and hidden from discovery, 0 = discoverable when active';
+
+COMMENT ON COLUMN governance.data_product_registry.created_at IS
+'Timestamp when registry record was created';
+
+COMMENT ON COLUMN governance.data_product_registry.updated_at IS
+'Timestamp when registry record was last updated';
+```
+
+#### Data Product Orientation Layer
+
+MCP servers should expose the orientation layer as resources first and tools second.
+
+**Resources provide context**: product lists, manifests, contracts, schemas, policies, quality evidence, lineage, and physical maps.
+
+**Tools perform actions**: searching products, describing a product, choosing an entrypoint, querying approved data, or explaining an access path.
+
+```text
+/resources
+  /products
+  /products/{product_id}/manifest
+  /products/{product_id}/contract
+  /products/{product_id}/semantic
+  /products/{product_id}/lineage
+  /products/{product_id}/quality
+  /products/{product_id}/policy
+  /products/{product_id}/physical-map
+
+/tools
+  search_data_products
+  describe_data_product
+  get_recommended_entrypoint
+  query_product_data
+  explain_access_path
+```
+
+**Metadata-first handshake**:
+
+1. Client asks what products are available.
+2. Server returns products and manifest resources.
+3. Client reads the selected product manifest.
+4. Server recommends navigation: contract, semantic model, policy, quality, lineage, physical map, approved data access.
+5. Client queries data only through the approved access path.
+
+#### Discovery Manifest
+
+The manifest is the first resource an MCP client should read after selecting a product. It can be stored in `manifest_json` and exposed as `/products/{product_id}/manifest`.
+
+```yaml
+data_product_id: call_centre.customer_experience
+name: Customer Experience Data Product
+version: 1.0.0
+
+entrypoints:
+  orientation: mcp://products/call_centre/customer_experience/manifest
+  contract: mcp://products/call_centre/customer_experience/contract
+  semantic_model: mcp://products/call_centre/customer_experience/semantic
+  lineage: mcp://products/call_centre/customer_experience/lineage
+  quality: mcp://products/call_centre/customer_experience/quality
+  policy: mcp://products/call_centre/customer_experience/access-policy
+  data_access: mcp://products/call_centre/customer_experience/data
+
+recommended_navigation:
+  - contract
+  - semantic_model
+  - policy
+  - quality
+  - lineage
+  - data_access
+```
+
+The manifest should tell the agent what the product is, what it means, what it trusts, what the agent may access, and how to proceed.
+
+**MCP Catalog Query**:
+```sql
+-- MCP client discovers all current, discoverable data products
+SELECT product_id,
+       product_name,
+       product_version,
+       product_description,
+       product_status,
+       owner_team,
+       semantic_database,
+       memory_database,
+       observability_database,
+       contract_uri,
+       semantic_uri,
+       quality_uri,
+       lineage_uri,
+       policy_uri,
+       glossary_uri,
+       query_cookbook_uri,
+       approved_entrypoint,
+       approved_access_mode
+FROM governance.data_product_registry
+WHERE is_active = 1
+  AND is_deleted = 0;
+```
+
+**Expected MCP resource shape**:
+
+```text
+mcp://products
+mcp://products/{product_id}/manifest
+mcp://products/{product_id}/contract
+mcp://products/{product_id}/semantic
+mcp://products/{product_id}/lineage
+mcp://products/{product_id}/quality
+mcp://products/{product_id}/access-policy
+mcp://products/{product_id}/physical-map
+mcp://products/{product_id}/data
+```
+
+### 3.5 data_product_map (Module Discovery)
 
 **Purpose**: Enable agents to discover which modules are deployed and where they are physically located
 
@@ -557,6 +771,18 @@ QUALIFY ROW_NUMBER() OVER (ORDER BY hop_count) = 1;
 ### 6.1 Discovery Queries
 
 ```sql
+-- Which data products are currently discoverable?
+SELECT product_id, product_name, semantic_database, approved_entrypoint
+FROM governance.data_product_registry
+WHERE is_active = 1
+  AND is_deleted = 0;
+
+-- Which modules are deployed for the selected product?
+SELECT module_name, database_name, primary_tables, primary_views
+FROM Semantic.data_product_map
+WHERE is_active = 1
+ORDER BY module_name;
+
 -- What tables exist?
 SELECT entity_name, module_name, table_name
 FROM Semantic.entity_metadata
@@ -581,10 +807,12 @@ Semantic describes all modules via entity_metadata and table_relationship.
 
 ### 8.1 Required Tables
 
+- data_product_registry (product-level registry in governance database)
 - entity_metadata (~10-50 rows)
 - column_metadata (~100-500 rows)
 - table_relationship (~20-100 rows)
 - naming_standard (~10-30 rows)
+- data_product_map (one row per deployed module)
 
 ### 8.2 Required Views
 
@@ -623,6 +851,8 @@ Every Semantic module must populate the Memory database documentation tables as 
 
 **Decision ID prefix for this module:** `DD-SEMANTIC-{NNN}` (e.g., `DD-SEMANTIC-001`)
 
+**Required product discovery decision:** When the Data Product Orientation Layer is deployed, generate the `DD-DISCOVERY-001` `Design_Decision` INSERT defined in the Memory Module Design Standard. This records why agents and MCP clients read the product manifest before metadata maps or data access.
+
 **Output file placement:** Write documentation capture SQL as the last numbered file in the semantic deployment directory (e.g., `02-semantic/05-documentation.sql`).
 
 **Full protocol, SQL templates, and ID conventions:** See Memory Module Design Standard, Section 8.3 (Workflow 2 — Capture).
@@ -630,6 +860,7 @@ Every Semantic module must populate the Memory database documentation tables as 
 **Design Checklist additions:**
 
 - [ ] `Module_Registry` INSERT generated for this module (with `deployment_status = 'DEPLOYED'`)
+- [ ] `DD-DISCOVERY-001` INSERT generated when the Data Product Orientation Layer is deployed
 - [ ] Min. 3 `Design_Decision` INSERTs generated
 - [ ] `Change_Log` initial release entry generated
 - [ ] Min. 3 `Business_Glossary` terms captured
@@ -684,11 +915,11 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 ## Appendix: Quick Reference
 
-**Core Tables**: entity_metadata, column_metadata, table_relationship, naming_standard, data_product_map
+**Core Tables**: data_product_registry, entity_metadata, column_metadata, table_relationship, naming_standard, data_product_map
 **Required Views**: v_relationship_paths (multi-hop path discovery)
 **Key Principle**: Entity = Table, Attribute = Column
 **Scale**: Hundreds of metadata rows (not millions)
-**Agent Discovery**: Start with data_product_map to find all modules
+**Agent Discovery**: Start with the Data Product Orientation Manifest, use data_product_registry as the backing catalogue, then query data_product_map to find deployed modules
 
 ---
 
@@ -696,6 +927,7 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.6 | 2026-04-15 | Added Section 8.5 `table_relationship` Completeness Requirement: all inter-entity relationships must be registered — intra-module FKs, reference table lookups, cross-module joins, multi-hop semantic joins, and bidirectional traversals. Added path existence and isolation validation queries. Cross-referenced ERD recipe (QC-SEMANTIC-002) as a completeness check. Updated Section 8.4 design checklist with deployment_status requirement, table_relationship completeness check, and v_relationship_paths validation. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 2.5 | 2026-03-20 | Fixed boolean column definitions and filter values throughout: converted all CHAR(1) DEFAULT 'Y'/'N' columns (is_active, is_pii, is_sensitive, is_required, is_mandatory) to BYTEINT NOT NULL DEFAULT 1/0; converted all = 'Y' / = 'N' filter values to = 1 / = 0 to align with platform boolean standard. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 2.4 | 2026-03-20 | Revised Documentation Capture Requirements section — updated to reflect self-contained data product principle. Documentation tables now reside in the Memory database ({ProductName}_Memory), not a shared dp_documentation database. Removed data_product column from INSERT templates, removed bootstrap checklist item, updated prose references from dp_documentation to Memory database. |
