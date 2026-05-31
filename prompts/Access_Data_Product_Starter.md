@@ -40,7 +40,7 @@ Read the manifest first. Follow its `recommended_navigation` order:
 
 Do not expose or query tables first. Discover the product first, then the contract and meaning, then the approved data path.
 
-**Registry fallback**: If MCP resources are not available, query the product registry before deriving database names. The registry backs the orientation manifest.
+**Registry fallback**: If MCP resources are not available, use the known Semantic module table database from deployment configuration or standard naming convention, then query the product registry before navigating module metadata or data. The registry backs the orientation manifest and lives in the Semantic module.
 
 ```sql
 -- Discover current data product contract and approved entrypoint
@@ -52,13 +52,13 @@ SELECT product_id,
        observability_database,
        approved_entrypoint,
        approved_access_mode
-FROM governance.data_product_registry
+FROM {SemanticDatabase}.data_product_registry
 WHERE is_active = 1
   AND is_deleted = 0
   AND product_name = '{DataProductName}';
 ```
 
-**Expected result**: Product metadata and the Semantic database name to use in the next tier.
+**Expected result**: Product metadata and the Semantic database name to use for metadata navigation.
 
 ### Discovery Tier 2: Identify Semantic Module Location
 
@@ -194,7 +194,7 @@ When starting work on a new data product:
 ```sql
 -- Step 1: Discover product contract and approved entrypoint if registry exists
 SELECT product_id, semantic_database, approved_entrypoint, approved_access_mode
-FROM governance.data_product_registry
+FROM {SemanticDatabase}.data_product_registry
 WHERE is_active = 1
   AND is_deleted = 0
   AND product_name = '{Product}';
@@ -249,7 +249,7 @@ WHERE is_active = 1;
 
 -- 1. Discover product registry row if available
 SELECT product_id, semantic_database, approved_entrypoint
-FROM governance.data_product_registry
+FROM {SemanticDatabase}.data_product_registry
 WHERE is_active = 1
   AND is_deleted = 0
   AND product_name = 'Customer360';
@@ -285,7 +285,7 @@ WHERE p.is_current = 1;
 2. Confirm `{Product}_ROLE_AGENT` exists and is granted to your service account
 3. Read the MCP product manifest when available
 4. Follow manifest navigation: contract → semantic model → policy → quality → lineage → data access
-5. Query `governance.data_product_registry` if MCP resources are not available
+5. Query `{SemanticDatabase}.data_product_registry` if MCP resources are not available
 6. Find Semantic module (`{Product}_Semantic`) if no registry row is available
 7. Query `data_product_map` for module locations
 8. Query `entity_metadata` and `table_relationship` for table details and join patterns

@@ -1068,7 +1068,7 @@ INSERT INTO Memory.Design_Decision (
     'A manifest-first orientation layer gives clients a safe product-level handshake: discover products, read the manifest, follow recommended navigation, and keep data access behind approved entrypoints backed by policy and quality context.',
     'Agents have a deterministic bootstrap path and do not need to guess where to start. Product owners must maintain the manifest and registry rows, including inactive or deleted products using BYTEINT lifecycle flags.',
     'ACCEPTED', 'ARCHITECTURE',
-    'SEMANTIC', '2.7.0', 'governance.data_product_registry',
+    'SEMANTIC', '2.7.0', '{{DB_SEMANTIC_STD_T}}.data_product_registry',
     'Worldwide Data Architecture Team', CURRENT_DATE,
     CURRENT_DATE, DATE '9999-12-31', 1,
     CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)

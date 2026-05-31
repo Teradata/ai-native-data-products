@@ -255,7 +255,7 @@ COMMENT ON COLUMN Semantic.naming_standard.created_at IS
 The key principle is **product first, not tables first**. Clients must not start by guessing physical databases or listing tables.
 
 ```sql
-CREATE MULTISET TABLE governance.data_product_registry
+CREATE MULTISET TABLE {{DB_SEMANTIC_STD_T}}.data_product_registry
 (
     product_id             VARCHAR(128) NOT NULL
    ,product_name           VARCHAR(256) NOT NULL
@@ -283,76 +283,76 @@ CREATE MULTISET TABLE governance.data_product_registry
 )
 PRIMARY INDEX (product_id);
 
-COMMENT ON TABLE governance.data_product_registry IS
+COMMENT ON TABLE {{DB_SEMANTIC_STD_T}}.data_product_registry IS
 'Product-level registry - agents and MCP clients discover current data products, metadata contracts, and approved access entrypoints';
 
-COMMENT ON COLUMN governance.data_product_registry.product_id IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.product_id IS
 'Stable product identifier used by agents, MCP resources, manifests, lineage, policies, and contracts';
 
-COMMENT ON COLUMN governance.data_product_registry.product_name IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.product_name IS
 'Human-readable data product name';
 
-COMMENT ON COLUMN governance.data_product_registry.product_version IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.product_version IS
 'Current data product contract or release version';
 
-COMMENT ON COLUMN governance.data_product_registry.product_description IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.product_description IS
 'Business description of the product purpose, scope, and intended consumers';
 
-COMMENT ON COLUMN governance.data_product_registry.product_status IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.product_status IS
 'Lifecycle status - DRAFT, ACTIVE, DEPRECATED, or RETIRED';
 
-COMMENT ON COLUMN governance.data_product_registry.owner_team IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.owner_team IS
 'Owning team or steward responsible for product contract, policy, and support';
 
-COMMENT ON COLUMN governance.data_product_registry.semantic_database IS
-'Semantic module database to query after registry discovery';
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.semantic_database IS
+'Semantic module table database that owns the product registry and core Semantic metadata';
 
-COMMENT ON COLUMN governance.data_product_registry.memory_database IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.memory_database IS
 'Memory module database containing Business_Glossary, Query_Cookbook, and design memory';
 
-COMMENT ON COLUMN governance.data_product_registry.observability_database IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.observability_database IS
 'Observability module database containing lineage, quality, and usage telemetry where deployed';
 
-COMMENT ON COLUMN governance.data_product_registry.manifest_json IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.manifest_json IS
 'Machine-readable product orientation manifest for agents and MCP clients';
 
-COMMENT ON COLUMN governance.data_product_registry.contract_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.contract_uri IS
 'URI for the product contract or external contract document';
 
-COMMENT ON COLUMN governance.data_product_registry.semantic_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.semantic_uri IS
 'URI for Semantic metadata, an MCP resource, or related documentation';
 
-COMMENT ON COLUMN governance.data_product_registry.quality_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.quality_uri IS
 'URI for data quality rules, reports, or MCP resource';
 
-COMMENT ON COLUMN governance.data_product_registry.lineage_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.lineage_uri IS
 'URI for lineage metadata, graph, or MCP resource';
 
-COMMENT ON COLUMN governance.data_product_registry.policy_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.policy_uri IS
 'URI for policy, usage, classification, or access-control guidance';
 
-COMMENT ON COLUMN governance.data_product_registry.glossary_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.glossary_uri IS
 'URI for business glossary metadata, typically backed by Memory.Business_Glossary';
 
-COMMENT ON COLUMN governance.data_product_registry.query_cookbook_uri IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.query_cookbook_uri IS
 'URI for validated query recipes, typically backed by Memory.Query_Cookbook';
 
-COMMENT ON COLUMN governance.data_product_registry.approved_entrypoint IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.approved_entrypoint IS
 'Approved first data access surface, such as an access view, semantic view, or MCP tool resource';
 
-COMMENT ON COLUMN governance.data_product_registry.approved_access_mode IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.approved_access_mode IS
 'Approved access mode - VIEW, MCP_TOOL, SEMANTIC_QUERY, or site-defined equivalent';
 
-COMMENT ON COLUMN governance.data_product_registry.is_active IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.is_active IS
 'Registry row active indicator - 1 = current and discoverable, 0 = inactive';
 
-COMMENT ON COLUMN governance.data_product_registry.is_deleted IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.is_deleted IS
 'Soft delete indicator - 1 = logically deleted and hidden from discovery, 0 = discoverable when active';
 
-COMMENT ON COLUMN governance.data_product_registry.created_at IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.created_at IS
 'Timestamp when registry record was created';
 
-COMMENT ON COLUMN governance.data_product_registry.updated_at IS
+COMMENT ON COLUMN {{DB_SEMANTIC_STD_T}}.data_product_registry.updated_at IS
 'Timestamp when registry record was last updated';
 ```
 
@@ -441,7 +441,7 @@ SELECT product_id,
        query_cookbook_uri,
        approved_entrypoint,
        approved_access_mode
-FROM governance.data_product_registry
+FROM {{DB_SEMANTIC_STD_T}}.data_product_registry
 WHERE is_active = 1
   AND is_deleted = 0;
 ```
@@ -773,7 +773,7 @@ QUALIFY ROW_NUMBER() OVER (ORDER BY hop_count) = 1;
 ```sql
 -- Which data products are currently discoverable?
 SELECT product_id, product_name, semantic_database, approved_entrypoint
-FROM governance.data_product_registry
+FROM {{DB_SEMANTIC_STD_T}}.data_product_registry
 WHERE is_active = 1
   AND is_deleted = 0;
 
@@ -807,7 +807,7 @@ Semantic describes all modules via entity_metadata and table_relationship.
 
 ### 8.1 Required Tables
 
-- data_product_registry (product-level registry in governance database)
+- data_product_registry (product-level registry in the Semantic module table database)
 - entity_metadata (~10-50 rows)
 - column_metadata (~100-500 rows)
 - table_relationship (~20-100 rows)
