@@ -1,19 +1,20 @@
 # Semantic Module Design Standard
+
 ## AI-Native Data Product Architecture - Version 2.7 (Tested & Validated)
 
 ---
 
 ## Document Control
 
-| Attribute | Value |
-|-----------|-------|
-| **Version** | 2.7 |
-| **Status** | STANDARD - Tested on Teradata |
-| **Last Updated** | 2026-05-30 |
-| **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
-| **Scope** | Semantic Module (Knowledge & Meaning) |
-| **Type** | Design Standard (Structural Requirements) |
-| **Testing** | Validated on Teradata v20.0 |
+| Attribute        | Value                                                    |
+| ---------------- | -------------------------------------------------------- |
+| **Version**      | 2.8                                                      |
+| **Status**       | STANDARD - Tested on Teradata                            |
+| **Last Updated** | 2026-06-09                                               |
+| **Owner**        | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| **Scope**        | Semantic Module (Knowledge & Meaning)                    |
+| **Type**         | Design Standard (Structural Requirements)                |
+| **Testing**      | Validated on Teradata v20.0                              |
 
 ---
 
@@ -41,6 +42,7 @@
 ### 1.2 Primary Purpose: Enable Correct SQL Generation
 
 Semantic module helps agents write correct SQL by answering:
+
 1. What entities (tables) exist?
 2. What attributes (columns) do entities have?
 3. How do entities (tables) relate?
@@ -208,7 +210,7 @@ CREATE TABLE Semantic.naming_standard (
     standard_value VARCHAR(100) NOT NULL,
     meaning VARCHAR(500) NOT NULL,
     usage_guidance VARCHAR(1000),
-    applies_to VARCHAR(50),
+    applies_to VARCHAR(256),
     examples VARCHAR(1000),
     is_active BYTEINT NOT NULL DEFAULT 1,
     created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
@@ -421,6 +423,7 @@ recommended_navigation:
 The manifest should tell the agent what the product is, what it means, what it trusts, what the agent may access, and how to proceed.
 
 **MCP Catalog Query**:
+
 ```sql
 -- MCP client discovers all current, discoverable data products
 SELECT product_id,
@@ -467,26 +470,26 @@ mcp://products/{product_id}/data
 ```sql
 CREATE TABLE Semantic.data_product_map (
     module_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
-    
+
     -- Module identification
     module_name VARCHAR(50) NOT NULL,
     module_description VARCHAR(1000),
     module_purpose VARCHAR(500),
-    
+
     -- Physical location (CRITICAL for agent discovery)
     database_name VARCHAR(128) NOT NULL,
-    naming_pattern VARCHAR(20),  -- 'SEPARATE_DB' or 'SINGLE_DB_PREFIX'
+    naming_pattern VARCHAR(128),  -- 'SEPARATE_DB' or 'SINGLE_DB_PREFIX'
     table_prefix VARCHAR(10),    -- If using prefix pattern
-    
+
     -- Entry points
     primary_tables VARCHAR(500),  -- Comma-separated key table names
     primary_views VARCHAR(500),   -- Comma-separated key view names
-    
+
     -- Module metadata
     module_version VARCHAR(20),
     deployment_status VARCHAR(20),  -- 'DEPLOYED', 'PLANNED', 'DEPRECATED'
     deployed_dts TIMESTAMP(6) WITH TIME ZONE,
-    
+
     -- Status
     is_active BYTEINT NOT NULL DEFAULT 1,
     created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
@@ -561,6 +564,7 @@ INSERT INTO Semantic.data_product_map VALUES
 ```
 
 **Agent Discovery Query**:
+
 ```sql
 -- Agent discovers all deployed modules
 SELECT module_name, database_name, primary_tables, deployment_status
@@ -684,9 +688,9 @@ WITH RECURSIVE relationship_paths (
         relationship_description AS path_description
     FROM Semantic.table_relationship
     WHERE is_active = 1
-    
+
     UNION ALL
-    
+
     -- Anchor: Reversed (1-hop backward)
     SELECT 
         target_table AS source_table,
@@ -699,9 +703,9 @@ WITH RECURSIVE relationship_paths (
         'REVERSE: ' || relationship_description AS path_description
     FROM Semantic.table_relationship
     WHERE is_active = 1
-    
+
     UNION ALL
-    
+
     -- Recursive: Forward
     SELECT 
         rp.source_table,
@@ -719,9 +723,9 @@ WITH RECURSIVE relationship_paths (
        AND tr.is_active = 1
     WHERE rp.hop_count < 5
       AND rp.path_tables NOT LIKE '%' || tr.target_table || '%'
-      
+
     UNION ALL
-    
+
     -- Recursive: Backward
     SELECT 
         rp.source_table,
@@ -832,22 +836,22 @@ Every Semantic module must populate the Memory database documentation tables as 
 
 **Minimum requirements:**
 
-| Record Type | Table | Minimum | Notes |
-|-------------|-------|---------|-------|
-| Module_Registry | `Memory.Module_Registry` | 1 | Register this module with data_product and version |
-| Design_Decision | `Memory.Design_Decision` | 3 | Key architectural and schema choices |
-| Change_Log | `Memory.Change_Log` | 1 | Initial release entry (version 1.0.0) |
-| Business_Glossary | `Memory.Business_Glossary` | 3 | Metadata terms and relationship definitions introduced |
-| Query_Cookbook | `Memory.Query_Cookbook` | 1 | Key query patterns (e.g., multi-hop path discovery, entity lookup) |
+| Record Type       | Table                      | Minimum | Notes                                                              |
+| ----------------- | -------------------------- | ------- | ------------------------------------------------------------------ |
+| Module_Registry   | `Memory.Module_Registry`   | 1       | Register this module with data_product and version                 |
+| Design_Decision   | `Memory.Design_Decision`   | 3       | Key architectural and schema choices                               |
+| Change_Log        | `Memory.Change_Log`        | 1       | Initial release entry (version 1.0.0)                              |
+| Business_Glossary | `Memory.Business_Glossary` | 3       | Metadata terms and relationship definitions introduced             |
+| Query_Cookbook    | `Memory.Query_Cookbook`    | 1       | Key query patterns (e.g., multi-hop path discovery, entity lookup) |
 
 **Typical decision categories for Semantic modules:**
 
-| Decision Category | Example |
-|-------------------|---------|
-| `INTEGRATION` | Relationship mapping strategy and join path decisions |
-| `NAMING` | Metadata naming standards and column classification conventions |
-| `ARCHITECTURE` | data_product_map scope and agent discovery strategy |
-| `SCHEMA` | entity_metadata vs column_metadata boundary decisions |
+| Decision Category | Example                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `INTEGRATION`     | Relationship mapping strategy and join path decisions           |
+| `NAMING`          | Metadata naming standards and column classification conventions |
+| `ARCHITECTURE`    | data_product_map scope and agent discovery strategy             |
+| `SCHEMA`          | entity_metadata vs column_metadata boundary decisions           |
 
 **Decision ID prefix for this module:** `DD-SEMANTIC-{NNN}` (e.g., `DD-SEMANTIC-001`)
 
@@ -876,13 +880,13 @@ Every Semantic module must populate the Memory database documentation tables as 
 
 **Completeness means registering every relationship an agent is expected to traverse**, not just the relationships that feel "important" or that have physical foreign keys. The following categories must all be covered:
 
-| Category | Examples | Common omission |
-|---|---|---|
-| **Intra-module FKs** | `Loan_H → Loan_Keymap`, `LoanPerformance_H → Loan_Keymap` | Child-to-parent within the same entity cluster |
-| **Reference table lookups** | `Loan_H → LoanPurpose_R`, `LoanPerformance_H → DelinquencyStatus_R` | Reference decodes, especially from append-only tables |
-| **Cross-module joins** | `Domain.Loan_H → Prediction.loan_features`, `Domain.Customer_H → Search.entity_embedding` | Joins between modules are frequently omitted |
-| **Semantic joins** | `Domain.LoanStatement_H → Domain.Payment_H → Domain.LoanPerformance_H` | Multi-hop chains used in lineage and audit queries |
-| **Reverse directions** | If A→B is registered, register B→A if agents will traverse in both directions | Bidirectional traversal requirements are easy to miss |
+| Category                    | Examples                                                                                  | Common omission                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Intra-module FKs**        | `Loan_H → Loan_Keymap`, `LoanPerformance_H → Loan_Keymap`                                 | Child-to-parent within the same entity cluster        |
+| **Reference table lookups** | `Loan_H → LoanPurpose_R`, `LoanPerformance_H → DelinquencyStatus_R`                       | Reference decodes, especially from append-only tables |
+| **Cross-module joins**      | `Domain.Loan_H → Prediction.loan_features`, `Domain.Customer_H → Search.entity_embedding` | Joins between modules are frequently omitted          |
+| **Semantic joins**          | `Domain.LoanStatement_H → Domain.Payment_H → Domain.LoanPerformance_H`                    | Multi-hop chains used in lineage and audit queries    |
+| **Reverse directions**      | If A→B is registered, register B→A if agents will traverse in both directions             | Bidirectional traversal requirements are easy to miss |
 
 **Validation step — required before deployment:**
 
@@ -925,13 +929,14 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 ## Document Change Log
 
-| Version | Date | Changes | Author |
-|---------|------|---------|--------|
-| 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
-| 2.6 | 2026-04-15 | Added Section 8.5 `table_relationship` Completeness Requirement: all inter-entity relationships must be registered — intra-module FKs, reference table lookups, cross-module joins, multi-hop semantic joins, and bidirectional traversals. Added path existence and isolation validation queries. Cross-referenced ERD recipe (QC-SEMANTIC-002) as a completeness check. Updated Section 8.4 design checklist with deployment_status requirement, table_relationship completeness check, and v_relationship_paths validation. | Nathan Green, Worldwide Data Architecture Team, Teradata |
-| 2.5 | 2026-03-20 | Fixed boolean column definitions and filter values throughout: converted all CHAR(1) DEFAULT 'Y'/'N' columns (is_active, is_pii, is_sensitive, is_required, is_mandatory) to BYTEINT NOT NULL DEFAULT 1/0; converted all = 'Y' / = 'N' filter values to = 1 / = 0 to align with platform boolean standard. | Nathan Green, Worldwide Data Architecture Team, Teradata |
-| 2.4 | 2026-03-20 | Revised Documentation Capture Requirements section — updated to reflect self-contained data product principle. Documentation tables now reside in the Memory database ({ProductName}_Memory), not a shared dp_documentation database. Removed data_product column from INSERT templates, removed bootstrap checklist item, updated prose references from dp_documentation to Memory database. |
-| 2.3 | 2026-03-20 | Added Section 8.4 Documentation Capture Requirements — minimum dp_documentation records, typical decision categories, output file placement, design checklist additions, and reference to Memory Module Section 8 protocol. | Nathan Green, Worldwide Data Architecture Team, Teradata |
-| 2.2 | 2026-03-18 | Applied surrogate key naming convention to internal management tables: renamed {table}_key → {table}_id for all GENERATED ALWAYS AS IDENTITY columns | Kimiko Yabu, Worldwide Data Architecture Team, Teradata |
-| 2.1 | 2026-03-17 | Updated naming convention: {entity}_id = Surrogate Key, {entity}_key = Natural Business Key, aligned with Domain Module Design Standard v2.1 | Kimiko Yabu, Worldwide Data Architecture Team, Teradata |
-| 1.0 | 2025-02-09 | Initial Semantic Module Design Standard | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Author                                                   |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| 2.8     | 2026-06-10 | Fixed metadata column truncation: widened `data_product_map.naming_pattern` from `VARCHAR(20)` to `VARCHAR(128)` and `naming_standard.applies_to` from `VARCHAR(50)` to `VARCHAR(256)` to prevent silent truncation of naming pattern and applicability values.                                                                                                                                                                                                                                                                | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| 2.7     | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access.                                                                                                                                                                                | Paul Dancer, Worldwide Data Architecture Team, Teradata  |
+| 2.6     | 2026-04-15 | Added Section 8.5 `table_relationship` Completeness Requirement: all inter-entity relationships must be registered — intra-module FKs, reference table lookups, cross-module joins, multi-hop semantic joins, and bidirectional traversals. Added path existence and isolation validation queries. Cross-referenced ERD recipe (QC-SEMANTIC-002) as a completeness check. Updated Section 8.4 design checklist with deployment_status requirement, table_relationship completeness check, and v_relationship_paths validation. | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| 2.5     | 2026-03-20 | Fixed boolean column definitions and filter values throughout: converted all CHAR(1) DEFAULT 'Y'/'N' columns (is_active, is_pii, is_sensitive, is_required, is_mandatory) to BYTEINT NOT NULL DEFAULT 1/0; converted all = 'Y' / = 'N' filter values to = 1 / = 0 to align with platform boolean standard.                                                                                                                                                                                                                     | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| 2.4     | 2026-03-20 | Revised Documentation Capture Requirements section — updated to reflect self-contained data product principle. Documentation tables now reside in the Memory database ({ProductName}_Memory), not a shared dp_documentation database. Removed data_product column from INSERT templates, removed bootstrap checklist item, updated prose references from dp_documentation to Memory database.                                                                                                                                  |                                                          |
+| 2.3     | 2026-03-20 | Added Section 8.4 Documentation Capture Requirements — minimum dp_documentation records, typical decision categories, output file placement, design checklist additions, and reference to Memory Module Section 8 protocol.                                                                                                                                                                                                                                                                                                    | Nathan Green, Worldwide Data Architecture Team, Teradata |
+| 2.2     | 2026-03-18 | Applied surrogate key naming convention to internal management tables: renamed {table}_key → {table}_id for all GENERATED ALWAYS AS IDENTITY columns                                                                                                                                                                                                                                                                                                                                                                           | Kimiko Yabu, Worldwide Data Architecture Team, Teradata  |
+| 2.1     | 2026-03-17 | Updated naming convention: {entity}_id = Surrogate Key, {entity}_key = Natural Business Key, aligned with Domain Module Design Standard v2.1                                                                                                                                                                                                                                                                                                                                                                                   | Kimiko Yabu, Worldwide Data Architecture Team, Teradata  |
+| 1.0     | 2025-02-09 | Initial Semantic Module Design Standard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Nathan Green, Worldwide Data Architecture Team, Teradata |
