@@ -34,11 +34,12 @@ ai-native-data-products/
 │   ├── Prediction_Module_Design_Standard.md
 │   ├── Observability_Module_Design_Standard.md
 │   ├── Memory_Module_Design_Standard.md
-│   └── Access_Layer_Design_Standard.md
+│   └── Temporal_Lifecycle_Metadata_Standard.md
 │
-├── platform-standards/      ← platform-agnostic implementation contracts
+├── platform-standards/      ← platform implementation contracts
 │   ├── Object_Placement_Standard_Spec.md
-│   └── Physical_Storage_Standard_Spec.md
+│   ├── Physical_Storage_Standard_Spec.md
+│   └── Temporal_Lifecycle_Metadata_Extension.md
 │
 └── prompts/                 ← how to use the standards
     ├── Skill_Conversion_Prompt.md
@@ -157,6 +158,8 @@ autonomous discovery via the Semantic module.
 | Access_Layer_Design_Standard | 1.0 |
 | Object_Placement_Standard_Spec | 1.0 |
 | Physical_Storage_Standard_Spec | 1.0 |
+| Temporal_Lifecycle_Metadata_Standard | 1.0-draft |
+| Temporal_Lifecycle_Metadata_Extension (Teradata) | 1.0-draft |
 
 ---
 
