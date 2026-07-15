@@ -159,7 +159,7 @@ entity?"*
 - It does **not** mean an expired historical version.
 - `deleted_dts` is required when true.
 - Governed history is retained; deletion never rewrites it.
-- Default current access views exclude deleted rows (§8).
+- Default current surfaces exclude deleted rows (§8).
 - Restoration creates a successor version rather than rewriting deletion
   history.
 
@@ -291,13 +291,16 @@ representations:
 
 ## 8. Access Exposure Policy
 
-The portable exposure contract; platform extensions bind it to their
-physical layer architecture.
+The portable contract defines two exposure **surfaces** per consumable
+entity. How each surface is realised — views, schemas, synonyms, grants,
+or direct table access — is a platform decision bound in the platform
+extension; platforms whose locking or security architecture needs no
+intermediary object layer still provide both surfaces, however thinly.
 
-- The **governed standard view layer** exposes the full metadata contract —
-  every temporal and lifecycle column — for auditors, maintainers, and
-  history-aware consumers.
-- A **default current access view** per consumable entity:
+- The **governed full-contract surface** exposes every temporal and
+  lifecycle column, for auditors, maintainers, and history-aware
+  consumers.
+- The **default current surface** per consumable entity:
   - filters on authoritative current validity **plus** `is_current`;
   - additionally excludes `is_deleted = 1` when deletion is supported;
   - hides `valid_to_dts`, `is_current`, deletion metadata, and operational
@@ -305,9 +308,10 @@ physical layer architecture.
   - may expose `valid_from_dts` as "effective since";
   - exposes `is_active` only where business-meaningful;
   - exposes event timestamps when they are part of the consumer contract.
-- Historical and deletion-aware access views may expose additional temporal
+- Historical and deletion-aware surfaces may expose additional temporal
   metadata for approved use cases.
-- Access views derive from the governed standard view, never bypass it.
+- Purpose-specific surfaces derive from the governed full-contract
+  surface; they must not apply temporal semantics that disagree with it.
 
 ---
 
@@ -332,10 +336,10 @@ default to warning severity.
 | TLM-10 **[B]** | `is_current` agrees with the open-ended validity representation. |
 | TLM-11 | `is_deleted = 1` rows have non-null `deleted_dts`. |
 | TLM-12 | Every `is_active` column has documented semantics, owner, and transitions. |
-| TLM-13 | Default current access views apply the §8 filters (no deleted rows exposed). |
-| TLM-14 | Access views do not bypass the governed standard view. |
+| TLM-13 | Default current surfaces apply the §8 filters (no deleted rows exposed). |
+| TLM-14 | Purpose-specific surfaces agree with the governed full-contract surface's temporal semantics. |
 | TLM-15 | Every temporal/lifecycle column carries a column comment. |
-| TLM-16 | No inclusive-end idioms (`CURRENT_DATE - 1`, second subtraction) in maintenance code or views. |
+| TLM-16 | No inclusive-end idioms (`CURRENT_DATE - 1`, second subtraction) in maintenance code or exposure surfaces. |
 | TLM-17 | Sentinels appear only on validity bounds; event timestamps use `NULL` for "not yet occurred". |
 
 ---
@@ -360,9 +364,11 @@ products, and their canonical replacements:
 ### 10.2 Migration rules
 
 1. New standards and products apply the canonical contract immediately.
-2. Deployed products migrate through **versioned compatibility views** —
-   the compatibility layer projects canonical names over legacy columns
-   until the base tables are regenerated; consumers never parse dialects.
+2. Deployed products migrate through **versioned compatibility
+   projections** — a compatibility surface presents canonical names over
+   legacy columns until the base tables are regenerated; consumers never
+   parse dialects. (On platforms with view layers these are compatibility
+   views; other platforms use their equivalent mechanism.)
 3. Widening alone cannot recover semantics: DATE-grain validity migrated to
    timestamp grain must document that intra-day ordering is unavailable for
    historical rows.

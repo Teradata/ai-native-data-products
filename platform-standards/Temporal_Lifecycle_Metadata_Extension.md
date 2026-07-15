@@ -99,11 +99,15 @@ Rules:
 
 ## 4. Layer Responsibilities
 
-| Layer | Suffix | Responsibility |
-|-------|--------|----------------|
-| Physical standard table | `*_STD_T` | Full canonical column contract; no consumer access |
-| Governed standard view | `*_STD_V` | Mandatory **1:1 locking view** (`LOCKING ROW FOR ACCESS`) exposing every column of its base table, including all temporal/lifecycle metadata |
-| Access Layer view | `*_ACS_V` | Purpose-specific consumer views; the default current view per entity follows §7 |
+On Teradata, the core standard's exposure **surfaces** (core §8) are
+realised as view layers — the locking architecture makes an intermediary
+view layer necessary, so both surfaces are distinct objects here:
+
+| Layer | Suffix | Core surface | Responsibility |
+|-------|--------|--------------|----------------|
+| Physical standard table | `*_STD_T` | — | Full canonical column contract; no consumer access |
+| Governed standard view | `*_STD_V` | Governed full-contract surface | Mandatory **1:1 locking view** (`LOCKING ROW FOR ACCESS`) exposing every column of its base table, including all temporal/lifecycle metadata |
+| Access Layer view | `*_ACS_V` | Default current / purpose-specific surfaces | Consumer views; the default current view per entity follows §7 |
 
 **`ACS` means Access** and replaces the misleading `BUS` abbreviation in
 new standards. `*_BUS_V` and `*_ACL_V` are registered legacy aliases for
