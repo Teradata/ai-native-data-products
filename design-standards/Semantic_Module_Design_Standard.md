@@ -1,5 +1,5 @@
 # Semantic Module Design Standard
-## AI-Native Data Product Architecture - Version 2.7 (Tested & Validated)
+## AI-Native Data Product Architecture - Version 2.8 (Tested & Validated)
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.7 |
+| **Version** | 2.8 |
 | **Status** | STANDARD - Tested on Teradata |
-| **Last Updated** | 2026-05-30 |
+| **Last Updated** | 2026-07-15 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Semantic Module (Knowledge & Meaning) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -479,8 +479,12 @@ CREATE TABLE Semantic.data_product_map (
     table_prefix VARCHAR(10),    -- If using prefix pattern
     
     -- Entry points
-    primary_tables VARCHAR(500),  -- Comma-separated key table names
-    primary_views VARCHAR(500),   -- Comma-separated key view names
+    -- DEPRECATED (v2.8): CSV entry-point columns are superseded by the
+    -- data_product_map_primary_objects child relation (Section 3.6).
+    -- Retained for backward compatibility only; do not populate for new
+    -- products and do not parse in new integrations.
+    primary_tables VARCHAR(500),  -- DEPRECATED - see Section 3.6
+    primary_views VARCHAR(500),   -- DEPRECATED - see Section 3.6
     
     -- Module metadata
     module_version VARCHAR(20),
@@ -519,10 +523,10 @@ COMMENT ON COLUMN Semantic.data_product_map.table_prefix IS
 'Table name prefix if using SINGLE_DB_PREFIX pattern - e.g., D_, P_, S_';
 
 COMMENT ON COLUMN Semantic.data_product_map.primary_tables IS 
-'Comma-separated list of key tables in this module - agent entry points for exploration';
+'DEPRECATED (v2.8) - superseded by data_product_map_primary_objects; retained for backward compatibility only';
 
 COMMENT ON COLUMN Semantic.data_product_map.primary_views IS 
-'Comma-separated list of key views in this module - commonly used agent access patterns';
+'DEPRECATED (v2.8) - superseded by data_product_map_primary_objects; retained for backward compatibility only';
 
 COMMENT ON COLUMN Semantic.data_product_map.module_version IS 
 'Version of module design standard used';
@@ -563,11 +567,216 @@ INSERT INTO Semantic.data_product_map VALUES
 **Agent Discovery Query**:
 ```sql
 -- Agent discovers all deployed modules
-SELECT module_name, database_name, primary_tables, deployment_status
+SELECT module_name, database_name, deployment_status
 FROM Semantic.data_product_map
 WHERE is_active = 1
 ORDER BY module_name;
 ```
+
+Entry-point objects are discovered through the child relation in
+Section 3.6 — never by parsing `primary_tables` / `primary_views`.
+
+### 3.6 data_product_map_primary_objects (Primary Object Discovery)
+
+**Purpose**: Give agents an authoritative, fully qualified identity for
+every primary object of every module — one row per object, no CSV parsing,
+no name derivation.
+
+**Problem this solves** (issue #14): the deprecated `primary_tables` /
+`primary_views` columns stored multi-valued CSV lists that cannot be
+validated relationally, and a single module-level `database_name` cannot
+identify objects deployed across different databases or security layers.
+Agents were forced to parse strings and construct names from naming
+conventions, which can select physical tables where governed views should
+be used.
+
+```sql
+CREATE TABLE Semantic.data_product_map_primary_objects (
+    primary_object_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+
+    -- Logical parent reference to data_product_map.module_id.
+    -- No physical FK constraint required; orphans are detected by
+    -- deployment checks and trust validation.
+    module_id INTEGER NOT NULL,
+
+    -- Exact deployed identity. The canonical agent-facing name is
+    -- database_name.object_name - used verbatim, never derived.
+    database_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    object_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+
+    -- Classification
+    object_type VARCHAR(50) NOT NULL,   -- 'TABLE', 'VIEW', 'PROCEDURE', 'FUNCTION'
+    object_role VARCHAR(50) NOT NULL,   -- controlled vocabulary (below)
+    usage_guidance VARCHAR(500) CHARACTER SET UNICODE,
+    table_kind CHAR(1),                 -- Teradata DBC.TablesV.TableKind code (optional)
+
+    -- Lifecycle - canonical columns per the Temporal & Lifecycle
+    -- Metadata Standard (design-standards/core/). is_active semantics:
+    -- 1 = registration is live and discoverable; 0 = retired from
+    -- discovery. Independent of whether the object physically exists
+    -- (existence is a validation concern, not a lifecycle state).
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (module_id);
+
+COMMENT ON TABLE Semantic.data_product_map_primary_objects IS 
+'Primary object registry - one row per agent-facing object per module; authoritative fully qualified identities (issue #14)';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.primary_object_id IS 
+'Surrogate key for primary object registration record';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.module_id IS 
+'Logical parent reference to data_product_map.module_id - validated by trust checks, no physical FK';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.database_name IS 
+'Exact deployed database name - agents use database_name.object_name verbatim';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.object_name IS 
+'Exact deployed object name - never derived from naming conventions';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.object_type IS 
+'Portable classification - TABLE, VIEW, PROCEDURE, FUNCTION';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.object_role IS 
+'Controlled recommendation for how agents should use the object - one role per row, never CSV';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.usage_guidance IS 
+'Concise object-specific instructions or constraints for agents';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.table_kind IS 
+'Native Teradata catalogue object-kind code (DBC.TablesV.TableKind) - enables catalogue-kind mismatch validation';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.is_active IS 
+'Registration lifecycle - 1 = live and discoverable, 0 = retired from discovery; independent of physical existence';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.created_dts IS 
+'Physical row creation time (UTC)';
+
+COMMENT ON COLUMN Semantic.data_product_map_primary_objects.updated_dts IS 
+'Physical row last-change time (UTC)';
+```
+
+**Object role vocabulary** (one role per row; if many-to-many assignment
+becomes necessary, add an object-role child relation — never CSV):
+
+| Role | Meaning |
+|------|---------|
+| `AGENT_ENTRYPOINT` | Recommended first object(s) when an agent explores the module |
+| `ANALYTICAL_QUERY` | Governed object intended for analytical SELECT workloads |
+| `REFERENCE_LOOKUP` | Code / reference data lookup object |
+| `RELATIONSHIP_BRIDGE` | Association object used to traverse relationships |
+| `LINEAGE_EVIDENCE` | Object holding lineage or provenance evidence |
+| `OPERATIONAL_METRIC` | Operational or quality metric object |
+| `WRITE_TARGET` | Object agents may write to, only under explicit policy |
+| `INTERNAL_SUPPORT` | Internal object not intended for direct agent use |
+
+**Security architecture support**: primary objects need not be physical
+tables. A product may register physical tables where direct access is
+permitted, views that enforce row/column/masking/tenancy/business-policy
+controls, a mixture across modules, or other discoverable objects. Each
+deployment implements its own security architecture while presenting agents
+with one authoritative, portable discovery contract.
+
+**Consumption contract**:
+
+1. Query primary-object metadata through the product's governed metadata
+   access layer.
+2. Select objects by `object_role`.
+3. Use the stored `database_name.object_name` verbatim — never derive
+   names from naming conventions.
+4. Honour `usage_guidance`.
+
+```sql
+-- Example seed rows (Customer360, matching the Section 3.5 example)
+INSERT INTO Semantic.data_product_map_primary_objects
+    (module_id, database_name, object_name, object_type, object_role, usage_guidance, table_kind)
+VALUES
+    (1, 'Customer360_Domain', 'Party_H', 'TABLE', 'INTERNAL_SUPPORT',
+     'SCD2 history table - query via Party_Current unless history is required', 'T');
+
+INSERT INTO Semantic.data_product_map_primary_objects
+    (module_id, database_name, object_name, object_type, object_role, usage_guidance, table_kind)
+VALUES
+    (1, 'Customer360_Domain', 'Party_Current', 'VIEW', 'AGENT_ENTRYPOINT',
+     'Current-state party view - default entry point for party questions', 'V');
+
+INSERT INTO Semantic.data_product_map_primary_objects
+    (module_id, database_name, object_name, object_type, object_role, usage_guidance, table_kind)
+VALUES
+    (2, 'Customer360_Semantic', 'v_relationship_paths', 'VIEW', 'RELATIONSHIP_BRIDGE',
+     'Multi-hop join path discovery - filter hop_count to bound reads', 'V');
+```
+
+**Agent Discovery Query**:
+```sql
+-- Agent discovers the entry points of every deployed module
+SELECT m.module_name,
+       po.database_name || '.' || po.object_name AS qualified_name,
+       po.object_type,
+       po.object_role,
+       po.usage_guidance
+FROM Semantic.data_product_map AS m
+JOIN Semantic.data_product_map_primary_objects AS po
+    ON po.module_id = m.module_id
+WHERE m.is_active = 1
+  AND po.is_active = 1
+  AND po.object_role = 'AGENT_ENTRYPOINT'
+ORDER BY m.module_name, po.object_name;
+```
+
+**Validation** (Trust Engine / deployment checks):
+
+```sql
+-- Orphan module references
+SELECT po.primary_object_id, po.module_id
+FROM Semantic.data_product_map_primary_objects AS po
+WHERE po.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM Semantic.data_product_map AS m
+      WHERE m.module_id = po.module_id AND m.is_active = 1
+  );
+
+-- Registered objects missing from the catalogue, or catalogue-kind mismatch
+SELECT po.database_name, po.object_name, po.table_kind,
+       t.TableKind AS actual_kind
+FROM Semantic.data_product_map_primary_objects AS po
+LEFT JOIN DBC.TablesV AS t
+    ON  t.DatabaseName = po.database_name
+    AND t.TableName = po.object_name
+WHERE po.is_active = 1
+  AND (t.TableName IS NULL
+       OR (po.table_kind IS NOT NULL AND TRIM(t.TableKind) <> TRIM(po.table_kind)));
+
+-- Invalid roles
+SELECT po.primary_object_id, po.object_role
+FROM Semantic.data_product_map_primary_objects AS po
+WHERE po.object_role NOT IN
+    ('AGENT_ENTRYPOINT', 'ANALYTICAL_QUERY', 'REFERENCE_LOOKUP'
+   , 'RELATIONSHIP_BRIDGE', 'LINEAGE_EVIDENCE', 'OPERATIONAL_METRIC'
+   , 'WRITE_TARGET', 'INTERNAL_SUPPORT');
+
+-- Duplicate active registrations
+SELECT po.module_id, po.database_name, po.object_name, COUNT(*) AS regs
+FROM Semantic.data_product_map_primary_objects AS po
+WHERE po.is_active = 1
+GROUP BY po.module_id, po.database_name, po.object_name
+HAVING COUNT(*) > 1;
+```
+
+**Migration from the CSV columns**:
+
+1. Introduce `data_product_map_primary_objects` and expose it through the
+   product's governed metadata access layer.
+2. Backfill one row per value currently stored in `primary_tables` /
+   `primary_views`, resolving each value to its exact deployed database
+   and object type.
+3. Update agents, generators, validators, and discovery APIs to consume
+   the child relation.
+4. Do not populate the CSV columns for new products.
+5. Retain the legacy columns only where backward compatibility is
+   required, with an agreed retirement date.
 
 ---
 
@@ -778,10 +987,21 @@ WHERE is_active = 1
   AND is_deleted = 0;
 
 -- Which modules are deployed for the selected product?
-SELECT module_name, database_name, primary_tables, primary_views
+SELECT module_name, database_name, deployment_status
 FROM Semantic.data_product_map
 WHERE is_active = 1
 ORDER BY module_name;
+
+-- Which objects should I use in each module? (never parse CSV columns)
+SELECT m.module_name,
+       po.database_name || '.' || po.object_name AS qualified_name,
+       po.object_role, po.usage_guidance
+FROM Semantic.data_product_map AS m
+JOIN Semantic.data_product_map_primary_objects AS po
+    ON po.module_id = m.module_id
+WHERE m.is_active = 1
+  AND po.is_active = 1
+ORDER BY m.module_name, po.object_role, po.object_name;
 
 -- What tables exist?
 SELECT entity_name, module_name, table_name
@@ -915,7 +1135,7 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 ## Appendix: Quick Reference
 
-**Core Tables**: data_product_registry, entity_metadata, column_metadata, table_relationship, naming_standard, data_product_map
+**Core Tables**: data_product_registry, entity_metadata, column_metadata, table_relationship, naming_standard, data_product_map, data_product_map_primary_objects
 **Required Views**: v_relationship_paths (multi-hop path discovery)
 **Key Principle**: Entity = Table, Attribute = Column
 **Scale**: Hundreds of metadata rows (not millions)
@@ -927,6 +1147,7 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.8 | 2026-07-15 | Added Section 3.6 `data_product_map_primary_objects` (resolves issue #14): one row per primary object with exact fully qualified identity, controlled `object_role` vocabulary, `usage_guidance`, optional `table_kind`, and validation queries (orphan modules, missing objects, invalid roles, catalogue-kind mismatches, duplicates). Deprecated the `primary_tables` / `primary_views` CSV columns (retained for backward compatibility only) and updated agent discovery queries to use the child relation. New table adopts canonical lifecycle columns (`created_dts` / `updated_dts`) per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.6 | 2026-04-15 | Added Section 8.5 `table_relationship` Completeness Requirement: all inter-entity relationships must be registered — intra-module FKs, reference table lookups, cross-module joins, multi-hop semantic joins, and bidirectional traversals. Added path existence and isolation validation queries. Cross-referenced ERD recipe (QC-SEMANTIC-002) as a completeness check. Updated Section 8.4 design checklist with deployment_status requirement, table_relationship completeness check, and v_relationship_paths validation. | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | 2.5 | 2026-03-20 | Fixed boolean column definitions and filter values throughout: converted all CHAR(1) DEFAULT 'Y'/'N' columns (is_active, is_pii, is_sensitive, is_required, is_mandatory) to BYTEINT NOT NULL DEFAULT 1/0; converted all = 'Y' / = 'N' filter values to = 1 / = 0 to align with platform boolean standard. | Nathan Green, Worldwide Data Architecture Team, Teradata |
