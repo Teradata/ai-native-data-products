@@ -611,7 +611,7 @@ CREATE TABLE Semantic.data_product_map_primary_objects (
     table_kind CHAR(1),                 -- Teradata DBC.TablesV.TableKind code (optional)
 
     -- Lifecycle - canonical columns per the Temporal & Lifecycle
-    -- Metadata Standard (design-standards/core/). is_active semantics:
+    -- Metadata Standard. is_active semantics:
     -- 1 = registration is live and discoverable; 0 = retired from
     -- discovery. Independent of whether the object physically exists
     -- (existence is a validation concern, not a lifecycle state).
