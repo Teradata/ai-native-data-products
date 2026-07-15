@@ -313,7 +313,8 @@ physical layer architecture.
 
 ## 9. Conformance Rules
 
-Implementable by the Trust Engine and other validators. Severity guidance:
+Implementable by trust-gate validators and conformance tooling. Severity
+guidance:
 rules marked **[B]** are blocking (agent stop/go per issue #19); the rest
 default to warning severity.
 

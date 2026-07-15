@@ -311,7 +311,7 @@ ON {Product}_DOM_STD_T.agreement;
 
 ## 9. DBC Conformance Queries
 
-Implementable checks for the Trust Engine (rule numbers from core §9).
+Implementable checks for trust-gate validators (rule numbers from core §9).
 `ColumnType` codes: `SZ` = `TIMESTAMP WITH TIME ZONE`, `TS` = `TIMESTAMP`,
 `I1` = `BYTEINT`.
 
