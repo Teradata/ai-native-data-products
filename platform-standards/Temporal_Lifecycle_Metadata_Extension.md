@@ -8,10 +8,10 @@
 | Attribute | Value |
 |-----------|-------|
 | **Version** | 1.0-draft |
-| **Status** | DRAFT — Proposed (resolves issue #17, first extension under issue #16 structure) |
+| **Status** | DRAFT — Proposed (resolves issue #17) |
 | **Last Updated** | 2026-07-15 |
 | **Owner** | Worldwide Data Architecture Team, Teradata |
-| **Scope** | Teradata binding of `design-standards/core/Temporal_Lifecycle_Metadata_Standard.md` |
+| **Scope** | Teradata binding of `design-standards/Temporal_Lifecycle_Metadata_Standard.md` |
 | **Type** | Platform Extension (Teradata) |
 | **Testing** | Targets Teradata v20.0; conformance queries use DBC dictionary views |
 
@@ -48,8 +48,7 @@ here changes core semantics.
 
 `TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant for
 temporal/lifecycle metadata columns (TLM-05): it makes the UTC persistence
-rule unverifiable and the sentinel ambiguous. This ratifies the position the
-Advocated Data Management Standards already take.
+rule unverifiable and the sentinel ambiguous under session-zone changes.
 
 ---
 
@@ -107,10 +106,9 @@ Rules:
 | Access Layer view | `*_ACS_V` | Purpose-specific consumer views; the default current view per entity follows §7 |
 
 **`ACS` means Access** and replaces the misleading `BUS` abbreviation in
-new standards. Deployed `*_BUS_V` objects (and the field-observed `*_ACL_V`
-variant) are registered legacy aliases, migrated separately through
-versioned compatibility per core §10.2 — this document does not force their
-rename.
+new standards. `*_BUS_V` and `*_ACL_V` are registered legacy aliases for
+this layer, migrated separately through versioned compatibility per core
+§10.2 — this document does not force their rename.
 
 Access views select from `*_STD_V`, never from `*_STD_T` directly
 (TLM-14). Concrete database naming (`{Product}_{Module}_{Layer}`) is owned
@@ -389,7 +387,7 @@ WHERE is_deleted = 1
    columns, backfilling, then retiring the legacy column behind a
    versioned compatibility view that projects both names during the
    deprecation window.
-3. **DATE-grain validity** (Memory registry tables, Domain `_R`):
+3. **DATE-grain validity columns**:
    `valid_from_dts = CAST(valid_from AS TIMESTAMP(6) WITH TIME ZONE AT
    TIME ZONE 'GMT')`; `valid_to = DATE '9999-12-31'` maps to the timestamp
    sentinel. Document that historical intra-day ordering is unavailable

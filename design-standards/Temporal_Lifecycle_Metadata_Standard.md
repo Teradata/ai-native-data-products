@@ -13,13 +13,11 @@
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | All modules — temporal and lifecycle metadata on every persisted table |
 | **Type** | Design Standard (Core, RDBMS-neutral) |
-| **Platform bindings** | `design-standards/extensions/platforms/teradata/Temporal_Lifecycle_Metadata_Extension.md` |
+| **Platform bindings** | `platform-standards/Temporal_Lifecycle_Metadata_Extension.md` |
 
 This is a **core** standard: it defines semantic contracts only. It contains
 no vendor SQL types, sentinel literals, catalogue queries, index syntax, or
-deployment-tool behaviour — those bind in platform extensions. It is the
-first document delivered through the modular core/extensions structure
-proposed in issue #16.
+deployment-tool behaviour — those bind in platform extensions.
 
 ---
 
@@ -41,37 +39,30 @@ proposed in issue #16.
 
 ## 1. Purpose and Motivation
 
-The module standards currently prescribe temporal and lifecycle metadata
-inconsistently. A survey of this repository (2026-07-15) found:
+Without a single temporal contract, data products and their standards drift
+into failure modes that break every consumer filtering on a shared
+contract. This standard exists to prevent:
 
-- **three validity spellings** for the same concept — `valid_from_dts` /
-  `valid_to_dts` (Advocated, Domain `_H`, Prediction, Search), bare
-  `valid_from` / `valid_to` at DATE grain (Memory registry tables, Access
-  Layer seed, Master prose), and `effective_date` / `expiration_date`
-  (Advocated Type-2 alternative, Domain `_R`);
-- **four row-creation audit spellings** — `created_at` (Semantic,
-  Observability, Memory event tables), `created_dts` (Advocated),
-  `created_dt` (Domain `_Keymap`), `created_timestamp` (Memory registry
-  tables) — with a fifth, `created_date`, appearing in a Physical Storage
-  example;
-- **one flag, two meanings**: `is_active` marks SCD2 currency on Memory's
-  `Business_Glossary` and `Query_Cookbook` but catalogue lifecycle on every
-  Semantic table, while sibling Memory tables (`Design_Decision`,
-  `Module_Registry`) use `is_current` for the same currency concept;
-- **transaction time mandated and optional simultaneously**: part of the
-  Advocated "Tier 1 core", commented-out optional in the Domain template,
-  absent everywhere else;
-- **two open-state conventions**: a far-future sentinel on validity bounds,
-  but `NULL` on `data_lineage.retired_dts`.
+- **competing spellings for one concept** — validity appearing variously as
+  `valid_from_dts` / `valid_to_dts`, bare `valid_from` / `valid_to` at DATE
+  grain, or `effective_date` / `expiration_date`; row-creation audit
+  appearing as `created_at`, `created_dts`, `created_dt`,
+  `created_timestamp`, or `created_date`;
+- **one flag carrying two meanings** — `is_active` marking SCD2 currency on
+  some tables and catalogue lifecycle on others, while sibling tables use
+  `is_current` for the same currency concept;
+- **transaction time both mandated and optional** depending on which
+  document a designer reads;
+- **two open-state conventions coexisting** — a far-future sentinel on some
+  open-ended columns, `NULL` on others, with no rule saying which applies
+  where;
+- **audit-only dialects** (e.g. `rec_load_dts` / `rec_updt_dts` with no
+  lifecycle flags at all) that leave consumers nothing to filter on.
 
-Field deployments amplify the drift (audit-column dialects such as
-`rec_load_dts` / `rec_updt_dts` with no lifecycle flags at all), and every
-divergence breaks consumers that filter on the standard contract.
-
-The problem is not merely naming: distinct concepts are being conflated.
-This standard gives each concept exactly one name and one meaning, defines
-the SCD2 period contract precisely, and makes each table declare which
-temporal profile it implements so that validators can enforce the contract
+The problem is not merely naming: distinct concepts get conflated. This
+standard gives each concept exactly one name and one meaning, defines the
+SCD2 period contract precisely, and makes each table declare which temporal
+profile it implements so that validators can enforce the contract
 mechanically.
 
 ---
@@ -183,11 +174,12 @@ flow is live, or an agreement is operationally in force.
 - Its meaning, owner, and allowed transitions must be documented at table
   and column level; an undocumented `is_active` is a conformance failure.
 
-> **Resolved contradiction.** Memory's `Business_Glossary` and
-> `Query_Cookbook` previously used `is_active` where their siblings used
-> `is_current` for the same version-currency concept. Under this standard,
-> version currency is always `is_current`; those tables may *additionally*
-> carry `is_active` for the distinct "approved for discovery" state.
+> **Note.** Where a table needs both version currency *and* an approval or
+> discoverability state (a common pattern for curated registry tables such
+> as glossaries and cookbooks), use `is_current` for currency and
+> `is_active` for the approval state — never one flag for both. This
+> avoids the drift where sibling tables express the same currency concept
+> through different flags.
 
 ---
 
@@ -209,10 +201,9 @@ valid_from_dts <= t AND t < valid_to_dts
 
 The end bound is exclusive. Adjacent versions share a boundary instant
 (`predecessor.valid_to_dts = successor.valid_from_dts`) with no gap and no
-overlap. This codifies the predicate form every current document already
-uses, and prohibits the failure modes half-open semantics exist to prevent:
-no inclusive end dates, no `CURRENT_DATE - 1`, no second-subtraction, no
-precision-dependent end conventions.
+overlap. Half-open semantics prohibit the failure modes inclusive-end
+conventions invite: no inclusive end dates, no `CURRENT_DATE - 1`, no
+second-subtraction, no precision-dependent end conventions.
 
 ### 5.2 Required invariants
 
@@ -240,12 +231,12 @@ transaction-time axis. Corrections close the transaction period of the
 mistaken row and insert corrected rows; business validity is never
 destructively rewritten.
 
-> **Resolved contradiction.** The Advocated standard listed transaction
-> time in its mandatory "Tier 1 core" while the Domain template made the
-> same columns optional. Under this standard, transaction time is an
-> **optional profile variant** (§6.3): `created_dts` / `updated_dts`
-> already provide physical audit time for products that do not need
-> correction history.
+> **Note.** Transaction time is an **optional profile variant** (§6.3),
+> never part of the mandatory core: `created_dts` / `updated_dts` already
+> provide physical audit time for products that do not need correction
+> history. Making the requirement explicit avoids designs where transaction
+> time is simultaneously treated as mandatory by one document and optional
+> by another.
 
 ---
 
@@ -289,10 +280,12 @@ representations:
    "has not occurred". They are not validity bounds and must not carry
    sentinels.
 
-> **Resolved contradiction.** Observability's `data_lineage.retired_dts`
-> (`NULL` while the flow is live) is *correct* under rule 2 — it is an
-> event timestamp paired with the documented lifecycle flag `is_active`.
-> The sentinel convention applies only to concept-1 validity bounds.
+> **Note.** An event timestamp paired with a documented lifecycle flag —
+> for example a `retired_dts` that is `NULL` while a lineage flow is live,
+> alongside `is_active` — is correct under rule 2. The sentinel convention
+> applies only to concept-1 validity bounds; applying it to event
+> timestamps (or `NULL` to validity bounds) is the drift this section
+> prevents.
 
 ---
 
@@ -350,15 +343,18 @@ default to warning severity.
 
 ### 10.1 Legacy-to-canonical mapping
 
-| Legacy (where observed) | Canonical | Notes |
-|-------------------------|-----------|-------|
-| `valid_from` / `valid_to` DATE (Memory registry, Access seed, Master prose) | `valid_from_dts` / `valid_to_dts` | Grain widens day → timestamp; day-grain values map to midnight at period start |
-| `effective_date` / `expiration_date` (Advocated Type-2, Domain `_R`) | `valid_from_dts` / `valid_to_dts` | As above |
-| `created_at` (Semantic, Observability, Memory event, Prediction) | `created_dts` | Rename only |
-| `created_dt` (Domain `_Keymap`) / `created_timestamp`, `updated_timestamp` (Memory registry) / `updated_at` | `created_dts` / `updated_dts` | Rename only |
-| `is_active` as version currency (Memory `Business_Glossary`, `Query_Cookbook`) | `is_current` | `is_active` may be retained for the distinct approved-for-discovery state |
-| `rec_load_dts` / `rec_updt_dts` / `rec_src_id` (field dialects) | `created_dts` / `updated_dts` / source-audit metadata | Field-observed; not prescribed by any repo document |
-| Transaction-time pair as mandatory core (Advocated) | Optional `SCD2_BITEMPORAL` variant | §5.3, §6.3 |
+Legacy forms that may be encountered in existing documents and deployed
+products, and their canonical replacements:
+
+| Legacy form | Canonical | Notes |
+|-------------|-----------|-------|
+| `valid_from` / `valid_to` at DATE grain | `valid_from_dts` / `valid_to_dts` | Grain widens day → timestamp; day-grain values map to midnight at period start |
+| `effective_date` / `expiration_date` | `valid_from_dts` / `valid_to_dts` | As above |
+| `created_at`, `created_dt`, `created_timestamp`, `created_date` | `created_dts` | Rename only |
+| `updated_at`, `updated_timestamp` | `updated_dts` | Rename only |
+| `is_active` used as version currency | `is_current` | `is_active` may be retained for a distinct, documented approval state (§4.3) |
+| `rec_load_dts` / `rec_updt_dts` / `rec_src_id` audit dialects | `created_dts` / `updated_dts` / source-audit metadata | Common field dialect with no lifecycle flags |
+| Transaction-time pair treated as mandatory | Optional `SCD2_BITEMPORAL` variant | §5.3, §6.3 |
 
 ### 10.2 Migration rules
 
@@ -372,28 +368,26 @@ default to warning severity.
 4. Validators flag non-canonical names on new objects while allowing
    registered legacy aliases on migrating products, with an expiry.
 
-### 10.3 Consequential updates to existing documents
+### 10.3 Precedence
 
-This standard supersedes the conflicting clauses surveyed in §1. The
-following documents require follow-up alignment edits (tracked separately;
-this document is authoritative in the interim): Advocated Data Management
-Standards (Tier-1 column list, Type-2 alternative), Memory (registry table
-DDL and lifecycle prose), Semantic (`created_at`/`updated_at` triplet),
-Observability (`created_at`), Domain (`_R` DATE grain, `_Keymap`
-`created_dt`), Prediction (`created_at`), Master Design (temporal prose).
+Where any other design standard disagrees with this standard on the naming,
+typing, grain, sentinel, or lifecycle semantics of temporal metadata, this
+standard takes precedence. A disagreeing document is aligned at its next
+revision; until then its conflicting clauses are read as legacy forms under
+the §10.1 mapping.
 
 ---
 
 ## 11. Relationship to Other Standards
 
-- **Issue #16 / #10** — this document inaugurates the
-  `design-standards/core/` + `extensions/platforms/` structure and follows
-  the core/extension governance boundary.
+- **Issue #16 / #10** — this document follows the core/extension
+  governance boundary; its file placement moves when the repository
+  restructure is agreed.
 - **Issue #19 (trust gate)** — §9 rules are written to be lifted directly
   into validator profiles; blocking rules feed `agent_use_allowed`.
 - **Issue #11 (Teradata extension)** — the Teradata binding of this
   standard lives at
-  `design-standards/extensions/platforms/teradata/Temporal_Lifecycle_Metadata_Extension.md`.
+  `platform-standards/Temporal_Lifecycle_Metadata_Extension.md`.
 - **Object Placement Standard** — layer *naming* is owned by object
   placement standards; §8 defines layer *responsibilities* only.
 - **Semantic Module Standard** — `entity_metadata` carries the profile
