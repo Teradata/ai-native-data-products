@@ -1,5 +1,5 @@
 # Semantic Module Design Standard
-## AI-Native Data Product Architecture - Version 2.8 (Tested & Validated)
+## AI-Native Data Product Architecture - Version 2.9 (Tested & Validated)
 
 ---
 
@@ -7,7 +7,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.8 |
+| **Version** | 2.9 |
 | **Status** | STANDARD - Tested on Teradata |
 | **Last Updated** | 2026-07-15 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
@@ -778,6 +778,249 @@ HAVING COUNT(*) > 1;
 5. Retain the legacy columns only where backward compatibility is
    required, with an agreed retirement date.
 
+### 3.7 view_metadata (View Catalogue)
+
+**Purpose**: Catalogue every view that exposes a base table — one row per
+(base table, exposing view) — so consumers resolve an entity's full
+exposure map, and which object is primary, from metadata rather than
+naming conventions (resolves issue #36).
+
+`entity_metadata.view_name` carries only the single standard current view;
+deployments routinely expose one base table through several views. This
+relation is the pragmatic interim on the path to issue #9's fuller
+`access_object` registry: a `view_metadata` row migrates cleanly into an
+`access_object` row with `access_role` derived from `view_type`.
+
+```sql
+CREATE TABLE Semantic.view_metadata (
+    view_metadata_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    base_database VARCHAR(128) NOT NULL,
+    base_table VARCHAR(128) NOT NULL,
+    view_database VARCHAR(128) NOT NULL,
+    view_name VARCHAR(128) NOT NULL,
+    view_type VARCHAR(20) NOT NULL,     -- 'LOCKING','BUSINESS','CURRENT','ENRICHED','PIT','DERIVED'
+    view_purpose VARCHAR(500),
+    is_primary BYTEINT NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (base_table);
+
+COMMENT ON TABLE Semantic.view_metadata IS 
+'View catalogue - one row per (base table, exposing view); consumers resolve exposure from metadata, never naming conventions';
+
+COMMENT ON COLUMN Semantic.view_metadata.view_metadata_id IS 
+'Surrogate key for view catalogue record';
+
+COMMENT ON COLUMN Semantic.view_metadata.base_database IS 
+'Database of the base table this view exposes';
+
+COMMENT ON COLUMN Semantic.view_metadata.base_table IS 
+'Base table this view exposes';
+
+COMMENT ON COLUMN Semantic.view_metadata.view_database IS 
+'Database the exposing view is deployed in';
+
+COMMENT ON COLUMN Semantic.view_metadata.view_name IS 
+'Exposing view name - used verbatim by consumers';
+
+COMMENT ON COLUMN Semantic.view_metadata.view_type IS 
+'Exposure kind - LOCKING (1:1 full contract), BUSINESS, CURRENT (default current surface), ENRICHED (composite), PIT (point-in-time), DERIVED';
+
+COMMENT ON COLUMN Semantic.view_metadata.view_purpose IS 
+'Concise statement of what this exposure is for and any consumer constraints';
+
+COMMENT ON COLUMN Semantic.view_metadata.is_primary IS 
+'1 = the primary consumer exposure of the base table; at most one active primary per base table';
+
+COMMENT ON COLUMN Semantic.view_metadata.is_active IS 
+'Registration lifecycle - 1 = live catalogue entry, 0 = retired; independent of physical existence';
+
+COMMENT ON COLUMN Semantic.view_metadata.created_dts IS 
+'Physical row creation time (UTC)';
+
+COMMENT ON COLUMN Semantic.view_metadata.updated_dts IS 
+'Physical row last-change time (UTC)';
+```
+
+**Validation** (Trust Engine / deployment checks):
+
+```sql
+-- Governed base tables with no registered exposure
+SELECT e.database_name, e.table_name
+FROM Semantic.entity_metadata AS e
+WHERE e.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM Semantic.view_metadata AS vm
+      WHERE vm.base_database = e.database_name
+        AND vm.base_table = e.table_name
+        AND vm.is_active = 1
+  );
+
+-- Registered views missing from the catalogue
+SELECT vm.view_database, vm.view_name
+FROM Semantic.view_metadata AS vm
+LEFT JOIN DBC.TablesV AS t
+    ON  t.DatabaseName = vm.view_database
+    AND t.TableName = vm.view_name
+    AND t.TableKind = 'V'
+WHERE vm.is_active = 1
+  AND t.TableName IS NULL;
+
+-- More than one active primary exposure per base table
+SELECT vm.base_database, vm.base_table, COUNT(*) AS primaries
+FROM Semantic.view_metadata AS vm
+WHERE vm.is_active = 1
+  AND vm.is_primary = 1
+GROUP BY vm.base_database, vm.base_table
+HAVING COUNT(*) > 1;
+```
+
+### 3.8 view_column_type (View Column Type Overrides)
+
+**Purpose**: Curated data types for view columns. The platform dictionary
+cannot report data types for view columns, so the column catalogue (3.9)
+needs a curated override supplying the friendly type string per view
+column.
+
+```sql
+CREATE TABLE Semantic.view_column_type (
+    view_column_type_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    database_name VARCHAR(128) NOT NULL,
+    view_name VARCHAR(128) NOT NULL,
+    column_name VARCHAR(128) NOT NULL,
+    data_type VARCHAR(100) NOT NULL,    -- full friendly string, e.g. 'VARCHAR(50)', 'DECIMAL(7,2)'
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (view_name);
+
+COMMENT ON TABLE Semantic.view_column_type IS 
+'Curated data types for view columns - supplies what the platform dictionary cannot report; consumed by column_catalogue';
+```
+
+Rows are generated at view-deployment time (the deployer knows each
+projected column's type) rather than curated by hand.
+
+### 3.9 column_catalogue (Live Hybrid Column Catalogue)
+
+**Purpose**: The complete, consumer-facing column catalogue — live
+structural facts joined to curated semantic facts, with the **provenance**
+of every resolved value (addresses issue #22 for this module; the
+RDBMS-neutral contract split follows the issue #16 restructure).
+
+`column_metadata` (3.2) remains the curated store, but it can drift from
+deployed structures and covers only the curated subset. The catalogue view
+lists **every deployed column**, decodes types live from the dictionary
+(with 3.8 overrides for view columns), resolves each description with
+explicit precedence (curated → deployed comment → none), and flags
+documentation coverage — so consumers see a complete schema without the
+curated store ever copying dictionary facts.
+
+```sql
+REPLACE VIEW Semantic.column_catalogue
+(
+      catalogue_database         -- Database the column lives in
+    , catalogue_table            -- Table or view the column belongs to
+    , column_name                -- Physical column name
+    , ordinal_position           -- Column order within the table
+    , data_type                  -- Friendly type: view override when present, else live dictionary decode
+    , data_type_source           -- 'override' | 'dictionary'
+    , is_nullable                -- 1 if the column accepts NULL, else 0
+    , is_required                -- 1 if the column is NOT NULL, else 0
+    , business_description       -- Curated description, else deployed COMMENT, else NULL
+    , description_source         -- 'curated' | 'comment' | 'none'
+    , is_documented              -- 1 if a description exists from any source, else 0
+    , is_pii                     -- Curated PII flag (1/0); 0 when not yet curated
+    , is_sensitive               -- Curated sensitivity flag (1/0); 0 when not curated
+    , data_classification        -- Curated classification label (NULL when not curated)
+    , allowed_values_json        -- Curated allowed-value domain (NULL when not curated)
+)
+AS
+SELECT
+      dcol.DatabaseName                                        AS catalogue_database
+    , dcol.TableName                                           AS catalogue_table
+    , dcol.ColumnName                                          AS column_name
+    , dcol.ColumnId                                            AS ordinal_position
+    , COALESCE(
+          vtype.data_type
+        , CASE TRIM(dcol.ColumnType)
+              WHEN 'I'  THEN 'INTEGER'
+              WHEN 'I1' THEN 'BYTEINT'
+              WHEN 'I2' THEN 'SMALLINT'
+              WHEN 'I8' THEN 'BIGINT'
+              WHEN 'F'  THEN 'FLOAT'
+              WHEN 'D'  THEN 'DECIMAL(' || TRIM(dcol.DecimalTotalDigits)
+                              || ',' || TRIM(dcol.DecimalFractionalDigits) || ')'
+              WHEN 'DA' THEN 'DATE'
+              WHEN 'AT' THEN 'TIME'
+              WHEN 'TS' THEN 'TIMESTAMP'
+              WHEN 'SZ' THEN 'TIMESTAMP WITH TIME ZONE'
+              WHEN 'CF' THEN 'CHAR(' || TRIM(CAST(
+                                  CASE WHEN dcol.CharType = 2
+                                       THEN dcol.ColumnLength / 2
+                                       ELSE dcol.ColumnLength END AS INTEGER)) || ')'
+              WHEN 'CV' THEN 'VARCHAR(' || TRIM(CAST(
+                                  CASE WHEN dcol.CharType = 2
+                                       THEN dcol.ColumnLength / 2
+                                       ELSE dcol.ColumnLength END AS INTEGER)) || ')'
+              WHEN 'CO' THEN 'CLOB'
+              WHEN 'JN' THEN 'JSON'
+              WHEN 'BO' THEN 'BLOB'
+              WHEN 'BV' THEN 'VARBYTE'
+              WHEN 'BF' THEN 'BYTE'
+              ELSE TRIM(dcol.ColumnType)
+          END
+      )                                                        AS data_type
+    , CASE WHEN vtype.data_type IS NOT NULL THEN 'override'
+           ELSE 'dictionary'
+      END                                                      AS data_type_source
+    , CASE WHEN dcol.Nullable = 'Y' THEN 1 ELSE 0 END          AS is_nullable
+    , CASE WHEN dcol.Nullable = 'N' THEN 1 ELSE 0 END          AS is_required
+    , COALESCE(meta.business_description
+              , NULLIF(TRIM(dcol.CommentString), ''))          AS business_description
+    , CASE WHEN meta.business_description IS NOT NULL              THEN 'curated'
+           WHEN NULLIF(TRIM(dcol.CommentString), '') IS NOT NULL   THEN 'comment'
+           ELSE 'none'
+      END                                                      AS description_source
+    , CASE WHEN COALESCE(meta.business_description
+                       , NULLIF(TRIM(dcol.CommentString), '')) IS NOT NULL
+           THEN 1 ELSE 0 END                                   AS is_documented
+    , COALESCE(meta.is_pii, 0)                                 AS is_pii
+    , COALESCE(meta.is_sensitive, 0)                           AS is_sensitive
+    , meta.data_classification                                 AS data_classification
+    , meta.allowed_values_json                                 AS allowed_values_json
+FROM DBC.ColumnsV AS dcol
+LEFT OUTER JOIN Semantic.column_metadata AS meta
+    ON  meta.database_name = dcol.DatabaseName
+    AND meta.table_name    = dcol.TableName
+    AND meta.column_name   = dcol.ColumnName
+    AND meta.is_active     = 1
+LEFT OUTER JOIN Semantic.view_column_type AS vtype
+    ON  vtype.database_name = dcol.DatabaseName
+    AND vtype.view_name     = dcol.TableName
+    AND vtype.column_name   = dcol.ColumnName
+    AND vtype.is_active     = 1
+WHERE dcol.DatabaseName IN (
+    SELECT m.database_name FROM Semantic.data_product_map AS m
+    WHERE m.is_active = 1
+);
+```
+
+Rules:
+
+1. Scope the dictionary read to the product's own databases (the template
+   scopes via `data_product_map`; deployments may refine with layer
+   predicates and staging/backup exclusions).
+2. Source precedence is explicit and carried per row: `data_type_source`
+   and `description_source` let consumers distinguish curated facts from
+   dictionary facts and detect drift.
+3. Consumers prefer `column_catalogue` for schema display; `column_metadata`
+   remains the curation write-target.
+4. A documentation gap report is `WHERE is_documented = 0`.
+
 ---
 
 ## 4. Table-Level Relationship Metadata
@@ -1021,6 +1264,13 @@ ORDER BY hop_count;
 
 Semantic describes all modules via entity_metadata and table_relationship.
 
+**Definitional lineage exposure**: definitional `data_lineage` is owned by
+the Observability module (Observability standard, definition/execution
+split). The Semantic discovery surface exposes a `data_lineage` projection
+of it, so catalogue consumers resolve a product's declared flows from the
+same database they discover everything else in — without reaching into
+module internals.
+
 ---
 
 ## 8. Designer Responsibilities
@@ -1033,9 +1283,13 @@ Semantic describes all modules via entity_metadata and table_relationship.
 - table_relationship (~20-100 rows)
 - naming_standard (~10-30 rows)
 - data_product_map (one row per deployed module)
+- data_product_map_primary_objects (one row per primary object)
+- view_metadata (one row per base-table exposure)
+- view_column_type (populated at view-deployment time)
 
 ### 8.2 Required Views
 
+- column_catalogue (live hybrid column catalogue, 3.9)
 - v_entity_catalog
 - v_entity_schema
 - **v_relationship_paths** (CRITICAL)
@@ -1147,6 +1401,7 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.9 | 2026-07-15 | Added the catalogue exposure objects: Section 3.7 `view_metadata` view catalogue (resolves issue #36 — one row per base-table exposure, controlled `view_type` vocabulary, `is_primary` uniqueness, validation queries, interim on the issue #9 path); Section 3.8 `view_column_type` curated view-column types; Section 3.9 `column_catalogue` live hybrid column catalogue with value provenance (`data_type_source`, `description_source`, `is_documented` — addresses issue #22 for this module). Documented Semantic exposure of Observability's definitional `data_lineage` (Section 7). Updated required tables/views (8.1, 8.2). New tables use canonical lifecycle columns per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.8 | 2026-07-15 | Added Section 3.6 `data_product_map_primary_objects` (resolves issue #14): one row per primary object with exact fully qualified identity, controlled `object_role` vocabulary, `usage_guidance`, optional `table_kind`, and validation queries (orphan modules, missing objects, invalid roles, catalogue-kind mismatches, duplicates). Deprecated the `primary_tables` / `primary_views` CSV columns (retained for backward compatibility only) and updated agent discovery queries to use the child relation. New table adopts canonical lifecycle columns (`created_dts` / `updated_dts`) per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.6 | 2026-04-15 | Added Section 8.5 `table_relationship` Completeness Requirement: all inter-entity relationships must be registered — intra-module FKs, reference table lookups, cross-module joins, multi-hop semantic joins, and bidirectional traversals. Added path existence and isolation validation queries. Cross-referenced ERD recipe (QC-SEMANTIC-002) as a completeness check. Updated Section 8.4 design checklist with deployment_status requirement, table_relationship completeness check, and v_relationship_paths validation. | Nathan Green, Worldwide Data Architecture Team, Teradata |
