@@ -154,7 +154,7 @@ autonomous discovery via the Semantic module.
 | Search_Module_Design_Standard | 1.5 |
 | Prediction_Module_Design_Standard | 1.6 |
 | Observability_Module_Design_Standard | 1.4 |
-| Memory_Module_Design_Standard | 1.6 |
+| Memory_Module_Design_Standard | 2.0 |
 | Access_Layer_Design_Standard | 1.0 |
 | Object_Placement_Standard_Spec | 1.0 |
 | Physical_Storage_Standard_Spec | 1.0 |
