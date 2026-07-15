@@ -214,8 +214,8 @@ shape:
 
 ```json
 {
-  "test_id": "CALLCENTRE-SEM-008",
-  "name": "Entity metadata publishes access-layer view names",
+  "test_id": "CALLCENTRE-SEM-004",
+  "name": "Curated column metadata covers deployed columns",
   "category": "SEMANTIC",
   "severity": "CRITICAL",
   "status": "FAILED",
@@ -223,13 +223,13 @@ shape:
   "sample_rows": [
     {
       "entity_name": "Agent",
-      "view_name": "CallCentre_DOM_BUS_V.Agent_Current",
-      "issue_code": "ENTITY_VIEW_NAME_NOT_DEPLOYED",
-      "repair_hint": "Deploy the access-layer view for agent access."
+      "column_name": "agent_status",
+      "issue_code": "MISSING_COLUMN_METADATA",
+      "repair_hint": "Register the column in column_metadata with a business description."
     }
   ],
   "error_message": null,
-  "repair_strategy": "Populate entity_metadata.view_name and deploy the referenced views."
+  "repair_strategy": "Backfill column_metadata for every deployed column of the entity."
 }
 ```
 
