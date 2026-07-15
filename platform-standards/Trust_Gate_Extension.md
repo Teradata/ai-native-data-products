@@ -13,7 +13,7 @@
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | Teradata binding of the Data Product Trust Gate Standard (wire schema 1.0) |
 | **Type** | Platform Extension (Teradata) |
-| **Reference implementation** | `ai-native-data-product-trust-engine` — this extension documents its deployed contract |
+| **Wire schema** | 1.0 — documents a deployed, production-tested contract |
 
 ---
 
@@ -208,8 +208,8 @@ HAVING COUNT(*) > 1;
   product orientation metadata (issue #20), not by guessing layer
   suffixes.
 - The trust result must be reachable by the product's registered semantic
-  discovery database so registry-driven consumers (e.g. the Data Product
-  Browser) find `trust_engine_latest` without convention-guessing.
+  discovery database so registry-driven consumers (catalogue and browser
+  tooling) find `trust_engine_latest` without convention-guessing.
 
 ---
 

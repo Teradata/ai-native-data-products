@@ -14,11 +14,14 @@
 | **Scope** | Machine-readable conformance result and agent stop/go contract for every data product |
 | **Type** | Design Standard (Core, RDBMS-neutral) |
 | **Platform bindings** | `platform-standards/Trust_Gate_Extension.md` |
-| **Reference implementation** | `ai-native-data-product-trust-engine` (wire schema 1.0) |
+| **Wire schema** | 1.0 |
 
-This core standard codifies a **proven wire contract**: the trust result
-defined by the ADP Trust Engine's payload schema `1.0` and its tested
-producer/consumer contract. Where the standard extends beyond that schema
+This core standard codifies a **production-proven wire contract** — payload
+schema `1.0` as published by a conformant validator (a *trust engine*) and
+consumed read-only by catalogue and browser tooling — rather than a
+green-field design. The contract is fully specified here: a reader can
+implement either side (validator or consumer) from this document and its
+platform binding alone. Where the standard extends beyond schema 1.0
 (validator identity, staleness), the extensions are explicitly additive and
 versioned (§9).
 
@@ -54,7 +57,7 @@ Three principles govern this contract:
 
 1. **Trust is computed by the validator, only.** Consumers are read-only:
    they render and act on the published result and must never re-derive a
-   verdict from raw evidence. (Reference implementation ADR-0001.)
+   verdict from raw evidence.
 2. **The stop/go decision is authoritative.** `agent_use_allowed` is a
    decision, not advice. Critical failures block use regardless of any
    aggregate score, and consumers must not silently override a blocked
@@ -96,8 +99,7 @@ Runs are **appended**, never overwritten: the run history is evidence; the
 `trust_status` has exactly three values: **`TRUSTED`**, **`DEGRADED`**,
 **`UNTRUSTED`**.
 
-The **default decision profile** (the reference implementation's rules,
-evaluated in order):
+The **default decision profile** (rules evaluated in order):
 
 1. Any execution error (`error_count > 0`), any CRITICAL-severity failure,
    or any ERROR-severity failure → `UNTRUSTED`. **The severity gate is
