@@ -13,14 +13,14 @@
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | Machine-readable conformance result and agent stop/go contract for every data product |
 | **Type** | Design Standard (Core, RDBMS-neutral) |
-| **Platform bindings** | `design-standards/extensions/platforms/teradata/Trust_Gate_Extension.md` |
+| **Platform bindings** | `platform-standards/Trust_Gate_Extension.md` |
 | **Reference implementation** | `ai-native-data-product-trust-engine` (wire schema 1.0) |
 
-This core standard codifies a **proven wire contract**: the trust result the
-ADP Trust Engine publishes today (payload schema `1.0`) and its consumer
-contract with the Data Product Browser. Where the standard extends beyond
-the deployed schema (validator identity, staleness), the extensions are
-explicitly additive and versioned (§9).
+This core standard codifies a **proven wire contract**: the trust result
+defined by the ADP Trust Engine's payload schema `1.0` and its tested
+producer/consumer contract. Where the standard extends beyond that schema
+(validator identity, staleness), the extensions are explicitly additive and
+versioned (§9).
 
 ---
 
@@ -44,11 +44,11 @@ explicitly additive and versioned (§9).
 
 ## 1. Purpose and Principles
 
-The standards contain rules and checklists but, until now, no standard
-conformance *result* an agent can evaluate before querying a product.
-Without an explicit gate, agents may use structurally invalid or
-operationally unsafe products, aggregate scores can hide critical failures,
-and repair candidates have no portable representation.
+Rules and checklists alone give an agent nothing it can evaluate before
+querying a product. Without a standard conformance *result* and an explicit
+gate, agents may use structurally invalid or operationally unsafe products,
+aggregate scores can hide critical failures, and repair candidates have no
+portable representation. This standard defines that result and gate.
 
 Three principles govern this contract:
 
@@ -279,8 +279,8 @@ items**; the true total is `repair_candidate_count`. Item shape:
   fixture). A runtime `payload_schema_version` field is a **planned
   additive extension (1.1)**, alongside validator identity
   (`validator_id`, `validator_version`) and decision-profile identity
-  (`profile_id`, `profile_version`) so a result records what evaluated it —
-  today the reference implementation implies these.
+  (`profile_id`, `profile_version`) so a result records explicitly what
+  evaluated it rather than implying it.
 
 ---
 
@@ -349,8 +349,9 @@ For validators (producers) and consumers of this contract:
 
 ## 13. Relationship to Other Standards
 
-- **Issue #16 / #10** — second core document in the modular
-  core/extensions structure.
+- **Issue #16 / #10** — this document follows the core/extension
+  governance boundary; its file placement moves when the repository
+  restructure is agreed.
 - **Issue #17 (Temporal & Lifecycle Metadata Standard)** — TLM blocking
   rules are canonical CRITICAL/ERROR check sources for validators.
 - **Issue #14 (primary object discovery)** — its validation queries are
@@ -359,4 +360,4 @@ For validators (producers) and consumers of this contract:
   discoverable from product orientation; trust evaluation precedes
   analytical resource use in the discovery order.
 - **Teradata binding** —
-  `design-standards/extensions/platforms/teradata/Trust_Gate_Extension.md`.
+  `platform-standards/Trust_Gate_Extension.md`.

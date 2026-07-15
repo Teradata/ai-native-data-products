@@ -8,7 +8,7 @@
 | Attribute | Value |
 |-----------|-------|
 | **Version** | 1.0-draft |
-| **Status** | DRAFT — Proposed (resolves issue #19 with `core/Trust_Gate_Standard.md`) |
+| **Status** | DRAFT — Proposed (resolves issue #19 with `design-standards/Trust_Gate_Standard.md`) |
 | **Last Updated** | 2026-07-15 |
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | Teradata binding of the Data Product Trust Gate Standard (wire schema 1.0) |
@@ -120,8 +120,8 @@ QUALIFY ROW_NUMBER() OVER (
 ```
 
 The deterministic tie-break (`completed_at DESC, run_id DESC`) is part of
-the contract (TGS-09). The reference implementation currently publishes
-this view in `{Product}_SEM_BUS_V`; see §7 for layer alignment.
+the contract (TGS-09). See §7 for the view's placement and its registered
+legacy locations.
 
 ---
 
@@ -129,7 +129,7 @@ this view in `{Product}_SEM_BUS_V`; see §7 for layer alignment.
 
 | Contract element | 1.0 binding | Note |
 |------------------|-------------|------|
-| `started_at` / `completed_at` | `VARCHAR(40)` ISO-8601 | Deliberate 1.0 wart: changing to `TIMESTAMP(6) WITH TIME ZONE` (per the Temporal & Lifecycle Metadata Standard) is an **incompatible** change reserved for wire schema 2.0. Consumers parse ISO-8601 strings. |
+| `started_at` / `completed_at` | `VARCHAR(40)` ISO-8601 | Known 1.0 limitation, kept for compatibility: changing to `TIMESTAMP(6) WITH TIME ZONE` (per the Temporal & Lifecycle Metadata Standard) is an **incompatible** change reserved for wire schema 2.0. Consumers parse ISO-8601 strings. |
 | `agent_use_allowed` | `BYTEINT` 0/1 | Matches platform flag convention |
 | Scores | `INTEGER` nullable | NULL = not assessed, never 100 |
 | JSON blobs | `JSON(32000) CHARACTER SET UNICODE` | Cap discipline in §2 |
@@ -202,11 +202,11 @@ HAVING COUNT(*) > 1;
 - Base table: Semantic module, `{Product}_SEM_STD_T`; 1:1 locking view in
   `{Product}_SEM_STD_V` per the standard view-layer rule.
 - Latest view: the Access Layer — `{Product}_SEM_ACS_V` for new products
-  per the Temporal & Lifecycle Metadata Extension's `ACS_V` adoption. The
-  reference implementation's `{Product}_SEM_BUS_V` placement (and the
-  field-observed `ACL_V` variant) are registered legacy aliases; consumers
-  should resolve the object through product orientation metadata (issue
-  #20), not by guessing layer suffixes.
+  per the Temporal & Lifecycle Metadata Extension's `ACS_V` adoption.
+  `{Product}_SEM_BUS_V` and `{Product}_SEM_ACL_V` are registered legacy
+  locations for this view; consumers should resolve the object through
+  product orientation metadata (issue #20), not by guessing layer
+  suffixes.
 - The trust result must be reachable by the product's registered semantic
   discovery database so registry-driven consumers (e.g. the Data Product
   Browser) find `trust_engine_latest` without convention-guessing.

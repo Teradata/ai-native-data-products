@@ -34,16 +34,12 @@ ai-native-data-products/
 │   ├── Prediction_Module_Design_Standard.md
 │   ├── Observability_Module_Design_Standard.md
 │   ├── Memory_Module_Design_Standard.md
-│   ├── core/                ← RDBMS-neutral semantic contracts (issue #16 structure)
-│   │   └── Trust_Gate_Standard.md
-│   └── extensions/
-│       └── platforms/
-│           └── teradata/    ← Teradata bindings of core standards
-│               └── Trust_Gate_Extension.md
+│   └── Trust_Gate_Standard.md
 │
-├── platform-standards/      ← platform-agnostic implementation contracts
+├── platform-standards/      ← platform implementation contracts
 │   ├── Object_Placement_Standard_Spec.md
-│   └── Physical_Storage_Standard_Spec.md
+│   ├── Physical_Storage_Standard_Spec.md
+│   └── Trust_Gate_Extension.md
 │
 └── prompts/                 ← how to use the standards
     ├── Skill_Conversion_Prompt.md
@@ -162,7 +158,7 @@ autonomous discovery via the Semantic module.
 | Access_Layer_Design_Standard | 1.0 |
 | Object_Placement_Standard_Spec | 1.0 |
 | Physical_Storage_Standard_Spec | 1.0 |
-| Trust_Gate_Standard (core) | 1.0-draft |
+| Trust_Gate_Standard | 1.0-draft |
 | Trust_Gate_Extension (Teradata) | 1.0-draft |
 
 ---
