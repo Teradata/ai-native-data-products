@@ -113,13 +113,9 @@ Access views select from the governed view, never from the physical table
 directly (TLM-14). Database names in this document are the module design
 standards' generic placeholders; implementation teams bind them per the
 Master Design Standard's Physical Naming Conventions or an adopted
-placement standard.
-
-In deployments using layer-suffixed database naming: **`ACS` means
-Access** and replaces the misleading `BUS` abbreviation in new standards;
-`*_BUS_V` and `*_ACL_V` are registered legacy aliases for the Access
-Layer, migrated separately through versioned compatibility per core §10.2
-— this document does not force their rename.
+placement standard. Layer and database naming — including the migration
+of legacy layer aliases — is owned by the adopted placement standard, not
+this extension.
 
 ---
 
@@ -398,11 +394,10 @@ WHERE is_deleted = 1
    TIME ZONE 'GMT')`; `valid_to = DATE '9999-12-31'` maps to the timestamp
    sentinel. Document that historical intra-day ordering is unavailable
    (core §10.2 rule 3).
-4. **`BUS_V` / `ACL_V` databases** (layer-suffixed deployments) keep their
-   names as registered legacy aliases; new Access Layer databases use
-   `ACS_V`. Renames, where
-   undertaken, ship as versioned compatibility (parallel database, view
-   redirection, consumer cut-over, retirement) — never in-place.
+4. **Database renames** (where a placement scheme is adopted or changed)
+   ship as versioned compatibility — parallel database, view redirection,
+   consumer cut-over, retirement — never in-place. Legacy database names
+   remain registered aliases until retired.
 5. **Field dialects** with no lifecycle columns at all (e.g.
    `rec_load_dts`-style audit trios) are non-conformant; bridge with
    compatibility views (constant `is_current = 1` is acceptable only in
