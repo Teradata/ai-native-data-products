@@ -35,8 +35,7 @@
 
 Validation results are operational evidence and live in the
 **Observability module**, alongside its other run/event tables. One history
-table plus consumer views (database names are generic module placeholders —
-§8):
+table plus consumer views (database names are generic tags — §8):
 
 ```sql
 CREATE MULTISET TABLE Observability.validation_run
@@ -308,13 +307,14 @@ HAVING COUNT(*) > 1;
 
 ## 8. Placement and Naming
 
-- Database names in this document are the generic module placeholders used
-  throughout the module design standards (`Observability.validation_run`,
-  `Semantic.trust_engine_run`). Implementation teams bind them per the
-  Master Design Standard's Physical Naming Conventions — e.g.
-  `Customer360_Observability.validation_run` (separate databases per
-  module) or `Customer360.O_validation_run` (single database with module
-  prefixes) — or to an adopted placement standard.
+- Database names in this document are **generic tags**, as used throughout
+  the agnostic standards (`Observability.validation_run`,
+  `Semantic.trust_engine_run`). A platform naming standard — one document
+  in the platform-specific content — binds every tag to a concrete name in
+  one place (e.g. `Customer360_Observability.validation_run`, or
+  `Customer360.O_validation_run` with module prefixes in a single
+  database). Database and layer naming is owned by that naming standard,
+  not this extension.
 - The gate must be reachable through the product's orientation metadata
   (issue #20) so registry-driven consumers (catalogue and browser tooling)
   find it — and the designated gate producer — without convention-guessing.
