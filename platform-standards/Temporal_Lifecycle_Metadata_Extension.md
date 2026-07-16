@@ -110,11 +110,11 @@ view layer necessary, so both surfaces are distinct objects here:
 | Access views (`Domain.agreement_current`, …) | Default current / purpose-specific surfaces | Consumer views; the default current view per entity follows §7 |
 
 Access views select from the governed view, never from the physical table
-directly (TLM-14). Database names in this document are the module design
-standards' generic placeholders; implementation teams bind them per the
-Master Design Standard's Physical Naming Conventions or an adopted
-placement standard. Layer and database naming — including the migration
-of legacy layer aliases — is owned by the adopted placement standard, not
+directly (TLM-14). Database names in this document are **generic tags**,
+as used throughout the agnostic standards; a platform naming standard —
+one document in the platform-specific content — binds every tag to a
+concrete name in one place. Layer and database naming, including the
+migration of legacy layer aliases, is owned by that naming standard, not
 this extension.
 
 ---
@@ -394,7 +394,7 @@ WHERE is_deleted = 1
    TIME ZONE 'GMT')`; `valid_to = DATE '9999-12-31'` maps to the timestamp
    sentinel. Document that historical intra-day ordering is unavailable
    (core §10.2 rule 3).
-4. **Database renames** (where a placement scheme is adopted or changed)
+4. **Database renames** (where the naming standard's bindings change)
    ship as versioned compatibility — parallel database, view redirection,
    consumer cut-over, retirement — never in-place. Legacy database names
    remain registered aliases until retired.
