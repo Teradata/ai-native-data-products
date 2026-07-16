@@ -26,7 +26,7 @@
 5. [Legacy Binding — Wire Schema 1.0](#5-legacy-binding--wire-schema-10)
 6. [Consumer Queries](#6-consumer-queries)
 7. [Conformance Queries](#7-conformance-queries)
-8. [Placement and Layer Alignment](#8-placement-and-layer-alignment)
+8. [Placement and Naming](#8-placement-and-naming)
 9. [Check Sources from Other Standards](#9-check-sources-from-other-standards)
 
 ---
@@ -35,11 +35,11 @@
 
 Validation results are operational evidence and live in the
 **Observability module**, alongside its other run/event tables. One history
-table plus consumer views; database names show the Object Placement
-Standard's reference placement (§8):
+table plus consumer views (database names are generic module placeholders —
+§8):
 
 ```sql
-CREATE MULTISET TABLE {Product}_OBS_STD_T.validation_run
+CREATE MULTISET TABLE Observability.validation_run
 (
     product_prefix VARCHAR(128) CHARACTER SET LATIN NOT NULL,
 
@@ -98,11 +98,11 @@ COLLECT STATISTICS
     , COLUMN (producer_id)
     , COLUMN (product_prefix, producer_id)
     , COLUMN (product_prefix, completed_at)
-ON {Product}_OBS_STD_T.validation_run;
+ON Observability.validation_run;
 ```
 
-A 1:1 locking view exposes the table in `{Product}_OBS_STD_V` per the
-standard view-layer rule.
+Consumers read through views declaring `LOCKING ROW FOR ACCESS`, never the
+base table directly.
 
 ---
 
@@ -129,7 +129,7 @@ standard view-layer rule.
 The consumer surface is a latest-per-(product, producer) projection:
 
 ```sql
-REPLACE VIEW {Product}_OBS_ACS_V.validation_latest
+REPLACE VIEW Observability.validation_latest
 AS
 LOCKING ROW FOR ACCESS
 SELECT
@@ -158,7 +158,7 @@ SELECT
     , failed_checks_json
     , repair_candidates_json
     , evidence_expires_at
-FROM {Product}_OBS_STD_T.validation_run
+FROM Observability.validation_run
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY product_prefix, producer_id
     ORDER BY completed_at DESC, run_id DESC
@@ -192,9 +192,8 @@ JSON-blob columns **without** the producer-identity, `source_format`,
 producer-specific object names in the **Semantic** module:
 
 ```text
-{Product}_SEM_STD_T.trust_engine_run       (history table)
-{Product}_SEM_BUS_V.trust_engine_latest    (latest view; ACL_V also a
-                                            registered layer alias)
+Semantic.trust_engine_run       (history table)
+Semantic.trust_engine_latest    (latest view)
 PRIMARY INDEX (product_prefix, completed_at)
 ```
 
@@ -205,7 +204,7 @@ Consumer rules for the legacy binding:
 - Resolve the object location through product orientation metadata — never
   by guessing module or layer suffixes.
 - Migration to the canonical binding is a re-publish, not a rename: the
-  producer starts inserting into `{Product}_OBS_STD_T.validation_run`
+  producer starts inserting into `Observability.validation_run`
   (with its identity columns populated) and orientation metadata is
   repointed; the legacy objects retire on the product's compatibility
   schedule.
@@ -225,7 +224,7 @@ SELECT v.trust_status
      , v.critical_failure_count
      , v.error_failure_count
      , v.data_product_trust_score
-FROM {Product}_OBS_ACS_V.validation_latest AS v
+FROM Observability.validation_latest AS v
 WHERE v.product_prefix = :product_prefix
   AND v.producer_id = :gate_producer;
 ```
@@ -247,7 +246,7 @@ SELECT v.producer_id
      , v.completed_at
      , v.total_checks
      , v.failed_count
-FROM {Product}_OBS_ACS_V.validation_latest AS v
+FROM Observability.validation_latest AS v
 WHERE v.product_prefix = :product_prefix
 ORDER BY v.producer_id;
 ```
@@ -262,7 +261,7 @@ SELECT r.producer_id
      , r.critical_failure_count
      , r.error_failure_count
      , r.failed_count
-FROM {Product}_OBS_STD_V.validation_run AS r
+FROM Observability.validation_run AS r
 WHERE r.product_prefix = :product_prefix
 ORDER BY r.completed_at DESC;
 ```
@@ -274,57 +273,54 @@ ORDER BY r.completed_at DESC;
 ```sql
 -- VAL-01/02: vocabulary and status/decision agreement
 SELECT run_id, producer_id, trust_status, agent_use_allowed
-FROM {Product}_OBS_STD_V.validation_run
+FROM Observability.validation_run
 WHERE trust_status NOT IN ('TRUSTED', 'DEGRADED', 'UNTRUSTED')
    OR (trust_status IN ('TRUSTED', 'DEGRADED') AND agent_use_allowed <> 1)
    OR (trust_status = 'UNTRUSTED' AND agent_use_allowed <> 0);
 
 -- VAL-04: check totals reconcile
 SELECT run_id, producer_id, total_checks, passed_count, failed_count, error_count
-FROM {Product}_OBS_STD_V.validation_run
+FROM Observability.validation_run
 WHERE total_checks <> passed_count + failed_count + error_count;
 
 -- VAL-06: score ranges
 SELECT run_id, producer_id
-FROM {Product}_OBS_STD_V.validation_run
+FROM Observability.validation_run
 WHERE data_product_trust_score    NOT BETWEEN 0 AND 100
    OR performance_readiness_score NOT BETWEEN 0 AND 100
    OR operational_readiness_score NOT BETWEEN 0 AND 100;
 
 -- VAL-12: producer identity present (canonical schema)
 SELECT run_id
-FROM {Product}_OBS_STD_V.validation_run
+FROM Observability.validation_run
 WHERE producer_id IS NULL
    OR TRIM(producer_id) = ''
    OR payload_schema_version IS NULL;
 
 -- Deployment: the latest view yields one row per (product, producer)
 SELECT product_prefix, producer_id, COUNT(*) AS rows_seen
-FROM {Product}_OBS_ACS_V.validation_latest
+FROM Observability.validation_latest
 GROUP BY product_prefix, producer_id
 HAVING COUNT(*) > 1;
 ```
 
 ---
 
-## 8. Placement and Layer Alignment
+## 8. Placement and Naming
 
-- History table: Observability module, `{Product}_OBS_STD_T`, with the
-  mandatory 1:1 locking view in `{Product}_OBS_STD_V`.
-- Latest view: the Access Layer — `{Product}_OBS_ACS_V` for new products
-  per the Temporal & Lifecycle Metadata Extension's `ACS_V` adoption
-  (`BUS_V` / `ACL_V` are registered legacy aliases for the layer).
+- Database names in this document are the generic module placeholders used
+  throughout the module design standards (`Observability.validation_run`,
+  `Semantic.trust_engine_run`). Implementation teams bind them per the
+  Master Design Standard's Physical Naming Conventions — e.g.
+  `Customer360_Observability.validation_run` (separate databases per
+  module) or `Customer360.O_validation_run` (single database with module
+  prefixes) — or to an adopted placement standard.
 - The gate must be reachable through the product's orientation metadata
   (issue #20) so registry-driven consumers (catalogue and browser tooling)
   find it — and the designated gate producer — without convention-guessing.
 - Validation results sit alongside the module's other evidence
   (`data_quality_metric`, `lineage_run`, `model_performance`): one module
   answers "what has been observed about this product?".
-- Concrete database naming (`{Product}_{Module}_{Layer}`) is owned by the
-  Object Placement Standard; this extension defines the objects, their
-  shapes, and their publish/consume semantics. A deployment using
-  different container conventions remains conformant provided its
-  orientation metadata resolves the gate objects (core §8).
 
 ---
 
