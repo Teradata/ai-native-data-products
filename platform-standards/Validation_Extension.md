@@ -35,7 +35,8 @@
 
 Validation results are operational evidence and live in the
 **Observability module**, alongside its other run/event tables. One history
-table plus consumer views:
+table plus consumer views; database names show the Object Placement
+Standard's reference placement (§8):
 
 ```sql
 CREATE MULTISET TABLE {Product}_OBS_STD_T.validation_run
@@ -319,6 +320,11 @@ HAVING COUNT(*) > 1;
 - Validation results sit alongside the module's other evidence
   (`data_quality_metric`, `lineage_run`, `model_performance`): one module
   answers "what has been observed about this product?".
+- Concrete database naming (`{Product}_{Module}_{Layer}`) is owned by the
+  Object Placement Standard; this extension defines the objects, their
+  shapes, and their publish/consume semantics. A deployment using
+  different container conventions remains conformant provided its
+  orientation metadata resolves the gate objects (core §8).
 
 ---
 
