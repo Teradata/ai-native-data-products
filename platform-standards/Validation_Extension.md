@@ -1,4 +1,4 @@
-# Data Product Validation Results & Trust Gate Extension — Teradata
+# Data Product Validation Extension — Teradata
 ## AI-Native Data Product Architecture — Version 1.0 (Draft)
 
 ---
@@ -8,10 +8,10 @@
 | Attribute | Value |
 |-----------|-------|
 | **Version** | 1.0-draft |
-| **Status** | DRAFT — Proposed (resolves issue #19 with `design-standards/Trust_Gate_Standard.md`) |
-| **Last Updated** | 2026-07-15 |
+| **Status** | DRAFT — Proposed (resolves issue #19 with `design-standards/Validation_Standard.md`) |
+| **Last Updated** | 2026-07-16 |
 | **Owner** | Worldwide Data Architecture Team, Teradata |
-| **Scope** | Teradata binding of the Validation Results & Trust Gate Standard |
+| **Scope** | Teradata binding of the Data Product Validation Standard |
 | **Type** | Platform Extension (Teradata) |
 | **Wire schema** | 1.1 (canonical, Observability); 1.0 legacy binding (Semantic) documented in §5 |
 
@@ -108,9 +108,8 @@ standard view-layer rule.
 ## 2. Publish Semantics
 
 - **Append, never replace.** Each validation run INSERTs exactly one row;
-  the table accumulates run history as evidence (core §2, TGS-09). This
-  holds for every producer — trust engines, unit-test harness loaders, and
-  repository validation tooling alike.
+  the table accumulates run history as evidence (core §2, VAL-09). This
+  holds for every producer.
 - `run_id` is deterministic: the first 32 hex characters of a SHA-256 over
   `prefix|producer_id|started_at|completed_at|result_count` — replaying
   the same run yields the same identifier.
@@ -166,7 +165,7 @@ QUALIFY ROW_NUMBER() OVER (
 ```
 
 The deterministic tie-break (`completed_at DESC, run_id DESC`) is part of
-the contract (TGS-09). The **product-level gate** is the row whose
+the contract (VAL-09). The **product-level gate** is the row whose
 `producer_id` matches the gate-authoritative producer designated in the
 product's orientation metadata (core §8.1); other rows are evidence.
 
@@ -272,26 +271,26 @@ ORDER BY r.completed_at DESC;
 ## 7. Conformance Queries
 
 ```sql
--- TGS-01/02: vocabulary and status/decision agreement
+-- VAL-01/02: vocabulary and status/decision agreement
 SELECT run_id, producer_id, trust_status, agent_use_allowed
 FROM {Product}_OBS_STD_V.validation_run
 WHERE trust_status NOT IN ('TRUSTED', 'DEGRADED', 'UNTRUSTED')
    OR (trust_status IN ('TRUSTED', 'DEGRADED') AND agent_use_allowed <> 1)
    OR (trust_status = 'UNTRUSTED' AND agent_use_allowed <> 0);
 
--- TGS-04: check totals reconcile
+-- VAL-04: check totals reconcile
 SELECT run_id, producer_id, total_checks, passed_count, failed_count, error_count
 FROM {Product}_OBS_STD_V.validation_run
 WHERE total_checks <> passed_count + failed_count + error_count;
 
--- TGS-06: score ranges
+-- VAL-06: score ranges
 SELECT run_id, producer_id
 FROM {Product}_OBS_STD_V.validation_run
 WHERE data_product_trust_score    NOT BETWEEN 0 AND 100
    OR performance_readiness_score NOT BETWEEN 0 AND 100
    OR operational_readiness_score NOT BETWEEN 0 AND 100;
 
--- TGS-12: producer identity present (canonical schema)
+-- VAL-12: producer identity present (canonical schema)
 SELECT run_id
 FROM {Product}_OBS_STD_V.validation_run
 WHERE producer_id IS NULL

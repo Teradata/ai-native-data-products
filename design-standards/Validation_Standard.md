@@ -1,4 +1,4 @@
-# Data Product Validation Results & Trust Gate Standard
+# Data Product Validation Standard
 ## AI-Native Data Product Architecture — Version 1.0 (Draft)
 
 ---
@@ -9,22 +9,13 @@
 |-----------|-------|
 | **Version** | 1.0-draft |
 | **Status** | DRAFT — Proposed (resolves issue #19) |
-| **Last Updated** | 2026-07-15 |
+| **Last Updated** | 2026-07-16 |
 | **Owner** | Worldwide Data Architecture Team, Teradata |
-| **Scope** | Machine-readable validation results and the agent stop/go trust gate for every data product |
+| **Scope** | Machine-readable validation results and the agent stop/go gate for every data product |
 | **Type** | Design Standard (Core, RDBMS-neutral) |
 | **Module home** | Observability (validation results are operational evidence) |
-| **Platform bindings** | `platform-standards/Trust_Gate_Extension.md` |
+| **Platform bindings** | `platform-standards/Validation_Extension.md` |
 | **Wire schema** | 1.1 (canonical); 1.0 registered as a legacy binding |
-
-This core standard defines one **producer-neutral validation-results
-contract** with an authoritative trust gate. Any conformant producer can
-populate it — an established unit-test harness, a simple validator, or a
-full trust engine — and any consumer can evaluate a product's usability
-from it. The gate semantics codify a production-proven contract (wire
-schema 1.0) rather than a green-field design; a reader can implement
-either side (producer or consumer) from this document and its platform
-binding alone.
 
 ---
 
@@ -49,38 +40,30 @@ binding alone.
 
 ## 1. Purpose and Principles
 
-Rules and checklists alone give an agent nothing it can evaluate before
-querying a product. Without a standard validation *result* and an explicit
-gate, agents may use structurally invalid or operationally unsafe products,
-aggregate scores can hide critical failures, and repair candidates have no
-portable representation. This standard defines that result and gate.
+An agent needs a published validation *result* and an explicit gate to
+evaluate a product before querying it. This standard defines both.
 
-Principles:
-
-1. **One results contract, many producers.** Unit-test harnesses,
-   repository validation tooling, and trust engines all publish into the
-   same record shape, distinguished by producer identity — a product's
-   validation history is queryable regardless of what produced it.
-2. **Trust is computed by a validator, only.** Consumers are read-only:
-   they render and act on published results and never re-derive a verdict
-   from raw evidence.
+1. **One results contract, many producers.** A unit-test harness, a simple
+   validator, or a full trust engine all publish the same record shape,
+   distinguished by `producer_id` — a product's validation history is
+   queryable regardless of what produced it.
+2. **Trust is computed by a validator, only.** Consumers are read-only: they
+   act on published results and never re-derive a verdict from raw evidence.
 3. **The stop/go decision is authoritative and singular.** Each product
    designates one gate-authoritative producer (§8); its latest result's
    `agent_use_allowed` is a decision, not advice. Critical failures block
-   use regardless of any aggregate score, and consumers must not silently
-   override a blocked status.
-4. **Validation results are operational evidence** and live in the
-   **Observability module** — the module responsible for event tracking,
-   quality monitoring, and lineage. They are append-only event records
-   (Temporal & Lifecycle Metadata Standard profile `EVENT_APPEND_ONLY`).
+   use regardless of any score.
+4. **Validation results are operational evidence.** They live in the
+   **Observability module** as append-only event records (Temporal &
+   Lifecycle Metadata Standard profile `EVENT_APPEND_ONLY`).
 
 ---
 
 ## 2. The Validation Result
 
 One logical record per product per producer per validation run; consumers
-read the **latest** record per (product, producer). Portable fields
-(physical types bind per platform extension):
+read the **latest** record per (product, producer). Physical types bind per
+platform extension.
 
 | Field | Meaning |
 |-------|---------|
@@ -105,10 +88,8 @@ read the **latest** record per (product, producer). Portable fields
 | `evidence_expires_at` | Producer-declared expiry of this evidence (nullable; §10) |
 
 A simple test harness populates the identity, status, and count fields and
-leaves scores, JSON blobs, and profile fields null — that is a fully
-conformant result. Runs are **appended**, never overwritten: run history is
-evidence; the latest-per-(product, producer) projection is the consumer
-surface.
+leaves scores, JSON blobs, and profile fields null — a fully conformant
+result. Runs are **appended**, never overwritten.
 
 ---
 
@@ -120,14 +101,14 @@ surface.
 The **default decision profile** (rules evaluated in order):
 
 1. Any execution error (`error_count > 0`), any CRITICAL-severity failure,
-   or any ERROR-severity failure → `UNTRUSTED`. **The severity gate is
-   absolute — no score can rescue it.**
+   or any ERROR-severity failure → `UNTRUSTED`. **No score can rescue this
+   rule.**
 2. Else `data_product_trust_score < 70` → `UNTRUSTED`.
 3. Else any failed check, or `data_product_trust_score < 90` → `DEGRADED`.
 4. Else → `TRUSTED`.
 
-Producers that compute no scores skip rules 2 and 3's score clauses — the
-profile degrades gracefully to pure status/severity gating.
+Producers that compute no scores skip the score clauses — the profile
+degrades to pure status/severity gating.
 
 `agent_use_allowed` derives purely from status:
 
@@ -136,16 +117,14 @@ agent_use_allowed = 1  when trust_status IN (TRUSTED, DEGRADED)
 agent_use_allowed = 0  when trust_status = UNTRUSTED
 ```
 
-Rules for the decision:
+Decision rules:
 
-- Readiness dimensions remain independent: only
-  `data_product_trust_score` participates in the threshold rules; the
+- Only `data_product_trust_score` participates in the threshold rules;
   performance and operational scores are published evidence (§5). Their
   *checks* still gate through severities in rule 1.
-- Implementation profiles may **tighten** the default profile (e.g. gate on
-  operational readiness, raise thresholds) but must never loosen it: a
-  result the default profile would call `UNTRUSTED` must never be published
-  as anything else.
+- Implementation profiles may **tighten** the default profile but never
+  loosen it: a result the default profile calls `UNTRUSTED` is never
+  published as anything else.
 - Consumers must not silently override a blocked status. Overrides are
   human decisions, logged, outside this contract.
 
@@ -153,14 +132,12 @@ Rules for the decision:
 
 ## 4. Severity Model
 
-Two independent axes, deliberately distinct:
+Two independent axes:
 
 - **Status** — what happened when the check ran: `PASSED` | `FAILED` |
   `ERROR` (the check itself could not execute).
 - **Severity** — how much a failure matters: `INFO` | `WARNING` | `ERROR` |
   `CRITICAL`.
-
-Count semantics:
 
 | Field | Counts |
 |-------|--------|
@@ -176,8 +153,7 @@ Producers whose native format carries no severity (plain unit-test output)
 default failed checks to severity `ERROR` unless an ingest mapping (§12)
 assigns severities by rule.
 
-The three gate counts (`error_count`, `critical_failure_count`,
-`error_failure_count`) are **authoritative**: the JSON blobs are capped
+The three gate counts are **authoritative**: the JSON blobs are capped
 (§6, §7) and must never be counted by consumers.
 
 ---
@@ -200,9 +176,8 @@ that family ran.
 | `operational_readiness_score` | OPERATIONAL |
 
 Only `data_product_trust_score` participates in the default decision
-profile's thresholds (§3). Conformance, performance readiness, and
-operational readiness are reported separately and must not be blended into
-a single number.
+profile's thresholds (§3). The three scores are reported separately and
+must not be blended into a single number.
 
 ---
 
@@ -236,19 +211,18 @@ shape:
 Contract rules:
 
 1. The check-level identifier is **`test_id`**. `issue_code` exists only
-   **inside `sample_rows` elements** — one check can surface multiple issue
+   inside `sample_rows` elements — one check can surface multiple issue
    codes.
-2. `sample_rows` elements are per-`issue_code` shapes, but every element
-   carries at least `issue_code` and `repair_hint`, plus the issue code's
-   documented object-identifying keys (the offender vocabulary) so a
-   consumer can answer "which objects?".
+2. Every `sample_rows` element carries at least `issue_code` and
+   `repair_hint`, plus the issue code's documented object-identifying keys
+   so a consumer can answer "which objects?".
 3. `row_count` is the **true** total for the check; `sample_rows` holds the
    first ≤ 3 examples. Consumers render the remainder as
    `+ (row_count − shown) more`, never by counting the blob.
 4. `error_message` is non-null only for status `ERROR`.
 5. Every issue code and its identifying keys are catalogued in the
-   producer's contract documentation; introducing an issue code without a
-   catalogue entry is a producer conformance failure.
+   producer's contract documentation; an uncatalogued issue code is a
+   producer conformance failure.
 6. The blob is optional for simple producers (null when the producer emits
    counts only).
 
@@ -272,9 +246,8 @@ items**; the true total is `repair_candidate_count`. Item shape:
 
 - `mode` domain: `detect` | `proposal` | `safe-auto`.
 - `requires_approval = true` candidates must never be executed
-  autonomously. A consumer executing any repair SQL does so under its own
-  change-management controls; the candidate is a proposal, not an
-  instruction.
+  autonomously. A candidate is a proposal, not an instruction; a consumer
+  executing repair SQL does so under its own change-management controls.
 - Optional for producers that propose no repairs
   (`repair_candidate_count = 0`, blob null).
 
@@ -284,18 +257,17 @@ items**; the true total is `repair_candidate_count`. Item shape:
 
 ### 8.1 Gate authority
 
-Multiple producers may publish results for one product. To keep the stop/go
-decision singular and auditable:
+Multiple producers may publish results for one product; the stop/go
+decision stays singular:
 
 - Each product **designates exactly one gate-authoritative producer** in
   its orientation metadata (issue #20).
-- The product-level gate is the designated producer's latest result:
-  its `agent_use_allowed` and `trust_status`.
+- The product-level gate is the designated producer's latest result: its
+  `agent_use_allowed` and `trust_status`.
 - Results from all other producers are **evidence**: consumers may surface
   them (and should surface disagreements), but they do not move the gate.
 - Absent a designation, consumers apply the conservative composite: the
-  product gate is blocked if **any** producer's latest result blocks, and
-  the staleness rules of §10 apply per producer.
+  product gate is blocked if **any** producer's latest result blocks.
 
 ### 8.2 Consumer rules
 
@@ -326,10 +298,8 @@ decision singular and auditable:
   bumps the major version. Additive optional fields are compatible within
   a major version; consumers ignore unknown fields.
 - Producer and consumer are held together by a **shared golden fixture**:
-  the producer generates it from its contract module, the consumer vendors
-  it into its test suite, and both build gates fail on drift. A version
-  bump regenerates the fixture and updates both sides in one coordinated
-  change.
+  the producer generates it, the consumer vendors it into its test suite,
+  and both build gates fail on drift.
 
 ---
 
@@ -339,18 +309,17 @@ decision singular and auditable:
    (`evidence_expires_at`); a product may declare a maximum evidence age in
    its orientation metadata. Absent both, consumers apply a default window
    of **7 days** from `completed_at`.
-2. **Stale evidence** (gate result older than the window / past expiry):
-   autonomous consumers must treat the product as if
-   `agent_use_allowed = 0`, whatever the recorded status says. Interactive
-   consumers must surface the staleness prominently.
-3. **No evidence** (no gate result exists): the product is *unvalidated*,
-   not trusted-by-default. Autonomous consumers must not proceed;
-   interactive consumers surface "no trust evidence".
+2. **Stale evidence** (gate result past expiry / older than the window):
+   autonomous consumers treat the product as `agent_use_allowed = 0`,
+   whatever the recorded status says. Interactive consumers surface the
+   staleness prominently.
+3. **No evidence**: the product is *unvalidated*, not trusted-by-default.
+   Autonomous consumers must not proceed; interactive consumers surface
+   "no trust evidence".
 4. **Incomplete evidence** (result present but `total_checks = 0`, or
    unparseable): treat as no evidence.
 
-Conservative outcomes never loosen: staleness can only downgrade a
-decision, never upgrade one.
+Staleness can only downgrade a decision, never upgrade one.
 
 ---
 
@@ -364,55 +333,49 @@ decision, never upgrade one.
 - **Categories** (drive score families, §5): `STRUCTURAL`, `SEMANTIC`,
   `QUERY`, `CAPABILITY`, `PERFORMANCE`, `OPERATIONAL`, `DATA_QUALITY`,
   `FREE_TEXT`.
-- Validators consume the product's **self-describing metadata** (semantic
-  catalogue, orientation manifest, relationship metadata, cookbook,
-  observability evidence) and prove those claims against what is physically
-  deployed. Other standards supply check sources: the Temporal & Lifecycle
-  Metadata Standard's TLM-01..17 rules (blocking rules → CRITICAL/ERROR
-  severity) and the Semantic module's primary-object validations (issue
-  #14) are designed to be lifted directly into validator profiles.
+- Validators prove the product's **self-describing metadata** (semantic
+  catalogue, orientation manifest, relationships, cookbook) against what is
+  physically deployed. The Temporal & Lifecycle Metadata Standard's
+  TLM-01..17 rules (blocking → CRITICAL/ERROR) and the Semantic module's
+  primary-object validations (issue #14) lift directly into validator
+  profiles.
 
 ---
 
 ## 12. Open Standards Alignment (non-normative)
 
-The validation result is deliberately mappable from, and to, established
-open formats. `source_format` records the provenance of ingested results.
+The validation result is mappable from, and to, established open formats;
+`source_format` records the provenance of ingested results. Ingest mappings
+are implemented by validation tooling, not by this standard.
 
-| Standard | Layer | Mapping posture |
-|----------|-------|-----------------|
-| **JUnit XML** (de-facto) | Test execution results | Ingest: `testsuite`/`testcase` totals → status counts; failures default to severity `ERROR` unless mapped. `source_format = 'JUNIT-XML'` |
-| **CTRF** (community JSON standard) | Test execution results | Ingest: `summary` + `tests[]` → status counts and optional check detail. `source_format = 'CTRF'` |
-| **Open Test Reporting** (JUnit team) | Test execution results | Ingest when consumer-side adoption matures. `source_format = 'OTR'` |
-| **SARIF 2.1.0** (OASIS Standard) | Check/analysis results | Closest semantic match: `ruleId` ↔ `test_id`, `level` ↔ severity, `fixes[]` ↔ repair candidates, `tool.driver` ↔ producer identity. `source_format = 'SARIF'` |
-| **OpenLineage** `DataQualityAssertionsDatasetFacet` | Emission | Validation runs may additionally emit per-assertion facets on lineage run events — consistent with the Observability module's OpenLineage alignment |
-| **ODCS / ODPS** | Check definitions (contract side) | Declarative quality rules and SLAs in the product contract *define* checks; results land here, linked through `test_id` |
-
-Ingest mappings are implemented by validation tooling, not by this
-standard; the fields above ensure the record can carry them without schema
-change.
+| Standard | Layer | Mapping |
+|----------|-------|---------|
+| **JUnit XML** | Test execution results | `testsuite`/`testcase` totals → status counts; failures default to severity `ERROR` unless mapped. `source_format = 'JUNIT-XML'` |
+| **CTRF** | Test execution results | `summary` + `tests[]` → status counts and optional check detail. `source_format = 'CTRF'` |
+| **Open Test Reporting** | Test execution results | Ingest when consumer-side adoption matures. `source_format = 'OTR'` |
+| **SARIF 2.1.0** | Check/analysis results | `ruleId` ↔ `test_id`, `level` ↔ severity, `fixes[]` ↔ repair candidates, `tool.driver` ↔ producer identity. `source_format = 'SARIF'` |
+| **OpenLineage** `DataQualityAssertionsDatasetFacet` | Emission | Runs may additionally emit per-assertion facets on lineage run events |
+| **ODCS / ODPS** | Check definitions | Contract-side quality rules and SLAs *define* checks; results land here, linked through `test_id` |
 
 ---
 
 ## 13. Conformance Rules
 
-For producers and consumers of this contract:
-
 | Rule | Check |
 |------|-------|
-| TGS-01 | `trust_status` is exactly one of the three vocabulary values. |
-| TGS-02 | `agent_use_allowed` agrees with `trust_status` per §3. |
-| TGS-03 | The default decision profile is never loosened. |
-| TGS-04 | `total_checks = passed_count + failed_count + error_count`. |
-| TGS-05 | Gate counts are consistent with the severity model (§4). |
-| TGS-06 | Scores are 0–100 integers or null; null only when not assessed. |
-| TGS-07 | JSON blobs respect their caps; true totals live in `row_count` / `repair_candidate_count`. |
-| TGS-08 | Every `sample_rows` element carries `issue_code` and `repair_hint`; every issue code is catalogued with its identifying keys. |
-| TGS-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_at`, then `run_id`). |
-| TGS-10 | Consumers apply §10 staleness outcomes; no silent override of a blocked gate. |
-| TGS-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
-| TGS-12 | Every record carries non-null `producer_id` and `payload_schema_version` (canonical schema). |
-| TGS-13 | The gate is taken only from the designated gate-authoritative producer (§8.1); absent designation, the conservative composite applies. |
+| VAL-01 | `trust_status` is exactly one of the three vocabulary values. |
+| VAL-02 | `agent_use_allowed` agrees with `trust_status` per §3. |
+| VAL-03 | The default decision profile is never loosened. |
+| VAL-04 | `total_checks = passed_count + failed_count + error_count`. |
+| VAL-05 | Gate counts are consistent with the severity model (§4). |
+| VAL-06 | Scores are 0–100 integers or null; null only when not assessed. |
+| VAL-07 | JSON blobs respect their caps; true totals live in `row_count` / `repair_candidate_count`. |
+| VAL-08 | Every `sample_rows` element carries `issue_code` and `repair_hint`; every issue code is catalogued with its identifying keys. |
+| VAL-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_at`, then `run_id`). |
+| VAL-10 | Consumers apply §10 staleness outcomes; no silent override of a blocked gate. |
+| VAL-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
+| VAL-12 | Every record carries non-null `producer_id` and `payload_schema_version` (canonical schema). |
+| VAL-13 | The gate is taken only from the designated gate-authoritative producer (§8.1); absent designation, the conservative composite applies. |
 
 ---
 
@@ -431,4 +394,4 @@ For producers and consumers of this contract:
 - **Issue #20 (orientation/manifest)** — orientation declares the results
   location and the gate-authoritative producer; trust evaluation precedes
   analytical resource use in the discovery order.
-- **Teradata binding** — `platform-standards/Trust_Gate_Extension.md`.
+- **Teradata binding** — `platform-standards/Validation_Extension.md`.
