@@ -390,7 +390,7 @@ the §10.1 mapping.
 - **Issue #16 / #10** — this document follows the core/extension
   governance boundary; its file placement moves when the repository
   restructure is agreed.
-- **Issue #19 (trust gate)** — §9 rules are written to be lifted directly
+- **Issue #19 (validation standard)** — §9 rules are written to be lifted directly
   into validator profiles; blocking rules feed `agent_use_allowed`.
 - **Issue #11 (Teradata extension)** — the Teradata binding of this
   standard lives at
