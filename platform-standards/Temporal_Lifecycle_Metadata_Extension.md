@@ -9,7 +9,7 @@
 |-----------|-------|
 | **Version** | 1.0-draft |
 | **Status** | DRAFT — Proposed (resolves issue #17) |
-| **Last Updated** | 2026-07-15 |
+| **Last Updated** | 2026-07-16 |
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | Teradata binding of `design-standards/Temporal_Lifecycle_Metadata_Standard.md` |
 | **Type** | Platform Extension (Teradata) |
@@ -103,21 +103,19 @@ On Teradata, the core standard's exposure **surfaces** (core §8) are
 realised as view layers — the locking architecture makes an intermediary
 view layer necessary, so both surfaces are distinct objects here:
 
-| Layer | Suffix | Core surface | Responsibility |
-|-------|--------|--------------|----------------|
-| Physical standard table | `*_STD_T` | — | Full canonical column contract; no consumer access |
-| Governed standard view | `*_STD_V` | Governed full-contract surface | Mandatory **1:1 locking view** (`LOCKING ROW FOR ACCESS`) exposing every column of its base table, including all temporal/lifecycle metadata |
-| Access Layer view | `*_ACS_V` | Default current / purpose-specific surfaces | Consumer views; the default current view per entity follows §7 |
+| Object | Core surface | Responsibility |
+|--------|--------------|----------------|
+| Physical table (`Domain.agreement`) | — | Full canonical column contract; no direct consumer access |
+| Governed view (`Domain.v_agreement`) | Governed full-contract surface | Mandatory **1:1 locking view** (`LOCKING ROW FOR ACCESS`) exposing every column of its base table, including all temporal/lifecycle metadata |
+| Access views (`Domain.agreement_current`, …) | Default current / purpose-specific surfaces | Consumer views; the default current view per entity follows §7 |
 
-**`ACS` means Access** and replaces the misleading `BUS` abbreviation in
-new standards. `*_BUS_V` and `*_ACL_V` are registered legacy aliases for
-this layer, migrated separately through versioned compatibility per core
-§10.2 — this document does not force their rename.
-
-Access views select from `*_STD_V`, never from `*_STD_T` directly
-(TLM-14). Concrete database naming (`{Product}_{Module}_{Layer}`) is owned
-by the Object Placement Standard; this extension defines only what each
-layer must expose.
+Access views select from the governed view, never from the physical table
+directly (TLM-14). Database names in this document are **generic tags**,
+as used throughout the agnostic standards; a platform naming standard —
+one document in the platform-specific content — binds every tag to a
+concrete name in one place. Layer and database naming, including the
+migration of legacy layer aliases, is owned by that naming standard, not
+this extension.
 
 ---
 
@@ -126,7 +124,7 @@ layer must expose.
 SCD2 history table (profile `SCD2_HISTORY`), Domain module example:
 
 ```sql
-CREATE TABLE {Product}_DOM_STD_T.agreement
+CREATE TABLE Domain.agreement
 (
       agreement_sk        BIGINT NOT NULL
     , agreement_bk        VARCHAR(60) CHARACTER SET UNICODE NOT NULL
@@ -148,17 +146,17 @@ CREATE TABLE {Product}_DOM_STD_T.agreement
 )
 PRIMARY INDEX (agreement_bk);
 
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.valid_from_dts IS
+COMMENT ON COLUMN Domain.agreement.valid_from_dts IS
     'Inclusive start of business validity (UTC). Half-open period.';
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.valid_to_dts IS
+COMMENT ON COLUMN Domain.agreement.valid_to_dts IS
     'Exclusive end of business validity (UTC); sentinel 9999-12-31 = current.';
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.is_current IS
+COMMENT ON COLUMN Domain.agreement.is_current IS
     'Convenience currency flag; must agree with valid_to_dts sentinel.';
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.is_deleted IS
+COMMENT ON COLUMN Domain.agreement.is_deleted IS
     'Logical deletion state; 1 requires deleted_dts. History retained.';
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.created_dts IS
+COMMENT ON COLUMN Domain.agreement.created_dts IS
     'Physical row-version creation time (UTC).';
-COMMENT ON COLUMN {Product}_DOM_STD_T.agreement.updated_dts IS
+COMMENT ON COLUMN Domain.agreement.updated_dts IS
     'Physical row last-change time (UTC).';
 ```
 
@@ -169,7 +167,7 @@ variant (`SCD2_BITEMPORAL`) adds `transaction_from_dts` /
 The 1:1 locking view:
 
 ```sql
-REPLACE VIEW {Product}_DOM_STD_V.agreement
+REPLACE VIEW Domain.v_agreement
 AS
 LOCKING ROW FOR ACCESS
 SELECT
@@ -184,7 +182,7 @@ SELECT
     , deleted_dts
     , created_dts
     , updated_dts
-FROM {Product}_DOM_STD_T.agreement;
+FROM Domain.agreement;
 ```
 
 ---
@@ -196,7 +194,7 @@ FROM {Product}_DOM_STD_T.agreement;
 ```sql
 BT;
 
-UPDATE {Product}_DOM_STD_T.agreement
+UPDATE Domain.agreement
 SET   valid_to_dts = :event_dts
     , is_current   = 0
     , updated_dts  = CURRENT_TIMESTAMP(6)
@@ -205,12 +203,12 @@ WHERE agreement_bk = :agreement_bk
   -- Change detection: close only when the incoming version differs (TLM invariant 6)
   AND (agreement_status <> :new_status OR premium_amount <> :new_premium);
 
-INSERT INTO {Product}_DOM_STD_T.agreement
+INSERT INTO Domain.agreement
       (agreement_sk, agreement_bk, agreement_status, premium_amount, valid_from_dts)
 SELECT :new_sk, :agreement_bk, :new_status, :new_premium, :event_dts
 WHERE NOT EXISTS (
     SELECT 1
-    FROM {Product}_DOM_STD_T.agreement AS a
+    FROM Domain.agreement AS a
     WHERE a.agreement_bk = :agreement_bk
       AND a.valid_from_dts = :event_dts
 );   -- Idempotent replay: re-running the same input inserts nothing (invariant 8)
@@ -229,12 +227,12 @@ A deletion is a **new current version**, never an update-in-place:
 ```sql
 BT;
 
-UPDATE {Product}_DOM_STD_T.agreement
+UPDATE Domain.agreement
 SET valid_to_dts = :deletion_dts, is_current = 0, updated_dts = CURRENT_TIMESTAMP(6)
 WHERE agreement_bk = :agreement_bk
   AND valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00';
 
-INSERT INTO {Product}_DOM_STD_T.agreement
+INSERT INTO Domain.agreement
       (agreement_sk, agreement_bk, agreement_status, premium_amount
      , valid_from_dts, is_deleted, deleted_dts)
 VALUES (:new_sk, :agreement_bk, :last_status, :last_premium
@@ -258,7 +256,7 @@ transaction shape as §6.1.
 ## 7. Default Current Access View
 
 ```sql
-REPLACE VIEW {Product}_DOM_ACS_V.agreement_current
+REPLACE VIEW Domain.agreement_current
 AS
 LOCKING ROW FOR ACCESS
 SELECT
@@ -266,7 +264,7 @@ SELECT
     , a.agreement_status
     , a.premium_amount
     , a.valid_from_dts AS effective_since   -- optional exposure (core §8)
-FROM {Product}_DOM_STD_V.agreement AS a
+FROM Domain.v_agreement AS a
 WHERE a.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
   AND a.is_current = 1
   AND a.is_deleted = 0;
@@ -277,7 +275,7 @@ WHERE a.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
   that validation catches).
 - Hides `valid_to_dts`, `is_current`, deletion metadata, and audit
   timestamps.
-- Selects from `*_STD_V`, not the base table.
+- Selects from the governed view, not the base table.
 
 Point-in-time (as-of) access views use the half-open predicate:
 
@@ -303,7 +301,7 @@ COLLECT STATISTICS
     , COLUMN (valid_from_dts)
     , COLUMN (valid_to_dts)
     , COLUMN (agreement_bk, valid_from_dts)
-ON {Product}_DOM_STD_T.agreement;
+ON Domain.agreement;
 ```
 
 - The `valid_to_dts = sentinel` equality predicate is statistics-friendly:
@@ -350,14 +348,14 @@ Data-level invariants (parameterise per SCD2 table):
 ```sql
 -- TLM-09: more than one current row per natural key
 SELECT agreement_bk, COUNT(*) AS current_rows
-FROM {Product}_DOM_STD_V.agreement
+FROM Domain.v_agreement
 WHERE valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
 GROUP BY agreement_bk
 HAVING COUNT(*) > 1;
 
 -- TLM-10: flag / validity disagreement
 SELECT agreement_bk, valid_from_dts, is_current, valid_to_dts
-FROM {Product}_DOM_STD_V.agreement
+FROM Domain.v_agreement
 WHERE (is_current = 1) <>
       (valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00');
 
@@ -370,14 +368,14 @@ FROM (
                ORDER BY valid_from_dts
                ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING
            ) AS next_from
-    FROM {Product}_DOM_STD_V.agreement
+    FROM Domain.v_agreement
 ) AS t
 WHERE next_from IS NOT NULL
   AND next_from < valid_to_dts;
 
 -- TLM-11: deletion without deletion time
 SELECT agreement_bk, valid_from_dts
-FROM {Product}_DOM_STD_V.agreement
+FROM Domain.v_agreement
 WHERE is_deleted = 1
   AND deleted_dts IS NULL;
 ```
@@ -396,10 +394,10 @@ WHERE is_deleted = 1
    TIME ZONE 'GMT')`; `valid_to = DATE '9999-12-31'` maps to the timestamp
    sentinel. Document that historical intra-day ordering is unavailable
    (core §10.2 rule 3).
-4. **`BUS_V` / `ACL_V` databases** keep their names as registered legacy
-   aliases; new Access Layer databases use `ACS_V`. Renames, where
-   undertaken, ship as versioned compatibility (parallel database, view
-   redirection, consumer cut-over, retirement) — never in-place.
+4. **Database renames** (where the naming standard's bindings change)
+   ship as versioned compatibility — parallel database, view redirection,
+   consumer cut-over, retirement — never in-place. Legacy database names
+   remain registered aliases until retired.
 5. **Field dialects** with no lifecycle columns at all (e.g.
    `rec_load_dts`-style audit trios) are non-conformant; bridge with
    compatibility views (constant `is_current = 1` is acceptable only in
