@@ -1,5 +1,5 @@
 # Memory Module Design Standard
-## AI-Native Data Product Architecture - Version 1.9
+## AI-Native Data Product Architecture - Version 2.0
 
 ---
 
@@ -7,7 +7,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.9 |
+| **Version** | 2.0 |
 | **Status** | STANDARD |
 | **Last Updated** | 2026-05-30 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
@@ -1458,6 +1458,7 @@ CREATE TABLE Memory.Query_Cookbook (
     parameter_descriptions  CLOB,
     performance_notes       CLOB,
     complexity              VARCHAR(20) NOT NULL,
+    is_batch                BYTEINT NOT NULL DEFAULT 1,
     source_module           VARCHAR(50) NOT NULL,
     module_version          VARCHAR(20),
     is_active               BYTEINT NOT NULL DEFAULT 1,
@@ -1476,6 +1477,8 @@ COMMENT ON COLUMN Memory.Query_Cookbook.target_module IS
 'Module this recipe queries — DOMAIN, SEMANTIC, SEARCH, MEMORY, PREDICTION, OBSERVABILITY, CROSS';
 COMMENT ON COLUMN Memory.Query_Cookbook.complexity IS
 'Query complexity — SIMPLE, MODERATE, COMPLEX, ADVANCED';
+COMMENT ON COLUMN Memory.Query_Cookbook.is_batch IS
+'Execution intent — 1 = batch/offline/scheduled use only, 0 = safe for interactive agent use; agents must not select is_batch = 1 recipes during interactive workflows unless policy explicitly allows';
 COMMENT ON COLUMN Memory.Query_Cookbook.sql_template IS
 'SQL with :parameter placeholders — agents substitute values at runtime';
 COMMENT ON COLUMN Memory.Query_Cookbook.is_active IS
@@ -1498,7 +1501,7 @@ Every data product must include the following recipe. It allows any agent or tea
 INSERT INTO Memory.Query_Cookbook (
     recipe_id, recipe_title, recipe_description, use_case,
     target_module, sql_template, parameter_descriptions,
-    performance_notes, complexity,
+    performance_notes, complexity, is_batch,
     source_module, module_version,
     is_active, valid_from, valid_to,
     created_timestamp, updated_timestamp
@@ -1532,7 +1535,7 @@ ORDER BY r.from_table, r.to_table;
 --   MANY_TO_ONE = }o--||, MANY_TO_MANY = }o--o{',
     'Replace {ProductName} with the actual product name before executing.',
     'Lightweight query on a small metadata table — no performance concerns.',
-    'SIMPLE',
+    'SIMPLE', 0,
     'SEMANTIC', :module_version,
     1, CURRENT_DATE, DATE '9999-12-31',
     CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)
@@ -1854,6 +1857,7 @@ Discovered Patterns:    Indefinite if validated
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.0 | 2026-07-15 | Added `is_batch BYTEINT NOT NULL DEFAULT 1` to `Query_Cookbook` (resolves issue #8): explicit batch/interactive execution intent so agents select performance-safe recipes without inferring from title or prose. Existing rows default to the conservative batch posture (1); recipes reviewed as interactive-safe set 0. Views over `Query_Cookbook` expose the column; the standard ERD recipe seed marks itself interactive-safe. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 1.9 | 2026-05-30 | Added `DD-DISCOVERY-001` as the required native Memory decision record for the Data Product Orientation Layer. Updated the Semantic bootstrap recipe requirement so agents read the product manifest before metadata maps or data access, preserving the rationale inside the data product itself. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 1.8 | 2026-05-29 | Clarified `Query_Cookbook` lifecycle requirements. Documented `is_active`, `valid_from`, `valid_to`, `created_timestamp`, and `updated_timestamp` as the standard columns for active-row filtering, temporal validity, auditability, and append-oriented recipe correction. Updated the standard ERD recipe seed template to populate timestamp columns explicitly. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 1.7 | 2026-04-15 | Added `deployment_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED'` to `Module_Registry` DDL, enabling DEPLOYED/PLANNED/DEPRECATED lifecycle tracking for all modules considered during design. Expanded Section 7 with Minimum Seed Data Requirements (7.2), Deviation Documentation Convention (7.3), updated Design Checklist (7.4), and Quality Criteria (7.5). Key additions: Module_Registry row required for every module considered; Design_Decision entries required for deferred/excluded modules and all standards deviations; ERD generation recipe (QC-SEMANTIC-002) mandatory; cross-module cookbook recipes required per deployed module pair. Added standard ERD recipe INSERT template to Section 8.4. | Nathan Green, Worldwide Data Architecture Team, Teradata |
