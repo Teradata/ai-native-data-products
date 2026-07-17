@@ -15,7 +15,7 @@
 | **Type** | Design Standard (Core, RDBMS-neutral) |
 | **Module home** | Observability (validation results are operational evidence) |
 | **Platform bindings** | `platform-standards/Validation_Extension.md` |
-| **Wire schema** | 1.1 (canonical); 1.0 registered as a legacy binding |
+| **Wire schema** | 2.0 (canonical); 1.0 registered as a legacy binding |
 
 ---
 
@@ -74,7 +74,7 @@ platform extension.
 | `source_format` | Provenance of the result: `NATIVE`, or the interchange format it was ingested from (§12) |
 | `payload_schema_version` | Wire schema version of this record |
 | `run_id` | Deterministic run identifier |
-| `started_at`, `completed_at` | Run timestamps (ISO-8601) |
+| `started_dts`, `completed_dts` | Run instants (typed timestamps, persisted UTC) |
 | `trust_status` | `TRUSTED` \| `DEGRADED` \| `UNTRUSTED` (§3) |
 | `agent_use_allowed` | Stop/go decision for this producer's suite: `1` = go, `0` = stop |
 | `total_checks`, `passed_count`, `failed_count`, `error_count` | Check totals by **status** (§4) |
@@ -85,7 +85,7 @@ platform extension.
 | `repair_candidate_count` | True (uncapped) number of repair candidates |
 | `failed_checks_json` | Machine-readable failure detail, capped (§6) |
 | `repair_candidates_json` | Machine-readable repair proposals, capped (§7) |
-| `evidence_expires_at` | Producer-declared expiry of this evidence (nullable; §10) |
+| `evidence_expires_dts` | Producer-declared expiry of this evidence (nullable; §10) |
 
 A simple test harness populates the identity, status, and count fields and
 leaves scores, JSON blobs, and profile fields null — a fully conformant
@@ -287,10 +287,10 @@ decision stays singular:
 ## 9. Schema Versioning and Evolution
 
 - Every record carries `payload_schema_version`. The canonical version
-  defined by this standard is **`1.1`**.
+  defined by this standard is **`2.0`**.
 - **Wire schema `1.0`** is the registered legacy binding: the same status,
   count, score, and JSON-blob fields, without the producer-identity,
-  `source_format`, `payload_schema_version`, or `evidence_expires_at`
+  `source_format`, `payload_schema_version`, or `evidence_expires_dts`
   fields, published under producer-specific object names in the Semantic
   module (platform extension, Legacy Binding section). Consumers treat a
   1.0 record as having an implied single producer.
@@ -306,9 +306,9 @@ decision stays singular:
 ## 10. Staleness and Incomplete Evidence
 
 1. **Evidence window.** A producer may declare expiry per record
-   (`evidence_expires_at`); a product may declare a maximum evidence age in
+   (`evidence_expires_dts`); a product may declare a maximum evidence age in
    its orientation metadata. Absent both, consumers apply a default window
-   of **7 days** from `completed_at`.
+   of **7 days** from `completed_dts`.
 2. **Stale evidence** (gate result past expiry / older than the window):
    autonomous consumers treat the product as `agent_use_allowed = 0`,
    whatever the recorded status says. Interactive consumers surface the
@@ -371,7 +371,7 @@ are implemented by validation tooling, not by this standard.
 | VAL-06 | Scores are 0–100 integers or null; null only when not assessed. |
 | VAL-07 | JSON blobs respect their caps; true totals live in `row_count` / `repair_candidate_count`. |
 | VAL-08 | Every `sample_rows` element carries `issue_code` and `repair_hint`; every issue code is catalogued with its identifying keys. |
-| VAL-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_at`, then `run_id`). |
+| VAL-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_dts`, then `run_id`). |
 | VAL-10 | Consumers apply §10 staleness outcomes; no silent override of a blocked gate. |
 | VAL-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
 | VAL-12 | Every record carries non-null `producer_id` and `payload_schema_version` (canonical schema). |
