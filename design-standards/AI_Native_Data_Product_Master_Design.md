@@ -1,6 +1,6 @@
 # AI-Native Data Product - Master Design Standard
 
-**Version:** 2.0  
+**Version:** 2.1  
 **Date:** 2026-05-07  
 **Document Type:** Design Standard / Reusable Template  
 **Purpose:** Define the architectural blueprint and design standards for modular, AI-native data products optimized for agentic consumption
@@ -499,6 +499,40 @@ WHERE p.is_current = 1 AND cf.is_current = 1;
 
 ---
 
+### Access Layer (Consumable Object Metadata)
+
+The logical map above answers *what entities exist and how they relate*. It
+does not, on its own, answer *which objects a consumer should actually query*.
+A platform's security model may expose one entity through several objects
+(locking views, business views, current views), and products publish composite
+("enriched") objects that join several entities into one consumable unit. Which
+object to query, what it represents, and what a composite encapsulates are
+**access-layer** facts.
+
+The Semantic module therefore carries an **access-object metadata layer** — a
+registry of consumable objects (`access_object`), the composition of composite
+objects (`access_composition`), and access-resolved join paths — so any
+consumer resolves a queryable object to its logical meaning **once, from
+metadata**, without parsing DDL or recomputing lineage at query time. See the
+Semantic Module Design Standard for the schemas, consumption contract, and
+discovery queries.
+
+Two principles govern it:
+
+- **Object names are not a contract.** No consumer infers an object's role,
+  layer, entity, or purpose from its name. Naming schemes vary across estates;
+  the registry is the single source of truth, and classification is asserted in
+  metadata, never derived from a name. (This is distinct from the security
+  **Access Layer Design Standard**, which governs roles and grants.)
+- **Established once, at deployment.** A registration step classifies objects
+  from verifiable structure — the dependency graph and object definitions — and
+  asserts the result in the registry; consumers read it and never recompute it.
+  The concrete role vocabulary beyond the small open baseline, physical types,
+  and the population step are platform concerns, defined through the relevant
+  **Platform Profile**.
+
+---
+
 ### Physical Naming Conventions
 
 **Critical Consideration**: Multiple AI-Native Data Products can be deployed on a single Teradata platform. Database names must be unique across the platform.
@@ -812,6 +846,7 @@ In deployments that separate base tables and views into distinct databases, cons
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.1 | 2026-07-18 | Paul Dancer, Worldwide Data Architecture Team, Teradata | Added the Access Layer (Consumable Object Metadata) concept to Agent Discovery (resolves issue #9, core half). Describes the access-object metadata layer - which objects a consumer queries, what each represents, and what composites encapsulate - and the two governing principles (object names are not a contract; the registry is established once at deployment from verifiable structure). Points to the Semantic Module Design Standard for the schemas and consumption contract, and to Platform Profiles for the concrete role vocabulary, physical types, and population step. Distinct from the security Access Layer Design Standard (roles and grants). |
 | 2.0 | 2026-05-07 | Paul Dancer, Worldwide Data Architecture Team, Teradata | Added mandatory Access Layer. New section defining three standard roles (ROLE_READ, ROLE_AGENT, ROLE_ADMIN), two-phase grant timing (Phase 1.5 after Memory+Semantic, Phase 2.5 after Domain+Observability), and guidance for both naming approaches. Updated Documentation Hierarchy tree, Recommended Implementation Order, Module Dependencies diagram, Approach 1 benefits, and Glossary. Full specification in Access_Layer_Design_Standard.md. |
 | 1.9 | 2026-04-15 | Nathan Green, Worldwide Data Architecture Team, Teradata | Established platform neutrality throughout. Updated Executive Summary and Zero Data Duplication principle to remove Teradata-specific language. Added Platform-Neutral Design as Guiding Principle 7. Added Platform Profiles section defining the concept, structure, and current implementations. Refactored Design Constraints section: removed Teradata-Specific Optimizations subsection, added Platform Implementation Notes framing directing implementors to Platform Profiles. Updated Performance Considerations to be platform-neutral. |
 | 1.8 | 2026-03-20 | Nathan Green, Worldwide Data Architecture Team, Teradata | Corrected module deployment order. Memory and Semantic are now Phase 1 (both must exist before any other module deploys — Memory hosts documentation tables, Semantic hosts discovery metadata). Domain and Observability are Phase 2. Search and Prediction are Phase 3. Updated Implementation Order section and Module Dependencies diagram. |
