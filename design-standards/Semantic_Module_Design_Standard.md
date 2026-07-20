@@ -1,5 +1,5 @@
 # Semantic Module Design Standard
-## AI-Native Data Product Architecture - Version 2.9 (Tested & Validated)
+## AI-Native Data Product Architecture - Version 2.10 (Tested & Validated)
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.9 |
+| **Version** | 2.10 |
 | **Status** | STANDARD - Tested on Teradata |
-| **Last Updated** | 2026-07-15 |
+| **Last Updated** | 2026-07-18 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Semantic Module (Knowledge & Meaning) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -1021,6 +1021,261 @@ Rules:
    remains the curation write-target.
 4. A documentation gap report is `WHERE is_documented = 0`.
 
+### 3.10 data_product_orientation (Agent Orientation Contract)
+
+**Purpose**: Give an agent one authoritative, ordered starting point for
+discovering and safely using the product — a queryable relation with one row
+per product resource, its role, where it lives, whether it is required, and
+the order to process it (resolves issue #20).
+
+This formalises the Orientation Layer prose of §3.4 into a relation a
+consumer can read and a validator can check. A consumer no longer needs to
+know repository conventions or invent a discovery sequence: it reads this
+relation, processes the required resources in `discovery_order`, evaluates
+the trust gate before any analytical resource, and uses the stored fully
+qualified names verbatim.
+
+```sql
+CREATE TABLE Semantic.data_product_orientation (
+    orientation_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    product_id VARCHAR(128) NOT NULL,
+    resource_role VARCHAR(40) NOT NULL,          -- controlled vocabulary (below)
+    database_name VARCHAR(128),                  -- deployed location (object-backed resources)
+    object_name VARCHAR(128),                    -- deployed object (object-backed resources)
+    fully_qualified_object_name VARCHAR(257),    -- canonical database.object; used verbatim
+    resource_uri VARCHAR(1000),                  -- URI for MCP/external resources (nullable)
+    usage_guidance VARCHAR(500),                 -- how a consumer should use this resource
+    is_required BYTEINT NOT NULL DEFAULT 0,      -- 1 = missing resource is a conformance failure
+    discovery_order SMALLINT NOT NULL,           -- processing order; trust gate precedes analytics
+    metadata_updated_dts TIMESTAMP(6) WITH TIME ZONE,
+    is_active BYTEINT NOT NULL DEFAULT 1,
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (product_id);
+
+COMMENT ON TABLE Semantic.data_product_orientation IS
+'Agent orientation contract - one ordered row per product resource; the authoritative bootstrap sequence for consumers (issue #20)';
+COMMENT ON COLUMN Semantic.data_product_orientation.product_id IS
+'Product this resource belongs to - matches data_product_registry.product_id';
+COMMENT ON COLUMN Semantic.data_product_orientation.resource_role IS
+'Controlled role of the resource in the bootstrap sequence - one role per row, never CSV';
+COMMENT ON COLUMN Semantic.data_product_orientation.fully_qualified_object_name IS
+'Canonical database.object identity - consumers use it verbatim, never derived from conventions';
+COMMENT ON COLUMN Semantic.data_product_orientation.resource_uri IS
+'URI for a resource exposed as MCP or external documentation rather than a database object';
+COMMENT ON COLUMN Semantic.data_product_orientation.is_required IS
+'1 = a consumer must resolve this resource; its absence is a conformance failure';
+COMMENT ON COLUMN Semantic.data_product_orientation.discovery_order IS
+'Ascending processing order; the trust gate role precedes every analytical resource';
+COMMENT ON COLUMN Semantic.data_product_orientation.metadata_updated_dts IS
+'When this orientation row was last regenerated from authoritative metadata';
+COMMENT ON COLUMN Semantic.data_product_orientation.is_active IS
+'1 = live orientation row, 0 = retired; independent of whether the resource physically exists';
+```
+
+**Resource role vocabulary** (baseline; extensions may add roles). One role
+per row — never a CSV. The baseline **required** roles a conformant product
+publishes, in canonical discovery order:
+
+| # | `resource_role` | Backed by | Required |
+|---|-----------------|-----------|----------|
+| 1 | `MANIFEST` | `data_product_manifest` (§3.11) | Yes |
+| 2 | `TRUST_GATE` | the product's trust view (Validation Standard) | Yes |
+| 3 | `MODULE_MAP` | `data_product_map` | Yes |
+| 4 | `OBJECT_CATALOGUE` | `data_product_map_primary_objects` | Yes |
+| 5 | `ENTITY_CATALOGUE` | `entity_metadata` | Yes |
+| 6 | `COLUMN_CATALOGUE` | `column_catalogue` | Yes |
+| 7 | `RELATIONSHIP_CATALOGUE` | `table_relationship` | Yes |
+| 8 | `RELATIONSHIP_PATHS` | `v_relationship_paths` | No |
+| 9 | `LINEAGE` | Observability definitional lineage | No |
+| 10 | `QUERY_COOKBOOK` | `Query_Cookbook` | No |
+| 11 | `GLOSSARY` | `Business_Glossary` | No |
+| 12 | `DESIGN_DECISIONS` | `Design_Decision` | No |
+| — | `POLICY`, `QUALITY` | site policy / quality evidence | Conditional |
+
+**Consumption contract**:
+
+1. Start at the `MANIFEST` resource (§3.11), or at this relation directly.
+2. Process resources in ascending `discovery_order`.
+3. Evaluate the `TRUST_GATE` resource **before** any analytical resource; a
+   blocked gate stops autonomous use (Validation Standard §8).
+4. Resolve every `is_required = 1` resource; a missing required resource is
+   a conformance failure.
+5. Use `fully_qualified_object_name` (or `resource_uri`) verbatim — never
+   derive object names from conventions.
+
+```sql
+-- Example seed (CallCentre; fully qualified names elided to the pattern)
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'MANIFEST', 'CallCentre_SEM_BUS_V', 'data_product_manifest', 'CallCentre_SEM_BUS_V.data_product_manifest', 'Read first - product identity and entrypoints', 1, 1, CURRENT_TIMESTAMP(6));
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'TRUST_GATE', 'CallCentre_SEM_BUS_V', 'trust_engine_latest', 'CallCentre_SEM_BUS_V.trust_engine_latest', 'Evaluate before analytical use - stop if agent_use_allowed = 0', 1, 2, CURRENT_TIMESTAMP(6));
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'OBJECT_CATALOGUE', 'CallCentre_SEM_BUS_V', 'data_product_map_primary_objects', 'CallCentre_SEM_BUS_V.data_product_map_primary_objects', 'Pick objects by role; use qualified names verbatim', 1, 4, CURRENT_TIMESTAMP(6));
+```
+
+**Agent orientation query**:
+```sql
+SELECT o.discovery_order,
+       o.resource_role,
+       o.fully_qualified_object_name,
+       o.resource_uri,
+       o.is_required,
+       o.usage_guidance
+FROM Semantic.data_product_orientation AS o
+WHERE o.product_id = :product_id
+  AND o.is_active = 1
+ORDER BY o.discovery_order;
+```
+
+**Validation** (Trust Engine / deployment checks):
+
+```sql
+-- Missing required baseline role for the product
+SELECT req.resource_role
+FROM (SELECT 'MANIFEST' AS resource_role
+      UNION SELECT 'TRUST_GATE' UNION SELECT 'MODULE_MAP'
+      UNION SELECT 'OBJECT_CATALOGUE' UNION SELECT 'ENTITY_CATALOGUE'
+      UNION SELECT 'COLUMN_CATALOGUE' UNION SELECT 'RELATIONSHIP_CATALOGUE') AS req
+WHERE NOT EXISTS (
+    SELECT 1 FROM Semantic.data_product_orientation AS o
+    WHERE o.product_id = :product_id AND o.is_active = 1
+      AND o.resource_role = req.resource_role
+);
+
+-- Duplicate active role for one product (each role is singular)
+SELECT product_id, resource_role, COUNT(*) AS n
+FROM Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, resource_role
+HAVING COUNT(*) > 1;
+
+-- Duplicate discovery_order for one product
+SELECT product_id, discovery_order, COUNT(*) AS n
+FROM Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, discovery_order
+HAVING COUNT(*) > 1;
+
+-- Unresolved object-backed resource (registered object not deployed)
+SELECT o.product_id, o.resource_role, o.fully_qualified_object_name
+FROM Semantic.data_product_orientation AS o
+LEFT JOIN DBC.TablesV AS t
+    ON  t.DatabaseName = o.database_name
+    AND t.TableName = o.object_name
+WHERE o.is_active = 1
+  AND o.object_name IS NOT NULL
+  AND t.TableName IS NULL;
+
+-- Trust gate not ordered before analytical resources
+SELECT o.product_id
+FROM Semantic.data_product_orientation AS o
+WHERE o.is_active = 1
+  AND o.resource_role IN ('ENTITY_CATALOGUE', 'RELATIONSHIP_PATHS', 'QUERY_COOKBOOK')
+  AND o.discovery_order < (
+      SELECT MIN(g.discovery_order)
+      FROM Semantic.data_product_orientation AS g
+      WHERE g.product_id = o.product_id AND g.is_active = 1
+        AND g.resource_role = 'TRUST_GATE'
+  );
+```
+
+These checks are designed to be lifted into validation profiles; a missing
+required resource or an unordered trust gate is a blocking conformance
+failure (Validation Standard).
+
+### 3.11 data_product_manifest (Machine-Readable Manifest)
+
+**Purpose**: One machine-readable bootstrap record per product — identity,
+ownership, conformance posture, approved access mode, and the key discovery
+entrypoints — **generated from authoritative metadata** so it cannot drift
+from the sources it summarises (issue #20).
+
+The manifest is a **view**, not a stored table: it assembles product
+identity from `data_product_registry` and the entrypoints from
+`data_product_orientation`, pivoting the ordered resources into named
+columns. Because it is derived, the manifest–orientation–source consistency
+rule holds by construction. The registry's `manifest_json` remains the
+serialised representation for MCP clients that want the whole document in
+one read.
+
+```sql
+REPLACE VIEW Semantic.data_product_manifest
+(
+      product_id
+    , product_name
+    , product_version
+    , product_status
+    , owner_team
+    , approved_access_mode
+    , approved_entrypoint
+    , manifest_entrypoint
+    , trust_entrypoint
+    , module_map_entrypoint
+    , object_catalogue_entrypoint
+    , entity_catalogue_entrypoint
+    , column_catalogue_entrypoint
+    , relationship_catalogue_entrypoint
+    , manifest_json
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      r.product_id
+    , r.product_name
+    , r.product_version
+    , r.product_status
+    , r.owner_team
+    , r.approved_access_mode
+    , r.approved_entrypoint
+    , MAX(CASE WHEN o.resource_role = 'MANIFEST'               THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'TRUST_GATE'             THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'MODULE_MAP'             THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'OBJECT_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'ENTITY_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'COLUMN_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'RELATIONSHIP_CATALOGUE' THEN o.fully_qualified_object_name END)
+    , r.manifest_json
+FROM governance.data_product_registry AS r
+LEFT JOIN Semantic.data_product_orientation AS o
+    ON  o.product_id = r.product_id
+    AND o.is_active = 1
+WHERE r.is_active = 1
+  AND r.is_deleted = 0
+GROUP BY
+      r.product_id, r.product_name, r.product_version, r.product_status
+    , r.owner_team, r.approved_access_mode, r.approved_entrypoint, r.manifest_json;
+```
+
+**Consumption contract**:
+
+1. A consumer reads the manifest first (or resolves it as the `MANIFEST`
+   orientation resource), then follows `data_product_orientation` in
+   `discovery_order`.
+2. The `trust_entrypoint` is evaluated before any analytical entrypoint.
+3. Entrypoint columns carry fully qualified names used verbatim.
+4. `manifest_json`, where present, is the serialised form of the same facts;
+   it is regenerated from authoritative metadata, never hand-authored to
+   diverge from the columns above.
+
+**Consistency check** (manifest entrypoints resolve to orientation rows):
+
+```sql
+-- A manifest entrypoint with no backing active orientation row
+SELECT m.product_id
+FROM Semantic.data_product_manifest AS m
+WHERE m.trust_entrypoint IS NULL
+   OR m.manifest_entrypoint IS NULL
+   OR m.entity_catalogue_entrypoint IS NULL;
+```
+
 ---
 
 ## 4. Table-Level Relationship Metadata
@@ -1286,10 +1541,12 @@ module internals.
 - data_product_map_primary_objects (one row per primary object)
 - view_metadata (one row per base-table exposure)
 - view_column_type (populated at view-deployment time)
+- data_product_orientation (ordered resource bootstrap, 3.10)
 
 ### 8.2 Required Views
 
 - column_catalogue (live hybrid column catalogue, 3.9)
+- data_product_manifest (generated machine-readable manifest, 3.11)
 - v_entity_catalog
 - v_entity_schema
 - **v_relationship_paths** (CRITICAL)
@@ -1401,6 +1658,7 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.10 | 2026-07-18 | Added the agent orientation contract: Section 3.10 `data_product_orientation` (resolves issue #20) - one ordered row per product resource with a controlled `resource_role` vocabulary, `is_required` and `discovery_order`, formalising the Orientation Layer prose of Section 3.4 into a queryable, conformance-checkable relation with trust-before-analytical ordering and validation queries; Section 3.11 `data_product_manifest` (generated view over the registry and orientation, so the manifest cannot drift from source metadata). Updated required tables/views (8.1, 8.2). New objects use canonical lifecycle columns per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.9 | 2026-07-15 | Added the catalogue exposure objects: Section 3.7 `view_metadata` view catalogue (resolves issue #36 — one row per base-table exposure, controlled `view_type` vocabulary, `is_primary` uniqueness, validation queries, interim on the issue #9 path); Section 3.8 `view_column_type` curated view-column types; Section 3.9 `column_catalogue` live hybrid column catalogue with value provenance (`data_type_source`, `description_source`, `is_documented` — addresses issue #22 for this module). Documented Semantic exposure of Observability's definitional `data_lineage` (Section 7). Updated required tables/views (8.1, 8.2). New tables use canonical lifecycle columns per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.8 | 2026-07-15 | Added Section 3.6 `data_product_map_primary_objects` (resolves issue #14): one row per primary object with exact fully qualified identity, controlled `object_role` vocabulary, `usage_guidance`, optional `table_kind`, and validation queries (orphan modules, missing objects, invalid roles, catalogue-kind mismatches, duplicates). Deprecated the `primary_tables` / `primary_views` CSV columns (retained for backward compatibility only) and updated agent discovery queries to use the child relation. New table adopts canonical lifecycle columns (`created_dts` / `updated_dts`) per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
