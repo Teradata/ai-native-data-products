@@ -13,7 +13,7 @@
 | **Owner** | Worldwide Data Architecture Team, Teradata |
 | **Scope** | Teradata binding of the Data Product Validation Standard |
 | **Type** | Platform Extension (Teradata) |
-| **Wire schema** | 1.1 (canonical, Observability); 1.0 legacy binding (Semantic) documented in §5 |
+| **Wire schema** | 2.0 (canonical, Observability); 1.0 legacy binding (Semantic) documented in §5 |
 
 ---
 
@@ -42,18 +42,18 @@ CREATE MULTISET TABLE Observability.validation_run
 (
     product_prefix VARCHAR(128) CHARACTER SET LATIN NOT NULL,
 
-    -- Producer identity (canonical schema 1.1)
+    -- Producer identity (canonical schema 2.0)
     producer_id VARCHAR(64) CHARACTER SET LATIN NOT NULL,
     producer_version VARCHAR(32) CHARACTER SET LATIN,
     profile_id VARCHAR(64) CHARACTER SET LATIN,
     profile_version VARCHAR(32) CHARACTER SET LATIN,
     source_format VARCHAR(20) CHARACTER SET LATIN NOT NULL DEFAULT 'NATIVE',
-    payload_schema_version VARCHAR(8) CHARACTER SET LATIN NOT NULL DEFAULT '1.1',
+    payload_schema_version VARCHAR(8) CHARACTER SET LATIN NOT NULL DEFAULT '2.0',
 
     -- Run identity
     run_id VARCHAR(64) CHARACTER SET LATIN NOT NULL,
-    started_at VARCHAR(40) CHARACTER SET LATIN NOT NULL,
-    completed_at VARCHAR(40) CHARACTER SET LATIN NOT NULL,
+    started_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    completed_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL,
 
     -- Gate result
     trust_status VARCHAR(16) CHARACTER SET LATIN NOT NULL,
@@ -78,13 +78,13 @@ CREATE MULTISET TABLE Observability.validation_run
     repair_candidates_json JSON(32000) CHARACTER SET UNICODE,
 
     -- Evidence expiry (null = product/consumer default window applies)
-    evidence_expires_at VARCHAR(40) CHARACTER SET LATIN,
+    evidence_expires_dts TIMESTAMP(6) WITH TIME ZONE,
 
     -- Row audit (Temporal & Lifecycle Metadata Standard, EVENT_APPEND_ONLY)
     created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 )
-PRIMARY INDEX (product_prefix, completed_at);
+PRIMARY INDEX (product_prefix, completed_dts);
 ```
 
 Column comments are required on deployment per the naming conventions; the
@@ -96,7 +96,7 @@ COLLECT STATISTICS
       COLUMN (product_prefix)
     , COLUMN (producer_id)
     , COLUMN (product_prefix, producer_id)
-    , COLUMN (product_prefix, completed_at)
+    , COLUMN (product_prefix, completed_dts)
 ON Observability.validation_run;
 ```
 
@@ -111,7 +111,9 @@ base table directly.
   the table accumulates run history as evidence (core §2, VAL-09). This
   holds for every producer.
 - `run_id` is deterministic: the first 32 hex characters of a SHA-256 over
-  `prefix|producer_id|started_at|completed_at|result_count` — replaying
+  `prefix|producer_id|started_iso|completed_iso|result_count` (the
+  canonical ISO-8601 forms of the run instants, not any database
+  rendering) — replaying
   the same run yields the same identifier.
 - JSON blobs are serialised compact with sorted keys, item caps applied
   (20 checks × 3 sample rows; 20 repair candidates), then truncated to the
@@ -140,8 +142,8 @@ SELECT
     , source_format
     , payload_schema_version
     , run_id
-    , started_at
-    , completed_at
+    , started_dts
+    , completed_dts
     , trust_status
     , agent_use_allowed
     , total_checks
@@ -156,15 +158,15 @@ SELECT
     , repair_candidate_count
     , failed_checks_json
     , repair_candidates_json
-    , evidence_expires_at
+    , evidence_expires_dts
 FROM Observability.validation_run
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY product_prefix, producer_id
-    ORDER BY completed_at DESC, run_id DESC
+    ORDER BY completed_dts DESC, run_id DESC
 ) = 1;
 ```
 
-The deterministic tie-break (`completed_at DESC, run_id DESC`) is part of
+The deterministic tie-break (`completed_dts DESC, run_id DESC`) is part of
 the contract (VAL-09). The **product-level gate** is the row whose
 `producer_id` matches the gate-authoritative producer designated in the
 product's orientation metadata (core §8.1); other rows are evidence.
@@ -175,7 +177,7 @@ product's orientation metadata (core §8.1); other rows are evidence.
 
 | Contract element | Binding | Note |
 |------------------|---------|------|
-| `started_at` / `completed_at` / `evidence_expires_at` | `VARCHAR(40)` ISO-8601 | Retained from wire schema 1.0 so one consumer parser serves both bindings; migration to `TIMESTAMP(6) WITH TIME ZONE` is an **incompatible** change reserved for wire schema 2.0 |
+| `started_dts` / `completed_dts` / `evidence_expires_dts` | `TIMESTAMP(6) WITH TIME ZONE`, persisted UTC | Typed run instants (wire schema 2.0). Latest-run ordering on the typed column is chronological by construction; under 1.0's `VARCHAR(40)` ISO-8601 binding, lexicographic ordering could silently mis-select the latest run when a row carried a non-UTC offset |
 | `agent_use_allowed` | `BYTEINT` 0/1, CHECK-constrained | Platform flag convention |
 | Scores | `INTEGER` nullable | Null = not assessed, never 100 |
 | JSON blobs | `JSON(32000) CHARACTER SET UNICODE` | Cap discipline in §2 |
@@ -187,8 +189,10 @@ product's orientation metadata (core §8.1); other rows are evidence.
 
 Deployments of wire schema 1.0 publish the same status, count, score, and
 JSON-blob columns **without** the producer-identity, `source_format`,
-`payload_schema_version`, `evidence_expires_at`, or audit columns, under
-producer-specific object names in the **Semantic** module:
+`payload_schema_version`, `evidence_expires_at`, or audit columns, with the
+run timestamps as `VARCHAR(40)` ISO-8601 strings named
+`started_at`/`completed_at`, under producer-specific object names in the
+**Semantic** module:
 
 ```text
 Semantic.trust_engine_run       (history table)
@@ -207,6 +211,9 @@ Consumer rules for the legacy binding:
   (with its identity columns populated) and orientation metadata is
   repointed; the legacy objects retire on the product's compatibility
   schedule.
+- Consumers still bound to the 1.0 names can read an alias projection over
+  the canonical table (`started_dts AS started_at`,
+  `completed_dts AS completed_at`) during the transition.
 
 ---
 
@@ -218,8 +225,8 @@ orientation metadata):
 ```sql
 SELECT v.trust_status
      , v.agent_use_allowed
-     , v.completed_at
-     , v.evidence_expires_at
+     , v.completed_dts
+     , v.evidence_expires_dts
      , v.critical_failure_count
      , v.error_failure_count
      , v.data_product_trust_score
@@ -229,8 +236,8 @@ WHERE v.product_prefix = :product_prefix
 ```
 
 Consumer rules (core §8, §10): a missing gate row means *unvalidated* —
-stop for autonomous use; a row past `evidence_expires_at` (or older than
-the applicable window, default 7 days from `completed_at`) is stale — treat
+stop for autonomous use; a row past `evidence_expires_dts` (or older than
+the applicable window, default 7 days from `completed_dts`) is stale — treat
 as `agent_use_allowed = 0`; never recount the JSON blobs; never proceed on
 `UNTRUSTED`.
 
@@ -242,7 +249,7 @@ SELECT v.producer_id
      , v.source_format
      , v.trust_status
      , v.agent_use_allowed
-     , v.completed_at
+     , v.completed_dts
      , v.total_checks
      , v.failed_count
 FROM Observability.validation_latest AS v
@@ -254,7 +261,7 @@ Run-history trend (auditors):
 
 ```sql
 SELECT r.producer_id
-     , r.completed_at
+     , r.completed_dts
      , r.trust_status
      , r.data_product_trust_score
      , r.critical_failure_count
@@ -262,7 +269,7 @@ SELECT r.producer_id
      , r.failed_count
 FROM Observability.validation_run AS r
 WHERE r.product_prefix = :product_prefix
-ORDER BY r.completed_at DESC;
+ORDER BY r.completed_dts DESC;
 ```
 
 ---
