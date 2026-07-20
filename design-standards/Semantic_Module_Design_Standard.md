@@ -1,5 +1,5 @@
 # Semantic Module Design Standard
-## AI-Native Data Product Architecture - Version 2.9 (Tested & Validated)
+## AI-Native Data Product Architecture - Version 2.11 (Tested & Validated)
 
 ---
 
@@ -7,9 +7,9 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 2.9 |
+| **Version** | 2.11 |
 | **Status** | STANDARD - Tested on Teradata |
-| **Last Updated** | 2026-07-15 |
+| **Last Updated** | 2026-07-18 |
 | **Owner** | Nathan Green, Worldwide Data Architecture Team, Teradata |
 | **Scope** | Semantic Module (Knowledge & Meaning) |
 | **Type** | Design Standard (Structural Requirements) |
@@ -1021,6 +1021,514 @@ Rules:
    remains the curation write-target.
 4. A documentation gap report is `WHERE is_documented = 0`.
 
+### 3.10 data_product_orientation (Agent Orientation Contract)
+
+**Purpose**: Give an agent one authoritative, ordered starting point for
+discovering and safely using the product — a queryable relation with one row
+per product resource, its role, where it lives, whether it is required, and
+the order to process it (resolves issue #20).
+
+This formalises the Orientation Layer prose of §3.4 into a relation a
+consumer can read and a validator can check. A consumer no longer needs to
+know repository conventions or invent a discovery sequence: it reads this
+relation, processes the required resources in `discovery_order`, evaluates
+the trust gate before any analytical resource, and uses the stored fully
+qualified names verbatim.
+
+```sql
+CREATE TABLE Semantic.data_product_orientation (
+    orientation_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    product_id VARCHAR(128) NOT NULL,
+    resource_role VARCHAR(40) NOT NULL,          -- controlled vocabulary (below)
+    database_name VARCHAR(128),                  -- deployed location (object-backed resources)
+    object_name VARCHAR(128),                    -- deployed object (object-backed resources)
+    fully_qualified_object_name VARCHAR(257),    -- canonical database.object; used verbatim
+    resource_uri VARCHAR(1000),                  -- URI for MCP/external resources (nullable)
+    usage_guidance VARCHAR(500),                 -- how a consumer should use this resource
+    is_required BYTEINT NOT NULL DEFAULT 0,      -- 1 = missing resource is a conformance failure
+    discovery_order SMALLINT NOT NULL,           -- processing order; trust gate precedes analytics
+    metadata_updated_dts TIMESTAMP(6) WITH TIME ZONE,
+    is_active BYTEINT NOT NULL DEFAULT 1,
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (product_id);
+
+COMMENT ON TABLE Semantic.data_product_orientation IS
+'Agent orientation contract - one ordered row per product resource; the authoritative bootstrap sequence for consumers (issue #20)';
+COMMENT ON COLUMN Semantic.data_product_orientation.product_id IS
+'Product this resource belongs to - matches data_product_registry.product_id';
+COMMENT ON COLUMN Semantic.data_product_orientation.resource_role IS
+'Controlled role of the resource in the bootstrap sequence - one role per row, never CSV';
+COMMENT ON COLUMN Semantic.data_product_orientation.fully_qualified_object_name IS
+'Canonical database.object identity - consumers use it verbatim, never derived from conventions';
+COMMENT ON COLUMN Semantic.data_product_orientation.resource_uri IS
+'URI for a resource exposed as MCP or external documentation rather than a database object';
+COMMENT ON COLUMN Semantic.data_product_orientation.is_required IS
+'1 = a consumer must resolve this resource; its absence is a conformance failure';
+COMMENT ON COLUMN Semantic.data_product_orientation.discovery_order IS
+'Ascending processing order; the trust gate role precedes every analytical resource';
+COMMENT ON COLUMN Semantic.data_product_orientation.metadata_updated_dts IS
+'When this orientation row was last regenerated from authoritative metadata';
+COMMENT ON COLUMN Semantic.data_product_orientation.is_active IS
+'1 = live orientation row, 0 = retired; independent of whether the resource physically exists';
+```
+
+**Resource role vocabulary** (baseline; extensions may add roles). One role
+per row — never a CSV. The baseline **required** roles a conformant product
+publishes, in canonical discovery order:
+
+| # | `resource_role` | Backed by | Required |
+|---|-----------------|-----------|----------|
+| 1 | `MANIFEST` | `data_product_manifest` (§3.11) | Yes |
+| 2 | `TRUST_GATE` | the product's trust view (Validation Standard) | Yes |
+| 3 | `MODULE_MAP` | `data_product_map` | Yes |
+| 4 | `OBJECT_CATALOGUE` | `data_product_map_primary_objects` | Yes |
+| 5 | `ENTITY_CATALOGUE` | `entity_metadata` | Yes |
+| 6 | `COLUMN_CATALOGUE` | `column_catalogue` | Yes |
+| 7 | `RELATIONSHIP_CATALOGUE` | `table_relationship` | Yes |
+| 8 | `RELATIONSHIP_PATHS` | `v_relationship_paths` | No |
+| 9 | `LINEAGE` | Observability definitional lineage | No |
+| 10 | `QUERY_COOKBOOK` | `Query_Cookbook` | No |
+| 11 | `GLOSSARY` | `Business_Glossary` | No |
+| 12 | `DESIGN_DECISIONS` | `Design_Decision` | No |
+| — | `POLICY`, `QUALITY` | site policy / quality evidence | Conditional |
+
+**Consumption contract**:
+
+1. Start at the `MANIFEST` resource (§3.11), or at this relation directly.
+2. Process resources in ascending `discovery_order`.
+3. Evaluate the `TRUST_GATE` resource **before** any analytical resource; a
+   blocked gate stops autonomous use (Validation Standard §8).
+4. Resolve every `is_required = 1` resource; a missing required resource is
+   a conformance failure.
+5. Use `fully_qualified_object_name` (or `resource_uri`) verbatim — never
+   derive object names from conventions.
+
+```sql
+-- Example seed (CallCentre; fully qualified names elided to the pattern)
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'MANIFEST', 'CallCentre_SEM_BUS_V', 'data_product_manifest', 'CallCentre_SEM_BUS_V.data_product_manifest', 'Read first - product identity and entrypoints', 1, 1, CURRENT_TIMESTAMP(6));
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'TRUST_GATE', 'CallCentre_SEM_BUS_V', 'trust_engine_latest', 'CallCentre_SEM_BUS_V.trust_engine_latest', 'Evaluate before analytical use - stop if agent_use_allowed = 0', 1, 2, CURRENT_TIMESTAMP(6));
+INSERT INTO Semantic.data_product_orientation
+    (product_id, resource_role, database_name, object_name, fully_qualified_object_name, usage_guidance, is_required, discovery_order, metadata_updated_dts)
+VALUES
+    ('call_centre.customer_experience', 'OBJECT_CATALOGUE', 'CallCentre_SEM_BUS_V', 'data_product_map_primary_objects', 'CallCentre_SEM_BUS_V.data_product_map_primary_objects', 'Pick objects by role; use qualified names verbatim', 1, 4, CURRENT_TIMESTAMP(6));
+```
+
+**Agent orientation query**:
+```sql
+SELECT o.discovery_order,
+       o.resource_role,
+       o.fully_qualified_object_name,
+       o.resource_uri,
+       o.is_required,
+       o.usage_guidance
+FROM Semantic.data_product_orientation AS o
+WHERE o.product_id = :product_id
+  AND o.is_active = 1
+ORDER BY o.discovery_order;
+```
+
+**Validation** (Trust Engine / deployment checks):
+
+```sql
+-- Missing required baseline role for the product
+SELECT req.resource_role
+FROM (SELECT 'MANIFEST' AS resource_role
+      UNION SELECT 'TRUST_GATE' UNION SELECT 'MODULE_MAP'
+      UNION SELECT 'OBJECT_CATALOGUE' UNION SELECT 'ENTITY_CATALOGUE'
+      UNION SELECT 'COLUMN_CATALOGUE' UNION SELECT 'RELATIONSHIP_CATALOGUE') AS req
+WHERE NOT EXISTS (
+    SELECT 1 FROM Semantic.data_product_orientation AS o
+    WHERE o.product_id = :product_id AND o.is_active = 1
+      AND o.resource_role = req.resource_role
+);
+
+-- Duplicate active role for one product (each role is singular)
+SELECT product_id, resource_role, COUNT(*) AS n
+FROM Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, resource_role
+HAVING COUNT(*) > 1;
+
+-- Duplicate discovery_order for one product
+SELECT product_id, discovery_order, COUNT(*) AS n
+FROM Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, discovery_order
+HAVING COUNT(*) > 1;
+
+-- Unresolved object-backed resource (registered object not deployed)
+SELECT o.product_id, o.resource_role, o.fully_qualified_object_name
+FROM Semantic.data_product_orientation AS o
+LEFT JOIN DBC.TablesV AS t
+    ON  t.DatabaseName = o.database_name
+    AND t.TableName = o.object_name
+WHERE o.is_active = 1
+  AND o.object_name IS NOT NULL
+  AND t.TableName IS NULL;
+
+-- Trust gate not ordered before analytical resources
+SELECT o.product_id
+FROM Semantic.data_product_orientation AS o
+WHERE o.is_active = 1
+  AND o.resource_role IN ('ENTITY_CATALOGUE', 'RELATIONSHIP_PATHS', 'QUERY_COOKBOOK')
+  AND o.discovery_order < (
+      SELECT MIN(g.discovery_order)
+      FROM Semantic.data_product_orientation AS g
+      WHERE g.product_id = o.product_id AND g.is_active = 1
+        AND g.resource_role = 'TRUST_GATE'
+  );
+```
+
+These checks are designed to be lifted into validation profiles; a missing
+required resource or an unordered trust gate is a blocking conformance
+failure (Validation Standard).
+
+### 3.11 data_product_manifest (Machine-Readable Manifest)
+
+**Purpose**: One machine-readable bootstrap record per product — identity,
+ownership, conformance posture, approved access mode, and the key discovery
+entrypoints — **generated from authoritative metadata** so it cannot drift
+from the sources it summarises (issue #20).
+
+The manifest is a **view**, not a stored table: it assembles product
+identity from `data_product_registry` and the entrypoints from
+`data_product_orientation`, pivoting the ordered resources into named
+columns. Because it is derived, the manifest–orientation–source consistency
+rule holds by construction. The registry's `manifest_json` remains the
+serialised representation for MCP clients that want the whole document in
+one read.
+
+```sql
+REPLACE VIEW Semantic.data_product_manifest
+(
+      product_id
+    , product_name
+    , product_version
+    , product_status
+    , owner_team
+    , approved_access_mode
+    , approved_entrypoint
+    , manifest_entrypoint
+    , trust_entrypoint
+    , module_map_entrypoint
+    , object_catalogue_entrypoint
+    , entity_catalogue_entrypoint
+    , column_catalogue_entrypoint
+    , relationship_catalogue_entrypoint
+    , manifest_json
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      r.product_id
+    , r.product_name
+    , r.product_version
+    , r.product_status
+    , r.owner_team
+    , r.approved_access_mode
+    , r.approved_entrypoint
+    , MAX(CASE WHEN o.resource_role = 'MANIFEST'               THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'TRUST_GATE'             THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'MODULE_MAP'             THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'OBJECT_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'ENTITY_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'COLUMN_CATALOGUE'       THEN o.fully_qualified_object_name END)
+    , MAX(CASE WHEN o.resource_role = 'RELATIONSHIP_CATALOGUE' THEN o.fully_qualified_object_name END)
+    , r.manifest_json
+FROM governance.data_product_registry AS r
+LEFT JOIN Semantic.data_product_orientation AS o
+    ON  o.product_id = r.product_id
+    AND o.is_active = 1
+WHERE r.is_active = 1
+  AND r.is_deleted = 0
+GROUP BY
+      r.product_id, r.product_name, r.product_version, r.product_status
+    , r.owner_team, r.approved_access_mode, r.approved_entrypoint, r.manifest_json;
+```
+
+**Consumption contract**:
+
+1. A consumer reads the manifest first (or resolves it as the `MANIFEST`
+   orientation resource), then follows `data_product_orientation` in
+   `discovery_order`.
+2. The `trust_entrypoint` is evaluated before any analytical entrypoint.
+3. Entrypoint columns carry fully qualified names used verbatim.
+4. `manifest_json`, where present, is the serialised form of the same facts;
+   it is regenerated from authoritative metadata, never hand-authored to
+   diverge from the columns above.
+
+**Consistency check** (manifest entrypoints resolve to orientation rows):
+
+```sql
+-- A manifest entrypoint with no backing active orientation row
+SELECT m.product_id
+FROM Semantic.data_product_manifest AS m
+WHERE m.trust_entrypoint IS NULL
+   OR m.manifest_entrypoint IS NULL
+   OR m.entity_catalogue_entrypoint IS NULL;
+```
+
+### 3.12 access_object (Access Layer Metadata)
+
+**Purpose**: Register the objects a consumer actually queries — one row per
+consumable object — with the role it plays, the entity it represents, its
+grain, and whether an agent should query it directly. This lets a consumer
+resolve any queryable object to its logical meaning **once, from metadata**,
+without parsing DDL or recomputing lineage at query time (resolves issue #9).
+
+> This is **access-layer metadata**, distinct from the security **Access Layer
+> Design Standard** (which governs roles and grants). It models *which objects
+> represent what*, not *who may read them*.
+
+The logical layer (`entity_metadata`, `table_relationship`) models entities and
+their relationships; it does not model the *access layer*. A platform security
+model may expose one entity through several objects (locking, business, current
+views), and products publish composite ("enriched") objects that join several
+entities into one unit. `access_object` captures those facts so consumers stop
+reverse-engineering them from DDL or names.
+
+**Logical schema** (normative; physical types bind per platform extension):
+
+| Column | Meaning | Requirement |
+|--------|---------|-------------|
+| `access_object_id` | Surrogate key | Required |
+| `database_name`, `object_name` | Physical location of the object | Required |
+| `access_role` | Role in the access layer. **Open vocabulary**: baseline `BASE`, `PASSTHROUGH`, `COMPOSITE`; extensions add values | Required |
+| `represents_entity` | Logical entity this object exposes (references `entity_metadata.entity_name`); null for composites that span entities | Conditional |
+| `object_grain` | Plain-language grain, e.g. "one row per call" | Recommended |
+| `is_agent_consumable` | Whether agents/humans should query this object directly | Required |
+| `resolves_to_object` | For 1:1 passthroughs/projections, the object this maps straight through to (collapse the chain to the entity in one hop) | Conditional |
+| `access_note` | Free-form guidance (locking, filtering, …) | Optional |
+| lifecycle (`is_active`, `created_dts`, `updated_dts`) | Housekeeping per the Temporal & Lifecycle Metadata Standard | Required |
+
+**Illustrative Teradata realisation** — physical types, the `access_role`
+vocabulary beyond the baseline, placement, and locking bind in the platform
+extension (#11); this DDL is not itself normative:
+
+```sql
+CREATE TABLE Semantic.access_object (
+    access_object_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    database_name VARCHAR(128) NOT NULL,
+    object_name VARCHAR(128) NOT NULL,
+    access_role VARCHAR(40) NOT NULL,        -- BASE | PASSTHROUGH | COMPOSITE | extension value
+    represents_entity VARCHAR(128),          -- entity_metadata.entity_name; null for cross-entity composites
+    object_grain VARCHAR(200),
+    is_agent_consumable BYTEINT NOT NULL DEFAULT 1,
+    resolves_to_object VARCHAR(257),         -- database.object for 1:1 passthroughs
+    access_note VARCHAR(500),
+    is_active BYTEINT NOT NULL DEFAULT 1,
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (represents_entity);
+```
+
+**Consumption contract** (normative):
+
+1. A consumer selecting data **resolves through `access_object`** — chooses
+   `is_agent_consumable = 1` objects and reads `represents_entity` — rather
+   than querying base tables directly.
+2. A `COMPOSITE` object is presented as a **single unit**; its internal
+   structure is read from `access_composition` (§3.13), never by parsing DDL
+   or computing column lineage at consumption time.
+3. Emitted join syntax targets consumable objects (access-resolved, §3.14),
+   not base tables.
+4. **Object names are not a contract.** No consumer infers an object's role,
+   layer, entity, or purpose from its name. The registry is the single source
+   of truth; classification is asserted in metadata, never derived from a name.
+
+**Establishment & ownership** (normative): this metadata is **established once
+at deployment** by a registration step, defined here by responsibility, not by
+tool. The step classifies objects from **verifiable structure** — the
+dependency graph and object definitions — not from names, and asserts the
+result in the registry. Consumers read it; they never recompute it. The
+*implementation* of the step is a platform concern (#11).
+
+**Relationship to `view_metadata` (§3.7)**: `view_metadata` catalogues the
+physical base-table → view exposure map; `access_object` is the consumption
+contract layered on it — the semantic access role, entity resolution, grain,
+and agent-consumability. `BASE`/`PASSTHROUGH` rows may be backfilled from
+`view_metadata` + `entity_metadata`; `COMPOSITE` rows and `is_agent_consumable`
+are access-object-only. `access_object` is authoritative for object
+multiplicity per entity; `entity_metadata.view_name` is retained as the
+denormalised "canonical consumable object" pointer.
+
+**Agent discovery query** (object → entity resolution):
+
+```sql
+SELECT a.database_name || '.' || a.object_name AS consumable_object,
+       a.access_role,
+       a.represents_entity,
+       a.object_grain,
+       a.resolves_to_object
+FROM Semantic.access_object AS a
+WHERE a.is_active = 1
+  AND a.is_agent_consumable = 1
+ORDER BY a.represents_entity, a.access_role;
+```
+
+**Validation** (Trust Engine / deployment checks):
+
+```sql
+-- Invalid baseline role (extension roles are validated by the extension)
+SELECT access_object_id, access_role
+FROM Semantic.access_object
+WHERE is_active = 1
+  AND access_role NOT IN ('BASE', 'PASSTHROUGH', 'COMPOSITE');
+
+-- Non-composite consumable object that resolves to no entity
+SELECT access_object_id, database_name, object_name
+FROM Semantic.access_object
+WHERE is_active = 1
+  AND access_role <> 'COMPOSITE'
+  AND represents_entity IS NULL;
+
+-- represents_entity that is not a catalogued entity
+SELECT a.access_object_id, a.represents_entity
+FROM Semantic.access_object AS a
+WHERE a.is_active = 1
+  AND a.represents_entity IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM Semantic.entity_metadata AS e
+      WHERE e.is_active = 1 AND e.entity_name = a.represents_entity
+  );
+
+-- Registered access object not deployed
+SELECT a.database_name, a.object_name
+FROM Semantic.access_object AS a
+LEFT JOIN DBC.TablesV AS t
+    ON  t.DatabaseName = a.database_name AND t.TableName = a.object_name
+WHERE a.is_active = 1 AND t.TableName IS NULL;
+```
+
+### 3.13 access_composition (Composite Object Structure)
+
+**Purpose**: Record what a `COMPOSITE` access object encapsulates — one row per
+component — so a consumer expands the composite from metadata, never from DDL.
+Components are referenced as **entities**, not raw tables, to keep the record
+intelligible and platform-neutral.
+
+**Logical schema** (normative; physical types bind per platform extension):
+
+| Column | Meaning | Requirement |
+|--------|---------|-------------|
+| `access_composition_id` | Surrogate key | Required |
+| `composite_database`, `composite_object` | The composite being described | Required |
+| `member_seq` | Ordering of the component within the composite | Required |
+| `member_entity` | Entity the component represents (references `entity_metadata`) | Required |
+| `member_role` | Join role: `ANCHOR`, `INNER`, `LEFT`, `RIGHT`, `FULL` | Required |
+| `join_path` | Logical join condition, entity-level (same form as `v_relationship_paths.path_joins`) | Recommended |
+| `is_grain_contributor` | Whether this component changes the composite's grain | Recommended |
+| `member_note`, lifecycle | Guidance + housekeeping | Optional / Required |
+
+**Illustrative Teradata realisation** (non-normative):
+
+```sql
+CREATE TABLE Semantic.access_composition (
+    access_composition_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    composite_database VARCHAR(128) NOT NULL,
+    composite_object VARCHAR(128) NOT NULL,
+    member_seq SMALLINT NOT NULL,
+    member_entity VARCHAR(128) NOT NULL,
+    member_role VARCHAR(20) NOT NULL,        -- ANCHOR | INNER | LEFT | RIGHT | FULL
+    join_path VARCHAR(1000),
+    is_grain_contributor BYTEINT NOT NULL DEFAULT 0,
+    member_note VARCHAR(500),
+    is_active BYTEINT NOT NULL DEFAULT 1,
+    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX (composite_object);
+```
+
+**Composite expansion query** (read a composite as a unit):
+
+```sql
+SELECT c.member_seq,
+       c.member_entity,
+       c.member_role,
+       c.is_grain_contributor,
+       c.join_path
+FROM Semantic.access_composition AS c
+WHERE c.is_active = 1
+  AND c.composite_database = :composite_database
+  AND c.composite_object = :composite_object
+ORDER BY c.member_seq;
+```
+
+**Validation**: exactly one `ANCHOR` per composite; every `member_entity`
+catalogued in `entity_metadata`; every described composite present in
+`access_object` with `access_role = 'COMPOSITE'`.
+
+```sql
+-- Composite without exactly one ANCHOR
+SELECT composite_database, composite_object,
+       SUM(CASE WHEN member_role = 'ANCHOR' THEN 1 ELSE 0 END) AS anchors
+FROM Semantic.access_composition
+WHERE is_active = 1
+GROUP BY composite_database, composite_object
+HAVING SUM(CASE WHEN member_role = 'ANCHOR' THEN 1 ELSE 0 END) <> 1;
+```
+
+### 3.14 Access-Resolved Relationship Paths
+
+`v_relationship_paths` (§5) stays as the logical, entity-level truth. Its
+`path_joins` are emitted against base tables; where a platform exposes a
+separate consumable layer, those joins point at objects an agent may not query,
+at the wrong grain.
+
+The **access-resolved** artifact rewrites path endpoints and join targets to
+**consumable objects** — via `access_object.represents_entity` and
+`resolves_to_object` — so agents receive joins written against objects they can
+actually query. What it contains is normative; its persistence (a view, or a
+table refreshed at deployment) is a platform/performance decision left to the
+extension.
+
+**Contract** (normative): for each logical path, resolve every endpoint entity
+to its canonical consumable object (the `is_agent_consumable = 1` `access_object`
+for that entity, collapsing `resolves_to_object` chains) and emit the join
+against those objects. A path whose endpoint entity has no consumable object is
+omitted, not emitted against a base table.
+
+**Illustrative view** (non-normative — endpoint resolution; the full join
+rewrite binds in the extension):
+
+```sql
+REPLACE VIEW Semantic.v_access_relationship_paths
+(
+      source_entity
+    , source_object
+    , target_entity
+    , target_object
+    , hop_count
+    , path_description
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      p.source_table
+    , sa.database_name || '.' || sa.object_name
+    , p.target_table
+    , ta.database_name || '.' || ta.object_name
+    , p.hop_count
+    , p.path_description
+FROM Semantic.v_relationship_paths AS p
+JOIN Semantic.access_object AS sa
+    ON  sa.represents_entity = p.source_table
+    AND sa.is_agent_consumable = 1 AND sa.is_active = 1
+JOIN Semantic.access_object AS ta
+    ON  ta.represents_entity = p.target_table
+    AND ta.is_agent_consumable = 1 AND ta.is_active = 1;
+```
+
 ---
 
 ## 4. Table-Level Relationship Metadata
@@ -1286,10 +1794,15 @@ module internals.
 - data_product_map_primary_objects (one row per primary object)
 - view_metadata (one row per base-table exposure)
 - view_column_type (populated at view-deployment time)
+- data_product_orientation (ordered resource bootstrap, 3.10)
+- access_object (consumable object registry, 3.12)
+- access_composition (composite structure, when composites exist, 3.13)
 
 ### 8.2 Required Views
 
 - column_catalogue (live hybrid column catalogue, 3.9)
+- data_product_manifest (generated machine-readable manifest, 3.11)
+- v_access_relationship_paths (access-resolved paths, 3.14)
 - v_entity_catalog
 - v_entity_schema
 - **v_relationship_paths** (CRITICAL)
@@ -1401,6 +1914,8 @@ A table that appears in `entity_metadata` but has no entries in `table_relations
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
+| 2.11 | 2026-07-18 | Added the access-object metadata layer (resolves issue #9, Semantic half): Section 3.12 `access_object` (registry of consumable objects - open `access_role` baseline BASE/PASSTHROUGH/COMPOSITE, `represents_entity`, `object_grain`, `is_agent_consumable`, `resolves_to_object`), with a normative consumption contract (resolve through the registry, not base tables; object names are not a contract), an establish-once-at-deployment ownership clause, and a note on its relationship to `view_metadata`; Section 3.13 `access_composition` (what a COMPOSITE encapsulates, referenced by entity); Section 3.14 access-resolved relationship paths (join targets rewritten to consumable objects). Logical schemas are normative; Teradata DDL is illustrative and binds per platform extension. Updated required tables/views (8.1, 8.2). Pairs with Master 2.1. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
+| 2.10 | 2026-07-18 | Added the agent orientation contract: Section 3.10 `data_product_orientation` (resolves issue #20) - one ordered row per product resource with a controlled `resource_role` vocabulary, `is_required` and `discovery_order`, formalising the Orientation Layer prose of Section 3.4 into a queryable, conformance-checkable relation with trust-before-analytical ordering and validation queries; Section 3.11 `data_product_manifest` (generated view over the registry and orientation, so the manifest cannot drift from source metadata). Updated required tables/views (8.1, 8.2). New objects use canonical lifecycle columns per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.9 | 2026-07-15 | Added the catalogue exposure objects: Section 3.7 `view_metadata` view catalogue (resolves issue #36 — one row per base-table exposure, controlled `view_type` vocabulary, `is_primary` uniqueness, validation queries, interim on the issue #9 path); Section 3.8 `view_column_type` curated view-column types; Section 3.9 `column_catalogue` live hybrid column catalogue with value provenance (`data_type_source`, `description_source`, `is_documented` — addresses issue #22 for this module). Documented Semantic exposure of Observability's definitional `data_lineage` (Section 7). Updated required tables/views (8.1, 8.2). New tables use canonical lifecycle columns per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.8 | 2026-07-15 | Added Section 3.6 `data_product_map_primary_objects` (resolves issue #14): one row per primary object with exact fully qualified identity, controlled `object_role` vocabulary, `usage_guidance`, optional `table_kind`, and validation queries (orphan modules, missing objects, invalid roles, catalogue-kind mismatches, duplicates). Deprecated the `primary_tables` / `primary_views` CSV columns (retained for backward compatibility only) and updated agent discovery queries to use the child relation. New table adopts canonical lifecycle columns (`created_dts` / `updated_dts`) per the Temporal & Lifecycle Metadata Standard. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
 | 2.7 | 2026-05-30 | Added `data_product_registry` and the Data Product Orientation Layer as the product-level discovery contract for agents and MCP clients. Clarified that clients should read the product manifest, contract, semantic model, policy, quality, and lineage before querying `data_product_map` for module locations or using approved data access. | Paul Dancer, Worldwide Data Architecture Team, Teradata |
