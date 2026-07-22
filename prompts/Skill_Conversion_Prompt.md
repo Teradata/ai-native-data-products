@@ -1,437 +1,199 @@
-# AI-Native Data Product — Unified Skill Conversion Prompt
-## Converting Design Standard Documents into a Single Agent Skill
+# AI-Native Data Product — Skill Conversion Prompt
+
+## Converting the standards into four role skills
 
 ---
 
 ## Purpose
 
-This prompt converts the full set of AI-Native Data Product design standard
-documents into a single unified agent skill with progressive disclosure.
+This prompt converts the AI-Native Data Product standards into **four role-scoped agent skills** —
+one per stage of the designer → builder → reviewer pipeline, plus a consumer skill:
 
-The **design standard documents are the master source of truth**.
-The skill is a compressed, agent-optimised rendering of those documents —
-structured for efficient sub-agent consumption, not independent of them.
+| Skill | Role | Question it answers |
+|-------|------|---------------------|
+| `design` | Designer | *How do I design a data product (platform-agnostic)?* |
+| `build` | Builder | *How do I deploy that design on a specific platform?* |
+| `review` | Reviewer | *Does this design/build satisfy the standards?* |
+| `access` | Consumer | *How do I discover and query a deployed product?* |
 
-When design documents change, the skill must be updated to match.
-When there is a conflict between skill content and design document content,
-the design document wins.
+Each role receives **purpose-built context** — a designer never loads platform DDL; a consumer never
+loads build templates. This is the whole point of the split.
+
+**The repository is the source of truth.** `design/` is platform-agnostic; `implementation/{platform}/`
+binds it; `tooling/validation/` enforces the boundary. Skills are a compressed, agent-optimised
+*rendering* of these — never independent of them. When the repo changes, regenerate the skills. On
+any conflict, the repo wins.
+
+Skills are generated artefacts and are **gitignored** (`/skills/`). Do not commit them.
 
 ---
 
-## Skill Architecture
+## Source → skill mapping
 
-The unified skill uses a two-tier progressive disclosure structure:
+Read the repository before writing anything. Each skill draws from a specific slice:
+
+| Skill | Reads from |
+|-------|-----------|
+| `design` | `design/core/` (all), `design/modules/*.md`, `design/patterns/*.md` |
+| `build` | `implementation/{platform}/` (all), plus each design doc's §"Implementation" and capability tables for the design→binding mapping |
+| `review` | Every `INV-*` invariant and every conformance-rule table (`TLM-*`, `VAL-*`, object-placement/physical-storage conformance checklists), `design/patterns/validation.md`, `tooling/validation/design_lint.py`, and each implementation's `validation.sql` |
+| `access` | `design/modules/semantic.md` (§4 orientation, §5–6 discovery), `design/patterns/validation.md` (§8 the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql` |
+
+`{platform}` defaults to `teradata` (the current reference). To target another platform, point `build`
+and `access` at that platform's `implementation/` tree once it exists.
+
+---
+
+## Output structure
+
+Write four skill directories under `skills/` (gitignored). Each is a progressive-disclosure package:
+a lean `SKILL.md` read on every invocation, plus on-demand files.
 
 ```
-ai-native-data-product.skill (zip)
-├── SKILL.md                    ← always read by orchestrator and every sub-agent
-│                                  core principles, architecture, naming conventions,
-│                                  deployment order, documentation capture protocol,
-│                                  sub-agent routing instructions
-└── modules/
-      ├── domain.md             ← read when designing Domain module
-      ├── semantic.md           ← read when designing Semantic module
-      ├── search.md             ← read when designing Search module
-      ├── prediction.md         ← read when designing Prediction module
-      ├── observability.md      ← read when designing Observability module
-      ├── memory.md             ← read when designing Memory module
-      │                            (includes Documentation Sub-Module)
-      └── access-layer.md       ← read when generating the Access Layer DCL
-                                   three-role model, two-phase deployment,
-                                   DD-ACCESS-001 documentation record
+skills/
+├── design/
+│   ├── SKILL.md               ← framework, design language, composition method, routing
+│   ├── modules/{module}.md    ← per-module logical model, capabilities, invariants (6 files)
+│   └── patterns/{pattern}.md  ← per-pattern contract (5 files)
+├── build/
+│   ├── SKILL.md               ← the design/implementation split, deployment order, object-placement protocol
+│   ├── platform-profile.md    ← physical-design guidance for the target platform
+│   ├── modules/{module}.md    ← per-module DDL templates + capability bindings (6 files)
+│   └── patterns/{pattern}.md  ← per-pattern concrete binding (5 files)
+├── review/
+│   ├── SKILL.md               ← how to review; the invariant/conformance catalogue index; the linter and trust gate
+│   └── checks/{module|pattern}.md ← the INV-*/conformance rules and validation queries per area
+└── access/
+    ├── SKILL.md               ← product-first discovery order; the pre-use trust gate
+    └── discovery.md           ← orientation manifest, module/entity/relationship discovery, multi-hop paths
 ```
 
-**SKILL.md** is read by every agent — orchestrator and sub-agents alike.
-It must be lean enough that it does not consume meaningful context on its own.
-
-**Module files** are read on demand — each sub-agent reads SKILL.md plus
-only the module file relevant to its current design task. Module files
-assume SKILL.md has been read and do not repeat its content.
+Every `SKILL.md` carries YAML frontmatter: `name` (`ai-native-dp-{role}`) and a `description` that
+states the role and when to load it. Keep each `SKILL.md` lean (target ≤ 150 lines) — it is read on
+every invocation.
 
 ---
 
-## How to Use This Prompt
+## Per-skill instructions
 
-**To generate the full unified skill from scratch:**
-1. Start a new AI agent/chat conversation
-2. Attach all design standard documents:
-   - `AI_Native_Data_Product_Master_Design.md`
-   - `Domain_Module_Design_Standard.md`
-   - `Semantic_Module_Design_Standard.md`
-   - `Search_Module_Design_Standard.md`
-   - `Prediction_Module_Design_Standard.md`
-   - `Observability_Module_Design_Standard.md`
-   - `Memory_Module_Design_Standard.md`
-   - `Access_Layer_Design_Standard.md`
-3. Attach platform standard interface specifications:
-   - `platform-standards/Object_Placement_Standard_Spec.md`
-   - `platform-standards/Physical_Storage_Standard_Spec.md`
-4. Attach `Advocated_Data_Management_Standards.md`
-5. Paste this prompt
+### 1. `design` — the designer skill
 
-**To update the skill after design documents change:**
-1. Attach the updated design document(s)
-2. Attach the current `.skill` file
-3. Paste this prompt with the instruction: "Update the skill to reflect
-   changes in [document name]"
+`SKILL.md` (from `design/core/`): the composition method (modules provide/require capabilities;
+`[hard]`/`[soft]`; a composition is valid iff every hard requirement is met — Design Language §6.2);
+the named compositions (Master §4); the logical-type vocabulary and entity notation (Design Language
+§4–5); the capability catalogue (§6.1); the invariant convention (§7); and the deployment order
+(Master §10). Routing: "read `SKILL.md`, then `modules/{module}.md` for the module you are designing
+and `patterns/{pattern}.md` for each pattern it applies."
 
----
+`modules/{module}.md` (from `design/modules/`): the logical entity model in the entity notation, the
+Provides/Requires capabilities with strengths, applied patterns, the invariants to satisfy, and
+designer responsibilities. **Platform-agnostic — no platform types, no DDL.** This is the design
+document, compressed.
 
-## Conversion Prompt
+`patterns/{pattern}.md` (from `design/patterns/`): the contract the pattern imposes and the capabilities
+it underpins.
 
-You are converting the AI-Native Data Product design standard documents
-into a single unified agent skill. The skill creator tool is available
-in your skills library — use it to package the final output.
+**Output of a designer using this skill:** a platform-agnostic design — chosen composition, entities in
+logical types, capabilities required, invariants to satisfy — ready to hand to a builder.
 
-The design standard documents are the **master source of truth**.
-The skill is a compressed, structured rendering of that knowledge.
-Every design decision and DDL pattern in the skill must be traceable
-to a source document.
+### 2. `build` — the builder skill
 
----
+`SKILL.md`: the design/implementation split; that a design is realised by binding each capability and
+generating the concrete artefacts; the deployment order for the chosen composition (Master §10); and
+the **object-placement protocol** — *before generating any object, locate the conforming
+object-placement implementation and derive the container; if object storage is in use, also locate the
+physical-storage implementation; never invent a container or path.*
 
-### Step 1 — Read and Analyse
+`platform-profile.md` (from `implementation/{platform}/PLATFORM_PROFILE.md`): physical-design guidance
+(keys, partitioning, indexing, compression, statistics).
 
-Read all attached documents before writing anything.
+`modules/{module}.md` (from `implementation/{platform}/modules/`): the concrete DDL/query templates, the
+capability→binding table (so the builder knows which design capability each artefact satisfies), and
+the invariant→check mapping. **Preserve validated platform SQL exactly** — recursive CTEs, vector
+functions, catalogue decodes must not be paraphrased.
 
-From the Master Design Standard, extract:
-- The six-module architecture and how modules relate
-- Physical naming conventions (`{ProductName}_{Module}` pattern)
-- Module deployment order (phases)
-- The "design memory" concept — documentation tables in Memory database
+`patterns/{pattern}.md` (from `implementation/{platform}/patterns/`): the concrete pattern binding
+(temporal DDL/DML, access-layer DCL, validation results table, etc.).
 
-From each module design standard, extract:
-- **Module purpose** — one sentence
-- **Core principle** — the never-violate rule
-- **Tables to design** — each table with its purpose
-- **Design decisions** — choices the designer must make (storage pattern,
-  temporal strategy, indexing, etc.)
-- **Integration points** — how this module connects to others
-- **Standard views** — required vs optional
-- **Agent discovery patterns** — how agents find and query this module
-- **Documentation capture requirements** — minimum records for Memory
-  documentation tables (Memory Module Design Standard, Section 8)
+**Output of a builder using this skill:** deployable, ordered artefacts for the target platform that
+satisfy the design's capabilities and invariants.
 
-Then identify any **consistency issues** before writing a single line of output.
+### 3. `review` — the reviewer skill
 
-Check every boolean-style column across all design standards against:
-- Boolean flags must use `BYTEINT NOT NULL DEFAULT 1/0` — never `CHAR(1)`
-- Boolean columns must use the `is_` prefix
-- Filter values must be `= 1` or `= 0` — never `= 'Y'` or `= 'N'`
-- Temporal tables use non-unique `PRIMARY INDEX` — never `UNIQUE PRIMARY INDEX`
+`SKILL.md`: how to review — read the design/build, then for each module/pattern present, check its
+invariants and conformance rules; run the design linter against `design/`; and record results through
+the **validation pattern's contract** (the trust gate: any CRITICAL/ERROR failure ⇒ `UNTRUSTED` ⇒
+stop). Index the `checks/` files.
 
-**Stop and report any inconsistencies before proceeding.**
-List the table name, column name, current definition, and corrected definition.
-Wait for confirmation before continuing.
+`checks/{module|pattern}.md`: the full `INV-*` list for that area (from the design doc's Invariants
+section) and its conformance-rule table where one exists (`TLM-*` for temporal, `VAL-*` for validation,
+the object-placement/physical-storage conformance checklists), each paired with the runnable check
+(the implementation's `validation.sql`, or the `design_lint.py` rule). Mark blocking rules.
 
----
+**Output of a reviewer using this skill:** a validation result per the validation pattern — pass/fail
+per invariant, an overall trust status, and the stop/go gate.
 
-### Step 2 — Write SKILL.md (Core)
+### 4. `access` — the consumer skill
 
-SKILL.md is read by every agent. It must be lean, complete, and contain
-no module-specific content. Target: 100–150 lines. Hard limit: 175 lines.
+`SKILL.md`: **product-first discovery** — orient to the product before touching modules or data
+(Semantic §4); the discovery order (product → module → entity → relationship); and the **pre-use trust
+gate** — read the gate-authoritative validation result before analytical use; stop on `UNTRUSTED`, stale,
+or missing evidence (validation §8, §10).
 
-**SKILL.md must contain:**
+`discovery.md`: the orientation manifest and MCP resource/tool shapes; the module/entity/relationship
+discovery sequence; multi-hop path discovery; primary-object entrypoints (use the stored
+`container.object` verbatim, never derive names).
 
-1. **YAML frontmatter** — `name: ai-native-data-product` and a description
-   covering the full scope: orchestrating multi-module data product design,
-   directing sub-agents to module files, designing any individual module
-
-2. **Architecture overview** — compact table showing all six modules,
-   their purpose, and their database naming pattern
-
-3. **Deployment order** — which modules to design in which phase,
-   including the note that Memory module documentation tables are
-   created as part of Memory DDL (no separate bootstrap step)
-
-4. **Physical naming convention** — `{ProductName}_{Module}` pattern
-   with a concrete example (e.g. Customer360_Domain, Customer360_Memory)
-
-5. **Universal conventions** — applied in every module, stated once here:
-   - Boolean columns: `BYTEINT NOT NULL DEFAULT 1/0`, `is_` prefix, filter `= 1/0`
-   - Surrogate keys in **Domain module** `_H` tables (FK-target entities): `BIGINT NOT NULL` — best practice is to manage surrogate allocation separately from the history table so that the same surrogate is used consistently across all SCD versions. Apply the organisation's existing key allocation standard, or the Keymap pattern recommended in Advocated Data Management Standards Section 4. Reference/lookup tables and detail entities not FK-referenced may allocate surrogates directly (see Advocated Standards Section 4.4 for the decision rule).
-   - Surrogate keys in **all other modules** (Semantic, Memory, Observability, Search, Prediction): `BIGINT GENERATED ALWAYS AS IDENTITY` or `INTEGER GENERATED ALWAYS AS IDENTITY` — these are internal management tables, not SCD history tables, so IDENTITY is correct.
-   - Natural/business keys: `{entity}_key VARCHAR` or appropriate type
-   - Timestamps: `TIMESTAMP(6) WITH TIME ZONE`
-   - Temporal end date: `DATE '9999-12-31'` (open / no end)
-   - Table suffixes: `_H` history, `_R` reference, `_Current` view, `_Enriched` view
-   - `COMMENT ON TABLE` and `COMMENT ON COLUMN` required on all objects
-
-6. **Documentation capture protocol** — cross-cutting, stated here once,
-   not repeated in module files:
-   - All documentation tables live in `{ProductName}_Memory`
-   - Every module must generate: 1× Module_Registry INSERT, min. 3×
-     Design_Decision INSERTs, 1× Change_Log INSERT, min. 3×
-     Business_Glossary INSERTs, min. 1× Query_Cookbook INSERT
-   - Decision ID format: `DD-{MODULE}-{NNN}` (e.g. DD-DOMAIN-001)
-   - Output file placement: last numbered file in each module directory
-     (e.g. `01-domain/05-documentation.sql`)
-   - Temporal field defaults: `valid_from = CURRENT_DATE`,
-     `valid_to = DATE '9999-12-31'`, `is_current = 1`, `is_active = 1`
-
-7. **Sub-agent routing instructions** — explicit directive:
-   "Read SKILL.md first. Then read `modules/{module}.md` for the module
-   you are designing. Do not read other module files unless explicitly
-   designing that module."
-
-8. **Module file index** — one-line description of each module file
-   and when to load it
-
-**SKILL.md must NOT contain:**
-- DDL templates
-- Query syntax
-- INSERT/UPDATE patterns
-- Module-specific design decisions
-- Checklists
+**Output of a consumer using this skill:** correct, gated queries against a deployed product, discovered
+autonomously.
 
 ---
 
-### Step 3 — Write Module Files
+## Compression guidance
 
-Write one file per module under `modules/`. Each file is self-contained
-for its module design task. Each file assumes SKILL.md has been read —
-do not repeat naming conventions, boolean standards, or documentation
-capture protocol.
+Leave each agent maximum working memory:
 
-**Target per module file: 300–400 lines. Hard limit: 500 lines.**
+- **Replace prose with decision tables** (e.g. wide-vs-tall storage → a two-row table).
+- **Keep the parameterised template, drop the worked example** — the template is the example. Use the
+  repo's placeholders (`{ProductName}`, `{entity}`, `{{ product }}`).
+- **State cross-cutting conventions once** in `SKILL.md`; do not repeat them in every file.
+- **Preserve exactly, never compress:** validated platform SQL, `COMMENT ON` metadata text, invariant
+  wording and ids, conformance-rule ids and their blocking markers.
 
-Each module file must contain, in this order:
-
-1. **Module header** — purpose (one sentence), core principle (never-violate
-   rule), and the physical database name pattern for this module
-
-2. **Design decisions table** — the choices the designer must make before
-   writing DDL. Format as a decision table:
-   ```
-   | Decision | Options | Choose when |
-   ```
-   Not prose. Compact. Covers every significant fork in the design.
-
-3. **Design workflow** — numbered steps the sub-agent follows to complete
-   the module design. References the decision table above.
-
-4. **DDL templates** — parameterised CREATE TABLE and CREATE VIEW statements
-   for every table and view defined in the design standard.
-   - Use `{ProductName}` and `{entity}` placeholders
-   - Include all COMMENT ON TABLE / COMMENT ON COLUMN statements
-   - Preserve exact Teradata-specific syntax (validated patterns must not
-     be paraphrased)
-   - Do not include a separate example — the template is the example
-
-5. **Integration patterns** — compact reference showing how this module
-   connects to other modules. FK patterns, join-back patterns, cross-module
-   views. Tables not prose.
-
-6. **Agent discovery queries** — the SQL sequence an agent uses to find
-   and explore this module. Include Semantic module registration INSERTs
-   (entity_metadata, column_metadata, table_relationship, data_product_map)
-   as ready-to-run templates.
-
-7. **Documentation capture** — minimum INSERT templates for this module's
-   documentation records, using `{ProductName}_Memory.` table references.
-   Pre-filled with module-specific placeholders. One-line reminder that
-   the protocol is defined in SKILL.md.
-
-8. **Design checklist** — final verification items specific to this module.
-   Does not repeat universal conventions from SKILL.md.
-   Includes: functional validation queries; anti-pattern checks.
-
-**Special instructions for `access-layer.md`:**
-
-The access layer file is short (target 100–150 lines). It must contain:
-
-1. **Header** — "Every AI-Native Data Product requires an Access Layer. Without it, all module
-   databases are deployed but operationally invisible (Error 3523)."
-2. **Three-role model** — ROLE_READ, ROLE_AGENT, ROLE_ADMIN with naming pattern and the rationale
-   for keeping ROLE_AGENT separate from ROLE_READ
-3. **Two-phase deployment** — Phase 1.5 (Semantic + Memory) and Phase 2.5 (Domain + Observability)
-   with explicit note that Phase 1.5 is the minimum viable access grant
-4. **DCL template** — the complete parameterised DCL from Section 6 of the Access Layer Design
-   Standard: COMMENT ON ROLE statements, phase-separated GRANT blocks, commented-out Search and
-   Prediction blocks, user assignment template comments
-5. **Artefact location** — `{ProductName}/00-access/{ProductName}_access_layer.dcl`
-6. **Documentation record** — complete `DD-ACCESS-001` Design_Decision INSERT template
-7. **Checklist** — the 9-item checklist from Section 10 of the Access Layer Design Standard
-
-**Object Placement Standard — SKILL.md protocol addition (universal convention):**
-
-SKILL.md must include the following (this applies before every CREATE statement, not to one module):
-
-> **Object Placement Protocol:** Before generating any CREATE TABLE, CREATE VIEW, CREATE PROCEDURE,
-> or CREATE FUNCTION statement, locate the organisation's conforming implementation of the Object
-> Placement Standard. Priority order: (1) explicit path in conversation, (2)
-> `/mnt/skills/user/object-placement/SKILL.md`, (3) any file matching
-> `Object_Placement_Standard*.md` in the project context. If none found: stop and ask
-> *"Which database should this object type go in?"* before writing any DDL.
-
-> **Physical Storage Protocol:** If object storage (S3, ADLS, GCS) is in use, also locate the
-> Physical Storage Standard implementation before generating any OTF table DDL.
-
-Both belong in SKILL.md, not in module files.
+Do **not** let platform SQL leak into the `design` skill — it must stay platform-agnostic, exactly as
+`design/` is. (You can sanity-check by running `tooling/validation/design_lint.py` against any design
+material you lift.)
 
 ---
 
-**Module-specific content that must be preserved exactly (do not paraphrase):**
-- Recursive CTEs (Semantic `v_relationship_paths`)
-- TD_VectorDistance function calls (Search)
-- Any SQL marked as `TESTED ✅` in the source documents
+## Verify before finishing
 
-**Content to add that source documents typically omit:**
-- The expire-current → insert-new DML pattern for all temporal tables
-- A staleness detection query (how to find records needing refresh)
-- The agent discovery query sequence for this specific module
+For every skill:
 
----
+- [ ] `SKILL.md` ≤ 150 lines, correct frontmatter, clear routing, no content that belongs in an on-demand file.
+- [ ] On-demand files present for every module/pattern in scope; none repeats `SKILL.md`.
+- [ ] `design` skill contains no platform types or DDL (lint-clean).
+- [ ] `build` skill preserves validated platform SQL verbatim and carries the capability→binding and invariant→check mappings.
+- [ ] `review` skill lists every `INV-*` and conformance rule with its runnable check and blocking marker.
+- [ ] `access` skill leads with product-first discovery and the pre-use trust gate.
+- [ ] Every claim traces to a repo source; on conflict, the repo wins.
 
-### Step 4 — Apply Compression Techniques
-
-The goal is to leave the sub-agent maximum working memory for the design task.
-
-**Replace prose with decision tables:**
-```
-Instead of: three paragraphs on wide vs tall feature format
-Use:        | Condition | Pattern |
-            | Features always accessed together | Wide |
-            | Features accessed individually, sparse | Tall |
-```
-
-**Replace specific examples with parameterised templates:**
-```
-Instead of: Customer-specific DDL showing party_key
-Use:        CREATE TABLE {ProductName}_Prediction.{entity}_features (
-                {entity}_id BIGINT NOT NULL ...
-```
-
-**Consolidate repeated column sets:**
-If multiple tables share the same temporal column pattern, define it once
-at the top of the DDL section with a note: "apply to all temporal tables."
-
-**Preserve exactly — do not compress:**
-- Validated SQL (`TESTED ✅` in source documents)
-- COMMENT ON TABLE/COLUMN text — agent-readable metadata
-- Teradata-specific syntax with known failure modes
+Optionally package each `skills/{role}/` as a distributable `.skill` archive; the directories under
+`skills/` remain the working output and stay gitignored.
 
 ---
 
-### Step 5 — Verify Before Packaging
+## Report
 
-**SKILL.md:**
-- [ ] Under 175 lines
-- [ ] No DDL or query syntax
-- [ ] Documentation capture protocol complete and accurate
-- [ ] Sub-agent routing instructions clear and unambiguous
-- [ ] All six modules AND access-layer.md listed in module file index
-- [ ] Object Placement Protocol present (locate standard before any CREATE statement)
-- [ ] Physical Storage Protocol present (locate standard before any OTF table DDL)
-
-**Each module file:**
-- [ ] Under 500 lines
-- [ ] Does not repeat SKILL.md content (naming conventions,
-      boolean standards, documentation capture protocol)
-- [ ] All tables from the design standard are present
-- [ ] DDL uses `{ProductName}` and `{entity}` placeholders
-- [ ] No `CHAR(1)` boolean columns
-- [ ] No `= 'Y'` or `= 'N'` filter values
-- [ ] Semantic registration INSERTs present
-- [ ] Documentation capture INSERTs use `{ProductName}_Memory.` prefix
-- [ ] Validated SQL preserved exactly
+Summarise: the four skills and their file/line counts; the typical context load per role (SKILL.md + the
+files that role opens for one module); any repo inconsistencies found (report, don't silently fix — the
+repo is the source of truth); and any repo updates needed to keep the skills faithful.
 
 ---
 
-### Step 6 — Package and Validate
+## Updating after the repo changes
 
-Use the skill creator packaging tool:
-
-```bash
-python -m scripts.package_skill /home/agent/ai-native-data-product /home/agent
-```
-
-The validator must return `✅ Skill is valid!` before proceeding.
-
-Copy the packaged `.skill` file to `/mnt/user-data/outputs/` and present
-it to the user for download.
-
----
-
-### Step 7 — Report
-
-After packaging, provide a summary covering:
-
-1. **Skill structure** — file names and line counts for all files
-2. **Context efficiency** — SKILL.md lines; typical sub-agent session
-   (SKILL.md + 1 module file); comparison to previous 6-skill total
-3. **Consistency corrections** — any boolean or naming fixes applied (old → new)
-4. **Source document gaps filled** — operational patterns added
-5. **Source document updates required** — exact changes to keep docs in sync
-
----
-
-### Step 8 — Updating After Design Document Changes
-
-When a design document is updated:
-
-1. Identify which module file(s) are affected
-2. List every change and its impact on the skill (confirm with user before editing)
-3. If a universal convention changed (naming, booleans, documentation protocol),
-   update SKILL.md and check all module files for knock-on impacts
-4. If a module-specific change, update only the affected module file
-5. Apply changes using `str_replace` — do not rewrite whole files
-6. Re-run Step 5 verification and Step 6 packaging
-7. Report what changed
-
-The skill name must not change between versions: `ai-native-data-product`
-
----
-
-## Reference: Size Targets
-
-| File | Target | Hard limit |
-|------|--------|-----------|
-| `SKILL.md` | 100–150 lines | 175 lines |
-| Any single module file | 300–400 lines | 500 lines |
-| `access-layer.md` | 100–150 lines | 175 lines (compact standard) |
-| Total (all files combined) | < 3,000 lines | 3,400 lines |
-| Typical sub-agent context (SKILL.md + 1 module) | 400–550 lines | — |
-| Access layer context (SKILL.md + access-layer.md) | 200–325 lines | — |
-
-## Reference: Skill Directory Structure
-
-```
-ai-native-data-product/
-├── SKILL.md
-└── modules/
-    ├── domain.md
-    ├── semantic.md
-    ├── search.md
-    ├── prediction.md
-    ├── observability.md
-    ├── memory.md
-    └── access-layer.md   ← always required; three roles, two-phase DCL, DD-ACCESS-001
-```
-
-## Reference: Module Deployment Order
-
-| Phase | Module | Database pattern | Notes |
-|-------|--------|-----------------|-------|
-| 1 | Memory | `{Name}_Memory` | First — hosts documentation tables for all modules |
-| 1 | Semantic | `{Name}_Semantic` | First — hosts discovery metadata for all modules |
-| 2 | Domain | `{Name}_Domain` | Entity foundation |
-| 2 | Observability | `{Name}_Observability` | Begins monitoring Domain immediately |
-| 3 | Search | `{Name}_Search` | Requires Domain entities |
-| 3 | Prediction | `{Name}_Prediction` | Requires Domain entities |
-
-## Reference: Documentation Capture ID Prefixes
-
-| Module | Decision ID | Change Log | Query Cookbook | Impl. Note |
-|--------|------------|------------|----------------|------------|
-| Domain | DD-DOMAIN- | CL-DOMAIN- | QC-DOMAIN- | IN-DOMAIN- |
-| Semantic | DD-SEMANTIC- | CL-SEMANTIC- | QC-SEMANTIC- | IN-SEMANTIC- |
-| Search | DD-SEARCH- | CL-SEARCH- | QC-SEARCH- | IN-SEARCH- |
-| Prediction | DD-PREDICTION- | CL-PREDICTION- | QC-PREDICTION- | IN-PREDICTION- |
-| Observability | DD-OBSERVABILITY- | CL-OBSERVABILITY- | QC-OBSERVABILITY- | IN-OBSERVABILITY- |
-| Memory | DD-MEMORY- | CL-MEMORY- | QC-MEMORY- | IN-MEMORY- |
-| Access Layer | DD-ACCESS- | CL-ACCESS- | QC-ACCESS- | IN-ACCESS- |
-
-> Access Layer decisions live in the general `{ProductName}_Memory.Design_Decision` table.
-> `DD-ACCESS-001` is the mandatory three-tier role model decision record (see Access Layer
-> Design Standard Section 8).
+1. Identify which skill(s) and file(s) an edit affects (a `design/` change usually touches `design` +
+   `review`; an `implementation/` change touches `build`; a new invariant touches `review`).
+2. Update only the affected files with targeted edits; do not rewrite whole skills.
+3. Re-run the verification checklist. Skill names must stay stable across versions.
