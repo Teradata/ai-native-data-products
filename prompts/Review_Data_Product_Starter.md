@@ -49,3 +49,10 @@ analysis, or discovery is needed. Be specific — cite the invariant or rule id 
    decision to proceed with the user, informed by the map. Do not silently block use.
 
 Review one area at a time; the map grows as you go.
+
+### Handover
+
+Your inputs are the design brief and/or the built product; your output is the **trust map**. Once the
+product is deployed, the map's durable home is **Observability** (validation/trust evidence); before then
+it is a standalone report — agree with me where it goes based on what you can access. Either way, present
+it to me in the conversation.
