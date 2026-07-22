@@ -67,7 +67,7 @@ VENDOR_TOKEN_PATTERNS = [
 # Known logical types (Design Language Section 4). Used by the entity-notation check.
 LOGICAL_TYPES = {
     "Identifier", "NaturalKey", "Reference", "Code", "ShortText", "Text",
-    "LongText", "Enum", "Integer", "Decimal", "Timestamp", "Date", "Flag", "Vector",
+    "LongText", "Json", "Enum", "Integer", "Decimal", "Timestamp", "Date", "Flag", "Vector",
 }
 
 # Labels inside an Entity block that are structure, not attribute declarations.

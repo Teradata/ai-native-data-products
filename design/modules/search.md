@@ -6,13 +6,13 @@
 
 ## Document Control
 
-| Attribute | Value |
-|-----------|-------|
-| **Status** | STANDARD |
-| **Type** | Module Design Standard (platform-agnostic) |
-| **Scope** | Search module — vector embeddings and similarity retrieval |
-| **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
-| **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
+| Attribute           | Value                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| **Status**          | STANDARD                                                                                   |
+| **Type**            | Module Design Standard (platform-agnostic)                                                 |
+| **Scope**           | Search module — vector embeddings and similarity retrieval                                 |
+| **Extends**         | [Master Design](../core/MASTER_DESIGN.md)                                                  |
+| **Notation**        | [Design Language](../core/DESIGN_LANGUAGE.md)                                              |
 | **Implementations** | [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/) |
 
 This document defines **what** the Search module must be and **why**, in platform-neutral
@@ -26,13 +26,13 @@ specifics — they live in the implementation directory, bound to the capabiliti
 The Search module enables **semantic retrieval**: finding relevant content by meaning rather
 than exact keyword match, using vector embeddings.
 
-| AI-native characteristic | Purpose |
-|--------------------------|---------|
-| **Semantic search** | Find by meaning ("things like this"), not keywords. |
-| **Similarity retrieval** | Rank entities by closeness in embedding space. |
-| **RAG support** | Retrieve relevant context for language models. |
-| **Autonomous discovery** | Agents find relevant data without human direction. |
-| **Multi-modal** | Text, image, and structured-data embeddings under one contract. |
+| AI-native characteristic | Purpose                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| **Semantic search**      | Find by meaning ("things like this"), not keywords.             |
+| **Similarity retrieval** | Rank entities by closeness in embedding space.                  |
+| **RAG support**          | Retrieve relevant context for language models.                  |
+| **Autonomous discovery** | Agents find relevant data without human direction.              |
+| **Multi-modal**          | Text, image, and structured-data embeddings under one contract. |
 
 It enables similarity search, retrieval-augmented generation, similarity analysis, content
 discovery, and multi-modal search — all built on one entity: the embedding.
@@ -52,19 +52,18 @@ discovery, and multi-modal search — all built on one entity: the embedding.
 
 **Out of scope:**
 
-| Concern | Owning module |
-|---------|---------------|
+| Concern                                    | Owning module             |
+| ------------------------------------------ | ------------------------- |
 | Source content (text, descriptions, names) | Domain — join back for it |
-| Entity attributes | Domain |
-| Engineered ML features | Prediction |
-| Embedding-model definitions / metadata | Semantic |
+| Entity attributes                          | Domain                    |
+| Engineered ML features                     | Prediction                |
+| Embedding-model definitions / metadata     | Semantic                  |
 
 ---
 
 ## 3. Core Principle — Keys Only
 
-The Search module stores **vectors and entity references only**. It never copies the content
-that produced the embedding. Content is obtained by joining back to Domain
+The Search module stores **vectors and entity references only**. It never copies the content that produced the embedding. Content is obtained by joining back to Domain
 (`EntityJoinBack`). This is the single most important rule of the module:
 
 - **Efficient** — storage is vectors plus ids, nothing more.
@@ -128,47 +127,41 @@ here — those belong to Domain and are reached by join-back.
 
 ## 5. Applied Patterns
 
-| Pattern | Contribution to Search |
-|---------|------------------------|
+| Pattern                       | Contribution to Search                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `temporal-lifecycle-metadata` | Embedding versioning — superseded embeddings (from a model change or a content change) are retained and reconstructable. |
-| `object-placement` | Which container the embedding table and its views are created in, and who may reach them. |
-| `physical-storage` | (When object storage is in use) physical path, file format, and partition strategy for embedding data. |
-| `access-layer` | The searchable view that presents embeddings joined to Domain content under an explicit column contract. |
-| `validation` | The conformance checks run before the module is declared done. |
+| `object-placement`            | Which container the embedding table and its views are created in, and who may reach them.                                |
+| `physical-storage`            | (When object storage is in use) physical path, file format, and partition strategy for embedding data.                   |
+| `access-layer`                | The searchable view that presents embeddings joined to Domain content under an explicit column contract.                 |
+| `validation`                  | The conformance checks run before the module is declared done.                                                           |
 
 ---
 
 ## 6. Capabilities and Composition
 
-Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain
-entity and joins back for content), so it cannot be deployed alone — but it is valid as an add-on
-to an existing Domain. See the
-[composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain entity and joins back for content), so it cannot be deployed alone — but it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
 
 **Provides** (to agents and consumers):
 
-| Capability | Made available to |
-|------------|-------------------|
+| Capability                                       | Made available to                                                           |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
 | `NearestNeighbors(query, candidates, metric, k)` | Similarity retrieval and RAG over the current embeddings of an entity kind. |
-| `Embed(text, model)` | Producing a `Vector[dim]` for content or a query string. |
-| `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerating `NearestNeighbors` on large candidate sets. |
+| `Embed(text, model)`                             | Producing a `Vector[dim]` for content or a query string.                    |
+| `ApproxIndex{IVF\|HNSW}`                         | *(Optional)* Accelerating `NearestNeighbors` on large candidate sets.       |
 
 **Requires:**
 
-| Capability | Strength | Provider | Why |
-|------------|----------|----------|-----|
-| `EntityJoinBack` | `[hard]` | `module:Domain` | An embedding stores an `Identifier` only and joins back to Domain for content. Without Domain, Search cannot be deployed. |
-| `CurrentStateFilter` | `[hard]` | `self` | Restrict to current embeddings. |
-| `RichMetadata` | `[hard]` | `self` / `platform` | Agent-readable metadata on the embedding table and every column. |
-| `AccessView` | `[hard]` | `self` | Expose a searchable view (embedding + Domain content) with an explicit column contract. |
-| `SemanticRegistration` | `[soft]` | `module:Semantic` | Register the embedding entity and its columns in the Semantic map when Semantic is present (`INV-MASTER-002`). |
-| `DocumentationCapture` | `[soft]` | `module:Memory` | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 12, `INV-MASTER-002`). |
+| Capability             | Strength | Provider            | Why                                                                                                                         |
+| ---------------------- | -------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `EntityJoinBack`       | `[hard]` | `module:Domain`     | An embedding stores an `Identifier` only and joins back to Domain for content. Without Domain, Search cannot be deployed.   |
+| `CurrentStateFilter`   | `[hard]` | `self`              | Restrict to current embeddings.                                                                                             |
+| `RichMetadata`         | `[hard]` | `self` / `platform` | Agent-readable metadata on the embedding table and every column.                                                            |
+| `AccessView`           | `[hard]` | `self`              | Expose a searchable view (embedding + Domain content) with an explicit column contract.                                     |
+| `SemanticRegistration` | `[soft]` | `module:Semantic`   | Register the embedding entity and its columns in the Semantic map when Semantic is present (`INV-MASTER-002`).              |
+| `DocumentationCapture` | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 12, `INV-MASTER-002`). |
 
-**Portability note.** `Embed` differs materially across platforms — some provide in-database
-embedding, others are external-API only. It is therefore declared with a
-`computation_method` and treated as pluggable, and `ApproxIndex` is optional. A design that
-assumed in-database embedding would silently encode one platform's capability; this module
-does not.
+**Portability note.** `Embed` differs materially across platforms — some provide in-database embedding, others are external-API only. It is therefore declared with a
+`computation_method` and treated as pluggable, and `ApproxIndex` is optional. A design that assumed in-database embedding would silently encode one platform's capability; this module does not.
 
 ---
 
@@ -178,52 +171,42 @@ Both are expressed at the capability level. No platform query appears in this do
 
 **Similarity search:**
 
-1. Obtain the query vector — either an existing embedding (`NaturalKeyLookup` on the source
-   entity, then read its embedding) or a freshly produced one (`Embed(query, model)`).
-2. `NearestNeighbors(query_vector, candidates, metric, k)` over the current embeddings of the
-   relevant `entity_kind`, optionally accelerated by `ApproxIndex`.
+1. Obtain the query vector — either an existing embedding (`NaturalKeyLookup` on the source entity, then read its embedding) or a freshly produced one (`Embed(query, model)`).
+2. `NearestNeighbors(query_vector, candidates, metric, k)` over the current embeddings of the relevant `entity_kind`, optionally accelerated by `ApproxIndex`.
 3. `EntityJoinBack` on `entity_id` to attach content from Domain.
 
-**RAG retrieval** is the same shape with `k` tuned for context assembly: embed the question,
-retrieve the top-`k` current embeddings for the relevant `entity_kind`, join back to Domain
-for the passages, and pass those passages to the language model.
+**RAG retrieval** is the same shape with `k` tuned for context assembly: embed the question, retrieve the top-`k` current embeddings for the relevant `entity_kind`, join back to Domain for the passages, and pass those passages to the language model.
 
-The invariant is that **content always comes from the join-back, never from the embedding
-row** (`INV-SEARCH-004`).
+The invariant is that **content always comes from the join-back, never from the embedding row** (`INV-SEARCH-004`).
 
 ---
 
 ## 8. Distance Metrics
 
-Metric choice is semantic (mathematics), so it stays in design. The binding of each metric to
-a platform function is an implementation detail.
+Metric choice is semantic (mathematics), so it stays in design. The binding of each metric to a platform function is an implementation detail.
 
-| Metric | Use when | Definition |
-|--------|----------|------------|
-| **Cosine** *(default)* | Text embeddings, semantic similarity | 1 − (A·B) / (‖A‖ ‖B‖) |
-| **Euclidean** | Spatial or geographic similarity | √Σ(Aᵢ − Bᵢ)² |
-| **Manhattan** | Grid-like or high-dimensional sparse data | Σ ‖Aᵢ − Bᵢ‖ |
+| Metric                 | Use when                                  | Definition            |
+| ---------------------- | ----------------------------------------- | --------------------- |
+| **Cosine** *(default)* | Text embeddings, semantic similarity      | 1 − (A·B) / (‖A‖ ‖B‖) |
+| **Euclidean**          | Spatial or geographic similarity          | √Σ(Aᵢ − Bᵢ)²          |
+| **Manhattan**          | Grid-like or high-dimensional sparse data | Σ ‖Aᵢ − Bᵢ‖           |
 
 **Default:** cosine similarity for text and most semantic use cases.
 
 **Index selection** (all bind to the `ApproxIndex` capability):
 
-| Approach | Use when |
-|----------|----------|
-| Exact (brute force) | Small candidate sets, or already narrowed by a filter; absolute accuracy required. |
-| `IVF` (cluster/partition) | Large sets; periodic rebuild acceptable; batch-oriented search. |
-| `HNSW` (graph) | Interactive/real-time search; frequent updates; higher accuracy required. |
+| Approach                  | Use when                                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| Exact (brute force)       | Small candidate sets, or already narrowed by a filter; absolute accuracy required. |
+| `IVF` (cluster/partition) | Large sets; periodic rebuild acceptable; batch-oriented search.                    |
+| `HNSW` (graph)            | Interactive/real-time search; frequent updates; higher accuracy required.          |
 
 ---
 
 ## 9. Integration with Other Modules
 
-- **Domain** — the embedding references a Domain entity by `Identifier` and joins back for
-  content (`EntityJoinBack`). The generic-reference pattern (`entity_id` + `entity_kind`) is
-  used because one embedding table serves many entity kinds.
-- **Semantic** — describes embedding strategy and model metadata (what a vector *means*); Search
-  stores the actual vectors (instance data). The two are complementary and must not duplicate
-  each other.
+- **Domain** — the embedding references a Domain entity by `Identifier` and joins back for content (`EntityJoinBack`). The generic-reference pattern (`entity_id` + `entity_kind`) is used because one embedding table serves many entity kinds.
+- **Semantic** — describes embedding strategy and model metadata (what a vector *means*); Search stores the actual vectors (instance data). The two are complementary and must not duplicate each other.
 
 ---
 
@@ -241,14 +224,14 @@ a platform function is an implementation detail.
 
 **Designers supply:**
 
-| Element | Example |
-|---------|---------|
-| Entities to embed | Party, Product, Document |
-| Attribute(s) to embed | description, notes, combined text |
-| Embedding model | the chosen model and its dimensionality |
-| Update strategy | on insert, daily batch, on demand |
+| Element                 | Example                                         |
+| ----------------------- | ----------------------------------------------- |
+| Entities to embed       | Party, Product, Document                        |
+| Attribute(s) to embed   | description, notes, combined text               |
+| Embedding model         | the chosen model and its dimensionality         |
+| Update strategy         | on insert, daily batch, on demand               |
 | Expected query patterns | find similar products; semantic document search |
-| Index strategy | exact, `IVF`, or `HNSW` (bind to `ApproxIndex`) |
+| Index strategy          | exact, `IVF`, or `HNSW` (bind to `ApproxIndex`) |
 
 **Design review checklist:**
 
@@ -264,32 +247,25 @@ a platform function is an implementation detail.
 - [ ] Documentation capture completed per Section 12.
 - [ ] This document passes the design linter with no ignore directive.
 
-**Embedding-model sourcing.** Prefer an established embedding model and record it: text families
-(e.g. BGE, Sentence-Transformers, OpenAI, NVIDIA NIM) or multi-modal families (e.g. CLIP) with
-their dimensionality. The specific model and version are recorded per embedding (`INV-SEARCH-003`).
+**Embedding-model sourcing.** Prefer an established embedding model and record it: text families (e.g. BGE, Sentence-Transformers, OpenAI, NVIDIA NIM) or multi-modal families (e.g. CLIP) with their dimensionality. The specific model and version are recorded per embedding (`INV-SEARCH-003`).
 
 ---
 
 ## 12. Documentation Capture Requirements
 
-Every Search module records its own documentation as part of the design workflow, so the data
-product is **self-describing**. Capture is written into the **Memory module**; the record
-definitions, workflow, and templates are owned by the Memory module design and its
-implementation, not restated here.
+Every Search module records its own documentation as part of the design workflow, so the data product is **self-describing**. Capture is written into the **Memory module**; the record definitions, workflow, and templates are owned by the Memory module design and its implementation, not restated here.
 
 **Minimum records:**
 
-| Record type | Minimum | Captures |
-|-------------|---------|----------|
-| Module registry entry | 1 | Registers this module with the data product and version. |
-| Design decision | 3 | Key architectural and schema choices. |
-| Change-log entry | 1 | Initial release entry. |
-| Business-glossary term | 3 | Embedding, vector, and search terms introduced. |
-| Query-cookbook recipe | 1 | A key query pattern (e.g. similarity search, RAG retrieval). |
+| Record type            | Minimum | Captures                                                     |
+| ---------------------- | ------- | ------------------------------------------------------------ |
+| Module registry entry  | 1       | Registers this module with the data product and version.     |
+| Design decision        | 3       | Key architectural and schema choices.                        |
+| Change-log entry       | 1       | Initial release entry.                                       |
+| Business-glossary term | 3       | Embedding, vector, and search terms introduced.              |
+| Query-cookbook recipe  | 1       | A key query pattern (e.g. similarity search, RAG retrieval). |
 
-**Typical decision categories:** `ARCHITECTURE` (vector storage strategy), `PERFORMANCE` (ANN
-index choice — exact, `IVF`, or `HNSW`), `SCHEMA` (embedding dimensions and model selection),
-`INTEGRATION` (RAG pattern and join-back strategy), `OPERATIONAL` (embedding refresh strategy).
+**Typical decision categories:** `ARCHITECTURE` (vector storage strategy), `PERFORMANCE` (ANN index choice — exact, `IVF`, or `HNSW`), `SCHEMA` (embedding dimensions and model selection), `INTEGRATION` (RAG pattern and join-back strategy), `OPERATIONAL` (embedding refresh strategy).
 
 **Decision id prefix:** `DD-SEARCH-<NNN>` (e.g. `DD-SEARCH-001`).
 
@@ -300,10 +276,8 @@ The capture protocol and templates live with the Memory module — design in
 
 ## 13. Implementation
 
-The Teradata binding — the embedding table, the searchable view, the similarity and RAG
-query templates, and the invariant checks — lives in
-[`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/).
-Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding — the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks — lives in
+[`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 
