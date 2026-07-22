@@ -86,6 +86,7 @@ Design documents describe attributes using these logical types only. Each has fi
 | `ShortText` | Bounded human-readable string, short (names, labels). | Bound length is an implementation choice. |
 | `Text` | Bounded human-readable string, medium (descriptions, notes). | |
 | `LongText` | Large human-readable string (documents, content bodies). | |
+| `Json` | A structured document value with a nested or flexible schema, stored whole and processed by the consumer rather than decomposed into columns. | Use for genuinely variable or nested context; never to avoid modelling stable attributes that deserve their own logical types. |
 | `Enum{A\|B\|C}` | A value from a small closed set fixed at design time. | Lists its members inline. Use `Code` instead when the set is data-driven or governed as reference data. |
 | `Integer` | Whole number (counts, ordinals, dimensions). | |
 | `Decimal(p,s)` | Exact fixed-point number (money, rates). | Precision/scale are semantic and stay in design. |
@@ -135,7 +136,7 @@ Entity: <Name>                    [kind: History | Reference | Relationship | Ke
 | `[pii]` | Carries personal or sensitive data; implementations must apply the platform's protection binding. |
 | `[current-flag]` / `[deleted-flag]` | Marks the indicator used by the `CurrentStateFilter` capability. |
 
-**Entity kinds** map to recurring shapes: `History` (a versioned business entity), `Reference` (a controlled vocabulary / lookup set), `Relationship` (an association between two entities), `Keymap` (a surrogate-key allocation table). Kinds are semantic labels, not table types.
+**Entity kinds** map to recurring shapes: `History` (a versioned business entity), `Reference` (a controlled vocabulary / lookup set), `Relationship` (an association between two entities), `Keymap` (a surrogate-key allocation table), `Record` (an append-oriented operational log or state entry, not SCD-versioned). Kinds are semantic labels, not table types.
 
 ### 5.1 Worked shape
 
@@ -300,7 +301,8 @@ This appendix is illustrative only. Authoritative bindings live in each platform
 | `Identifier` | `BIGINT` via keymap (stable across versions) | `BIGINT` + identity/keymap | `BIGINT` + sequence |
 | `NaturalKey` | `VARCHAR(n)` | `VARCHAR(n)` / `TEXT` | `VARCHAR` |
 | `Reference -> E` | `BIGINT` | `BIGINT` | `BIGINT` |
-| `ShortText` / `Text` / `LongText` | `VARCHAR(n)` | `VARCHAR(n)` / `TEXT` | `VARCHAR` |
+| `ShortText` / `Text` / `LongText` | `VARCHAR(n)` / `CLOB` | `VARCHAR(n)` / `TEXT` | `VARCHAR` |
+| `Json` | `JSON` | `JSONB` | `JSON` / `STRUCT` |
 | `Decimal(p,s)` | `DECIMAL(p,s)` | `NUMERIC(p,s)` | `DECIMAL(p,s)` |
 | `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` | `TIMESTAMPTZ` | `TIMESTAMPTZ` |
 | `Date` | `DATE` | `DATE` | `DATE` |
