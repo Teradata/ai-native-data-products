@@ -1,0 +1,46 @@
+{#
+  Searchable view — Teradata binding of the access-layer pattern for Search.
+  Joins embeddings (Search) to content (Domain) without duplication (EntityJoinBack).
+  Capability: AccessView. Invariant support: INV-SEARCH-001, INV-SEARCH-004.
+
+  Template variables:
+    search_db    : Search database name, e.g. "{{ product }}_Search"
+    domain_db    : Domain database name, e.g. "{{ product }}_Domain"
+    entity.name  : PascalCase Domain entity, e.g. "Party"
+    entity.lower : lower_snake, e.g. "party"
+    entity.kind  : entity_kind value, e.g. "PARTY"
+    entity.content_columns : ordered list of Domain columns to expose (content, NOT stored in Search)
+#}
+REPLACE VIEW {{ search_db }}.v_{{ entity.lower }}_searchable
+(
+    {{ entity.lower }}_id,
+    {{ entity.lower }}_key,
+{%- for c in entity.content_columns %}
+    {{ c }},
+{%- endfor %}
+    embedding_vector,
+    embedding_model,
+    embedding_dimensions,
+    generated_dts
+)
+AS
+SELECT
+    d.{{ entity.lower }}_id,
+    d.{{ entity.lower }}_key,
+{%- for c in entity.content_columns %}
+    d.{{ c }},                      -- from Domain (not duplicated in Search)
+{%- endfor %}
+    e.embedding_vector,
+    e.embedding_model,
+    e.embedding_dimensions,
+    e.generated_dts
+FROM {{ domain_db }}.{{ entity.name }}_H d
+INNER JOIN {{ search_db }}.entity_embedding e
+    ON e.entity_id = d.{{ entity.lower }}_id
+   AND e.entity_kind = '{{ entity.kind }}'
+   AND e.is_current = 1
+WHERE d.is_current = 1
+  AND d.is_deleted = 0;
+
+COMMENT ON VIEW {{ search_db }}.v_{{ entity.lower }}_searchable IS
+'{{ entity.name }} records with embeddings - joins Domain content with Search vectors without duplication; complete context for semantic search and RAG.';

@@ -1,0 +1,75 @@
+{#
+  Entity embedding table — Teradata binding of design/modules/search.md §4.
+  Native VECTOR datatype, keys only (no content). Capabilities: RichMetadata,
+  CurrentStateFilter. Invariant support: INV-SEARCH-001,002,003,005.
+
+  Template variables:
+    database        : Search database name, e.g. "{{ product }}_Search"
+    entity_kinds    : documented value set for entity_kind, e.g. "PARTY, PRODUCT, DOCUMENT"
+
+  CRITICAL: no content columns (name, description, text, ...). Store keys only;
+  join to Domain for content (INV-SEARCH-001).
+#}
+CREATE TABLE {{ database }}.entity_embedding (
+    embedding_id        INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+
+    -- Entity reference (KEY ONLY — no content duplication)
+    entity_id           BIGINT NOT NULL,        -- FK to a Domain entity
+    entity_kind         VARCHAR(50) NOT NULL,   -- {{ entity_kinds | default('PARTY, PRODUCT, DOCUMENT') }}
+
+    -- Source identification (what was embedded)
+    source_module       VARCHAR(50),
+    source_table        VARCHAR(128),
+    source_attribute    VARCHAR(128),
+
+    -- Vector embedding (native VECTOR datatype)
+    embedding_vector    VECTOR,                 -- FLOAT32(n)
+    embedding_dimensions INTEGER NOT NULL,      -- 384, 768, 1536, ...
+
+    -- Embedding metadata
+    embedding_model     VARCHAR(100) NOT NULL,
+    embedding_model_version VARCHAR(20),
+    computation_method  VARCHAR(50),            -- IN_DATABASE (ONNX) | EXTERNAL_API
+
+    -- Temporal tracking (embedding versioning)
+    generated_dts       TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
+                            DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    is_current          BYTEINT NOT NULL DEFAULT 1
+)
+PRIMARY INDEX (embedding_id);
+
+COMMENT ON TABLE {{ database }}.entity_embedding IS
+'Vector embeddings for entities - stores vectors and entity ids only; join to Domain for actual content to avoid duplication.';
+
+COMMENT ON COLUMN {{ database }}.entity_embedding.embedding_id IS
+'Surrogate key for the embedding record.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.entity_id IS
+'Foreign key to a Domain entity instance (party_id, product_id, ...). Key only - NO content duplicated.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.entity_kind IS
+'Entity type indicator - {{ entity_kinds | default('PARTY, PRODUCT, DOCUMENT') }} - identifies which Domain table this entity belongs to.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.source_module IS
+'Module where the source entity resides - usually Domain.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.source_table IS
+'Source table containing the entity - Party_H, Product_H, Document_H, ...';
+COMMENT ON COLUMN {{ database }}.entity_embedding.source_attribute IS
+'Source column that was embedded - description, notes, combined_text, ...';
+COMMENT ON COLUMN {{ database }}.entity_embedding.embedding_vector IS
+'Vector embedding - native VECTOR datatype storing FLOAT32(n) for semantic similarity search.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.embedding_dimensions IS
+'Number of dimensions in the embedding - 384, 768, 1536, ... - depends on the model used.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.embedding_model IS
+'Embedding model name - identifies which model generated this vector.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.embedding_model_version IS
+'Model version - tracks embedding model versions for reproducibility.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.computation_method IS
+'How the vector was produced - IN_DATABASE (ONNX) or EXTERNAL_API.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.generated_dts IS
+'Timestamp when the embedding was generated - tracks freshness.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.valid_from_dts IS
+'When this embedding version became valid - supports embedding versioning.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.valid_to_dts IS
+'When this embedding was superseded - default 9999-12-31 for the current embedding.';
+COMMENT ON COLUMN {{ database }}.entity_embedding.is_current IS
+'Current embedding indicator - 1 = current, 0 = historical (previous model or content version).';

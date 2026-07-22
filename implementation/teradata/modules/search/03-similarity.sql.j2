@@ -1,0 +1,74 @@
+{#
+  Similarity search and RAG retrieval — Teradata binding of design/modules/search.md §7.
+  Capability: NearestNeighbors (TD_VectorDistance). Content always comes from the
+  join-back to Domain, never from the embedding row (INV-SEARCH-004).
+
+  Template variables:
+    search_db  : Search database name
+    domain_db  : Domain database name
+    entity.name  : PascalCase Domain entity, e.g. "Product"
+    entity.lower : lower_snake, e.g. "product"
+    entity.kind  : entity_kind value, e.g. "PRODUCT"
+    entity.content_columns : Domain columns to return with each hit
+    metric      : distance measure, default "cosine"
+    top_k       : number of neighbours, default 10
+#}
+-- Similarity search: find the {{ top_k | default(10) }} entities most similar to a target,
+-- then join back to Domain for content.
+SELECT
+    d.{{ entity.lower }}_key,
+{%- for c in entity.content_columns %}
+    d.{{ c }},
+{%- endfor %}
+    dt.distance AS similarity_distance
+FROM TD_VECTORDISTANCE (
+    ON (SELECT embedding_vector, entity_id
+          FROM {{ search_db }}.entity_embedding
+         WHERE entity_id = :target_entity_id
+           AND entity_kind = '{{ entity.kind }}'
+           AND is_current = 1) AS TargetTable PARTITION BY ANY
+    ON (SELECT embedding_vector, entity_id
+          FROM {{ search_db }}.entity_embedding
+         WHERE entity_kind = '{{ entity.kind }}'
+           AND is_current = 1) AS ReferenceTable DIMENSION
+    USING
+        TargetIDColumn('entity_id')
+        TargetFeatureColumns('embedding_vector')
+        RefIDColumn('entity_id')
+        RefFeatureColumns('embedding_vector')
+        DistanceMeasure('{{ metric | default('cosine') }}')
+        TopK({{ top_k | default(10) }})
+) AS dt
+-- content from Domain (join-back), never from the embedding row
+INNER JOIN {{ domain_db }}.{{ entity.name }}_H d
+    ON d.{{ entity.lower }}_id = dt.reference_id
+   AND d.is_current = 1
+   AND d.is_deleted = 0
+ORDER BY dt.distance;
+
+
+-- RAG retrieval: same shape with a query embedding and k tuned for context assembly.
+-- :query_embedding is produced by Embed(question, model) — in-database ONNX or external API.
+SELECT
+    d.{{ entity.lower }}_key,
+{%- for c in entity.content_columns %}
+    d.{{ c }},
+{%- endfor %}
+    dt.distance AS relevance_score
+FROM TD_VECTORDISTANCE (
+    ON :query_embedding AS TargetTable PARTITION BY ANY
+    ON (SELECT embedding_vector, entity_id
+          FROM {{ search_db }}.entity_embedding
+         WHERE entity_kind = '{{ entity.kind }}'
+           AND is_current = 1) AS ReferenceTable DIMENSION
+    USING
+        RefIDColumn('entity_id')
+        RefFeatureColumns('embedding_vector')
+        DistanceMeasure('{{ metric | default('cosine') }}')
+        TopK({{ rag_k | default(5) }})
+) AS dt
+INNER JOIN {{ domain_db }}.{{ entity.name }}_H d
+    ON d.{{ entity.lower }}_id = dt.reference_id
+   AND d.is_current = 1
+   AND d.is_deleted = 0
+ORDER BY dt.distance;
