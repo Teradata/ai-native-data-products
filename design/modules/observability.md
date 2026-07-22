@@ -223,7 +223,7 @@ AI-native product, absent in a minimal Data Asset.
 ## 10. Invariants
 
 - `INV-OBS-001`: Observability stores events and metrics, never business data or query result sets.
-- `INV-OBS-002`: change tracking is table-level with aggregate metrics (e.g. `records_affected`), never individual record keys.
+- `INV-OBS-002`: change tracking is table-level with aggregate metrics (e.g. `records_affected`), never individual record keys, and **never** before/after business values — capturing changed column *values* (e.g. old/new `legal_name`, `email`) duplicates Domain content into Observability and is a PII / data-privacy defect. The audit trail records *what table changed, when, by whom, and how many rows* — not the data itself; the prior state is reconstructed from Domain's temporal history.
 - `INV-OBS-003`: lineage is split — `DataLineage` declares flows (one row per source → job → target), `LineageRun` records executions (one row per run).
 - `INV-OBS-004`: definitional lineage is retained for the life of the product; execution records follow independent event-retention windows.
 - `INV-OBS-005`: validation results are homed here as append-only evidence (`EVENT_APPEND_ONLY`).

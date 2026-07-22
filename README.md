@@ -1,187 +1,129 @@
 # AI-Native Data Product Design Standards
 
-A comprehensive architectural framework for building AI-Native Data Products
-on Teradata — modular, self-describing, and optimised for autonomous agent
-discovery and operation.
+A modular library of data design patterns for building **AI-Native Data Products** — self-describing
+data assets optimised for autonomous agent discovery and operation. The library is a set of
+independent, composable modules; assembling a chosen subset produces a particular kind of data asset.
 
 ---
 
-## Overview
+## The design / implementation split
 
-This repository contains the master set of design standards for AI-Native
-Data Products. The standards define a six-module architecture where each
-module has a distinct responsibility, its own data model, and integrates
-with the others through consistent patterns.
+The framework is split along one boundary:
 
-**Design documents are the single source of truth.** The unified agent
-skill (generated from these documents via the conversion prompt) is a
-compressed, agent-optimised rendering of the standards — never edited
-directly.
+- **[`design/`](design/)** — **platform-agnostic** standards. Written in logical types, capabilities,
+  and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
+- **[`implementation/{platform}/`](implementation/)** — **platform-specific** bindings (the concrete
+  DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms
+  are added as sibling directories, changing no design document.
 
----
-
-## Repository Structure
+The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/):
+a design document that leaks platform SQL fails the build.
 
 ```
 ai-native-data-products/
-├── design-standards/        ← master source of truth
-│   ├── AI_Native_Data_Product_Master_Design.md
-│   ├── Access_Layer_Design_Standard.md
-│   ├── Advocated_Data_Management_Standards.md
-│   ├── Domain_Module_Design_Standard.md
-│   ├── Semantic_Module_Design_Standard.md
-│   ├── Search_Module_Design_Standard.md
-│   ├── Prediction_Module_Design_Standard.md
-│   ├── Observability_Module_Design_Standard.md
-│   ├── Memory_Module_Design_Standard.md
-│   ├── Temporal_Lifecycle_Metadata_Standard.md
-│   └── Validation_Standard.md
-│
-├── platform-standards/      ← platform implementation contracts
-│   ├── Object_Placement_Standard_Spec.md
-│   ├── Physical_Storage_Standard_Spec.md
-│   ├── Temporal_Lifecycle_Metadata_Extension.md
-│   └── Validation_Extension.md
-│
-└── prompts/                 ← how to use the standards
-    ├── Skill_Conversion_Prompt.md
-    ├── Design_Data_Product_Starter.md
-    ├── Access_Data_Product_Starter.md
-    └── Apply_Platform_Standards.md
+├── design/                     ← platform-agnostic standards (source of truth)
+│   ├── core/                   MASTER_DESIGN · DESIGN_LANGUAGE · GLOSSARY
+│   ├── modules/                domain · search · prediction · observability · semantic · memory
+│   └── patterns/               temporal-lifecycle-metadata · object-placement ·
+│                               physical-storage · validation · access-layer
+├── implementation/
+│   └── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
+├── tooling/
+│   └── validation/             the design linter (+ tests)
+├── prompts/                    how to use the standards
+└── skills/                     generated agent skills (gitignored)
+```
+
+**Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint) and
+[`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written in).
+
+---
+
+## Compositions — one library, many patterns
+
+There is no single fixed architecture. Modules declare what they **provide** and **require** (each
+requirement `[hard]` or `[soft]`); a composition is valid when every hard requirement is met within
+it, and unmet soft requirements simply disable a feature. An **AI-Native Data Product is the fullest
+composition**, not the only one.
+
+| Composition | Modules | 
+|-------------|---------|
+| **Data Asset** | Domain + Memory (documentation) + Access Layer |
+| **Traditional Data Product** | Domain + Semantic + Observability (+ optional Memory) |
+| **AI-Native Data Product** | all six modules + Access Layer |
+| **Search / Prediction extension** | added onto an existing Domain |
+
+See [`design/core/MASTER_DESIGN.md#4-compositions`](design/core/MASTER_DESIGN.md).
+
+---
+
+## The six modules
+
+| Module | Purpose | Composition role |
+|--------|---------|------------------|
+| **[Domain](design/modules/domain.md)** | Authoritative business entities — the source of truth | Root; stands alone |
+| **[Semantic](design/modules/semantic.md)** | The discovery map — entity/column/relationship catalogue + orientation | Cross-cutting (soft) |
+| **[Search](design/modules/search.md)** | Vector embeddings and similarity search | Hard-depends on Domain |
+| **[Prediction](design/modules/prediction.md)** | Feature store and model outputs | Hard-depends on Domain |
+| **[Observability](design/modules/observability.md)** | Events, quality, lineage; home of validation results | Cross-cutting (soft) |
+| **[Memory](design/modules/memory.md)** | Agent runtime state **and** design memory (two facets) | Cross-cutting (soft) |
+
+---
+
+## The five patterns
+
+Cross-cutting concerns that modules *apply* (referenced, never restated):
+
+| Pattern | Concern |
+|---------|---------|
+| **[temporal-lifecycle-metadata](design/patterns/temporal-lifecycle-metadata.md)** | Canonical temporal/lifecycle contract; half-open SCD2; point-in-time |
+| **[object-placement](design/patterns/object-placement.md)** | Where objects live and who may reach them (interface spec) |
+| **[physical-storage](design/patterns/physical-storage.md)** | Object-storage layout beneath logical containers (interface spec) |
+| **[validation](design/patterns/validation.md)** | The validation-result contract and the agent stop/go gate |
+| **[access-layer](design/patterns/access-layer.md)** | The three roles and phased grants that make a product reachable |
+
+---
+
+## Deployment order
+
+Modules deploy in dependency order — only those the composition includes:
+
+| Phase | Deploy (if present) |
+|-------|---------------------|
+| 1 — Infrastructure | Memory, then Semantic |
+| 1.5 — Access (initial) | Create roles; grant read on Semantic + Memory |
+| 2 — Foundation | Domain, then Observability |
+| 2.5 — Access (extend) | Extend grants to Domain + Observability |
+| 3 — Enhancement | Search, Prediction |
+
+---
+
+## Tooling
+
+`tooling/validation/design_lint.py` enforces the platform-agnostic boundary on `design/`:
+
+```bash
+python tooling/validation/design_lint.py design
+python -m unittest discover -s tooling/validation/tests
 ```
 
 ---
 
-## The Six Modules
+## Key principles
 
-| Module | Purpose | Database pattern |
-|--------|---------|-----------------|
-| **Domain** | Core business entities — source of truth | `{Name}_Domain` |
-| **Semantic** | Metadata layer enabling agent discovery | `{Name}_Semantic` |
-| **Search** | Vector embeddings and similarity search | `{Name}_Search` |
-| **Prediction** | Feature store and ML prediction storage | `{Name}_Prediction` |
-| **Observability** | Event tracking, quality monitoring, lineage | `{Name}_Observability` |
-| **Memory** | Agent state, learning, and design memory | `{Name}_Memory` |
-
-Each module is independently deployable and composable. A data product can
-implement any combination.
-
-### Memory Module — Two Kinds of Memory
-
-The Memory module hosts both:
-- **Runtime memory** — agent sessions, interactions, learned strategies,
-  user preferences, discovered patterns
-- **Design memory** (Documentation Sub-Module) — architectural decisions,
-  business glossary, query cookbook, change history
-
-Both are temporal, append-oriented records of history. All documentation
-tables live in `{Name}_Memory` — the data product is fully self-contained
-with no external dependencies.
-
----
-
-## Deployment Order
-
-| Phase | Modules | Notes |
-|-------|---------|-------|
-| 1 | Memory, Semantic | Memory hosts documentation tables needed by all modules; Semantic hosts discovery metadata needed by all modules — both must exist before any other module deploys |
-| 2 | Domain, Observability | Domain is the entity foundation; Observability begins monitoring Domain immediately |
-| 3 | Search, Prediction | Both require Domain entities to exist first |
-
----
-
-## Prompts
-
-### Skill_Conversion_Prompt.md
-Converts all design standard documents into a single unified agent skill
-(`ai-native-data-product.skill`) with progressive disclosure:
-- `SKILL.md` — always read by orchestrator and sub-agents; architecture,
-  naming conventions, documentation capture protocol, routing instructions
-- `modules/{module}.md` — read on demand; full DDL templates, design
-  decisions, integration patterns, checklists for each module
-
-Run this prompt whenever design standards are updated to regenerate the skill.
-
-### Design_Data_Product_Starter.md
-Starting prompt for designing a new data product. Directs an orchestrator
-agent to load the unified skill and spin up sub-agents for each module.
-
-### Access_Data_Product_Starter.md
-Starting prompt for an agent consuming an existing data product. Guides
-autonomous discovery via the Semantic module.
-
----
-
-## Key Principles
-
-1. **Design documents are the source of truth** — skills are derived,
-   never edited directly
-2. **Independently deployable modules** — each module is self-contained
-   with its own database and data model
-3. **Self-contained data products** — no cross-product database dependencies
-4. **Zero data duplication** — all modules join back to Domain via foreign
-   keys; Teradata co-location makes this efficient
-5. **Agent-native design** — queryable metadata, standard patterns, and
-   multi-hop relationship discovery enable autonomous operation
-6. **Design memory** — every module records its architectural decisions into
-   the Memory module's documentation tables during the design process
-
----
-
-## Getting Started
-
-### Designing a new data product
-
-1. Review `AI_Native_Data_Product_Master_Design.md` for architecture and
-   naming conventions
-2. Generate the unified skill using `Skill_Conversion_Prompt.md` (attach
-   all design standards; run once per framework update)
-3. Use `Design_Data_Product_Starter.md` to orchestrate the design
-
-### Updating the design standards
-
-1. Edit the relevant design standard document(s)
-2. Regenerate the unified skill using `Skill_Conversion_Prompt.md` with
-   the updated document(s) and the current skill attached
-
----
-
-## Design Standard Versions
-
-| Document | Version |
-|----------|---------|
-| AI_Native_Data_Product_Master_Design | 1.8 |
-| Domain_Module_Design_Standard | 2.3 |
-| Semantic_Module_Design_Standard | 2.9 |
-| Search_Module_Design_Standard | 1.5 |
-| Prediction_Module_Design_Standard | 1.6 |
-| Observability_Module_Design_Standard | 1.4 |
-| Memory_Module_Design_Standard | 2.0 |
-| Access_Layer_Design_Standard | 1.0 |
-| Object_Placement_Standard_Spec | 1.0 |
-| Physical_Storage_Standard_Spec | 1.0 |
-| Temporal_Lifecycle_Metadata_Standard | 1.0-draft |
-| Temporal_Lifecycle_Metadata_Extension (Teradata) | 1.0-draft |
-| Validation_Standard | 1.0-draft |
-| Validation_Extension (Teradata) | 1.0-draft |
+1. **Platform-neutral by construction** — enforced by the design/implementation split and the linter.
+2. **Modular and composable** — modules function independently and in any valid combination.
+3. **Zero data duplication** — modules reference Domain by identifier and join back; never copy.
+4. **Self-describing** — queryable metadata, standard patterns, and multi-hop discovery enable autonomy.
+5. **Self-contained products** — discovery and documentation stores live within the product.
+6. **Design memory** — every module records its decisions into Memory during design.
 
 ---
 
 ## License
 
-Copyright © 2025-2026 Teradata Corporation
+Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See
+[LICENSE.md](LICENSE.md) for full terms.
 
-Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0
-International (CC BY-NC-SA 4.0). See [LICENSE.md](LICENSE.md) for full terms.
-
----
-
-## Acknowledgments
-
-Developed by Teradata's Worldwide Data Architecture Team,
-Field Technology Organization.
-
----
-
-**Last Updated**: March 2026  
-**Status**: Active Development — documentation-memory-merge branch
+Developed by Teradata's Worldwide Data Architecture Team, Field Technology Organization.
