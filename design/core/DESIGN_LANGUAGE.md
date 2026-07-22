@@ -197,6 +197,39 @@ A capability marked *optional* (like `ApproxIndex`) may be unsatisfied on a give
 
 Capabilities not in this catalogue may be introduced by a design document, but must be defined there with the same contract shape (name, inputs, outputs, guarantee) so implementations can bind them unambiguously.
 
+### 6.2 Provision, requirement, and composition
+
+The framework is a **library of modules** that compose into different data design patterns — a
+minimal governed data asset, a traditional data product, a full AI-native data product, or an
+add-on to something that already exists. Modules must therefore function independently and in
+any valid combination. This works because every module declares both sides of its capability
+relationships.
+
+A module design document declares, at module level:
+
+- **Provides** — capabilities the module makes available to other modules or to agents (Domain
+  provides `EntityJoinBack`; Search provides `NearestNeighbors`; Semantic provides
+  `SemanticRegistration`; Memory provides `DocumentationCapture`).
+- **Requires** — capabilities the module consumes, each tagged with a **strength** and a
+  **provider**:
+  - Strength — `[hard]` (the module cannot function without it; its absence makes the module
+    undeployable) or `[soft]` (used when available; its absence disables the dependent feature,
+    but the module still functions).
+  - Provider — `self` (the module and its platform binding), `module:<Name>` (another module in
+    the composition), `platform`, or `external`.
+
+**Facets.** A module may expose named **facets** that can be enabled independently — for example
+Memory's `documentation` facet (the design-memory / documentation store) versus its `runtime`
+facet (agent state and learning). A capability may be provided by a facet; enabling the facet
+enables the capability. A composition may include a module with only some of its facets.
+
+**Composition.** A composition is a chosen set of modules (and facets) assembled into a data
+design pattern. A composition is **valid** if and only if every `[hard]` requirement is
+satisfied by a `Provides` within the composition (or by `platform`). An unmet `[soft]`
+requirement never invalidates a composition — it simply disables that feature (graceful
+degradation). The named standard compositions, and the modules each includes, are catalogued in
+the [Master Design](MASTER_DESIGN.md#4-compositions).
+
 ---
 
 ## 7. Invariants
