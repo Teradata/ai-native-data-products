@@ -1,0 +1,57 @@
+{#
+  Wide-format feature group (SCD2) — Teradata binding of design/modules/prediction.md §3.
+  ENGINEERED features only, normalised 0-1; no raw Domain copies (INV-PRED-001).
+  Point-in-time via observation_dts + validity columns (INV-PRED-002).
+
+  Template variables:
+    db            : Prediction container, e.g. "{{ product }}_Prediction"
+    group.name    : table name, e.g. "customer_behavioral_features"
+    group.label   : feature_group_name value, e.g. "customer_behavioral"
+    group.entity_kinds : documented value set, e.g. "PARTY"
+    group.features : list of { name, comment } engineered feature columns (all DECIMAL(5,4))
+#}
+CREATE TABLE {{ db }}.{{ group.name }} (
+    feature_group_id  INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+
+    -- Entity reference (id only; generic reference)
+    entity_id         BIGINT NOT NULL,
+    entity_type       VARCHAR(50) NOT NULL,   -- {{ group.entity_kinds | default('PARTY') }}
+
+    -- ENGINEERED feature values (normalised 0-1). No raw Domain columns here.
+{%- for f in group.features %}
+    {{ f.name }}      DECIMAL(5,4),
+{%- endfor %}
+
+    -- Temporal (point-in-time; temporal-lifecycle SCD2_HISTORY)
+    observation_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    valid_from_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL
+                          DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    is_current        BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
+
+    -- Feature metadata
+    feature_group_name    VARCHAR(128) NOT NULL DEFAULT '{{ group.label }}',
+    feature_group_version VARCHAR(20),
+    computation_dts   TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
+    source_system     VARCHAR(50),
+    created_by         VARCHAR(100)
+)
+PRIMARY INDEX (entity_id);
+
+COMMENT ON TABLE {{ db }}.{{ group.name }} IS
+'{{ group.label }} features - ENGINEERED and normalised to 0-1 for model training. Raw Domain values are joined, not duplicated.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.feature_group_id IS 'Surrogate key for this feature snapshot.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.entity_id IS 'FK to the Domain entity (party_id, ...) - id only.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.entity_type IS 'Entity kind - {{ group.entity_kinds | default('PARTY') }}.';
+{%- for f in group.features %}
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.{{ f.name }} IS 'ENGINEERED: {{ f.comment }}';
+{%- endfor %}
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.observation_dts IS 'When features were observed/computed - point-in-time anchor for ML training.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.valid_from_dts IS 'When this feature version became valid.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.valid_to_dts IS 'When superseded - sentinel 9999-12-31 for current.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.is_current IS '1 = current feature values, 0 = historical.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.feature_group_name IS 'Feature group identifier.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.feature_group_version IS 'Feature-engineering logic version (A/B testing).';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.computation_dts IS 'When computed and inserted.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.source_system IS 'Process that computed the features.';
+COMMENT ON COLUMN {{ db }}.{{ group.name }}.created_by IS 'User/process that created the record.';
