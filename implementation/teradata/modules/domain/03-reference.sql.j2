@@ -1,0 +1,46 @@
+{#
+  Reference data — Teradata binding of design/modules/domain.md §3.2.
+  Capability: RichMetadata. Invariant support: INV-DOMAIN-001.
+
+  Template variables:
+    database       : Domain database name
+    reference.name : PascalCase reference name, e.g. "CountryCode"
+    reference.lower: lower_snake, e.g. "country_code"
+    reference.hierarchical (bool) : emit parent_{ref}_id + sort_order if true
+#}
+CREATE TABLE {{ database }}.{{ reference.name }}_R (
+    {{ reference.lower }}_id      BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    {{ reference.lower }}_code    VARCHAR(20) NOT NULL,
+    short_description   VARCHAR(100) NOT NULL,
+    long_description    VARCHAR(500),
+    effective_date      DATE NOT NULL,
+    expiration_date     DATE NOT NULL DEFAULT DATE '9999-12-31',
+    is_current          BYTEINT NOT NULL DEFAULT 1{% if reference.hierarchical %},
+    parent_{{ reference.lower }}_id BIGINT,
+    sort_order          INTEGER{% endif %}
+)
+UNIQUE PRIMARY INDEX ({{ reference.lower }}_code, effective_date);
+
+COMMENT ON TABLE {{ database }}.{{ reference.name }}_R IS
+'{{ reference.name }} reference data table - controlled vocabulary and lookup values with temporal validity periods.';
+
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.{{ reference.lower }}_id IS
+'Surrogate key for reference data entry.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.{{ reference.lower }}_code IS
+'Reference code - short identifier used in domain tables, unique within effective period.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.short_description IS
+'Brief description of reference value - displayed in UI dropdowns and reports.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.long_description IS
+'Detailed description of reference value - complete definition and usage guidance.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.effective_date IS
+'Date when this reference value becomes valid for use.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.expiration_date IS
+'Date when this reference value expires - default 9999-12-31 for indefinite validity.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.is_current IS
+'Current validity indicator - 1 = currently valid, 0 = expired or future.';
+{%- if reference.hierarchical %}
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.parent_{{ reference.lower }}_id IS
+'Optional parent reference for hierarchical taxonomies - references {{ reference.lower }}_id.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.sort_order IS
+'Optional display sequence for ordering reference values in UI or reports.';
+{%- endif %}

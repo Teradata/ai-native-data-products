@@ -1,0 +1,35 @@
+{#
+  Surrogate-key allocation (Keymap) — Teradata binding of design/modules/domain.md §3.4.
+  Capability: SurrogateKeyAllocation. Invariant support: INV-DOMAIN-003.
+
+  Template variables:
+    database    : Domain database name, e.g. "{{ product }}_Domain"
+    entity.name : PascalCase entity name, e.g. "Party"
+    entity.lower: lower_snake entity name, e.g. "party"
+    entity.natural_key_len : VARCHAR length for the natural key, e.g. 100
+
+  Emit one keymap per FK-target entity. Reference/detail entities that are never
+  FK targets may allocate surrogates directly and skip this template.
+#}
+CREATE TABLE {{ database }}.{{ entity.name }}_Keymap (
+    {{ entity.lower }}_id     BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    {{ entity.lower }}_key    VARCHAR({{ entity.natural_key_len | default(100) }}) NOT NULL,
+    source_system   VARCHAR(50),
+    created_dt      TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+)
+UNIQUE PRIMARY INDEX ({{ entity.lower }}_key);
+
+COMMENT ON TABLE {{ database }}.{{ entity.name }}_Keymap IS
+'{{ entity.name }} surrogate key allocation table. One row per unique {{ entity.lower }}_key. Generates the stable {{ entity.lower }}_id referenced by {{ entity.name }}_H and all child tables across all versions.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_id IS
+'System-generated surrogate key for the {{ entity.name }} entity. Allocated once per unique {{ entity.lower }}_key; never reused or recycled.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_key IS
+'Natural key from source system. One row per unique source identifier. Maps to {{ entity.lower }}_id for all domain tables.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.source_system IS
+'Source system that first introduced this natural key.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.created_dt IS
+'Timestamp when this surrogate key was first allocated. Immutable once set.';
