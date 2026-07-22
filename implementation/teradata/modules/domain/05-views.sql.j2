@@ -1,0 +1,50 @@
+{#
+  Standard views — Teradata binding of the access-layer pattern for Domain.
+  Capability: AccessView. Invariant support: INV-DOMAIN-002.
+
+  Every view declares an explicit column list (the view contract) so agents read the
+  header, not the SELECT body.
+
+  Template variables:
+    database    : Domain database name
+    entity.name : PascalCase entity name
+    entity.lower: lower_snake entity name
+    entity.columns : ordered list of column names to expose (identity + business cols)
+    entity.enriched (optional) : { columns:[...], joins:"<FROM/JOIN body>" }
+#}
+REPLACE VIEW {{ database }}.{{ entity.name }}_Current
+(
+{%- for c in entity.columns %}
+    {{ c }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)
+AS
+SELECT
+{%- for c in entity.columns %}
+    {{ c }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+FROM {{ database }}.{{ entity.name }}_H
+WHERE is_current = 1
+  AND is_deleted = 0;
+
+COMMENT ON VIEW {{ database }}.{{ entity.name }}_Current IS
+'Current active {{ entity.lower }} records - filters to current non-deleted versions for simplified querying.';
+
+{% if entity.enriched is defined %}
+REPLACE VIEW {{ database }}.{{ entity.name }}_Enriched
+(
+{%- for c in entity.enriched.columns %}
+    {{ c }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)
+AS
+SELECT
+{%- for c in entity.enriched.columns %}
+    {{ c }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+FROM {{ database }}.{{ entity.name }}_Current e
+{{ entity.enriched.joins }};
+
+COMMENT ON VIEW {{ database }}.{{ entity.name }}_Enriched IS
+'{{ entity.name }} records enriched with data from related modules - complete entity context in a single query.';
+{% endif %}
