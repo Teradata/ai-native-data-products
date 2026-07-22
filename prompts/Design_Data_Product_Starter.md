@@ -47,3 +47,10 @@ every deviation as a design decision.
 4. **Hand off:** produce the design as the input for the **Build** starter (and the **Review** starter).
 
 Ask me for anything you need. Drive one module at a time; don't dump the whole design at once.
+
+### Handover
+
+The **intake above is your input**; your **output is the design brief** (contents per the `design`
+skill) — platform-agnostic, the single thing the Build starter needs. Agree with me where it goes — a
+file, this conversation, my repo, or an MCP resource — based on what you can access; don't assume you can
+write files. It's the transient bridge to Build; once the product is built, its decisions live in Memory.

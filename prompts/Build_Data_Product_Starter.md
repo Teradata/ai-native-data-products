@@ -45,3 +45,11 @@ and invariant the design declares.
 5. **Hand off to Review:** the deployed artefacts plus the design, for validation.
 
 Drive one deployment phase at a time. Confirm the placement standard before writing any DDL.
+
+### Handover
+
+Your input is the **design brief**; your output is the **deployable artefacts**, plus the entities and
+design decisions you register into the product's own **Semantic** and **Memory** stores as you deploy.
+Agree with me where the generated SQL lives — a file, my repo, this conversation, or applied directly if
+you have platform access; don't assume filesystem access. Once deployed the product is self-describing,
+so Review and Access read it directly — no further handoff file.

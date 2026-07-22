@@ -74,6 +74,27 @@ every invocation.
 
 ---
 
+## Handover between roles
+
+The roles hand work to each other. Prescribe the **content** of each handoff, never its **transport** —
+agents differ in what they can reach (files, a repo, MCP resources, a database, or only the
+conversation). Each `SKILL.md` must state its role's handoff medium-agnostically:
+
+- **The product is its own artifact store.** Once built, design decisions live in **Memory**
+  (documentation facet), structure in **Semantic**, and the trust map / validation evidence in
+  **Observability**. The next role and every consumer read them from there — no separate workspace and
+  no per-product files in this library.
+- **The one transient artifact is the pre-build design brief** — Memory does not exist yet to hold it.
+  Its *content* is fixed (see `design`, below); its *location* is the agent's and user's choice.
+- **Never assume filesystem access.** Each `SKILL.md` instructs its agent to *agree with the user where
+  its output goes* (a file, this conversation, the user's repo, or an MCP resource) based on what the
+  agent can actually do — a chat-only agent emits its output inline for the user to save; a
+  database/MCP-capable agent writes it straight into the product's own stores.
+
+Every generated `SKILL.md` carries a short handover note to this effect for its role.
+
+---
+
 ## Per-skill instructions
 
 ### 1. `design` — the designer skill
@@ -93,8 +114,20 @@ document, compressed.
 `patterns/{pattern}.md` (from `design/patterns/`): the contract the pattern imposes and the capabilities
 it underpins.
 
-**Output of a designer using this skill:** a platform-agnostic design — chosen composition, entities in
-logical types, capabilities required, invariants to satisfy — ready to hand to a builder.
+**Output — the design brief.** A designer using this skill produces a **design brief**: the single
+handoff a builder needs. `SKILL.md` must state its required content so any builder can consume it however
+it arrives (a file, a pasted block, or an MCP resource):
+
+- product name and chosen composition — modules included, each `[hard]` dependency satisfied, each
+  disabled `[soft]` feature noted;
+- per module: the entity model in logical types, the capabilities it requires, the patterns it applies,
+  and the invariants it must satisfy;
+- attributes flagged `[pii]`;
+- design decisions and any deviations, with rationale (destined for Memory once built);
+- target platform if known, else "TBD — builder confirms".
+
+The brief is platform-agnostic (lint-clean) and medium-agnostic. It is the one transient artifact in the
+pipeline; everything after build lives in the product's own stores.
 
 ### 2. `build` — the builder skill
 
