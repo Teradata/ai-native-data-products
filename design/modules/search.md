@@ -138,19 +138,31 @@ here — those belong to Domain and are reached by join-back.
 
 ---
 
-## 6. Required Capabilities
+## 6. Capabilities and Composition
 
-| Capability | Why Search needs it |
-|------------|---------------------|
-| `Embed(text, model)` | Produce a `Vector[dim]` for content or for a query string. Optional in-database vs external — see note. |
-| `NearestNeighbors(query, candidates, metric, k)` | Return the `k` closest candidates under a distance `metric`, as ranked `(id, distance)`. |
-| `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerate `NearestNeighbors` on large candidate sets. |
-| `CurrentStateFilter` | Restrict to current embeddings. |
-| `EntityJoinBack` | Obtain entity content from Domain for a similarity result. |
-| `RichMetadata` | Agent-readable metadata on the embedding table and every column. |
-| `AccessView` | Expose a searchable view (embedding + Domain content) with an explicit column contract. |
-| `SemanticRegistration` | Register the embedding entity and its columns in the Semantic map so agents can discover them (`INV-MASTER-002`). |
-| `DocumentationCapture` | Record design decisions, glossary terms, and change history in Memory (Section 12, `INV-MASTER-002`). |
+Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain
+entity and joins back for content), so it cannot be deployed alone — but it is valid as an add-on
+to an existing Domain. See the
+[composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+
+**Provides** (to agents and consumers):
+
+| Capability | Made available to |
+|------------|-------------------|
+| `NearestNeighbors(query, candidates, metric, k)` | Similarity retrieval and RAG over the current embeddings of an entity kind. |
+| `Embed(text, model)` | Producing a `Vector[dim]` for content or a query string. |
+| `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerating `NearestNeighbors` on large candidate sets. |
+
+**Requires:**
+
+| Capability | Strength | Provider | Why |
+|------------|----------|----------|-----|
+| `EntityJoinBack` | `[hard]` | `module:Domain` | An embedding stores an `Identifier` only and joins back to Domain for content. Without Domain, Search cannot be deployed. |
+| `CurrentStateFilter` | `[hard]` | `self` | Restrict to current embeddings. |
+| `RichMetadata` | `[hard]` | `self` / `platform` | Agent-readable metadata on the embedding table and every column. |
+| `AccessView` | `[hard]` | `self` | Expose a searchable view (embedding + Domain content) with an explicit column contract. |
+| `SemanticRegistration` | `[soft]` | `module:Semantic` | Register the embedding entity and its columns in the Semantic map when Semantic is present (`INV-MASTER-002`). |
+| `DocumentationCapture` | `[soft]` | `module:Memory` | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 12, `INV-MASTER-002`). |
 
 **Portability note.** `Embed` differs materially across platforms — some provide in-database
 embedding, others are external-API only. It is therefore declared with a
@@ -247,7 +259,7 @@ a platform function is an implementation detail.
 - [ ] Similarity and RAG obtain content by join-back (`INV-SEARCH-004`).
 - [ ] Embedding history is preserved via `temporal-lifecycle-metadata` (`INV-SEARCH-005`).
 - [ ] A searchable view exists (`AccessView`).
-- [ ] The embedding entity and its columns registered in the Semantic map (`SemanticRegistration`, `INV-MASTER-002`).
+- [ ] The embedding entity and its columns registered in the Semantic map when the composition includes Semantic (`SemanticRegistration`, `INV-MASTER-002`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] Documentation capture completed per Section 12.
 - [ ] This document passes the design linter with no ignore directive.

@@ -193,23 +193,31 @@ once under `design/patterns/` and bound per platform under `implementation/{plat
 
 ---
 
-## 5. Required Capabilities
+## 5. Capabilities and Composition
 
-An implementation of this module must provide a binding for each capability below (see the
-[capability catalogue](../core/DESIGN_LANGUAGE.md#61-standard-capability-catalogue)).
+Domain is the **composition root**: it has no hard dependency on any other module and can be
+deployed alone — for example as a Data Asset (Domain + Memory `documentation` facet + Access
+Layer). See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
 
-| Capability | Why Domain needs it |
-|------------|---------------------|
-| `SurrogateKeyAllocation` | Keep `<entity>_id` stable across all versions of an entity. |
-| `CurrentStateFilter` | Retrieve current, non-deleted records by a single predictable filter. |
-| `PointInTimeReconstruction` | Retrieve an entity's state as at any past `Timestamp`. |
-| `NaturalKeyLookup` | Retrieve an entity by its `<entity>_key`. |
-| `EntityJoinBack` | Let other modules obtain entity content by joining back on `<entity>_id`. |
-| `RichMetadata` | Attach agent-readable metadata to every object and attribute. |
-| `AccessView` | Expose predictable current/enriched views with explicit column contracts. |
-| `MetadataCoverageCheck` | Prove programmatically that every attribute carries metadata. |
-| `SemanticRegistration` | Register entities, columns, and relationships in the Semantic map so agents can discover them (`INV-MASTER-002`). |
-| `DocumentationCapture` | Record design decisions, glossary terms, and change history in Memory (Section 11, `INV-MASTER-002`). |
+**Provides** (to other modules and to agents):
+
+| Capability | Made available to |
+|------------|-------------------|
+| `EntityJoinBack` | Any module referencing a Domain entity obtains its content by joining back on `<entity>_id`. This is the capability Search and Prediction hard-depend on. |
+| `CurrentStateFilter`, `PointInTimeReconstruction`, `NaturalKeyLookup`, `AccessView` | Agents and consumers, over Domain entities. |
+
+**Requires:**
+
+| Capability | Strength | Provider | Why |
+|------------|----------|----------|-----|
+| `SurrogateKeyAllocation` | `[hard]` | `self` / `platform` | Keep `<entity>_id` stable across all versions of an entity. |
+| `RichMetadata` | `[hard]` | `self` / `platform` | Attach agent-readable metadata to every object and attribute. |
+| `MetadataCoverageCheck` | `[hard]` | `self` | Prove programmatically that every attribute carries metadata. |
+| `SemanticRegistration` | `[soft]` | `module:Semantic` | Register entities, columns, and relationships in the Semantic map when Semantic is in the composition (`INV-MASTER-002`). |
+| `DocumentationCapture` | `[soft]` | `module:Memory` | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 11, `INV-MASTER-002`). |
+
+Every capability has a binding in the implementation. The two `[soft]` requirements are skipped —
+not failed — in a composition that omits Semantic or Memory.
 
 ---
 
@@ -246,10 +254,12 @@ autonomous agent. Each maps to a capability and is checked by the `validation` p
    contract, so an agent reads the contract, not the query body (`AccessView`).
 5. **Documented conventions.** Naming conventions and suffix signals are recorded in the
    Semantic module so an agent can look them up rather than infer them.
-6. **Registered in the Semantic map.** On deploy, every entity, its columns, and its
-   relationships are registered in the product's Semantic map (`SemanticRegistration`), so an
-   agent discovers them by querying the map rather than inspecting the catalogue directly. This
-   is the discovery half of `INV-MASTER-002`; documentation capture (Section 11) is the other.
+6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy,
+   every entity, its columns, and its relationships are registered in the product's Semantic map
+   (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting
+   the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture
+   (Section 11) is the other. In a composition without Semantic, discovery falls back to the
+   platform catalogue plus `RichMetadata`.
 
 **Discoverability test.** An agent that has never seen these entities can: discover what
 entities exist; understand what each represents; retrieve current active records; navigate
@@ -341,7 +351,7 @@ Discoverability requirement 1).
 - [ ] Temporal strategy chosen and satisfies the `temporal-lifecycle-metadata` contract.
 - [ ] Reference patterns follow Section 6 (one pattern per referencing module).
 - [ ] Every entity has at least a current view (`AccessView`).
-- [ ] Every entity, column, and relationship registered in the Semantic map (`SemanticRegistration`, `INV-MASTER-002`).
+- [ ] Every entity, column, and relationship registered in the Semantic map when the composition includes Semantic (`SemanticRegistration`, `INV-MASTER-002`).
 - [ ] Every invariant in Section 8 has a check in the implementation.
 - [ ] Documentation capture completed per Section 11.
 - [ ] This document passes the design linter with no ignore directive.
