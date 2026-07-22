@@ -13,7 +13,7 @@ one per stage of the designer → builder → reviewer pipeline, plus a consumer
 |-------|------|---------------------|
 | `design` | Designer | *How do I design a data product (platform-agnostic)?* |
 | `build` | Builder | *How do I deploy that design on a specific platform?* |
-| `review` | Reviewer | *Does this design/build satisfy the standards?* |
+| `review` | Reviewer | *How far can this design/build be trusted, and where are the gaps?* |
 | `access` | Consumer | *How do I discover and query a deployed product?* |
 
 Each role receives **purpose-built context** — a designer never loads platform DDL; a consumer never
@@ -61,8 +61,8 @@ skills/
 │   ├── modules/{module}.md    ← per-module DDL templates + capability bindings (6 files)
 │   └── patterns/{pattern}.md  ← per-pattern concrete binding (5 files)
 ├── review/
-│   ├── SKILL.md               ← how to review; the invariant/conformance catalogue index; the linter and trust gate
-│   └── checks/{module|pattern}.md ← the INV-*/conformance rules and validation queries per area
+│   ├── SKILL.md               ← how to build the product's trust map; the invariant/conformance catalogue index; the linter
+│   └── checks/{module|pattern}.md ← the INV-*/conformance rules and validation queries per area, with severities
 └── access/
     ├── SKILL.md               ← product-first discovery order; the pre-use trust gate
     └── discovery.md           ← orientation manifest, module/entity/relationship discovery, multi-hop paths
@@ -120,18 +120,30 @@ satisfy the design's capabilities and invariants.
 
 ### 3. `review` — the reviewer skill
 
-`SKILL.md`: how to review — read the design/build, then for each module/pattern present, check its
-invariants and conformance rules; run the design linter against `design/`; and record results through
-the **validation pattern's contract** (the trust gate: any CRITICAL/ERROR failure ⇒ `UNTRUSTED` ⇒
-stop). Index the `checks/` files.
+The reviewer's job is to build a **trust map** of the data product — not to open or close a gate. The
+map gives the agent visibility over *how much of the product is validated, how strongly, and where the
+gaps are*, so the agent can carry it as knowledge, inform the user, and identify where extra data,
+analysis, or discovery is needed.
+
+`SKILL.md`: how to build the trust map. For each module and pattern present, gather the evidence — walk
+its invariants and conformance rules, run the design linter against `design/`, and read any published
+validation results — then record, **per area** (module / entity / pattern), its **coverage** (which
+checks exist and ran), **status** (pass / fail / not-yet-validated / no-evidence), **confidence**
+(strong / partial / weak / unknown), and **open gaps**. Index the `checks/` files.
 
 `checks/{module|pattern}.md`: the full `INV-*` list for that area (from the design doc's Invariants
 section) and its conformance-rule table where one exists (`TLM-*` for temporal, `VAL-*` for validation,
-the object-placement/physical-storage conformance checklists), each paired with the runnable check
-(the implementation's `validation.sql`, or the `design_lint.py` rule). Mark blocking rules.
+the object-placement/physical-storage conformance checklists), each paired with its runnable check (the
+implementation's `validation.sql`, or the `design_lint.py` rule) and its **severity** — so a failure
+lowers that area's confidence on the map rather than flipping a single global switch.
 
-**Output of a reviewer using this skill:** a validation result per the validation pattern — pass/fail
-per invariant, an overall trust status, and the stop/go gate.
+**Output of a reviewer using this skill:** a **trust map** — per module / entity / pattern: what is
+validated, how strongly, what is uncovered, and what is stale or missing — plus concrete
+recommendations on where to focus further data, analysis, or discovery. Severe failures are surfaced
+prominently and their impact explained, but the map *informs* the agent and the user; it does not
+silently block use. Where the validation pattern publishes a formal result it is **one input** to the
+map, not the whole story. (The gate-to-map relationship is still evolving — further changes to the
+validation pattern are planned to support the map view; reflect the map framing here regardless.)
 
 ### 4. `access` — the consumer skill
 
@@ -174,7 +186,7 @@ For every skill:
 - [ ] On-demand files present for every module/pattern in scope; none repeats `SKILL.md`.
 - [ ] `design` skill contains no platform types or DDL (lint-clean).
 - [ ] `build` skill preserves validated platform SQL verbatim and carries the capability→binding and invariant→check mappings.
-- [ ] `review` skill lists every `INV-*` and conformance rule with its runnable check and blocking marker.
+- [ ] `review` skill builds a **trust map**: every `INV-*` and conformance rule with its runnable check and severity, rolled up per area into coverage / status / confidence / gaps, plus recommendations — not a binary stop/go gate.
 - [ ] `access` skill leads with product-first discovery and the pre-use trust gate.
 - [ ] Every claim traces to a repo source; on conflict, the repo wins.
 
