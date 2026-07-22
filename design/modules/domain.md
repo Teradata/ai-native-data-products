@@ -11,6 +11,7 @@
 | **Status** | STANDARD |
 | **Type** | Module Design Standard (platform-agnostic) |
 | **Scope** | Domain / Subject data module — authoritative business entities |
+| **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/) |
 
@@ -207,6 +208,8 @@ An implementation of this module must provide a binding for each capability belo
 | `RichMetadata` | Attach agent-readable metadata to every object and attribute. |
 | `AccessView` | Expose predictable current/enriched views with explicit column contracts. |
 | `MetadataCoverageCheck` | Prove programmatically that every attribute carries metadata. |
+| `SemanticRegistration` | Register entities, columns, and relationships in the Semantic map so agents can discover them (`INV-MASTER-002`). |
+| `DocumentationCapture` | Record design decisions, glossary terms, and change history in Memory (Section 11, `INV-MASTER-002`). |
 
 ---
 
@@ -243,6 +246,10 @@ autonomous agent. Each maps to a capability and is checked by the `validation` p
    contract, so an agent reads the contract, not the query body (`AccessView`).
 5. **Documented conventions.** Naming conventions and suffix signals are recorded in the
    Semantic module so an agent can look them up rather than infer them.
+6. **Registered in the Semantic map.** On deploy, every entity, its columns, and its
+   relationships are registered in the product's Semantic map (`SemanticRegistration`), so an
+   agent discovers them by querying the map rather than inspecting the catalogue directly. This
+   is the discovery half of `INV-MASTER-002`; documentation capture (Section 11) is the other.
 
 **Discoverability test.** An agent that has never seen these entities can: discover what
 entities exist; understand what each represents; retrieve current active records; navigate
@@ -334,6 +341,7 @@ Discoverability requirement 1).
 - [ ] Temporal strategy chosen and satisfies the `temporal-lifecycle-metadata` contract.
 - [ ] Reference patterns follow Section 6 (one pattern per referencing module).
 - [ ] Every entity has at least a current view (`AccessView`).
+- [ ] Every entity, column, and relationship registered in the Semantic map (`SemanticRegistration`, `INV-MASTER-002`).
 - [ ] Every invariant in Section 8 has a check in the implementation.
 - [ ] Documentation capture completed per Section 11.
 - [ ] This document passes the design linter with no ignore directive.

@@ -25,6 +25,8 @@ The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`.
 | `EntityJoinBack` | `INNER JOIN Domain.{Entity}_H ON entity_id`, current-filtered. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
 | `AccessView` | `v_{entity}_searchable` with an explicit column contract. |
+| `SemanticRegistration` | On deploy, `INSERT` embedding entity/column rows into `{product}_Semantic` (owned by the Semantic module). |
+| `DocumentationCapture` | On deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory` (owned by the Memory module). |
 
 ## Logical-type bindings used here
 

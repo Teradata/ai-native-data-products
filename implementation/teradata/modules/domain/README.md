@@ -32,6 +32,8 @@ Every capability required by the design document is bound here:
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN` for every object and column. |
 | `AccessView` | `{Entity}_Current` and `{Entity}_Enriched` views with explicit column lists. |
 | `MetadataCoverageCheck` | Catalogue query over `DBC.ColumnsV` (see `validation.sql`). |
+| `SemanticRegistration` | On deploy, `INSERT` entity/column/relationship rows into `{product}_Semantic` (owned by the Semantic module). |
+| `DocumentationCapture` | On deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory` (owned by the Memory module). |
 
 ## Logical-type bindings used here
 
