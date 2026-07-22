@@ -1,0 +1,76 @@
+{#
+  SCD2 history table (profile SCD2_HISTORY) — Teradata binding of
+  design/patterns/temporal-lifecycle-metadata.md §3-§7. Canonical columns, flag
+  representation, open-end sentinel, and column comments (TLM-05,06,07,15).
+
+  Template variables:
+    db            : container tag (bound by object-placement), e.g. "{{ product }}_Domain"
+    entity        : lower_snake entity name, e.g. "agreement"
+    natural_key   : natural/business key column, e.g. "agreement_bk"
+    surrogate_key : surrogate key column, e.g. "agreement_sk"
+    attributes    : list of { name, type, comment } business attributes
+    supports_deletion (bool)
+#}
+CREATE TABLE {{ db }}.{{ entity }}
+(
+      {{ surrogate_key }}   BIGINT NOT NULL
+    , {{ natural_key }}     VARCHAR(60) CHARACTER SET UNICODE NOT NULL
+{%- for a in attributes %}
+    , {{ a.name }}          {{ a.type }}
+{%- endfor %}
+    -- Business validity: half-open [valid_from_dts, valid_to_dts)
+    , valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL
+    , valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
+                              DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
+    , is_current          BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1))
+{%- if supports_deletion %}
+    -- Logical deletion
+    , is_deleted          BYTEINT NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1))
+    , deleted_dts         TIMESTAMP(6) WITH TIME ZONE
+{%- endif %}
+    -- Row audit
+    , created_dts         TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+    , updated_dts         TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+)
+PRIMARY INDEX ({{ natural_key }});
+
+COMMENT ON COLUMN {{ db }}.{{ entity }}.valid_from_dts IS
+    'Inclusive start of business validity (UTC). Half-open period.';
+COMMENT ON COLUMN {{ db }}.{{ entity }}.valid_to_dts IS
+    'Exclusive end of business validity (UTC); sentinel 9999-12-31 = current.';
+COMMENT ON COLUMN {{ db }}.{{ entity }}.is_current IS
+    'Convenience currency flag; must agree with valid_to_dts sentinel.';
+{%- if supports_deletion %}
+COMMENT ON COLUMN {{ db }}.{{ entity }}.is_deleted IS
+    'Logical deletion state; 1 requires deleted_dts. History retained.';
+COMMENT ON COLUMN {{ db }}.{{ entity }}.deleted_dts IS
+    'Effective logical deletion time (UTC); NULL until deleted.';
+{%- endif %}
+COMMENT ON COLUMN {{ db }}.{{ entity }}.created_dts IS
+    'Physical row-version creation time (UTC).';
+COMMENT ON COLUMN {{ db }}.{{ entity }}.updated_dts IS
+    'Physical row last-change time (UTC).';
+{%- for a in attributes %}
+COMMENT ON COLUMN {{ db }}.{{ entity }}.{{ a.name }} IS '{{ a.comment }}';
+{%- endfor %}
+
+-- Governed full-contract surface: 1:1 locking view exposing every column.
+REPLACE VIEW {{ db }}.v_{{ entity }}
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      {{ surrogate_key }}
+    , {{ natural_key }}
+{%- for a in attributes %}
+    , {{ a.name }}
+{%- endfor %}
+    , valid_from_dts
+    , valid_to_dts
+    , is_current
+{%- if supports_deletion %}
+    , is_deleted
+    , deleted_dts
+{%- endif %}
+    , created_dts
+    , updated_dts
+FROM {{ db }}.{{ entity }};
