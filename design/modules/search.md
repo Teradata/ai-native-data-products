@@ -11,6 +11,7 @@
 | **Status** | STANDARD |
 | **Type** | Module Design Standard (platform-agnostic) |
 | **Scope** | Search module — vector embeddings and similarity retrieval |
+| **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/) |
 
@@ -148,6 +149,8 @@ here — those belong to Domain and are reached by join-back.
 | `EntityJoinBack` | Obtain entity content from Domain for a similarity result. |
 | `RichMetadata` | Agent-readable metadata on the embedding table and every column. |
 | `AccessView` | Expose a searchable view (embedding + Domain content) with an explicit column contract. |
+| `SemanticRegistration` | Register the embedding entity and its columns in the Semantic map so agents can discover them (`INV-MASTER-002`). |
+| `DocumentationCapture` | Record design decisions, glossary terms, and change history in Memory (Section 12, `INV-MASTER-002`). |
 
 **Portability note.** `Embed` differs materially across platforms — some provide in-database
 embedding, others are external-API only. It is therefore declared with a
@@ -244,6 +247,7 @@ a platform function is an implementation detail.
 - [ ] Similarity and RAG obtain content by join-back (`INV-SEARCH-004`).
 - [ ] Embedding history is preserved via `temporal-lifecycle-metadata` (`INV-SEARCH-005`).
 - [ ] A searchable view exists (`AccessView`).
+- [ ] The embedding entity and its columns registered in the Semantic map (`SemanticRegistration`, `INV-MASTER-002`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] Documentation capture completed per Section 12.
 - [ ] This document passes the design linter with no ignore directive.

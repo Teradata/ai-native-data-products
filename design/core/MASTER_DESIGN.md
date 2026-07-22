@@ -95,8 +95,8 @@ platform in `implementation/`. The guiding principles are realised as these capa
 | Zero data duplication | `EntityJoinBack` — a module holds an `Identifier` and joins back to Domain for content. |
 | Temporal integrity | `CurrentStateFilter`, `PointInTimeReconstruction` — current-state and as-at retrieval. |
 | Self-describing | `RichMetadata` — agent-readable metadata on every object and attribute. |
-| Self-describing (discovery) | Module, entity, and relationship **discovery** via the Semantic map (Section 6). |
-| Self-describing (provenance) | **Documentation capture** into Memory — every module records its own decisions, glossary, and change history. |
+| Self-describing (discovery) | `SemanticRegistration` — every module registers its entities, columns, and relationships in the Semantic map (Section 6). |
+| Self-describing (provenance) | `DocumentationCapture` — every module records its decisions, glossary, and change history in Memory. |
 | Agent-native access | The **Access Layer** roles that make a deployed product reachable (Section 8). |
 
 A module design standard names the capabilities it requires; the platform implementation binds
