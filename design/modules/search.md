@@ -245,11 +245,44 @@ a platform function is an implementation detail.
 - [ ] Embedding history is preserved via `temporal-lifecycle-metadata` (`INV-SEARCH-005`).
 - [ ] A searchable view exists (`AccessView`).
 - [ ] Every invariant has a check in the implementation.
+- [ ] Documentation capture completed per Section 12.
 - [ ] This document passes the design linter with no ignore directive.
+
+**Embedding-model sourcing.** Prefer an established embedding model and record it: text families
+(e.g. BGE, Sentence-Transformers, OpenAI, NVIDIA NIM) or multi-modal families (e.g. CLIP) with
+their dimensionality. The specific model and version are recorded per embedding (`INV-SEARCH-003`).
 
 ---
 
-## 12. Implementation
+## 12. Documentation Capture Requirements
+
+Every Search module records its own documentation as part of the design workflow, so the data
+product is **self-describing**. Capture is written into the **Memory module**; the record
+definitions, workflow, and templates are owned by the Memory module design and its
+implementation, not restated here.
+
+**Minimum records:**
+
+| Record type | Minimum | Captures |
+|-------------|---------|----------|
+| Module registry entry | 1 | Registers this module with the data product and version. |
+| Design decision | 3 | Key architectural and schema choices. |
+| Change-log entry | 1 | Initial release entry. |
+| Business-glossary term | 3 | Embedding, vector, and search terms introduced. |
+| Query-cookbook recipe | 1 | A key query pattern (e.g. similarity search, RAG retrieval). |
+
+**Typical decision categories:** `ARCHITECTURE` (vector storage strategy), `PERFORMANCE` (ANN
+index choice — exact, `IVF`, or `HNSW`), `SCHEMA` (embedding dimensions and model selection),
+`INTEGRATION` (RAG pattern and join-back strategy), `OPERATIONAL` (embedding refresh strategy).
+
+**Decision id prefix:** `DD-SEARCH-<NNN>` (e.g. `DD-SEARCH-001`).
+
+The capture protocol and templates live with the Memory module — design in
+[`design/modules/memory.md`](memory.md), binding in `implementation/{platform}/modules/memory/`.
+
+---
+
+## 13. Implementation
 
 The Teradata binding — the embedding table, the searchable view, the similarity and RAG
 query templates, and the invariant checks — lives in

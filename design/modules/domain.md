@@ -265,13 +265,35 @@ implementation's `validation`.
 
 ---
 
-## 9. Designer Responsibilities
+## 9. Design Flexibility
 
-**Designers supply** (platform-neutral decisions):
+This standard defines **structure and patterns, not a specific implementation**. Within the
+invariants of Section 8, designers choose the approach that best fits their platform, data
+volumes, and governance. The flexible dimensions — and the constraint each must still honour:
+
+| Dimension | Flexibility | Constraint |
+|-----------|-------------|------------|
+| **Temporal strategy** | Bi-temporal, Type-2 SCD, event sourcing, or another approach. | Must satisfy the `temporal-lifecycle-metadata` contract and `INV-DOMAIN-006` (point-in-time reconstruction). |
+| **Column set** | Minimal core vs extended metadata (audit, lineage, source-tracking columns). | Must carry the identity shape (`INV-DOMAIN-004`) and the current/deleted flags (`INV-DOMAIN-002`). |
+| **Key allocation** | Keymap (separate allocation) vs direct allocation, chosen per entity. | Surrogate must be stable across versions for reference-target entities (`INV-DOMAIN-003`). |
+| **Deletion representation** | How a logical deletion is recorded. | The audit trail must be preserved — deletion is soft, retained for audit (`INV-DOMAIN-002`, `INV-DOMAIN-005`). |
+| **Storage optimisation** | Normalisation vs denormalisation, partitioning, indexing. | A platform concern — lives entirely in `implementation/` and must not change the logical contract. |
+
+**Rule:** whatever is chosen must support the AI-native characteristics (Section 1) and
+satisfy every invariant (Section 8). The choice for each flexible dimension is **recorded as
+a design decision** (Section 11) so it is traceable rather than implicit.
+
+---
+
+## 10. Designer Responsibilities
+
+### 10.1 What designers supply
+
+Platform-neutral decisions the designer owns:
 
 | Element | Source |
 |---------|--------|
-| Entity model | Enterprise model or industry standard (iLDM, FIBO, HL7 FHIR, GS1, ACORD, …) or custom. |
+| Entity model | An established model where one exists (Section 10.2), or custom. |
 | Entity attributes | Business requirements, typed with the logical vocabulary. |
 | Natural keys | The source-system business identifier per entity. |
 | Relationships | Business-domain analysis. |
@@ -280,21 +302,73 @@ implementation's `validation`.
 | Key allocation per entity | Keymap vs direct allocation (Section 3.4). |
 | Sensitivity | Which attributes are `[pii]`. |
 
-**Design review checklist:**
+### 10.2 Entity model sourcing
+
+Source entities from an established model wherever one exists, and **document the choice** so
+agents and reviewers can trace it:
+
+1. **Enterprise data model** — integrated logical data model (iLDM), common data model (CDM),
+   or corporate data dictionary.
+2. **Industry standards**, by domain:
+   - Finance — FIBO, BIAN, ISO 20022
+   - Healthcare — HL7 FHIR, SNOMED CT, LOINC
+   - Retail — GS1, ARTS
+   - Insurance — ACORD
+   - Telecom — TM Forum (SID)
+3. **Open standards** — Schema.org (common entities), Dublin Core (metadata), SKOS (taxonomies).
+4. **Custom models** — when no standard fits; document the rationale and structure, and consider
+   future standardisation.
+
+**Best practice:** adopt the enterprise or industry standard, **document it in the Semantic
+module** so agents can reference it, and **apply it consistently** across every entity.
+Consistency is what lets an agent generalise one entity's pattern to all (Section 8, Agent
+Discoverability requirement 1).
+
+### 10.3 Design review checklist
 
 - [ ] Every attribute uses a logical type; no platform types leak into this document.
 - [ ] Every entity has the identity shape (`Identifier` + `NaturalKey`).
+- [ ] Entity model source identified and documented — enterprise, industry, or custom (Section 10.2).
+- [ ] Flexible-dimension choices (temporal, key allocation, column set, deletion, storage) recorded as design decisions (Section 9, Section 11).
 - [ ] Key-allocation approach chosen and recorded per entity (keymap vs direct).
 - [ ] Temporal strategy chosen and satisfies the `temporal-lifecycle-metadata` contract.
 - [ ] Reference patterns follow Section 6 (one pattern per referencing module).
 - [ ] Every entity has at least a current view (`AccessView`).
 - [ ] Every invariant in Section 8 has a check in the implementation.
-- [ ] Documentation capture recorded (design decisions, glossary, change log, query cookbook) per the Memory module protocol.
+- [ ] Documentation capture completed per Section 11.
 - [ ] This document passes the design linter with no ignore directive.
 
 ---
 
-## 10. Implementation
+## 11. Documentation Capture Requirements
+
+Every Domain module records its own documentation as part of the design workflow, so the data
+product is **self-describing**. Capture is written into the **Memory module** — the data
+product's own documentation store; the record definitions, capture workflow, and templates are
+owned by the Memory module design and its implementation, not restated here.
+
+**Minimum records:**
+
+| Record type | Minimum | Captures |
+|-------------|---------|----------|
+| Module registry entry | 1 | Registers this module with the data product and version. |
+| Design decision | 3 | Key architectural and schema choices — including the flexible-dimension choices of Section 9. |
+| Change-log entry | 1 | Initial release entry. |
+| Business-glossary term | 3 | Domain terms and entity definitions introduced. |
+| Query-cookbook recipe | 1 | A key query pattern (e.g. current-entity lookup, point-in-time reconstruction). |
+
+**Typical decision categories:** `ARCHITECTURE` (temporal strategy), `SCHEMA` (attribute set),
+`NAMING` (natural key and source alignment), `PERFORMANCE` (index and partitioning strategy),
+`SECURITY` (PII identification and access approach).
+
+**Decision id prefix:** `DD-DOMAIN-<NNN>` (e.g. `DD-DOMAIN-001`).
+
+The capture protocol and templates live with the Memory module — design in
+[`design/modules/memory.md`](memory.md), binding in `implementation/{platform}/modules/memory/`.
+
+---
+
+## 12. Implementation
 
 The Teradata binding of this module — concrete table and view templates, the capability
 binding table, and the invariant checks — lives in
