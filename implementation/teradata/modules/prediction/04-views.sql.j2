@@ -1,0 +1,93 @@
+{#
+  Standard feature views — Teradata binding of the access-layer pattern for Prediction.
+  current / enriched / point-in-time. Raw Domain values come from the join, never duplicated
+  (INV-PRED-003). Explicit column contracts (AccessView).
+
+  Template variables:
+    pred_db, domain_db : containers
+    entity : { name (PascalCase Domain entity), lower, kind, feature_table }
+    entity.features       : engineered feature columns to expose
+    entity.domain_columns : raw Domain columns to expose in the enriched view (from Domain, not copied)
+#}
+REPLACE VIEW {{ pred_db }}.v_{{ entity.lower }}_features_current
+(
+    {{ entity.lower }}_id,
+{%- for f in entity.features %}
+    {{ f }},
+{%- endfor %}
+    observation_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+    cf.entity_id AS {{ entity.lower }}_id,
+{%- for f in entity.features %}
+    cf.{{ f }},
+{%- endfor %}
+    cf.observation_dts
+FROM {{ pred_db }}.{{ entity.feature_table }} cf
+WHERE cf.is_current = 1
+  AND cf.entity_type = '{{ entity.kind }}';
+
+COMMENT ON VIEW {{ pred_db }}.v_{{ entity.lower }}_features_current IS
+'Current engineered {{ entity.lower }} features for serving and real-time scoring.';
+
+-- Enriched: engineered features + raw Domain context (join-back, no duplication)
+REPLACE VIEW {{ pred_db }}.v_{{ entity.lower }}_features_enriched
+(
+    {{ entity.lower }}_key,
+{%- for c in entity.domain_columns %}
+    {{ c }},
+{%- endfor %}
+{%- for f in entity.features %}
+    {{ f }},
+{%- endfor %}
+    observation_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+    d.{{ entity.lower }}_key,
+{%- for c in entity.domain_columns %}
+    d.{{ c }},                      -- raw value from Domain (not duplicated)
+{%- endfor %}
+{%- for f in entity.features %}
+    cf.{{ f }},
+{%- endfor %}
+    cf.observation_dts
+FROM {{ pred_db }}.{{ entity.feature_table }} cf
+INNER JOIN {{ domain_db }}.{{ entity.name }}_H d
+    ON d.{{ entity.lower }}_id = cf.entity_id
+   AND d.is_current = 1
+   AND d.is_deleted = 0
+WHERE cf.is_current = 1
+  AND cf.entity_type = '{{ entity.kind }}';
+
+COMMENT ON VIEW {{ pred_db }}.v_{{ entity.lower }}_features_enriched IS
+'{{ entity.name }} engineered features joined with raw Domain context - complete context without duplication.';
+
+-- Point-in-time: features as they were valid at :as_of_dts (training without leakage)
+REPLACE VIEW {{ pred_db }}.v_{{ entity.lower }}_features_pit
+(
+    {{ entity.lower }}_id,
+{%- for f in entity.features %}
+    {{ f }},
+{%- endfor %}
+    observation_dts, valid_from_dts, valid_to_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+    cf.entity_id AS {{ entity.lower }}_id,
+{%- for f in entity.features %}
+    cf.{{ f }},
+{%- endfor %}
+    cf.observation_dts, cf.valid_from_dts, cf.valid_to_dts
+FROM {{ pred_db }}.{{ entity.feature_table }} cf
+WHERE cf.entity_type = '{{ entity.kind }}';
+-- Point-in-time selection (as-of :as_of_dts):
+--   WHERE cf.valid_from_dts <= :as_of_dts AND :as_of_dts < cf.valid_to_dts
+--     AND cf.observation_dts <= :as_of_dts
+
+COMMENT ON VIEW {{ pred_db }}.v_{{ entity.lower }}_features_pit IS
+'Point-in-time {{ entity.lower }} feature reconstruction for training without data leakage.';
