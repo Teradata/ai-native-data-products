@@ -1,1 +1,8 @@
 *.bak
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated skills (see issue #44)
+/skills/
