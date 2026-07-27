@@ -49,7 +49,7 @@ history that make the product self-describing.
 ## 2. Facets
 
 Memory is one module with two **facets** (see the
-[composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition)),
+[composition mechanism](../core/DESIGN_LANGUAGE.md)),
 enabled independently:
 
 | Facet | Holds | Provides |
@@ -84,10 +84,10 @@ individual record keys/ids, and detailed personal profiles (→ Domain, referenc
 
 ---
 
-## 4. Runtime Facet — Entity Model
+## 4. Entity Model — Runtime Facet
 
 Runtime entities are append-oriented operational records. Every one carries a **privacy scope**
-(Section 6). None stores business content — table references are table-level, and content is
+(see Privacy and Scoping). None stores business content — table references are table-level, and content is
 obtained by join-back to Domain.
 
 ```
@@ -164,7 +164,7 @@ All runtime entities `Apply patterns: object-placement, access-layer` and `Requi
 
 ---
 
-## 5. Documentation Facet — Design Memory
+## 5. Entity Model — Documentation Facet
 
 The documentation facet **is** design memory: it records *why* a product is the way it is, *how*
 to use it, and *what changed* — the counterpart to runtime memory's record of what agents did.
@@ -255,8 +255,8 @@ module must produce, at minimum:
 `{MODULE}` is the short module name (`DOMAIN`, `SEARCH`, …). Additional required records: a design
 decision for every *deferred or deprecated* module; a design decision for **every deviation** from
 a design standard (category `ARCHITECTURE`); and the ERD recipe `QC-SEMANTIC-002` when Semantic is
-present. This protocol is the provider side of `INV-MASTER-002` — it is what Domain's Section 11
-and Search's Section 12 point at.
+present. This protocol is the provider side of `INV-MASTER-002` — it is what Domain's the Designer Responsibilities section
+and Search's the Implementation section point at.
 
 ---
 
@@ -287,14 +287,14 @@ those are obtained by join-back to Domain when genuinely needed.
 
 Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing —
 so it composes with any product, and either facet can be deployed alone. See the
-[composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+[composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
 | Capability | Facet | Made available to |
 |------------|-------|-------------------|
 | `DocumentationCapture` | `documentation` | Every module, to record its design memory. |
-| Agent continuity and learning | `runtime` | Agents, across sessions and instances. |
+| `AgentContinuity` | `runtime` | Agents, across sessions and instances — prior sessions, interactions, learned strategies, and preferences. |
 
 **Requires:**
 
@@ -304,8 +304,8 @@ so it composes with any product, and either facet can be deployed alone. See the
 | `DocumentationCapture` | `[soft]` | `self` (`documentation` facet) | Memory records its own design decisions. |
 | `SemanticRegistration` | `[soft]` | `module:Semantic` | Register Memory's entities in the Semantic map when present (`INV-MASTER-002`). |
 | `EntityJoinBack` | `[soft]` | `module:Domain` | Resolve a referenced table to Domain entity context when needed. |
-| Learning inputs | `[soft]` | `module:Observability` | Learn strategies from observed outcomes when Observability is present. |
-| Similarity retrieval | `[soft]` | `module:Search` | Find similar past sessions when Search is present. |
+| `QualityScore` | `[soft]` | `module:Observability` | Learn strategies from observed outcomes and quality evidence when Observability is present. |
+| `NearestNeighbors` | `[soft]` | `module:Search` | Find similar past sessions when Search is present. |
 
 ---
 
@@ -328,7 +328,7 @@ so it composes with any product, and either facet can be deployed alone. See the
 - `INV-MEMORY-003`: every runtime record carries a privacy scope (`scope_level` and `scope_identifier`).
 - `INV-MEMORY-004`: documentation records *why/how/what-changed*; they never duplicate Semantic's *what-exists/how-connects* metadata.
 - `INV-MEMORY-005`: documentation records are temporally versioned — corrections supersede prior versions rather than overwriting them.
-- `INV-MEMORY-006`: *when the documentation facet is present*, every deployed module records its documentation here per the Section 5.2 capture protocol (the provider side of `INV-MASTER-002`).
+- `INV-MEMORY-006`: *when the documentation facet is present*, every deployed module records its documentation here per the Capture protocol section capture protocol (the provider side of `INV-MASTER-002`).
 
 ---
 
@@ -353,7 +353,7 @@ so it composes with any product, and either facet can be deployed alone. See the
 - [ ] Documentation records do not duplicate Semantic metadata (`INV-MEMORY-004`).
 - [ ] Documentation is temporally versioned; corrections supersede, never overwrite (`INV-MEMORY-005`).
 - [ ] Retention policies documented per runtime entity.
-- [ ] The capture protocol (Section 5.2) is available to every module when the documentation facet is present.
+- [ ] The capture protocol (see Capture protocol) is available to every module when the documentation facet is present.
 - [ ] Memory's own entities registered in the Semantic map when Semantic is present (`SemanticRegistration`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] This document passes the design linter with no ignore directive.

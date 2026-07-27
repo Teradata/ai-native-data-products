@@ -217,7 +217,9 @@ class CorpusRules(unittest.TestCase):
             Path("design/core/ADVOCATED_STANDARDS.md"): (fm_of(DECISION_DOC), DECISION_DOC, 0),
             Path(path): (fm_of(doc_text), doc_text, 0),
         }
-        return find_corpus_violations(docs)
+        # The fixtures are minimal documents, so the spine rule fires on all of them.
+        # Spine is covered by ModuleSpine below; these tests are about corpus rules.
+        return [f for f in find_corpus_violations(docs) if f.rule != "module-spine"]
 
     def test_valid_document_passes(self):
         self.assertEqual(self.corpus(MODULE_DOC), [])
@@ -300,3 +302,39 @@ class GlossaryRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+SPINE_DOC = "\n".join(
+    ["---", "title: X", "anchor: x", "type: module", "status: standard",
+     "version: 1.0", "normative: true", "---", ""]
+    + [f"## {i}. {name}\n\nprose\n"
+       for i, name in enumerate([
+           "Purpose", "Scope and Boundaries", "Entity Model — Runtime Facet",
+           "Something Module-Specific", "Applied Patterns",
+           "Capabilities and Composition", "Integration with Other Modules",
+           "Invariants", "Designer Responsibilities", "Implementation"], start=1)]
+)
+
+
+class ModuleSpine(unittest.TestCase):
+    def test_complete_spine_passes(self):
+        from design_lint import find_spine_violations
+        self.assertEqual(find_spine_violations(SPINE_DOC, "m.md"), [])
+
+    def test_missing_spine_section_flagged(self):
+        from design_lint import find_spine_violations
+        text = SPINE_DOC.replace("## 7. Integration with Other Modules", "## 7. Talking To Others")
+        findings = find_spine_violations(text, "m.md")
+        self.assertEqual([f.rule for f in findings], ["module-spine"])
+        self.assertIn("Integration with Other Modules", findings[0].message)
+
+    def test_subtitle_after_em_dash_still_matches(self):
+        """`Entity Model — Runtime Facet` satisfies the `Entity Model` requirement."""
+        from design_lint import find_spine_violations
+        self.assertFalse(any("Entity Model" in f.message
+                             for f in find_spine_violations(SPINE_DOC, "m.md")))
+
+    def test_module_specific_sections_are_allowed(self):
+        from design_lint import find_spine_violations
+        self.assertEqual(find_spine_violations(SPINE_DOC, "m.md"), [],
+                         "a module may add its own sections anywhere in the spine")

@@ -63,6 +63,7 @@ assert lint_text("design/modules/domain.md", text) == []
 | `invalid-choice` | a recommended option is not one of that decision's options. |
 | `unjustified-choice` | a standard recommends other than the advocated option without saying why (Section 8.2). |
 | `undeclared-decision` | a module describes a `History` entity without asking the designer to settle how it versions and deletes (Section 8.4). |
+| `module-spine` | a `type: module` document is missing one of the canonical spine sections. Presence and naming are checked, never order or numbering, and a module may add its own sections anywhere; a subtitle after an em dash still matches (`Entity Model — Runtime Facet`). |
 | `glossary-order` | a glossary entry is out of alphabetical order. |
 | `glossary-entry` | a bold run opens a glossary line without the ` — ` separator — almost always a cross-reference that wrapped onto the left margin, where it reads as a phantom definition. |
 

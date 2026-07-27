@@ -145,9 +145,15 @@ is the `PointInTimeReconstruction` capability, shared with Domain.
 Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain
 entities and join back for context), so it cannot be deployed alone — valid as an add-on to an
 existing Domain. See the
-[composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+[composition mechanism](../core/DESIGN_LANGUAGE.md).
 
-**Provides:** engineered feature values and model predictions, to agents and model-serving.
+**Provides:**
+
+| Capability | Made available to |
+|------------|-------------------|
+| `PointInTimeReconstruction` | Model training and scoring, as the guarantee that a feature can be read as it stood at any past instant — the module's reason for existing. |
+| `CurrentStateFilter` | Agents and serving paths reading only current feature values. |
+| `AccessView` | Consumers, as current / enriched / point-in-time views over feature values and model predictions with explicit column contracts. |
 
 **Requires:**
 

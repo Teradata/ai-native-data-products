@@ -161,7 +161,7 @@ the validation pattern; this module provides its container.
 ## 5. Discovery Exposure
 
 Two views are deployed **into the Semantic container** so agents discover lineage from the same place
-they discover everything else (Semantic §7):
+they discover everything else (Semantic):
 
 - **`lineage_graph`** — a graph-ready edge list built from `DataLineage`, with jobs surfaced as
   first-class nodes (source → job, job → target). Reads **active definitions only** — no duplicate

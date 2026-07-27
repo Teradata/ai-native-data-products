@@ -76,7 +76,7 @@ All other modules (Search, Prediction, Observability, Semantic, Memory) referenc
 
 ## 3. Entity Model
 
-Domain entities are declared in the [entity notation](../core/DESIGN_LANGUAGE.md#5-entity-notation).
+Domain entities are declared in the [entity notation](../core/DESIGN_LANGUAGE.md).
 Four entity kinds recur. None of them fixes a physical shape — the temporal columns, the storage layout, and the index strategy come from the applied patterns and the platform implementation, not from here.
 
 ### 3.1 Core entity (History)
@@ -195,7 +195,7 @@ Domain does not restate cross-cutting concerns; it applies them. Each pattern is
 
 ## 5. Capabilities and Composition
 
-Domain is the **composition root**: it has no hard dependency on any other module and can be deployed alone — for example as a Data Asset (Domain + Memory `documentation` facet + Access Layer). See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+Domain is the **composition root**: it has no hard dependency on any other module and can be deployed alone — for example as a Data Asset (Domain + Memory `documentation` facet + Access Layer). See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides** (to other modules and to agents):
 
@@ -213,13 +213,13 @@ Domain is the **composition root**: it has no hard dependency on any other modul
 | `RichMetadata`           | `[hard]` | `self` / `platform` | Attach agent-readable metadata to every object and attribute.                                                               |
 | `MetadataCoverageCheck`  | `[hard]` | `self`              | Prove programmatically that every attribute carries metadata.                                                               |
 | `SemanticRegistration`   | `[soft]` | `module:Semantic`   | Register entities, columns, and relationships in the Semantic map when Semantic is in the composition (`INV-MASTER-002`).   |
-| `DocumentationCapture`   | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 11, `INV-MASTER-002`). |
+| `DocumentationCapture`   | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (the Documentation Capture Requirements section, `INV-MASTER-002`). |
 
 Every capability has a binding in the implementation. The two `[soft]` requirements are skipped — not failed — in a composition that omits Semantic or Memory.
 
 ---
 
-## 6. Cross-Module Integration
+## 6. Integration with Other Modules
 
 Other modules reference Domain entities with **one** consistent pattern, chosen per module:
 
@@ -241,7 +241,7 @@ These are semantic requirements — true on every platform — that make the mod
    opaque foreign keys are prohibited.
 4. **Standard views.** Every entity exposes at least a *current* view with an explicit column contract, so an agent reads the contract, not the query body (`AccessView`).
 5. **Documented conventions.** Naming conventions and suffix signals are recorded in the Semantic module so an agent can look them up rather than infer them.
-6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy, every entity, its columns, and its relationships are registered in the product's Semantic map (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture (Section 11) is the other. In a composition without Semantic, discovery falls back to the platform catalogue plus `RichMetadata`.
+6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy, every entity, its columns, and its relationships are registered in the product's Semantic map (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture (see Documentation Capture Requirements) is the other. In a composition without Semantic, discovery falls back to the platform catalogue plus `RichMetadata`.
 
 **Discoverability test.** An agent that has never seen these entities can: discover what
 entities exist; understand what each represents; retrieve current active records; navigate relationships; and generate valid queries — using metadata alone.
@@ -264,7 +264,7 @@ Every conforming implementation must satisfy these. Each has a corresponding che
 
 ## 9. Design Flexibility
 
-This standard defines **structure and patterns, not a specific implementation**. Within the invariants of Section 8, designers choose the approach that best fits their platform, data volumes, and governance. The flexible dimensions — and the constraint each must still honour:
+This standard defines **structure and patterns, not a specific implementation**. Within the invariants below, designers choose the approach that best fits their platform, data volumes, and governance. The flexible dimensions — and the constraint each must still honour:
 
 | Dimension                   | Flexibility                                                                  | Constraint                                                                                                     |
 | --------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -274,8 +274,8 @@ This standard defines **structure and patterns, not a specific implementation**.
 | **Deletion representation** | How a logical deletion is recorded.                                          | The audit trail must be preserved — deletion is soft, retained for audit (`INV-DOMAIN-002`, `INV-DOMAIN-005`). |
 | **Storage optimisation**    | Normalisation vs denormalisation, partitioning, indexing.                    | A platform concern — lives entirely in `implementation/` and must not change the logical contract.             |
 
-**Rule:** whatever is chosen must support the AI-native characteristics (Section 1) and
-satisfy every invariant (Section 8).
+**Rule:** whatever is chosen must support the AI-native characteristics (see Purpose) and
+satisfy every invariant (see Invariants).
 
 The first four dimensions are not free-form: each corresponds to a catalogued **decision**
 (`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`,
@@ -295,13 +295,13 @@ Platform-neutral decisions the designer owns:
 
 | Element                   | Source                                                              |
 | ------------------------- | ------------------------------------------------------------------- |
-| Entity model              | An established model where one exists (Section 10.2), or custom.    |
+| Entity model              | An established model where one exists (see Entity model sourcing), or custom.    |
 | Entity attributes         | Business requirements, typed with the logical vocabulary.           |
 | Natural keys              | The source-system business identifier per entity.                   |
 | Relationships             | Business-domain analysis.                                           |
 | Reference data            | Industry or business-controlled vocabularies.                       |
 | Temporal strategy         | The approach satisfying the `temporal-lifecycle-metadata` contract. |
-| Key allocation per entity | Keymap vs direct allocation (Section 3.4).                          |
+| Key allocation per entity | Keymap vs direct allocation (see Surrogate-key allocation).                          |
 | Sensitivity               | Which attributes are `[pii]`.                                       |
 
 ### 10.2 Entity model sourcing
@@ -325,8 +325,8 @@ Source entities from an established model wherever one exists, and **document th
 4. **Custom models** — when no standard fits; document the rationale and structure, and consider future standardisation.
 
 **Best practice:** adopt the enterprise or industry standard, **document it in the Semantic module** so agents can reference it, and **apply it consistently** across every entity.
-Consistency is what lets an agent generalise one entity's pattern to all (Section 8, Agent
-Discoverability requirement 1).
+Consistency is what lets an agent generalise one entity's pattern to all (see Agent
+Discoverability Requirements).
 
 ### 10.3 Decisions to settle
 
@@ -343,47 +343,27 @@ each one at design time and records the answer in the product's own design.
 | `DEC-DELETE-STRATEGY` | `soft-delete` | Is there an audit obligation, a model feature, or an analysis that depends on deletions? |
 | `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the data genuinely single-zone and certain to stay so? |
 
+
+Every settled decision is recorded as part of designing the product — see *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md) for the destination and the record set. This module's decisions take the id prefix `DD-DOMAIN-<NNN>` and typically fall under `ARCHITECTURE` (temporal strategy), `SCHEMA` (attribute set), `NAMING` (natural key and source alignment), `PERFORMANCE` (index and partitioning strategy), `SECURITY` (PII identification and access approach).
+
 ### 10.4 Design review checklist
 
 - [ ] Every attribute uses a logical type; no platform types leak into this document.
 - [ ] Every entity has the identity shape (`Identifier` + `NaturalKey`).
-- [ ] Entity model source identified and documented — enterprise, industry, or custom (Section 10.2).
-- [ ] Flexible-dimension choices (temporal, key allocation, column set, deletion, storage) recorded as design decisions (Section 9, Section 11).
+- [ ] Entity model source identified and documented — enterprise, industry, or custom (see Entity model sourcing).
+- [ ] Flexible-dimension choices (temporal, key allocation, column set, deletion, storage) settled as catalogued decisions (see Design Flexibility).
 - [ ] Key-allocation approach chosen and recorded per entity (keymap vs direct).
 - [ ] Temporal strategy chosen and satisfies the `temporal-lifecycle-metadata` contract.
-- [ ] Reference patterns follow Section 6 (one pattern per referencing module).
+- [ ] Reference patterns follow the Integration with Other Modules section (one pattern per referencing module).
 - [ ] Every entity has at least a current view (`AccessView`).
 - [ ] Every entity, column, and relationship registered in the Semantic map when the composition includes Semantic (`SemanticRegistration`, `INV-MASTER-002`).
-- [ ] Every invariant in Section 8 has a check in the implementation.
-- [ ] Documentation capture completed per Section 11.
+- [ ] Every invariant in the Invariants section has a check in the implementation.
+- [ ] Every settled decision recorded per *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md).
 - [ ] This document passes the design linter with no ignore directive.
 
 ---
 
-## 11. Documentation Capture Requirements
-
-Every Domain module records its own documentation as part of the design workflow, so the data product is **self-describing**. Capture is written into the **Memory module** — the data product's own documentation store; the record definitions, capture workflow, and templates are owned by the Memory module design and its implementation, not restated here.
-
-**Minimum records:**
-
-| Record type            | Minimum | Captures                                                                                      |
-| ---------------------- | ------- | --------------------------------------------------------------------------------------------- |
-| Module registry entry  | 1       | Registers this module with the data product and version.                                      |
-| Design decision        | 3       | Key architectural and schema choices — including the flexible-dimension choices of Section 9. |
-| Change-log entry       | 1       | Initial release entry.                                                                        |
-| Business-glossary term | 3       | Domain terms and entity definitions introduced.                                               |
-| Query-cookbook recipe  | 1       | A key query pattern (e.g. current-entity lookup, point-in-time reconstruction).               |
-
-**Typical decision categories:** `ARCHITECTURE` (temporal strategy), `SCHEMA` (attribute set), `NAMING` (natural key and source alignment), `PERFORMANCE` (index and partitioning strategy), `SECURITY` (PII identification and access approach).
-
-**Decision id prefix:** `DD-DOMAIN-<NNN>` (e.g. `DD-DOMAIN-001`).
-
-The capture protocol and templates live with the Memory module — design in
-[`design/modules/memory.md`](memory.md), binding in `implementation/{platform}/modules/memory/`.
-
----
-
-## 12. Implementation
+## 11. Implementation
 
 The Teradata binding of this module — concrete table and view templates, the capability binding table, and the invariant checks — lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/).
 Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/`

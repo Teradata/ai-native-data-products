@@ -105,6 +105,22 @@ IMPLEMENTATION_TYPES = {"implementation", "platform-profile"}
 HISTORY_DECISIONS = ("DEC-TEMPORAL-PATTERN", "DEC-DELETE-STRATEGY")
 HISTORY_KIND_RE = re.compile(r"\[kind:\s*History\]")
 
+# The spine every module document carries, so an agent can find the same thing in the same
+# place in any of them. Presence and naming are checked; order and numbering are not, and
+# a module is free to add its own sections anywhere between these.
+MODULE_SPINE = (
+    "Purpose",
+    "Scope and Boundaries",
+    "Entity Model",
+    "Applied Patterns",
+    "Capabilities and Composition",
+    "Integration with Other Modules",
+    "Invariants",
+    "Designer Responsibilities",
+    "Implementation",
+)
+SECTION_HEADING_RE = re.compile(r"^## \d+\.\s*(.+?)\s*$", re.M)
+
 # Body tables the corpus checks read. A capability row names the capability in the first
 # cell; a decisions row names the decision, then the recommended option.
 BODY_CAPABILITY_RE = re.compile(r"`([A-Za-z][A-Za-z0-9]*)[`({]")
@@ -462,6 +478,24 @@ def read_document_decisions(text: str) -> List[Tuple[str, str, str]]:
     return found
 
 
+def find_spine_violations(text: str, path: str) -> List[Finding]:
+    """Every module document carries the canonical spine sections, by name.
+
+    A module may add sections of its own anywhere, and the numbering is its business —
+    what has to hold is that the same concern is findable under the same heading in every
+    module. A section may carry a subtitle after an em dash (`Entity Model — Runtime
+    Facet`); the head of the heading is what must match.
+    """
+    headings = []
+    for name in SECTION_HEADING_RE.findall(text):
+        headings.append(re.split(r"\s+[—–-]\s+", name)[0].strip())
+    missing = [s for s in MODULE_SPINE if s not in headings]
+    return [Finding(path, 1, "module-spine",
+                    f"module is missing the '{s}' section — every module carries the same "
+                    f"spine so an agent finds the same concern in the same place")
+            for s in missing]
+
+
 def find_corpus_violations(docs: dict) -> List[Finding]:
     """Every capability and decision a document names in its body must resolve."""
     findings: List[Finding] = []
@@ -519,6 +553,8 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
 
         if fm.get("anchor") == "glossary":
             findings.extend(find_glossary_violations(text, p))
+        if fm.get("type") == "module":
+            findings.extend(find_spine_violations(text, p))
 
         # A module with a versioned entity has to say how it versions and how it deletes.
         if fm.get("type") == "module" and HISTORY_KIND_RE.search(text):

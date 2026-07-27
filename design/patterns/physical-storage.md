@@ -43,6 +43,9 @@ This pattern governs the **physical layer** — object-store paths, file formats
 strategies, physical access controls, and data lifecycle — so physical placement is deterministic
 and governed rather than ad hoc.
 
+**This pattern provides no capability.** Like object placement, it imposes a contract — on physical
+paths, formats, and lifecycle — rather than offering an operation a design can require.
+
 ---
 
 ## 2. Terminology

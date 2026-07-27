@@ -15,7 +15,7 @@ normative: true
 
 ## 1. Purpose
 
-This document catalogues the **decisions** (Design Language Section 8) that an AI-Native Data Product design must settle, and states the recommended answer for each.
+This document catalogues the **decisions** (see the [Design Language](DESIGN_LANGUAGE.md)) that an AI-Native Data Product design must settle, and states the recommended answer for each.
 
 These recommendations come from three decades of enterprise data management practice. They are strong defaults, not mandates: a small controlled vocabulary and a hundred-million-row transaction history genuinely warrant different answers, and a standard that pretended otherwise would simply be ignored where it did not fit.
 

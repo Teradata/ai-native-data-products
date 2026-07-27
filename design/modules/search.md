@@ -70,7 +70,7 @@ discovery, and multi-modal search — all built on one entity: the embedding.
 
 ---
 
-## 3. Core Principle — Keys Only
+## 3. Core Principle
 
 The Search module stores **vectors and entity references only**. It never copies the content that produced the embedding. Content is obtained by joining back to Domain
 (`EntityJoinBack`). This is the single most important rule of the module:
@@ -125,7 +125,7 @@ Entity: EntityEmbedding           [kind: History]
 ```
 
 `entity_id` + `entity_kind` is the **generic reference** pattern from the Domain module
-(§6) — one embedding table serves many entity kinds. The dimensionality `dim` is
+() — one embedding table serves many entity kinds. The dimensionality `dim` is
 model-dependent and varies per row; it is both carried by the `Vector[dim]` type and
 recorded in `embedding_dimensions` for discovery and reproducibility.
 
@@ -148,7 +148,7 @@ here — those belong to Domain and are reached by join-back.
 
 ## 6. Capabilities and Composition
 
-Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain entity and joins back for content), so it cannot be deployed alone — but it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain entity and joins back for content), so it cannot be deployed alone — but it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides** (to agents and consumers):
 
@@ -167,7 +167,7 @@ Search is an **enhancement** module: it hard-depends on Domain (an embedding ref
 | `RichMetadata`         | `[hard]` | `self` / `platform` | Agent-readable metadata on the embedding table and every column.                                                            |
 | `AccessView`           | `[hard]` | `self`              | Expose a searchable view (embedding + Domain content) with an explicit column contract.                                     |
 | `SemanticRegistration` | `[soft]` | `module:Semantic`   | Register the embedding entity and its columns in the Semantic map when Semantic is present (`INV-MASTER-002`).              |
-| `DocumentationCapture` | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (Section 12, `INV-MASTER-002`). |
+| `DocumentationCapture` | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (the Documentation Capture Requirements section, `INV-MASTER-002`). |
 
 **Portability note.** `Embed` differs materially across platforms — some provide in-database embedding, others are external-API only. It is therefore declared with a
 `computation_method` and treated as pluggable, and `ApproxIndex` is optional. A design that assumed in-database embedding would silently encode one platform's capability; this module does not.
@@ -253,7 +253,7 @@ Metric choice is semantic (mathematics), so it stays in design. The binding of e
 - [ ] A searchable view exists (`AccessView`).
 - [ ] The embedding entity and its columns registered in the Semantic map when the composition includes Semantic (`SemanticRegistration`, `INV-MASTER-002`).
 - [ ] Every invariant has a check in the implementation.
-- [ ] Documentation capture completed per Section 12.
+- [ ] Every settled decision recorded per *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md).
 - [ ] This document passes the design linter with no ignore directive.
 
 **Embedding-model sourcing.** Prefer an established embedding model and record it: text families (e.g. BGE, Sentence-Transformers, OpenAI, NVIDIA NIM) or multi-modal families (e.g. CLIP) with their dimensionality. The specific model and version are recorded per embedding (`INV-SEARCH-003`).
@@ -273,32 +273,12 @@ each one at design time and records the answer in the product's own design.
 | `DEC-DELETE-STRATEGY` | `soft-delete` | Does anything analyse which embeddings were withdrawn, or when? |
 | `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the data genuinely single-zone and certain to stay so? |
 
----
 
-## 12. Documentation Capture Requirements
-
-Every Search module records its own documentation as part of the design workflow, so the data product is **self-describing**. Capture is written into the **Memory module**; the record definitions, workflow, and templates are owned by the Memory module design and its implementation, not restated here.
-
-**Minimum records:**
-
-| Record type            | Minimum | Captures                                                     |
-| ---------------------- | ------- | ------------------------------------------------------------ |
-| Module registry entry  | 1       | Registers this module with the data product and version.     |
-| Design decision        | 3       | Key architectural and schema choices.                        |
-| Change-log entry       | 1       | Initial release entry.                                       |
-| Business-glossary term | 3       | Embedding, vector, and search terms introduced.              |
-| Query-cookbook recipe  | 1       | A key query pattern (e.g. similarity search, RAG retrieval). |
-
-**Typical decision categories:** `ARCHITECTURE` (vector storage strategy), `PERFORMANCE` (ANN index choice — exact, `IVF`, or `HNSW`), `SCHEMA` (embedding dimensions and model selection), `INTEGRATION` (RAG pattern and join-back strategy), `OPERATIONAL` (embedding refresh strategy).
-
-**Decision id prefix:** `DD-SEARCH-<NNN>` (e.g. `DD-SEARCH-001`).
-
-The capture protocol and templates live with the Memory module — design in
-[`design/modules/memory.md`](memory.md), binding in `implementation/{platform}/modules/memory/`.
+Every settled decision is recorded as part of designing the product — see *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md) for the destination and the record set. This module's decisions take the id prefix `DD-SEARCH-<NNN>` and typically fall under `ARCHITECTURE` (vector storage strategy), `PERFORMANCE` (ANN index choice), `SCHEMA` (embedding dimensions and model selection), `INTEGRATION` (RAG pattern and join-back strategy), `OPERATIONAL` (embedding refresh strategy).
 
 ---
 
-## 13. Implementation
+## 12. Implementation
 
 The Teradata binding — the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks — lives in
 [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.

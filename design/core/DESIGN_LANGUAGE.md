@@ -34,12 +34,12 @@ This document defines the **notation and vocabulary** used by every document und
 
 The four building blocks are:
 
-1. **Logical types** — a fixed vocabulary of attribute types with platform-neutral *semantics* (Section 4).
-2. **Capability contracts** — named *operations* a design requires, which each platform binds to its own mechanism (Section 6).
-3. **Invariants** — testable, platform-neutral *rules* a conforming implementation must satisfy (Section 7).
-4. **Decisions** — named *choices* a design must make explicitly, each with an advocated default and stated criteria for departing from it (Section 8).
+1. **Logical types** — a fixed vocabulary of attribute types with platform-neutral *semantics* (see Logical Type Vocabulary).
+2. **Capability contracts** — named *operations* a design requires, which each platform binds to its own mechanism (see Capability Contracts).
+3. **Invariants** — testable, platform-neutral *rules* a conforming implementation must satisfy (see Invariants).
+4. **Decisions** — named *choices* a design must make explicitly, each with an advocated default and stated criteria for departing from it (see Decisions).
 
-Every document also carries **frontmatter** (Section 3.1) — a short machine-readable header that makes the corpus navigable without any document having to name another by filename. It carries identity only; substance stays in the body (Section 3.2).
+Every document also carries **frontmatter** (see Frontmatter) — a short machine-readable header that makes the corpus navigable without any document having to name another by filename. It carries identity only; substance stays in the body (see What frontmatter is not for).
 
 Design documents are written as **interface specifications** — they declare what an implementation must provide. Implementation documents are **conforming implementations** — they provide it. This mirrors the style already established by the pattern specs (`object-placement`, `physical-storage`).
 
@@ -66,7 +66,7 @@ The one-line rule: **semantics stay, syntax moves.**
 
 ### 2.1 The enforceable inclusion test
 
-The boundary is enforced automatically: **a `design/` document must contain no platform SQL.** This is checked by the validation linter (`tooling/validation`) and defined precisely in Section 9. If a design document needs to show SQL to make its point, that SQL belongs in the matching implementation document instead.
+The boundary is enforced automatically: **a `design/` document must contain no platform SQL.** This is checked by the validation linter (`tooling/validation`) and defined precisely in the No-Platform-SQL Rule section. If a design document needs to show SQL to make its point, that SQL belongs in the matching implementation document instead.
 
 ---
 
@@ -80,13 +80,30 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 | `implementation` | `implementation/<platform>/{modules,patterns}/<anchor>/` | Conforming implementation | The concrete DDL, queries, and bindings that satisfy the matching design document. |
 | `platform-profile` | `implementation/<platform>/` | Platform reference | Physical-design conventions applying across every binding for one platform. |
 
-**Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (Section 3.1) and resolved by anchor — never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate* — what they provide, require, and apply — is stated in the body, where it can carry its reasoning (Section 3.2); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
+**Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (see Frontmatter) and resolved by anchor — never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate* — what they provide, require, and apply — is stated in the body, where it can carry its reasoning (see What frontmatter is not for); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
 
 **Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented at `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
 
-**Patterns are referenced, not re-encoded.** When a module depends on a cross-cutting concern, it *references the pattern by anchor* (Section 5) rather than restating it. Re-stating a pattern inline in every module is the duplication this structure exists to remove.
+**Patterns are referenced, not re-encoded.** When a module depends on a cross-cutting concern, it *references the pattern by anchor* (see Entity Notation) rather than restating it. Re-stating a pattern inline in every module is the duplication this structure exists to remove.
 
-### 3.1 Frontmatter
+### 3.1 The module spine
+
+Every module document carries the same nine sections, so that an agent — or a reviewer — finds the
+same concern in the same place in any of them:
+
+**Purpose · Scope and Boundaries · Entity Model · Applied Patterns · Capabilities and Composition ·
+Integration with Other Modules · Invariants · Designer Responsibilities · Implementation**
+
+A module adds its own sections wherever they belong, and numbers them as it likes; a section may
+carry a subtitle after an em dash (`Entity Model — Runtime Facet`). What is fixed is that these
+nine are present under these names. The linter checks presence and naming, never order or number.
+
+**References name sections, never number them.** A cross-document reference cites the document; an
+intra-document reference names the section. Numbering is then free to change without breaking a
+single reference — and with the spine consistent, a named reference is enough for anything reading
+the corpus to find its target.
+
+### 3.2 Frontmatter
 
 Every **design document** opens with a YAML frontmatter block, delimited by `---`, before any Markdown. It is the machine-readable identity of the document: the linter validates it, and navigation is derived from it.
 
@@ -115,7 +132,7 @@ Two rules make the corpus resolvable, both enforced by the linter:
 1. `anchor` must match the document's filename (or, for a binding, its directory name).
 2. Every anchor named in `implements` or `supersedes` must resolve to a document that exists.
 
-### 3.2 What frontmatter is not for
+### 3.3 What frontmatter is not for
 
 Frontmatter is an **index card, not an abstract**: it says what a document is and where it sits, never what it says. A document's substance — the capabilities it provides and requires, the patterns it applies, the decisions a designer must settle — lives in the document body, where it can carry the reasoning that makes it useful.
 
@@ -250,6 +267,7 @@ A design document lists the capabilities it requires. Each platform implementati
 | `MetadataCoverageCheck` | Confirm programmatically that every attribute carries metadata. | catalogue query returning uncommented columns. |
 | `SemanticRegistration` | Register the module's entities, columns, and relationships in the product's Semantic map so agents can discover them. | inserts into the Semantic discovery entities. |
 | `DocumentationCapture` | Record the module's design decisions, glossary terms, and change history in the product's Memory store. | inserts into the Memory documentation entities. |
+| `AgentContinuity` | Carry agent state across sessions: retrieve prior sessions, interactions, learned strategies, and preferences for a given scope, so an agent resumes rather than restarts. | inserts and reads over the Memory runtime entities. |
 | `NearestNeighbors(query, candidates, metric, k)` | Return the `k` candidates most similar to `query` under a distance `metric`, as ranked `(id, distance)`. | vector-distance function; nearest-neighbour operator. |
 | `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerate `NearestNeighbors` with an approximate index of the named family. | IVF/KMEANS index; HNSW graph index. |
 | `Embed(text, model)` | Produce a `Vector[dim]` for `text` using the named embedding `model`. | in-database embedding; external embedding API. |
@@ -289,7 +307,7 @@ design pattern. A composition is **valid** if and only if every `[hard]` require
 satisfied by a `Provides` within the composition (or by `platform`). An unmet `[soft]`
 requirement never invalidates a composition — it simply disables that feature (graceful
 degradation). The named standard compositions, and the modules each includes, are catalogued in
-the [Master Design](MASTER_DESIGN.md#4-compositions).
+the [Master Design](MASTER_DESIGN.md).
 
 ---
 
@@ -381,8 +399,8 @@ A `design/` document must contain no platform SQL. The validation linter enforce
 A design document **fails** the linter if any of the following appear:
 
 1. **A SQL-tagged fenced code block.** Fenced blocks tagged ` ```sql ` (or `tsql`, `plsql`, `psql`) are prohibited outright — design shows pseudo-notation, not SQL.
-2. **SQL statements inside any fenced block.** Within any code block, a line beginning with a SQL statement keyword — `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `GRANT`, `REVOKE` — is a violation. (The pseudo-notation in Section 5 uses none of these, so it passes.)
-3. **Platform data types or vendor tokens, anywhere.** High-precision tokens that are never ordinary English and only ever appear in SQL: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `DECIMAL(`, `FLOAT32`, `TIMESTAMP(`, `PRIMARY INDEX`, `UNIQUE PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT `, `COMMENT ON`, and any `TD_`-prefixed function. Use the logical types of Section 4 instead.
+2. **SQL statements inside any fenced block.** Within any code block, a line beginning with a SQL statement keyword — `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `GRANT`, `REVOKE` — is a violation. (The pseudo-notation in the Entity Notation section uses none of these, so it passes.)
+3. **Platform data types or vendor tokens, anywhere.** High-precision tokens that are never ordinary English and only ever appear in SQL: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `DECIMAL(`, `FLOAT32`, `TIMESTAMP(`, `PRIMARY INDEX`, `UNIQUE PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT `, `COMMENT ON`, and any `TD_`-prefixed function. Use the logical types of the Logical Type Vocabulary section instead.
 
 **Escape hatch.** A core/meta document that must legitimately name SQL (this document; the linter's own README) carries an ignore directive on its first line:
 
@@ -392,7 +410,7 @@ A design document **fails** the linter if any of the following appear:
 
 Module and pattern documents must never use the ignore directive — they are the content the rule exists to keep clean.
 
-The exact token lists live with the linter (`tooling/validation`) so the linter and this document stay in agreement; Section 9 is the human-readable statement of what that linter enforces.
+The exact token lists live with the linter (`tooling/validation`) so the linter and this document stay in agreement; The No-Platform-SQL Rule is the human-readable statement of what that linter enforces.
 
 ---
 
@@ -400,16 +418,16 @@ The exact token lists live with the linter (`tooling/validation`) so the linter 
 
 Before a design document is considered conforming:
 
-- [ ] Frontmatter is present, complete, and identity-only; `anchor` matches the filename (Section 3.1).
-- [ ] Every attribute uses a logical type from Section 4 (no platform types).
-- [ ] Structure is expressed in the Section 5 notation (no `CREATE`/`SELECT`).
+- [ ] Frontmatter is present, complete, and identity-only; `anchor` matches the filename (see Frontmatter).
+- [ ] Every attribute uses a logical type from the Logical Type Vocabulary section (no platform types).
+- [ ] Structure is expressed in the Entity Notation (no `CREATE`/`SELECT`).
 - [ ] Cross-cutting concerns are **referenced** by pattern anchor, not restated inline.
-- [ ] Every required behaviour is expressed as a capability (Section 6), not as a concrete query.
-- [ ] Principles are written as testable invariants with `INV-<MODULE>-<NNN>` ids (Section 7).
-- [ ] Every decision the design must settle is listed under Designer Responsibilities, and any recommendation departing from the advocated option says why (Section 8.2).
+- [ ] Every required behaviour is expressed as a capability (see Capability Contracts), not as a concrete query.
+- [ ] Principles are written as testable invariants with `INV-<MODULE>-<NNN>` ids (see Invariants).
+- [ ] Every decision the design must settle is listed under Designer Responsibilities, and any recommendation departing from the advocated option says why (see Where a module states its decisions).
 - [ ] No other document is referred to by filename — cross-references resolve by anchor.
 - [ ] The matching implementation provides a binding for every capability and satisfies every invariant.
-- [ ] The document passes the validation linter (Section 9) with no ignore directive.
+- [ ] The document passes the validation linter (see The No-Platform-SQL Rule) with no ignore directive.
 
 ---
 

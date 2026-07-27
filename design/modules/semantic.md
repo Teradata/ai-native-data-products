@@ -27,7 +27,7 @@ normative: true
 Semantic is the module that **provides `SemanticRegistration`** and the discovery map every other
 module and pattern points at: the entity/column catalogue, the relationship graph, the module and
 primary-object registries, and the product orientation layer. It is the map that makes
-[Master §6 agent discovery](../core/MASTER_DESIGN.md) possible.
+[Master agent discovery](../core/MASTER_DESIGN.md) possible.
 
 ---
 
@@ -61,7 +61,7 @@ duplicate each other.
 
 ---
 
-## 3. The Discovery Map — Entity Model
+## 3. Entity Model — The Discovery Map
 
 Semantic's entities are the discovery catalogue. All apply `object-placement` and `access-layer`;
 those that are versioned apply `temporal-lifecycle-metadata`; all require `RichMetadata`.
@@ -80,7 +80,7 @@ Entity: EntityMetadata            [kind: Record]
   surrogate_key_column: ShortText [optional]
   natural_key_column  : ShortText [optional]
   temporal_pattern    : ShortText [required]              — the temporal-lifecycle profile (CURRENT_STATE, SCD2_HISTORY, EVENT_APPEND_ONLY, …)
-  current_flag_column : ShortText [optional]              — names the current-flag (temporal §6)
+  current_flag_column : ShortText [optional]              — names the current-flag (temporal)
   deleted_flag_column : ShortText [optional]
   industry_standard   : ShortText [optional]              — FIBO, HL7, CUSTOM, …
   is_active           : Flag
@@ -218,7 +218,7 @@ standalone (recorded as a design decision) or an omission that will cause agent 
 
 ## 6. Agent Discovery
 
-The discovery order realises [Master §6](../core/MASTER_DESIGN.md):
+The discovery order realises [Master](../core/MASTER_DESIGN.md):
 
 1. **Product** — read `DataProductRegistry` / the manifest (orientation).
 2. **Module** — read `DataProductMap` for deployed modules and their containers.
@@ -250,7 +250,7 @@ structural facts. Its construction is platform-specific (implementation).
 Semantic is **cross-cutting and soft**: nothing hard-depends on it (modules register *when it is
 present*), and it hard-depends on nothing — it describes whatever modules are in the composition. It
 is present in a traditional data product and an AI-native product, absent in a minimal Data Asset.
-See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
@@ -269,19 +269,38 @@ See the [composition mechanism](../core/DESIGN_LANGUAGE.md#62-provision-requirem
 
 ---
 
-## 9. Invariants
+## 9. Integration with Other Modules
+
+Semantic is the map every other module registers itself in. The relationship is uniform: a module
+deploys, then registers its entities, attributes, and relationships through `SemanticRegistration`.
+
+- **Every module → Semantic** — on deploy, each module registers its primary objects so agents can
+  discover them. Soft in both directions: a composition without Semantic simply has no discovery
+  map, and agents fall back to the platform catalogue plus `RichMetadata`.
+- **Domain → Semantic** — Semantic describes Domain entities and their relationships; it holds no
+  copy of their content, and resolves a catalogue entry to its entity by joining back.
+- **Observability → Semantic** — the lineage views are deployed into the Semantic container, so
+  lineage is discoverable alongside the structure it describes.
+- **Temporal profiles** — a table declares its temporal profile in Semantic's entity metadata,
+  which is where validators read it rather than inferring behaviour from column names.
+
+Semantic never becomes a dependency of the modules it describes: it observes and indexes them.
+
+---
+
+## 10. Invariants
 
 - `INV-SEMANTIC-001`: Semantic stores schema metadata only — entities, attributes, relationships, orientation; never instance data or business content.
 - `INV-SEMANTIC-002`: the catalogue registers objects (entity = table, attribute = column, relationship = join), never rows.
 - `INV-SEMANTIC-003`: every deployed module and its primary objects are registered; agents obtain objects by the stored fully-qualified identity, never by deriving names from conventions.
 - `INV-SEMANTIC-004`: discovery is product-first — clients read the product registry/manifest before module maps or data (the orientation contract).
 - `INV-SEMANTIC-005`: `TableRelationship` registers every relationship an agent is expected to traverse; an unrelated entity is a documented standalone or an omission.
-- `INV-SEMANTIC-006`: every entity declares its temporal profile in `EntityMetadata.temporal_pattern`, so validators resolve temporal behaviour from metadata (temporal pattern §6).
+- `INV-SEMANTIC-006`: every entity declares its temporal profile in `EntityMetadata.temporal_pattern`, so validators resolve temporal behaviour from metadata (temporal pattern).
 - `INV-SEMANTIC-007`: primary-object roles come from the controlled vocabulary; at most one primary exposure per base table.
 
 ---
 
-## 10. Designer Responsibilities
+## 11. Designer Responsibilities
 
 **Designers supply:** the entity/column/relationship catalogue for every module; naming standards;
 the module map and primary objects with their roles; the product registry and manifest; the temporal
@@ -313,7 +332,7 @@ each one at design time and records the answer in the product's own design.
 
 ---
 
-## 11. Implementation
+## 12. Implementation
 
 The Teradata binding — the catalogue and registry tables, the recursive path-discovery view, the
 live hybrid column catalogue, the orientation manifest / MCP resource shapes, and the validation

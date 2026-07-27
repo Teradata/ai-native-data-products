@@ -43,10 +43,10 @@ store. Distinct from a **Decision**: an ADR is a *product's* record of something
 a Decision is a *catalogued* choice the framework poses to every product.
 
 **Attribute** — A field of an entity. For example, `party_key` is an attribute of the Party
-entity. Typed with the [logical vocabulary](DESIGN_LANGUAGE.md#4-logical-type-vocabulary).
+entity. Typed with the [logical vocabulary](DESIGN_LANGUAGE.md).
 
 **Capability** — A named operation a design requires, declared abstractly and bound per
-platform. See the [capability catalogue](DESIGN_LANGUAGE.md#61-standard-capability-catalogue).
+platform. See the [capability catalogue](DESIGN_LANGUAGE.md).
 
 **Co-location** — A platform's ability to store related data together so joins avoid data
 movement. A physical optimisation; its availability and mechanism are platform-specific.
@@ -57,8 +57,8 @@ The framework is a library, not a fixed architecture: a composition is *valid* w
 requirement simply disables that feature rather than invalidating the whole. Domain is the root;
 Search and Prediction hard-depend on it; Semantic, Observability, and Memory are cross-cutting
 and soft. An AI-Native Data Product is the fullest composition, not the only one. See the
-[Design Language](DESIGN_LANGUAGE.md#62-provision-requirement-and-composition) for the mechanism
-and the [Master Design](MASTER_DESIGN.md#4-compositions) for the standard presets.
+[Design Language](DESIGN_LANGUAGE.md) for the mechanism
+and the [Master Design](MASTER_DESIGN.md) for the standard presets.
 
 **Conformance** — Whether an implementation satisfies what the design requires of it: that
 every **invariant** holds, every conformance rule passes, every required **capability** has a
@@ -75,11 +75,11 @@ option** and stated criteria for departing from it. The third construct alongsid
 and invariants: where an invariant states what must be true of every implementation, a decision
 states what legitimately varies between them. Written `DEC-<TOPIC>`, catalogued in the
 [decision catalogue](ADVOCATED_STANDARDS.md), and declared in each document's frontmatter. See
-the [Design Language](DESIGN_LANGUAGE.md#8-decisions).
+the [Design Language](DESIGN_LANGUAGE.md).
 
 **Design / Implementation split** — The framework's core boundary: platform-agnostic standards
 in `design/`, platform-specific bindings in `implementation/{platform}/`. See the
-[Design Language](DESIGN_LANGUAGE.md#2-the-design--implementation-boundary).
+[Design Language](DESIGN_LANGUAGE.md).
 
 **Documentation store** — The part of the Memory module that holds design memory (module
 registry, design decisions, business glossary, query cookbook, implementation notes, change
@@ -101,12 +101,10 @@ facet becomes available when that facet is enabled.
 **Feature Store** — A repository for storing, managing, and serving ML features with
 consistency between training and inference. The role of the Prediction module.
 
-**Frontmatter** — The YAML block opening every design document, declaring its identity and its
-relationships: title, **anchor**, type, status, version, normative classification, the
-capabilities it provides and requires, the patterns it applies, and the decisions it declares.
-Frontmatter is authoritative — the linter validates it and corpus navigation is generated from
-it, so structure never depends on hand-maintained lists. See the
-[Design Language](DESIGN_LANGUAGE.md#31-frontmatter).
+**Frontmatter** — The short YAML block opening every design document, declaring its identity:
+title, **anchor**, type, status, version, and normative classification. Identity only — what a
+document provides, requires, and asks a designer to settle lives in its body, where it can carry
+its reasoning. An index card, not an abstract. See the [Design Language](DESIGN_LANGUAGE.md).
 
 **Identifier / Natural key** — `Identifier` is the internal, system-generated surrogate stable
 across an entity's versions; a `NaturalKey` is the business identifier from the source system.
@@ -116,7 +114,7 @@ Every Domain entity carries both.
 entity.
 
 **Invariant** — A testable, platform-neutral rule a conforming implementation must satisfy.
-Written `INV-<MODULE>-<NNN>`. See the [Design Language](DESIGN_LANGUAGE.md#7-invariants).
+Written `INV-<MODULE>-<NNN>`. See the [Design Language](DESIGN_LANGUAGE.md).
 
 **Join-back** — The pattern by which a module obtains entity content: it stores an `Identifier`
 and joins back to the Domain entity, rather than duplicating content. Realised by the

@@ -24,7 +24,7 @@ normative: true
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/patterns/access-layer/`](../../implementation/teradata/patterns/access-layer/) |
 
-This pattern realises the mandatory Access Layer of [Master §9](../core/MASTER_DESIGN.md) and
+This pattern realises the mandatory Access Layer of [Master](../core/MASTER_DESIGN.md) and
 `INV-MASTER-004`. Without it, a correctly deployed product is **operationally invisible** — every
 consumer (agents, dashboards, reporting tools, analysts) is denied access no matter how completely
 the module containers are deployed.
@@ -41,7 +41,23 @@ consumers are granted the **view-layer container only**, never the base-table co
 
 ---
 
-## 2. Standard Roles
+## 2. Capabilities
+
+**Provides:**
+
+| Capability | Made available to |
+|------------|-------------------|
+| `AccessView` | Every module — the view layer is the stable, named surface with an explicit column contract that consumers read instead of base tables. |
+
+**Requires:**
+
+| Capability | Strength | Provider | Why |
+|------------|----------|----------|-----|
+| `DocumentationCapture` | `[soft]` | `module:Memory` | The access model and its grants are recorded as a design decision when Memory's documentation facet is present. |
+
+---
+
+## 3. Standard Roles
 
 Three roles are created per product, named `{ProductName}_ROLE_{TIER}`:
 
@@ -62,10 +78,10 @@ They grant the same read scope by default but are kept distinct for:
 
 ---
 
-## 3. Deployment Timing
+## 4. Deployment Timing
 
 The Access Layer deploys in two phases interleaved with the module sequence
-([Master §10](../core/MASTER_DESIGN.md)):
+([Master](../core/MASTER_DESIGN.md)):
 
 | Phase | Timing | Action |
 |-------|--------|--------|
@@ -80,7 +96,7 @@ Asset runs Phase 1.5 for Memory and Phase 2.5 for Domain, with no Semantic/Obser
 
 ---
 
-## 4. Grant Matrix
+## 5. Grant Matrix
 
 Permissions per role, for whichever modules the composition includes:
 
@@ -103,11 +119,11 @@ maintained by product designers; agents read the schema but do not define it.
 
 ---
 
-## 5. Required Documentation Record
+## 6. Required Documentation Record
 
 Deploying the Access Layer must produce a design-decision record `DD-ACCESS-001` in the product's
 Memory documentation facet (the `DocumentationCapture` capture protocol,
-[memory §5.2](../modules/memory.md)). This captures the accepted role model, permission boundary, and
+[memory](../modules/memory.md)). This captures the accepted role model, permission boundary, and
 rationale **inside the product**, so agents can read the access contract at runtime — not only in
 this document. The record's category is `SECURITY`; its alternatives (single consumer role;
 per-user grants) and rationale (independent lifecycle + write-back boundary) are recorded per the
@@ -115,14 +131,14 @@ capture contract.
 
 ---
 
-## 6. Relationship to Other Standards
+## 7. Relationship to Other Standards
 
-- **[Master Design](../core/MASTER_DESIGN.md)** — §9 mandates the Access Layer; this pattern is its
+- **[Master Design](../core/MASTER_DESIGN.md)** — mandates the Access Layer; this pattern is its
   full specification. `INV-MASTER-004` fails a consumable composition that omits it.
 - **[Object-placement pattern](object-placement.md)** — owns container naming and the
   table/view separation this pattern grants against; the implied cross-container grant for the view
   layer is declared there.
-- **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)** — its §8 exposure
+- **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)** — its exposure
   surfaces (governed full-contract vs default current) are the objects consumers are granted.
 - **Modules** — each module defines *what* it contains and registers; the Access Layer defines *who*
   can read it. The roles are product artefacts created once; assigning users to them is an
@@ -130,7 +146,7 @@ capture contract.
 
 ---
 
-## 7. Checklist
+## 8. Conformance Checklist
 
 - [ ] The three roles created, each with a descriptive comment.
 - [ ] Phase 1.5 read grants applied (Semantic, Memory) immediately after Phase 1.

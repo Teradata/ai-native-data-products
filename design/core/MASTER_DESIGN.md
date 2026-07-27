@@ -31,7 +31,7 @@ This is the architectural blueprint for a **modular library of data design patte
 library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset — a minimal governed data asset, a traditional data product, a full AI-native data product, or an extension bolted onto something that already exists. There is no single fixed architecture: an **AI-Native Data Product is the fullest composition**, not the only one.
 
 The standards are **platform-agnostic**. Everything here holds on every deployment platform; each platform's concrete binding lives under [`implementation/`](../../implementation/)
-(Section 11). Module design standards extend this document with per-module detail; a specific data product (a Customer 360, a fraud-detection product) *applies* a composition with concrete entity names.
+(see Design Standards and Platform Implementation). Module design standards extend this document with per-module detail; a specific data product (a Customer 360, a fraud-detection product) *applies* a composition with concrete entity names.
 
 | This document defines (reusable)         | A specific product supplies (varies) |
 | ---------------------------------------- | ------------------------------------ |
@@ -54,7 +54,7 @@ The standards are **platform-agnostic**. Everything here holds on every deployme
 4. **Self-describing** — a product exposes its own semantics, contracts, and relationships as queryable metadata, not just prose.
 5. **Agent-native design** — optimise for machine interpretation, not only human readability.
 6. **Standards-driven** — consult design-time knowledge stores (naming, industry models) for consistency and compliance.
-7. **Platform-neutral by construction** — structural standards are platform-agnostic; all platform specifics live in `implementation/{platform}/`. Enforced by the [design/implementation split](DESIGN_LANGUAGE.md#2-the-design--implementation-boundary) and the linter, not left as a principle to remember.
+7. **Platform-neutral by construction** — structural standards are platform-agnostic; all platform specifics live in `implementation/{platform}/`. Enforced by the [design/implementation split](DESIGN_LANGUAGE.md) and the linter, not left as a principle to remember.
 
 ---
 
@@ -87,7 +87,7 @@ The standards are **platform-agnostic**. Everything here holds on every deployme
 
 ## 4. Compositions
 
-A **composition** assembles a subset of the module library into a data design pattern. The mechanism — how modules declare what they **Provide** and **Require** (`[hard]`/`[soft]`,`self`/`module`/`platform`), and the rule that a composition is valid if every `[hard]` requirement is met within it — is defined in the [Design Language](DESIGN_LANGUAGE.md#62-provision-requirement-and-composition).
+A **composition** assembles a subset of the module library into a data design pattern. The mechanism — how modules declare what they **Provide** and **Require** (`[hard]`/`[soft]`,`self`/`module`/`platform`), and the rule that a composition is valid if every `[hard]` requirement is met within it — is defined in the [Design Language](DESIGN_LANGUAGE.md).
 
 **Dependency structure.** Domain is the root. Search and Prediction **hard-depend** on Domain (they reference Domain entities and join back for content). Semantic, Observability, and Memory are cross-cutting and **soft** — they describe, observe, or document whatever modules are present. So the missing or disabled capabilities in any composition follow directly from which modules it includes.
 
@@ -107,7 +107,7 @@ Where a pattern wants documentation but deploys no Memory module, its documentat
 ## 5. Framework Capabilities
 
 Every module provides and requires capabilities from the
-[capability catalogue](DESIGN_LANGUAGE.md#61-standard-capability-catalogue), bound per platform in `implementation/`. The guiding principles are realised as these capabilities:
+[capability catalogue](DESIGN_LANGUAGE.md), bound per platform in `implementation/`. The guiding principles are realised as these capabilities:
 
 | Principle                    | Realised as capability                                                                  | Availability                                                |
 | ---------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -116,11 +116,11 @@ Every module provides and requires capabilities from the
 | Self-describing              | `RichMetadata` — agent-readable metadata on every object and attribute.                 | Always.                                                     |
 | Self-describing (discovery)  | `SemanticRegistration` — modules register in the Semantic map.                          | Only when Semantic is in the composition (soft).            |
 | Self-describing (provenance) | `DocumentationCapture` — modules record decisions, glossary, and change history.        | Only when Memory's `documentation` facet is present (soft). |
-| Agent-native access          | The **Access Layer** roles that make a deployed composition reachable (Section 9).      | When deployed for consumption.                              |
+| Agent-native access          | The **Access Layer** roles that make a deployed composition reachable (see Access Layer).      | When deployed for consumption.                              |
 
 A module names the capabilities it provides and requires; the platform implementation binds each
 one. No capability assumes a platform mechanism, and cross-module capabilities are conditional on
-the composition (Section 4).
+the composition (see Compositions).
 
 ---
 
@@ -197,7 +197,38 @@ A platform "profile" *is* an `implementation/{platform}/` tree: platform capabil
 
 ---
 
-## 12. Framework Invariants
+## 12. Capturing the Design
+
+Every design decision a product makes is **recorded as part of designing it**, not reconstructed
+afterwards. This applies to every module and every design task, which is why it lives here rather
+than being restated in each module standard.
+
+**What is captured.** The settled decisions (each catalogued decision the composition raised, the
+option chosen, and — where it was not the advocated one — the reason), the module registry entry
+and version, the business-glossary terms the design introduces, at least one query-cookbook recipe
+per module, and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one
+of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`,
+`INTEGRATION`, `OPERATIONAL`.
+
+**Where it goes** depends on the composition, and the obligation does not:
+
+| Memory's `documentation` facet | Destination |
+|---|---|
+| Present | The product's own Memory store, via `DocumentationCapture` — the product is self-describing, and the record travels with it. |
+| Absent | A design record kept alongside the product as a Markdown document, carrying the same content. |
+
+**`DocumentationCapture` is a `[soft]` requirement** for exactly this reason: a composition without
+Memory does not fail, it loses the *in-product* destination. What it must not lose is the record.
+A design whose decisions were never written down cannot be reviewed, cannot be explained, and
+cannot tell a deliberate departure from an oversight — which is the whole purpose of settling
+decisions explicitly.
+
+The record definitions, capture workflow, and templates are owned by the Memory module design and
+its binding; they are not restated here.
+
+---
+
+## 13. Framework Invariants
 
 Product-level rules every conforming composition satisfies. Several are **conditional** on which modules the composition includes.
 
@@ -211,9 +242,9 @@ Product-level rules every conforming composition satisfies. Several are **condit
 
 ---
 
-## 13. Related Documents
+## 14. Related Documents
 
-- [Design Language](DESIGN_LANGUAGE.md) — the notation every design document is written in, including the composition mechanism (§6.2).
+- [Design Language](DESIGN_LANGUAGE.md) — the notation every design document is written in, including the composition mechanism ().
 - [Glossary](GLOSSARY.md) — shared vocabulary.
 - Module standards — [Domain](../modules/domain.md), [Search](../modules/search.md),
   [Prediction](../modules/prediction.md), [Observability](../modules/observability.md),

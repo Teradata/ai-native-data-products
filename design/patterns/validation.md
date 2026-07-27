@@ -44,13 +44,29 @@ querying it. This pattern defines both.
 2. **Trust is computed by a validator, only.** Consumers are read-only: they act on published
    results and never re-derive a verdict from raw evidence.
 3. **The stop/go decision is authoritative and singular.** Each product designates one
-   gate-authoritative producer (§8); its latest `agent_use_allowed` is a decision, not advice.
+   gate-authoritative producer (); its latest `agent_use_allowed` is a decision, not advice.
    Critical failures block use regardless of any score.
 4. **Validation results are operational evidence** — append-only event records in Observability.
 
 ---
 
-## 2. The Validation Result
+## 2. Capabilities
+
+**Provides:**
+
+| Capability | Made available to |
+|------------|-------------------|
+| `QualityScore` | Agents and reviewers, as the readiness scores and status vocabulary this pattern defines over validation evidence. |
+
+**Requires:**
+
+| Capability | Strength | Provider | Why |
+|------------|----------|----------|-----|
+| `RichMetadata` | `[hard]` | `self` / `platform` | Validation results are self-describing, so an agent can interpret a run without external narration. |
+
+---
+
+## 3. The Validation Result
 
 One logical record per product per producer per run; consumers read the **latest** per
 (product, producer). Physical types bind per implementation.
@@ -60,27 +76,27 @@ One logical record per product per producer per run; consumers read the **latest
 | `product_prefix` | Product identity the run evaluated |
 | `producer_id`, `producer_version` | Identity and version of the producing validator/harness |
 | `profile_id`, `profile_version` | Decision/check profile evaluated (nullable for simple harnesses) |
-| `source_format` | Provenance: `NATIVE`, or the interchange format it was ingested from (§12) |
+| `source_format` | Provenance: `NATIVE`, or the interchange format it was ingested from () |
 | `payload_schema_version` | Wire schema version of this record |
 | `run_id` | Deterministic run identifier |
 | `started_dts`, `completed_dts` | Run instants (typed timestamps, persisted UTC) |
-| `trust_status` | `TRUSTED` \| `DEGRADED` \| `UNTRUSTED` (§3) |
+| `trust_status` | `TRUSTED` \| `DEGRADED` \| `UNTRUSTED` () |
 | `agent_use_allowed` | Stop/go decision: go / stop |
-| `total_checks`, `passed_count`, `failed_count`, `error_count` | Check totals by **status** (§4) |
-| `critical_failure_count`, `error_failure_count` | Gate counts by **severity** among failed/errored checks (§4) |
-| `data_product_trust_score` | Conformance score, 0–100 or null (§5) |
-| `performance_readiness_score`, `operational_readiness_score` | Other score dimensions, 0–100 or null (§5) |
+| `total_checks`, `passed_count`, `failed_count`, `error_count` | Check totals by **status** () |
+| `critical_failure_count`, `error_failure_count` | Gate counts by **severity** among failed/errored checks () |
+| `data_product_trust_score` | Conformance score, 0–100 or null () |
+| `performance_readiness_score`, `operational_readiness_score` | Other score dimensions, 0–100 or null () |
 | `repair_candidate_count` | True (uncapped) number of repair candidates |
-| `failed_checks_json` | Machine-readable failure detail, capped (§6) |
-| `repair_candidates_json` | Machine-readable repair proposals, capped (§7) |
-| `evidence_expires_dts` | Producer-declared expiry of this evidence (nullable; §10) |
+| `failed_checks_json` | Machine-readable failure detail, capped () |
+| `repair_candidates_json` | Machine-readable repair proposals, capped () |
+| `evidence_expires_dts` | Producer-declared expiry of this evidence (nullable;) |
 
 A simple test harness populates the identity, status, and count fields and leaves scores, JSON
 blobs, and profile fields null — a fully conformant result. Runs are **appended**, never overwritten.
 
 ---
 
-## 3. Status Vocabulary and Decision Semantics
+## 4. Status Vocabulary and Decision Semantics
 
 `trust_status` has exactly three values: **`TRUSTED`**, **`DEGRADED`**, **`UNTRUSTED`**.
 
@@ -105,7 +121,7 @@ silently override a blocked status; overrides are logged human decisions, outsid
 
 ---
 
-## 4. Severity Model
+## 5. Severity Model
 
 Two independent axes:
 
@@ -126,7 +142,7 @@ counted by consumers.
 
 ---
 
-## 5. Readiness Scores
+## 6. Readiness Scores
 
 Scores are **optional**: null means *not assessed*, never *perfect*. Where computed, each score is a
 severity-weighted pass rate over its check family: `round(earned / total × 100)` with weights
@@ -138,12 +154,12 @@ CRITICAL = 40, ERROR = 25, WARNING = 10, INFO = 5; `earned` sums the weights of 
 | `performance_readiness_score` | PERFORMANCE |
 | `operational_readiness_score` | OPERATIONAL |
 
-Only `data_product_trust_score` participates in the default profile's thresholds (§3). The three
+Only `data_product_trust_score` participates in the default profile's thresholds (). The three
 scores are reported separately and must not be blended.
 
 ---
 
-## 6. Failed Checks Contract
+## 7. Failed Checks Contract
 
 `failed_checks_json` is an array of failed/errored check records, **capped at 20 items**; each
 item's `sample_rows` is **capped at 3 rows**. Item shape:
@@ -178,7 +194,7 @@ for count-only producers.
 
 ---
 
-## 7. Repair Candidates Contract
+## 8. Repair Candidates Contract
 
 `repair_candidates_json` is an array of repair proposals, **capped at 20 items**; the true total is
 `repair_candidate_count`. Item shape:
@@ -200,7 +216,7 @@ does so under its own change-management controls. Optional when no repairs are p
 
 ---
 
-## 8. Consumption Contract and Gate Authority
+## 9. Consumption Contract and Gate Authority
 
 **Gate authority.** Multiple producers may publish for one product; the decision stays singular. Each
 product **designates exactly one gate-authoritative producer** in its orientation metadata. The
@@ -212,11 +228,11 @@ designation, consumers apply the conservative composite: blocked if **any** prod
 designated producer through product orientation); `agent_use_allowed = stop` (or `UNTRUSTED`) is a
 stop signal for autonomous use with no silent override; `DEGRADED` permits use but the degradation is
 surfaced; never re-derive verdicts or recount capped blobs; treat unknown JSON keys as additive
-extension (ignore, don't fail); apply the §10 staleness rules.
+extension (ignore, don't fail); apply the staleness rules.
 
 ---
 
-## 9. Schema Versioning and Evolution
+## 10. Schema Versioning and Evolution
 
 Every record carries `payload_schema_version`; the canonical version is **`2.0`**. **Wire schema
 `1.0`** is the registered legacy binding (the same status/count/score/JSON fields without the
@@ -227,7 +243,7 @@ held together by a **shared golden fixture** — both build gates fail on drift.
 
 ---
 
-## 10. Staleness and Incomplete Evidence
+## 11. Staleness and Incomplete Evidence
 
 1. **Evidence window.** A producer may declare per-record expiry; a product may declare a maximum
    evidence age in orientation. Absent both, the default window is **7 days** from `completed_dts`.
@@ -241,7 +257,7 @@ Staleness can only downgrade a decision, never upgrade one.
 
 ---
 
-## 11. Check Identity and Categories
+## 12. Check Identity and Categories
 
 - **`test_id` scheme:** `{PRODUCT-PREFIX}-{FAMILY}-{NNN}` (e.g. `CALLCENTRE-SEM-008`); parameterised
   checks may extend the suffix. Stable across runs. Ingested results map their native identity into
@@ -255,7 +271,7 @@ Staleness can only downgrade a decision, never upgrade one.
 
 ---
 
-## 12. Open Standards Alignment (non-normative)
+## 13. Open Standards Alignment (non-normative)
 
 The result is mappable from/to established open formats; `source_format` records provenance. Ingest
 mappings are implemented by validation tooling, not by this pattern.
@@ -271,27 +287,27 @@ mappings are implemented by validation tooling, not by this pattern.
 
 ---
 
-## 13. Conformance Rules
+## 14. Conformance Rules
 
 | Rule | Check |
 |------|-------|
 | VAL-01 | `trust_status` is exactly one of the three vocabulary values. |
-| VAL-02 | `agent_use_allowed` agrees with `trust_status` per §3. |
+| VAL-02 | `agent_use_allowed` agrees with `trust_status` per. |
 | VAL-03 | The default decision profile is never loosened. |
 | VAL-04 | `total_checks = passed_count + failed_count + error_count`. |
-| VAL-05 | Gate counts are consistent with the severity model (§4). |
+| VAL-05 | Gate counts are consistent with the severity model (). |
 | VAL-06 | Scores are 0–100 integers or null; null only when not assessed. |
 | VAL-07 | JSON blobs respect their caps; true totals live in `row_count` / `repair_candidate_count`. |
 | VAL-08 | Every `sample_rows` element carries `issue_code` and `repair_hint`; every issue code is catalogued. |
 | VAL-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_dts`, then `run_id`). |
-| VAL-10 | Consumers apply §10 staleness outcomes; no silent override of a blocked gate. |
+| VAL-10 | Consumers apply staleness outcomes; no silent override of a blocked gate. |
 | VAL-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
 | VAL-12 | Every record carries non-null `producer_id` and `payload_schema_version`. |
-| VAL-13 | The gate is taken only from the designated producer (§8); absent designation, the conservative composite applies. |
+| VAL-13 | The gate is taken only from the designated producer (); absent designation, the conservative composite applies. |
 
 ---
 
-## 14. Relationship to Other Standards
+## 15. Relationship to Other Standards
 
 - **[Observability module](../modules/observability.md)** — the module home for validation results,
   alongside its other run/event evidence.
