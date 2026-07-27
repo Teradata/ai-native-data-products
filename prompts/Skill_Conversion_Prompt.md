@@ -15,7 +15,7 @@ This prompt converts the AI-Native Data Product standards into **four role-scope
 | `review` | Reviewer | *How far can this design/build be trusted, and where are the gaps?* |
 | `access` | Consumer | *How do I discover and query a deployed product?* |
 
-Each role receives **purpose-built context**: a designer never loads platform DDL; a consumer never loads build templates. This is the whole point of the split.
+Each role receives **purpose-built context**. A designer never loads platform DDL, and a consumer never loads build templates.
 
 **The repository is the source of truth.** `design/` is platform-agnostic; `implementation/{platform}/` binds it; `tooling/validation/` enforces the boundary. Skills are a compressed, agent-optimised *rendering* of these: never independent of them. When the repo changes, regenerate the skills. On any conflict, the repo wins.
 
@@ -70,7 +70,7 @@ Every `SKILL.md` carries YAML frontmatter: `name` (`ai-native-dp-{role}`) and a 
 
 The roles hand work to each other. Prescribe the **content** of each handoff, never its **transport**: agents differ in what they can reach (files, a repo, MCP resources, a database, or only the conversation). Each `SKILL.md` must state its role's handoff medium-agnostically:
 
-- **The product is its own artifact store.** Once built, design decisions live in **Memory** (documentation facet), structure in **Semantic**, and the trust map / validation evidence in **Observability**. The next role and every consumer read them from there: no separate workspace and no per-product files in this library.
+- **The product is its own artifact store.** Once built, design decisions live in **Memory** (documentation facet), structure in **Semantic**, and the trust map / validation evidence in **Observability**. The next role and every consumer read them from there, so this library holds no separate workspace and no per-product files.
 - **The one transient artifact is the pre-build design brief**. Memory does not exist yet to hold it. Its *content* is fixed (see `design`, below); its *location* is the agent's and user's choice.
 - **Never assume filesystem access.** Each `SKILL.md` instructs its agent to *agree with the user where its output goes* (a file, this conversation, the user's repo, or an MCP resource) based on what the agent can actually do: a chat-only agent emits its output inline for the user to save; a database/MCP-capable agent writes it straight into the product's own stores.
 
@@ -93,7 +93,7 @@ Every generated `SKILL.md` carries a short handover note to this effect for its 
 A design is not complete until every decision its modules raise has been settled. `SKILL.md` must instruct the designer agent to **put these questions to the human designer rather than answering them itself**:
 
 1. After the composition is agreed, gather the union of the Decisions-to-settle tables from every module in it. Deduplicate by decision id: several modules raise `DEC-TIMESTAMP-ZONE`, and it is settled once for the product unless the designer wants it per module.
-2. Take them **one at a time**, in the order the modules were selected. For each: state the decision, the option this standard recommends, and the question that shifts the answer: in plain language, not by reciting the catalogue.
+2. Take them **one at a time**, in the order the modules were selected. For each one, state the decision, the option this standard recommends, and the question that shifts the answer. Use plain language rather than reciting the catalogue.
 3. Offer the recommendation as the default and say what it costs. A designer who says "use the recommendation" should be able to move on in one exchange; a designer who wants to understand the trade-off should get the alternatives and their criteria.
 4. **Record every answer**, including the ones that took the default. Where the designer chooses other than the advocated option, record the reason in their words: that reason is what a reviewer later uses to tell a deliberate departure from an oversight.
 5. Never settle a decision silently. If the designer defers one, carry it into the brief as explicitly open rather than assuming the default.
