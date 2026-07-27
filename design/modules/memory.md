@@ -340,7 +340,7 @@ These are the catalogued decisions a Memory module design must settle. The recom
 
 ## 12. Implementation
 
-The Teradata binding, the runtime and documentation tables, the standard views, the capture-protocol templates, and the invariant checks, lives in [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding (the runtime and documentation tables, the standard views, the capture-protocol templates, and the invariant checks) lives in [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

@@ -15,8 +15,7 @@ Platform-specific physical-design guidance for Teradata implementations of the A
 This profile complements the per-pattern and per-module implementation directories (which carry the concrete DDL); it collects the cross-cutting physical-design advice that applies across them.
 
 > **Advocacy, not mandate.** These are recommended defaults for AI-native workloads (point-in-time
-> feature computation, high-volume batch ML, low-latency agent lookups, cross-module joins). Deviate
-> where a workload justifies it and record the deviation as a design decision.
+> feature computation, high-volume batch ML, low-latency agent lookups, cross-module joins). Deviate where a workload justifies it and record the deviation as a design decision.
 
 ---
 
@@ -71,7 +70,8 @@ PARTITION BY RANGE_N(transaction_from_dts BETWEEN DATE '2020-01-01' AND DATE '20
 -- Multi-level: yearly validity + active/deleted split
 PARTITION BY (
     RANGE_N(valid_from_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' YEAR),
-    CASE_N(is_deleted = 0, is_deleted = 1, UNKNOWN));
+    CASE_N(is_deleted = 0, is_deleted = 1, UNKNOWN)
+);
 ```
 
 ---

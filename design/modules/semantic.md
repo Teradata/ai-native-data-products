@@ -291,7 +291,7 @@ These are the catalogued decisions a Semantic module design must settle. The rec
 
 ## 12. Implementation
 
-The Teradata binding: the catalogue and registry tables, the recursive path-discovery view, the live hybrid column catalogue, the orientation manifest / MCP resource shapes, and the validation queries: lives in [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding (the catalogue and registry tables, the recursive path-discovery view, the live hybrid column catalogue, the orientation manifest and MCP resource shapes, and the validation queries) lives in [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

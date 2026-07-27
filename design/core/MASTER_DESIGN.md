@@ -85,7 +85,7 @@ The standards are **platform-agnostic**. Everything here holds on every deployme
 
 ## 4. Compositions
 
-A **composition** assembles a subset of the module library into a data design pattern. The mechanism: how modules declare what they **Provide** and **Require** (`[hard]`/`[soft]`,`self`/`module`/`platform`), and the rule that a composition is valid if every `[hard]` requirement is met within it: is defined in the [Design Language](DESIGN_LANGUAGE.md).
+A **composition** assembles a subset of the module library into a data design pattern. The [Design Language](DESIGN_LANGUAGE.md) defines the mechanism: how modules declare what they **Provide** and **Require** (`[hard]`/`[soft]`, `self`/`module`/`platform`), and the rule that a composition is valid when every `[hard]` requirement is met within it.
 
 **Dependency structure.** Domain is the root. Search and Prediction **hard-depend** on Domain (they reference Domain entities and join back for content). Semantic, Observability, and Memory are cross-cutting and **soft**: they describe, observe, or document whatever modules are present. So the missing or disabled capabilities in any composition follow directly from which modules it includes.
 
@@ -192,18 +192,18 @@ A platform "profile" *is* an `implementation/{platform}/` tree: platform capabil
 
 ## 12. Capturing the Design
 
-Every design decision a product makes is **recorded as part of designing it**, not reconstructed afterwards. This applies to every module and every design task, which is why it lives here rather than being restated in each module standard.
+Every design decision a product makes is **recorded as part of designing it**, not reconstructed afterwards. The obligation applies to every module and every design task, so it is stated once here.
 
 **What is captured.** The settled decisions (each catalogued decision the composition raised, the option chosen, and, where it was not the advocated one, the reason), the module registry entry and version, the business-glossary terms the design introduces, at least one query-cookbook recipe per module, and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION`, `OPERATIONAL`.
 
-**Where it goes** depends on the composition, and the obligation does not:
+**Where the record goes** depends on the composition. Whether it is written does not:
 
 | Memory's `documentation` facet | Destination |
 |---|---|
 | Present | The product's own Memory store, via `DocumentationCapture`: the product is self-describing, and the record travels with it. |
 | Absent | A design record kept alongside the product as a Markdown document, carrying the same content. |
 
-**`DocumentationCapture` is a `[soft]` requirement** for exactly this reason: a composition without Memory does not fail, it loses the *in-product* destination. What it must not lose is the record. A design whose decisions were never written down cannot be reviewed, cannot be explained, and cannot tell a deliberate departure from an oversight: which is the whole purpose of settling decisions explicitly.
+**`DocumentationCapture` is a `[soft]` requirement** for exactly this reason. A composition without Memory does not fail; it loses the in-product destination, not the record itself. Decisions that were never written down cannot be reviewed or explained, and a reviewer meeting them later cannot tell a deliberate departure from an oversight.
 
 The record definitions, capture workflow, and templates are owned by the Memory module design and its binding; they are not restated here.
 

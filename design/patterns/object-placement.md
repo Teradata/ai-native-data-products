@@ -97,7 +97,8 @@ For implementations with views, a **view-layer architecture** declaration: wheth
 derive_container(
   object_type,        // the type of object to be placed
   environment_inputs, // platform-specific environment identifiers
-  classification      // security/access classification, if applicable) -> container_name
+  classification      // security/access classification, if applicable
+) -> container_name
 ```
 
 **Section 7. Access Model.** How access is granted (role/user/policy-based); container-level vs object-level and which is preferred; standard principal types; naming; prohibitions; how the separation policy interacts with access; and any **implied grants** the architecture requires: declared explicitly, with when they must be provisioned, in the standard sequence.

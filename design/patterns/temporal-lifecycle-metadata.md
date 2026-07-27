@@ -119,9 +119,7 @@ Flags are `Flag`-typed (the implementation defines the physical representation, 
 
 **4.3 `is_active`**: an independently defined domain/metadata lifecycle state (e.g. a cookbook recipe approved for discovery, a lineage flow live, an agreement operationally in force). It must **not** alias `is_current` or `is_deleted`, must not be added mechanically to every table, and its meaning, owner, and allowed transitions must be documented: an undocumented `is_active` is a conformance failure.
 
-> Where a table needs both version currency *and* an approval/discoverability state (common for
-> curated registries such as glossaries and cookbooks), use `is_current` for currency and
-> `is_active` for approval: never one flag for both.
+> Where a table needs both version currency *and* an approval/discoverability state (common for curated registries such as glossaries and cookbooks), use `is_current` for currency and `is_active` for approval: never one flag for both.
 
 ---
 
@@ -190,7 +188,7 @@ Two different "still open" situations take different representations:
 
 ## 9. Access Exposure Policy
 
-The pattern defines two exposure **surfaces** per consumable entity. How each is realised, views, schemas, grants, or direct table access, is a platform decision bound in the implementation and governed by the [access-layer pattern](access-layer.md); every platform provides both surfaces, however thinly.
+The pattern defines two exposure **surfaces** per consumable entity. How each is realised (views, schemas, grants, or direct table access) is a platform decision bound in the implementation and governed by the [access-layer pattern](access-layer.md); every platform provides both surfaces, however thinly.
 
 - The **governed full-contract surface** exposes every temporal and lifecycle column, for auditors, maintainers, and history-aware consumers.
 - The **default current surface** per consumable entity: filters on authoritative current validity **plus** `is_current`; additionally excludes deleted rows when deletion is supported; hides `valid_to_dts`, `is_current`, deletion metadata, and operational audit timestamps by default; may expose `valid_from_dts` as "effective since"; exposes `is_active` only where business-meaningful; exposes event timestamps when part of the consumer contract.

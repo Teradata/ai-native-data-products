@@ -86,7 +86,8 @@ Every conforming implementation MUST include all eight, using these exact headin
 derive_path(
   logical_container_name,  // output of object-placement derive_container()
   object_name,             // the logical object name
-  bucket                   // the target bucket) -> fully_qualified_object_store_path
+  bucket                   // the target bucket
+) -> fully_qualified_object_store_path
 ```
 
 **Section 4. File Format and Encoding.** Default format for persistent tables; permitted alternatives and conditions; default compression; schema encoding rules; the schema-evolution policy (what is permitted vs requires drop/recreate); explicit prohibitions (e.g. no CSV for persistent tables).

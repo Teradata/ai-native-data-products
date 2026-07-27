@@ -58,9 +58,9 @@ The one-line rule: **semantics stay, syntax moves.**
 
 | Belongs in `design/` (semantics) | Belongs in `implementation/` (syntax) |
 |---|---|
-| "Store the entity reference only; join back to Domain for content." | The concrete `INNER JOIN... ON...` query. |
+| "Store the entity reference only; join back to Domain for content." | The concrete `INNER JOIN ... ON ...` query. |
 | "Cosine is the default distance metric for text embeddings." | The `TD_VectorDistance(...)` call, or pgvector's `<=>` operator. |
-| "Every attribute carries descriptive metadata." | `COMMENT ON COLUMN...`. |
+| "Every attribute carries descriptive metadata." | `COMMENT ON COLUMN ...`. |
 | "A surrogate key is stable across all versions of an entity." | `BIGINT` + keymap DDL, or `GENERATED ALWAYS AS IDENTITY`. |
 | "The current version is retrievable by a single predictable filter." | `WHERE is_current = 1 AND is_deleted = 0`. |
 
@@ -80,7 +80,7 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 | `implementation` | `implementation/<platform>/{modules,patterns}/<anchor>/` | Conforming implementation | The concrete DDL, queries, and bindings that satisfy the matching design document. |
 | `platform-profile` | `implementation/<platform>/` | Platform reference | Physical-design conventions applying across every binding for one platform. |
 
-**Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (see Frontmatter) and resolved by anchor: never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate*, what they provide, require, and apply, is stated in the body, where it can carry its reasoning (see What frontmatter is not for); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
+**Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (see Frontmatter) and resolved by anchor: never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate* (what they provide, require, and apply) is stated in the body, where it can carry its reasoning (see What frontmatter is not for); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
 
 **Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented at `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
 
@@ -88,13 +88,13 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 
 ### 3.1 The module spine
 
-Every module document carries the same nine sections, so that an agent, or a reviewer, finds the same concern in the same place in any of them:
+Every module document carries the same nine sections, so that an agent or a reviewer finds the same concern in the same place in any of them:
 
 **Purpose · Scope and Boundaries · Entity Model · Applied Patterns · Capabilities and Composition · Integration with Other Modules · Invariants · Designer Responsibilities · Implementation**
 
-A module adds its own sections wherever they belong, and numbers them as it likes; a section may carry a subtitle after an em dash (`Entity Model. Runtime Facet`). What is fixed is that these nine are present under these names. The linter checks presence and naming, never order or number.
+A module adds its own sections wherever they belong, and numbers them as it likes; a section may carry a subtitle after a colon (`Entity Model: Runtime Facet`). What is fixed is that these nine are present under these names. The linter checks presence and naming, never order or number.
 
-**References name sections, never number them.** A cross-document reference cites the document; an intra-document reference names the section. Numbering is then free to change without breaking a single reference: and with the spine consistent, a named reference is enough for anything reading the corpus to find its target.
+**References name sections, never number them.** A cross-document reference cites the document; an intra-document reference names the section. Numbering is then free to change without breaking a single reference, and with the spine consistent a named reference is enough for anything reading the corpus to find its target.
 
 ### 3.2 Frontmatter
 
@@ -110,7 +110,7 @@ type: module              # core | module | pattern | implementation | platform-
 status: standard          # draft | standard | deprecated
 version: 2.0
 normative: true           # false marks the document advisory, not conformance-binding
-implements: search        # implementation documents only  // the design anchor satisfied
+implements: search        # implementation documents only: the design anchor satisfied
 platform: teradata        # implementation and platform-profile documents only
 supersedes: []            # anchors this document replaces, when deprecating
 ---
@@ -125,15 +125,13 @@ Two rules make the corpus resolvable, both enforced by the linter:
 
 ### 3.3 What frontmatter is not for
 
-Frontmatter is an **index card, not an abstract**: it says what a document is and where it sits, never what it says. A document's substance, the capabilities it provides and requires, the patterns it applies, the decisions a designer must settle, lives in the document body, where it can carry the reasoning that makes it useful.
+Frontmatter says what a document is and where it sits. It does not say what the document contains. The substance (the capabilities a document provides and requires, the patterns it applies, the decisions a designer must settle) lives in the body, where it can carry the reasoning that makes it useful.
 
-This is a deliberate boundary, for three reasons:
+The boundary is deliberate. A capability graph stated in both a header and a body table is two things to maintain and two things to disagree; the graph in `domain.md` did disagree with its own table within a day of being written. The body table is the better place for it because it has room for a *why* column, and for a provider that is genuinely `self` *or* `platform`, which a flat list silently drops.
 
-- **One source of truth.** A capability graph stated in both a header and a body table is two things to maintain and two things to disagree. The body table wins because it has room for a *why* column and for a provider that is genuinely `self` *or* `platform`: nuance a flat list silently drops.
-- **The reader is the point.** A designer working through what a module requires needs the rationale, not a list of names. Frontmatter cannot hold rationale without becoming the document.
-- **Machine access belongs in one place.** An agent traversing the corpus wants the capability graph *once*, in the generated catalogue, not repeated in fifteen headers. The catalogue is built by reading the body tables, so the graph stays machine-readable without any document restating it.
+Machine access does not argue for a header either. An agent traversing the corpus wants the capability graph once, in the generated catalogue, rather than reassembled from fifteen separate headers. The catalogue is built by reading the body tables, so the graph stays machine-readable without any document restating it.
 
-The distinction that governs this: **these documents are standards, not designs.** A standard's header identifies it so an agent can find it. The full notation of this document, entity models, capability contracts, invariants, decisions, is the vocabulary a *data product's own design* is written in. Pushing a product-shaped description into a standard's header confuses the two.
+Underneath all of this: **these documents are standards, not designs.** A standard's header identifies it so an agent can find it. The notation defined here (entity models, capability contracts, invariants, decisions) is the vocabulary a *data product's own design* is written in. Pushing a product-shaped description into a standard's header confuses the two.
 
 ---
 
@@ -169,20 +167,24 @@ Design documents declare structure in a keyword-free pseudo-notation. It carries
 
 ```
 Entity: <Name>                    [kind: History | Reference | Relationship | Keymap]
-  <attribute>: <LogicalType> [qualifiers]  // <business description>...
+  <attribute>: <LogicalType> [qualifiers]  // <business description>
+  ...
 
   Keys:
     surrogate: <attribute>
     natural:   <attribute>
 
   Applies patterns:
-    - <pattern-name>...
+    - <pattern-name>
+    ...
 
   Requires capabilities:
-    - <CapabilityName>...
+    - <CapabilityName>
+    ...
 
   Invariants:
-    - INV-<MODULE>-<NNN>: <testable statement>...
+    - INV-<MODULE>-<NNN>: <testable statement>
+    ...
 ```
 
 **Qualifiers** (zero or more per attribute):
@@ -307,7 +309,7 @@ Each invariant should have a corresponding check in the module's implementation 
 
 Not everything a design must settle is a conformance requirement. Some things are genuine **choices**: bi-temporal or single-dimension history, soft delete or hard delete, quality scores stored inline or offloaded. There is a recommended answer for each, but the recommendation is not universal: a small reference table and a hundred-million-row entity warrant different answers.
 
-Historically this material lived in prose as *advocated guidance*, sitting outside the design workflow entirely. Guidance in that form has two defects: nothing records which option a design actually chose, and nothing can check that the implementation matches. A decision fixes both by making the choice a declared, checkable part of the design.
+Written as advocated guidance, this material sits outside the design workflow. Nothing then records which option a design chose, and nothing can check that the implementation matches it. A decision closes both gaps by making the choice a declared, checkable part of the design.
 
 **A decision is a named choice with an advocated default and stated criteria for departing from it.**
 
@@ -321,7 +323,7 @@ Decision: DEC-<TOPIC>
   Option: <option-name>            [advocated]
     Summary:      <what choosing this means>
     Implies:      <capabilities required / patterns applied when chosen>
-    Acceptable when: <criteria  // always satisfiable for the advocated option>
+    Acceptable when: <criteria; always satisfiable for the advocated option>
 
   Option: <option-name>
     Summary:      <what choosing this means>
@@ -351,13 +353,13 @@ The **product's** design document records what was actually chosen, and that rec
 
 ### 8.4 What makes a decision testable
 
-Three checks follow, which is the whole point of expressing advocacy this way rather than as prose:
+A declared decision can be checked three ways:
 
 1. **Complete**: a module that describes a versioned entity has to list how it versions and how it deletes. The linter fails a standard that leaves either unstated.
 2. **Valid**: every decision named must exist in the catalogue, and every option recommended must be one that decision defines.
 3. **Honoured**: a product's implementation must match the choice its design recorded. Choosing `soft-delete` and then binding a destructive delete is a conformance failure, checkable by the same machinery that checks invariants.
 
-A decision therefore travels with the design rather than sitting beside it as advice: an agent reading a module knows what must be settled, a designer is asked rather than left to guess, and a reviewer can tell a deliberate departure from an oversight.
+A decision therefore travels with the design instead of sitting beside it as advice. An agent reading a module knows what must be settled, and a reviewer can tell a deliberate departure from an oversight.
 
 ---
 

@@ -112,7 +112,7 @@ Entity: EntityEmbedding           [kind: History]
     - AccessView
 
   Invariants:
-    - INV-SEARCH-001: contains no attribute owned by Domain  // keys only.
+    - INV-SEARCH-001: contains no attribute owned by Domain (keys only).
     - INV-SEARCH-002: references exactly one current Domain entity.
     - INV-SEARCH-003: records the model and dimensionality that produced the vector.
 ```
@@ -266,7 +266,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 12. Implementation
 
-The Teradata binding, the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks, lives in [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding (the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks) lives in [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

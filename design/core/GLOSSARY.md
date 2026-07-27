@@ -15,7 +15,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 ---
 
-**Access Layer**: The mandatory access-control artefact of a data product. Creates the three standard roles (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) and grants them read access to module containers, making the product discoverable and queryable. Deployed in two phases interleaved with the module sequence. See the [access-layer pattern](../patterns/access-layer.md).
+**Access Layer**: The mandatory access-control artefact of a data product. Creates the three standard roles (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) and grants them read access to module containers, so the product can be discovered and queried. Deployed in two phases interleaved with the module sequence. See the [access-layer pattern](../patterns/access-layer.md).
 
 **Advocated option**: The recommended answer to a **Decision**. Choosing it needs no justification; choosing another option requires a recorded reason. Advocacy is not mandate: what conformance requires is that the choice be *declared*, not that it match the recommendation. See the [decision catalogue](ADVOCATED_STANDARDS.md).
 
@@ -31,11 +31,11 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Co-location**: A platform's ability to store related data together so joins avoid data movement. A physical optimisation; its availability and mechanism are platform-specific.
 
-**Composition**: A chosen set of modules (and **facets**) assembled into a data design pattern. The framework is a library, not a fixed architecture: a composition is *valid* when every `[hard]` requirement in it is satisfied by a `Provides` within it, and an unmet `[soft]` requirement simply disables that feature rather than invalidating the whole. Domain is the root; Search and Prediction hard-depend on it; Semantic, Observability, and Memory are cross-cutting and soft. An AI-Native Data Product is the fullest composition, not the only one. See the [Design Language](DESIGN_LANGUAGE.md) for the mechanism and the [Master Design](MASTER_DESIGN.md) for the standard presets.
+**Composition**: A chosen set of modules (and **facets**) assembled into a data design pattern. The framework is a library rather than a fixed architecture. A composition is *valid* when every `[hard]` requirement in it is satisfied by a `Provides` within it. An unmet `[soft]` requirement disables that feature and leaves the rest working. Domain is the root; Search and Prediction hard-depend on it; Semantic, Observability, and Memory are cross-cutting and soft. An AI-Native Data Product is the fullest composition, and other combinations are equally valid. See the [Design Language](DESIGN_LANGUAGE.md) for the mechanism and the [Master Design](MASTER_DESIGN.md) for the standard presets.
 
-**Conformance**: Whether an implementation satisfies what the design requires of it: that every **invariant** holds, every conformance rule passes, every required **capability** has a binding, and every applicable **Decision** is declared. Conformance is deliberately checkable rather than a judgement call. Each requirement has a corresponding query, linter rule, or test, so the answer is a result rather than an opinion. *Advisory* content sits outside it by definition.
+**Conformance**: Whether an implementation satisfies what the design requires of it: that every **invariant** holds, every conformance rule passes, every required **capability** has a binding, and every applicable **Decision** is declared. Conformance is deliberately checkable rather than a judgement call. Each requirement has a corresponding query, linter rule, or test, so the answer is a test result. *Advisory* content sits outside it by definition.
 
-**Data Product**: A self-contained, well-defined data asset with clear ownership, interfaces, and contracts. It is treated as a product, not a byproduct.
+**Data Product**: A self-contained, well-defined data asset with clear ownership, interfaces, and contracts. It is owned and maintained in its own right.
 
 **Decision**: A named choice a design must settle explicitly, carrying an **advocated option** and stated criteria for departing from it. The third construct alongside capabilities and invariants: where an invariant states what must be true of every implementation, a decision states what legitimately varies between them. Written `DEC-<TOPIC>`, catalogued in the [decision catalogue](ADVOCATED_STANDARDS.md), and declared in each document's frontmatter. See the [Design Language](DESIGN_LANGUAGE.md).
 
@@ -51,7 +51,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Feature Store**: A repository for storing, managing, and serving ML features with consistency between training and inference. The role of the Prediction module.
 
-**Frontmatter**: The short YAML block opening every design document, declaring its identity: title, **anchor**, type, status, version, and normative classification. Identity only. What a document provides, requires, and asks a designer to settle lives in its body, where it can carry its reasoning. An index card, not an abstract. See the [Design Language](DESIGN_LANGUAGE.md).
+**Frontmatter**: The short YAML block opening every design document, declaring its identity: title, **anchor**, type, status, version, and normative classification. Identity only. What a document provides, requires, and asks a designer to settle lives in its body, where it can carry its reasoning. See the [Design Language](DESIGN_LANGUAGE.md).
 
 **Identifier / Natural key**: `Identifier` is the internal, system-generated surrogate stable across an entity's versions; a `NaturalKey` is the business identifier from the source system. Every Domain entity carries both.
 
@@ -79,12 +79,8 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Semantic map**: The discovery metadata in the Semantic module (module registry, entity catalogue, column dictionary, relationship graph, path finder, naming standards) that lets an agent discover structure and generate valid queries autonomously.
 
-**Soft delete**: Recording a deletion by marking the instance rather than destroying it: it leaves the current set, stays reachable historically, and the deletion is itself an observable event. The advocated option of `DEC-DELETE-STRATEGY`, realised by the `SoftDelete` capability. A destructive delete answers "which instances were removed, and when" with silence, which is why deletion is treated as information rather than absence.
+**Soft delete**: Recording a deletion by marking the instance rather than destroying it: it leaves the current set, stays reachable historically, and the deletion is itself an observable event. The advocated option of `DEC-DELETE-STRATEGY`, realised by the `SoftDelete` capability. A destructive delete cannot answer which instances were removed, or when, so deletion is treated as information in its own right.
 
 **Temporal data**: Data that tracks change over time, distinguishing *valid time* (when true in reality) from *transaction time* (when recorded). Governed by the [temporal-lifecycle-metadata pattern](../patterns/temporal-lifecycle-metadata.md).
 
 **Vector store**: A store optimised for holding and searching high-dimensional vectors by similarity. On a given platform it may be a native capability or a specialist component; bound by the `NearestNeighbors` / `ApproxIndex` capabilities.
-
----
-
-**End of Glossary**

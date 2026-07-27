@@ -243,7 +243,7 @@ These are the catalogued decisions a Observability module design must settle. Th
 
 ## 12. Implementation
 
-The Teradata binding, the event/metric/lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, and the OpenLineage event construction, lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container.
+The Teradata binding (the event, metric, and lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, and the OpenLineage event construction) lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container.
 
 ---
 

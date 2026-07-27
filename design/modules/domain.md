@@ -339,7 +339,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 11. Implementation
 
-The Teradata binding of this module, concrete table and view templates, the capability binding table, and the invariant checks, lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/). Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/` without any change to this document.
+The Teradata binding of this module (concrete table and view templates, the capability binding table, and the invariant checks) lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/). Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/` without any change to this document.
 
 ---
 

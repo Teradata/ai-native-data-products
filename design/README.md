@@ -11,8 +11,8 @@ Everything here is written in the notation defined by [`core/DESIGN_LANGUAGE.md`
 ```
 design/
 ├── core/       the notation, the vocabulary, the architecture, the decisions
-├── modules/    one document per module  // logical rules only
-└── patterns/   the logical/physical bridge  // each has a platform binding
+├── modules/    one document per module, logical rules only
+└── patterns/   the logical/physical bridge, each with a platform binding
 ```
 
 **`core/`** describes the architecture as a whole rather than any one module or pattern: the notation everything is written in, the shared vocabulary, the master design, and the decision catalogue.

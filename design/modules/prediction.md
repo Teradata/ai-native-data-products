@@ -201,7 +201,7 @@ These are the catalogued decisions a Prediction module design must settle. The r
 
 ## 10. Implementation
 
-The Teradata binding, the wide and tall feature tables, the prediction table, the current / enriched / point-in-time views, and the invariant checks, lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding (the wide and tall feature tables, the prediction table, the current, enriched, and point-in-time views, and the invariant checks) lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

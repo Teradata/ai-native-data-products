@@ -17,15 +17,15 @@ normative: true
 
 This document catalogues the **decisions** (see the [Design Language](DESIGN_LANGUAGE.md)) that an AI-Native Data Product design must settle, and states the recommended answer for each.
 
-These recommendations come from three decades of enterprise data management practice. They are strong defaults, not mandates: a small controlled vocabulary and a hundred-million-row transaction history genuinely warrant different answers, and a standard that pretended otherwise would simply be ignored where it did not fit.
+These recommendations come from three decades of enterprise data management practice. They are strong defaults rather than mandates. A small controlled vocabulary and a hundred-million-row transaction history warrant different answers, and a standard that pretended otherwise would be ignored where it did not fit.
 
-**What is normative here is the requirement to choose, not the choice.** A module or pattern must state which decisions its designers have to settle; a product's design must record what it settled them to. Taking the advocated option needs no justification; taking any other requires a recorded reason. Silence is the one thing that is not conformant.
+**What is normative here is the requirement to choose, not the choice.** A module or pattern must state which decisions its designers have to settle; a product's design must record what it settled them to. Taking the advocated option needs no justification; taking any other requires a recorded reason. A design that leaves an applicable decision unstated is not conformant.
 
 ### 1.1 Why this is a catalogue and not guidance
 
-Advisory prose has no purchase on a design workflow. Nothing records which option a product actually took, nothing checks that its implementation matches, and an agent reading the design cannot tell a deliberate departure from an oversight.
+Advisory prose has no purchase on a design workflow. Nothing records which option a product took, and nothing checks that its implementation matches, so an agent reading the design cannot tell a deliberate departure from an oversight.
 
-Expressing the same material as decisions fixes all three. Each module names the decisions it obliges a designer to settle, the design skill puts those questions to the designer at design time, and the answer is recorded in the product's design where the linter and the reviewer can both find it. The recommendation carries exactly as much weight as before: what changes is that using it, or not using it, becomes visible and testable.
+Expressing the same material as decisions fixes that. Each module names the decisions it obliges a designer to settle, the design skill puts those questions to the designer at design time, and the answer is recorded in the product's design where the linter and the reviewer can both find it. The recommendation carries exactly as much weight as before: what changes is that using it, or not using it, becomes visible and testable.
 
 ### 1.2 How a decision reaches a design
 
@@ -49,7 +49,7 @@ Decision: DEC-TEMPORAL-PATTERN
   Applies to: every entity of kind History
 
   Option: bi-temporal                                  [advocated]
-    Summary:      Two independent time dimensions  // valid time (when the fact
+    Summary:      Two independent time dimensions: valid time (when the fact
                   was true in the world) and transaction time (when the database
                   recorded it).
     Implies:      pattern temporal-lifecycle-metadata, profile SCD2_BITEMPORAL;
@@ -70,7 +70,7 @@ Decision: DEC-TEMPORAL-PATTERN
   Option: current-state
     Summary:      No history. The entity holds only its present state.
     Implies:      pattern temporal-lifecycle-metadata, profile CURRENT_STATE
-    Acceptable when: history has no analytical or regulatory value  // typically
+    Acceptable when: history has no analytical or regulatory value. Typically
                   staging, scratch, or derived sets rebuilt from source.
     Requires:     a recorded reason.
 ```
@@ -122,9 +122,9 @@ Decision: DEC-COLUMN-STRATEGY
 
 **Why offload is advocated.** Audit, lineage, and quality are *properties of a change*, not properties of an entity: one entity accumulates many of each over its life. Carrying them inline forces a one-to-one shape onto one-to-many data, which has two consequences: only the most recent value survives, and every row of the entity pays for attributes that are null on most of them. Offloading stores each fact once, keeps the full series, and leaves the entity to hold what it actually is.
 
-The objection is that a join is now required. That objection is answered by `AccessView` rather than by duplication: consumers read a view that presents the joined result as one surface, so the normalisation is invisible where it would otherwise be inconvenient.
+The objection is that a join is now required. That objection is answered by `AccessView` rather than by duplication: consumers read a view that presents the joined result as one surface, so the normalisation stays out of the way of the people reading the data.
 
-**Selection.** Volume is the discriminator. A small reference set can afford `inline` and gains simplicity; a large history cannot, and the advantage of `offload` grows with row count. Between the two, `reference` is the compromise: but adopt it against a measured access path, not a predicted one.
+**Selection.** Volume is the discriminator. A small reference set can afford `inline` and gains simplicity; a large history cannot, and the advantage of `offload` grows with row count. Between the two, `reference` is the compromise. Adopt it against a measured access path rather than a predicted one.
 
 ---
 
@@ -143,9 +143,9 @@ Decision: DEC-SURROGATE-ALLOCATION
     Acceptable when: always.
 
   Option: external-allocator
-    Summary:      An existing organisational mechanism  // a central sequence
+    Summary:      An existing organisational mechanism: a central sequence
                   service, a key management framework, a shared identifier
-                  registry  // allocates the Identifier.
+                  registry that allocates the Identifier.
     Implies:      capability SurrogateKeyAllocation required from external
     Acceptable when: the organisation already operates such a mechanism and it
                   guarantees stability across versions.
@@ -156,7 +156,7 @@ Decision: DEC-SURROGATE-ALLOCATION
                   written.
     Implies:      capability SurrogateKeyAllocation provided by self
     Acceptable when: no other entity holds a reference to this entity's
-                  Identifier  // reference sets and detail entities that are
+                  Identifier: reference sets and detail entities that are
                   never themselves referenced.
     Requires:     a recorded reason confirming nothing references it.
 
@@ -298,7 +298,7 @@ Decision: DEC-AUDIT-RETENTION
   Applies to: the observability module, per product
 
   Option: regulatory                                   [advocated]
-    Summary:      Retention tiered by obligation  // recent change history
+    Summary:      Retention tiered by obligation: recent change history
                   immediately queryable, older history retained but archived,
                   deletion records held longest, and high-risk entities held
                   indefinitely.
