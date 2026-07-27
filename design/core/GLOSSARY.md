@@ -3,7 +3,7 @@ title: Glossary
 anchor: glossary
 type: core
 status: standard
-version: 1.1
+version: 1.2
 normative: false
 ---
 
@@ -51,6 +51,22 @@ platform. See the [capability catalogue](DESIGN_LANGUAGE.md#61-standard-capabili
 **Co-location** — A platform's ability to store related data together so joins avoid data
 movement. A physical optimisation; its availability and mechanism are platform-specific.
 
+**Composition** — A chosen set of modules (and **facets**) assembled into a data design pattern.
+The framework is a library, not a fixed architecture: a composition is *valid* when every
+`[hard]` requirement in it is satisfied by a `Provides` within it, and an unmet `[soft]`
+requirement simply disables that feature rather than invalidating the whole. Domain is the root;
+Search and Prediction hard-depend on it; Semantic, Observability, and Memory are cross-cutting
+and soft. An AI-Native Data Product is the fullest composition, not the only one. See the
+[Design Language](DESIGN_LANGUAGE.md#62-provision-requirement-and-composition) for the mechanism
+and the [Master Design](MASTER_DESIGN.md#4-compositions) for the standard presets.
+
+**Conformance** — Whether an implementation satisfies what the design requires of it: that
+every **invariant** holds, every conformance rule passes, every required **capability** has a
+binding, and every applicable **Decision** is declared. Conformance is deliberately checkable
+rather than a judgement call — each requirement has a corresponding query, linter rule, or test,
+so the answer is a result rather than an opinion. *Advisory* content sits outside it by
+definition.
+
 **Data Product** — A self-contained, well-defined data asset with clear ownership, interfaces,
 and contracts — treated as a product, not a byproduct.
 
@@ -76,6 +92,12 @@ is `Vector[dim]`.
 **Entity** — A table-level object within the data product. `Party` is an entity; a specific
 Party row is an *instance*.
 
+**Facet** — A named part of a module that can be enabled independently of the rest, so that
+a **composition** may take some of a module without taking all of it. Memory has two: the
+`documentation` facet (design memory — decisions, glossary, cookbook, change log) and the
+`runtime` facet (agent sessions, interactions, learned strategies). A capability provided by a
+facet becomes available when that facet is enabled.
+
 **Feature Store** — A repository for storing, managing, and serving ML features with
 consistency between training and inference. The role of the Prediction module.
 
@@ -99,6 +121,12 @@ Written `INV-<MODULE>-<NNN>`. See the [Design Language](DESIGN_LANGUAGE.md#7-inv
 **Join-back** — The pattern by which a module obtains entity content: it stores an `Identifier`
 and joins back to the Domain entity, rather than duplicating content. Realised by the
 `EntityJoinBack` capability.
+
+**Keymap** — An entity kind whose sole job is allocating an `Identifier` for a natural key,
+once, so the surrogate stays stable across every version of the same real-world thing. Allocating
+identifiers on the versioned entity itself gives each version a different one, which makes any
+reference held elsewhere ambiguous. The advocated option of `DEC-SURROGATE-ALLOCATION`; entities
+that are never themselves referenced may allocate directly and omit it.
 
 **Knowledge Store** — Design-time knowledge that guides *how* to build a product (modelling
 standards, naming conventions, industry reference models) — distinct from the runtime knowledge
