@@ -5,26 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - SemanticRegistration
-requires:
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-  - capability: EntityJoinBack
-    strength: soft
-    provider: module:domain
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Semantic Module — Design Standard
@@ -317,6 +297,19 @@ profile per entity.
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
 - [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed, and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
+
+---
+
+### 10.1 Decisions to settle
+
+These are the catalogued decisions a Semantic module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the catalogue read across regions? |
 
 ---
 

@@ -5,35 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - ChangeEventCapture
-  - LineageCapture
-  - QualityScore
-requires:
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: SemanticRegistration
-    strength: soft
-    provider: module:semantic
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-  - capability: EntityJoinBack
-    strength: soft
-    provider: module:domain
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-QUALITY-STORAGE
-    choice: observability
-  - id: DEC-AUDIT-RETENTION
-    choice: regulatory
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Observability Module — Design Standard
@@ -286,6 +257,21 @@ scope; retention policies (separately for `DataLineage` vs `LineageRun`); which 
 - [ ] Validation results homed here (`INV-OBS-005`); `lineage_graph` / `lineage_run_latest` deployed to Semantic.
 - [ ] Entities registered in the Semantic map (`SemanticRegistration`); documentation captured, including the lineage split as a design decision.
 - [ ] This document passes the design linter with no ignore directive.
+
+---
+
+### 11.1 Decisions to settle
+
+These are the catalogued decisions a Observability module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-QUALITY-STORAGE` | `observability` | Does anything examine quality trend or per-rule detail, or only the latest score? |
+| `DEC-AUDIT-RETENTION` | `regulatory` | Which entities carry a retention obligation, and how long does it run? |
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Are events recorded across regions? |
 
 ---
 

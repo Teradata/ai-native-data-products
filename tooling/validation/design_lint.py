@@ -7,9 +7,9 @@ Three families of rule:
     since concrete SQL is exactly what `implementation/` exists to hold.
   * **Frontmatter** (Section 3.1) — every design document declares a valid,
     correctly anchored machine-readable identity.
-  * **Corpus** (Sections 6.1 and 8) — every capability, pattern anchor, and
-    decision named in frontmatter resolves, and a design that departs from an
-    advocated option records why.
+  * **Corpus** (Sections 6.1 and 8) — every capability and decision a document
+    names *in its body* resolves against the catalogues, and a standard that
+    recommends other than the advocated option says why.
 
 Used two ways:
 
@@ -90,20 +90,25 @@ RESERVED_ENTITY_LABELS = {
 
 # Frontmatter vocabulary (authoritative companion to Design Language Section 3.1).
 REQUIRED_FM_KEYS = {"title", "anchor", "type", "status", "version", "normative"}
-OPTIONAL_FM_KEYS = {
-    "provides", "requires", "patterns", "decisions", "supersedes",
-    "implements", "platform", "lint", "lint_reason",
-}
+# Frontmatter is identity only (Section 3.2). A document's substance — what it provides,
+# requires, applies, and asks a designer to settle — is read from the body, where it can
+# carry its reasoning. Keys outside this set are rejected rather than silently tolerated,
+# so substance cannot drift back into the header.
+OPTIONAL_FM_KEYS = {"supersedes", "implements", "platform", "lint", "lint_reason"}
 DOC_TYPES = {"core", "module", "pattern", "implementation", "platform-profile"}
 DOC_STATUSES = {"draft", "standard", "deprecated"}
-REQUIRE_STRENGTHS = {"hard", "soft"}
 
 # Documents of these types must additionally declare where they belong.
 IMPLEMENTATION_TYPES = {"implementation", "platform-profile"}
 
-# A module describing a versioned entity has to have settled these.
+# A module describing a versioned entity has to say how it versions and how it deletes.
 HISTORY_DECISIONS = ("DEC-TEMPORAL-PATTERN", "DEC-DELETE-STRATEGY")
 HISTORY_KIND_RE = re.compile(r"\[kind:\s*History\]")
+
+# Body tables the corpus checks read. A capability row names the capability in the first
+# cell; a decisions row names the decision, then the recommended option.
+BODY_CAPABILITY_RE = re.compile(r"`([A-Za-z][A-Za-z0-9]*)[`({]")
+DECISION_ROW_RE = re.compile(r"^\|\s*`(DEC-[A-Z0-9-]+)`\s*\|\s*`([a-z0-9-]+)`\s*\|(.*)\|")
 
 IGNORE_FILE_RE = re.compile(r"<!--\s*design-lint:\s*ignore-file", re.IGNORECASE)
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
@@ -252,16 +257,6 @@ def find_frontmatter_violations(path: Path, text: str) -> List[Finding]:
         findings.append(Finding(p, 1, "frontmatter-key",
                                 "type 'implementation' requires an 'implements' anchor"))
 
-    for req in fm.get("requires", []) or []:
-        if not isinstance(req, dict):
-            findings.append(Finding(p, 1, "frontmatter-shape",
-                                    f"requires entry '{req}' must declare capability, strength, provider"))
-            continue
-        strength = req.get("strength")
-        if strength not in REQUIRE_STRENGTHS:
-            findings.append(Finding(p, 1, "frontmatter-enum",
-                                    f"requires '{req.get('capability')}' has strength "
-                                    f"'{strength}' — expected hard or soft"))
     return findings
 
 
@@ -423,8 +418,52 @@ def find_glossary_violations(text: str, path: str) -> List[Finding]:
     return findings
 
 
+def read_document_capabilities(text: str) -> dict:
+    """Capabilities a document names, as ``{"provides": [...], "requires": [...]}``.
+
+    Read from the body rather than frontmatter (Section 3.2): the tables carry a *why*
+    column and can say a provider is `self` *or* `platform`, nuance a header list drops.
+    """
+    found = {"provides": [], "requires": []}
+    section = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("**Provides"):
+            section = "provides"
+            continue
+        if stripped.startswith("**Requires"):
+            section = "requires"
+            continue
+        if section is None:
+            continue
+        if stripped.startswith("|"):
+            # A row's first cell may name several capabilities at once, where one line of
+            # prose covers them all ("CurrentStateFilter, NaturalKeyLookup, AccessView").
+            cell = stripped.strip("|").split("|")[0]
+            found[section].extend(BODY_CAPABILITY_RE.findall(cell))
+        elif stripped:
+            # Any non-table line closes the table — including a heading, which is how a
+            # Decisions table two sections later once got read as a list of capabilities.
+            section = None
+    return found
+
+
+def read_document_decisions(text: str) -> List[Tuple[str, str, str]]:
+    """Decisions a document asks a designer to settle: ``(id, recommended, rationale)``.
+
+    Read from the Decisions-to-settle table under Designer Responsibilities, which is
+    where a designer meets them and where the design skill picks them up.
+    """
+    found = []
+    for line in text.splitlines():
+        m = DECISION_ROW_RE.match(line.strip())
+        if m:
+            found.append((m.group(1), m.group(2), m.group(3)))
+    return found
+
+
 def find_corpus_violations(docs: dict) -> List[Finding]:
-    """Every capability, anchor, and decision named in frontmatter must resolve."""
+    """Every capability and decision a document names in its body must resolve."""
     findings: List[Finding] = []
     capabilities: set = set()
     decisions: dict = {}
@@ -438,60 +477,57 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
 
     for path, (fm, text, _) in sorted(docs.items()):
         p = str(path)
-        # Capabilities named in provides/requires exist in the catalogue.
-        if capabilities:
-            named = [c for c in (fm.get("provides") or []) if isinstance(c, str)]
-            named += [r.get("capability") for r in (fm.get("requires") or [])
-                      if isinstance(r, dict) and r.get("capability")]
-            for cap in named:
+        is_catalogue = fm.get("anchor") == "advocated-standards"
+
+        # Capabilities named in the body's Provides / Requires tables exist in the catalogue.
+        if capabilities and fm.get("anchor") != "design-language":
+            named = read_document_capabilities(text)
+            for cap in named["provides"] + named["requires"]:
                 if cap not in capabilities:
                     findings.append(Finding(p, 1, "unknown-capability",
                                             f"'{cap}' is not in the capability catalogue "
                                             f"(Design Language S6.1)"))
-        # Anchors named in patterns/implements resolve to a document that exists.
-        for ref in (fm.get("patterns") or []):
-            if isinstance(ref, str) and ref not in anchors:
-                findings.append(Finding(p, 1, "unknown-anchor",
-                                        f"pattern anchor '{ref}' does not resolve to a document"))
+
         implements = fm.get("implements")
         if implements and implements not in anchors:
             findings.append(Finding(p, 1, "unknown-anchor",
                                     f"implements anchor '{implements}' does not resolve"))
+        for ref in (fm.get("supersedes") or []):
+            if isinstance(ref, str) and ref not in anchors:
+                findings.append(Finding(p, 1, "unknown-anchor",
+                                        f"supersedes anchor '{ref}' does not resolve"))
 
-        # Decisions: known id, valid option, and a reason for departing from the default.
-        declared = set()
-        for entry in (fm.get("decisions") or []):
-            if not isinstance(entry, dict):
-                continue
-            did = entry.get("id")
-            declared.add(did)
-            if decisions and did not in decisions:
-                findings.append(Finding(p, 1, "unknown-decision",
-                                        f"'{did}' is not in the decision catalogue"))
-                continue
-            choice = entry.get("choice")
-            if not choice:
-                continue  # the catalogue itself lists ids without choosing
-            options = decisions.get(did, {})
-            if options and choice not in options:
-                findings.append(Finding(p, 1, "invalid-choice",
-                                        f"'{choice}' is not an option of {did} "
-                                        f"(expected one of {sorted(options)})"))
-            elif options and not options[choice] and not entry.get("because"):
-                findings.append(Finding(p, 1, "unjustified-choice",
-                                        f"{did} chooses '{choice}' over the advocated option "
-                                        f"without a 'because' (Design Language S8.2)"))
+        # Decisions a document asks a designer to settle: known id, valid option, and a
+        # reason whenever the standard recommends other than the advocated option.
+        listed = set()
+        if not is_catalogue and fm.get("anchor") != "design-language":
+            for did, recommended, rationale in read_document_decisions(text):
+                listed.add(did)
+                if decisions and did not in decisions:
+                    findings.append(Finding(p, 1, "unknown-decision",
+                                            f"'{did}' is not in the decision catalogue"))
+                    continue
+                options = decisions.get(did, {})
+                if options and recommended not in options:
+                    findings.append(Finding(p, 1, "invalid-choice",
+                                            f"'{recommended}' is not an option of {did} "
+                                            f"(expected one of {sorted(options)})"))
+                elif options and not options[recommended] and "because" not in rationale.lower():
+                    findings.append(Finding(p, 1, "unjustified-choice",
+                                            f"{did} recommends '{recommended}' over the advocated "
+                                            f"option without saying why (Design Language S8.2)"))
 
         if fm.get("anchor") == "glossary":
             findings.extend(find_glossary_violations(text, p))
 
-        # A module with a versioned entity has to have settled how it versions and deletes.
+        # A module with a versioned entity has to say how it versions and how it deletes.
         if fm.get("type") == "module" and HISTORY_KIND_RE.search(text):
             for required in HISTORY_DECISIONS:
-                if required not in declared:
+                if required not in listed:
                     findings.append(Finding(p, 1, "undeclared-decision",
-                                            f"module declares a History entity but does not "
-                                            f"declare {required} (Design Language S8.3)"))
+                                            f"module describes a History entity but does not ask "
+                                            f"the designer to settle {required} (Design Language "
+                                            f"S8.4)"))
     return findings
 
 

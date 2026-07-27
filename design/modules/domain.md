@@ -5,46 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - EntityJoinBack
-  - CurrentStateFilter
-  - PointInTimeReconstruction
-  - NaturalKeyLookup
-  - AccessView
-  - SoftDelete
-requires:
-  - capability: SurrogateKeyAllocation
-    strength: hard
-    provider: self
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: MetadataCoverageCheck
-    strength: hard
-    provider: self
-  - capability: SemanticRegistration
-    strength: soft
-    provider: module:semantic
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - physical-storage
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-TEMPORAL-PATTERN
-    choice: bi-temporal
-  - id: DEC-COLUMN-STRATEGY
-    choice: offload
-  - id: DEC-SURROGATE-ALLOCATION
-    choice: keymap
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Domain Module — Design Standard
@@ -368,7 +328,22 @@ Source entities from an established model wherever one exists, and **document th
 Consistency is what lets an agent generalise one entity's pattern to all (Section 8, Agent
 Discoverability requirement 1).
 
-### 10.3 Design review checklist
+### 10.3 Decisions to settle
+
+These are the catalogued decisions a Domain module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TEMPORAL-PATTERN` | `bi-temporal` | Do model features need point-in-time correctness? Do corrections or late-arriving facts occur? |
+| `DEC-COLUMN-STRATEGY` | `offload` | How large is the entity? Does a measured access path need audit or lineage more directly than a join? |
+| `DEC-SURROGATE-ALLOCATION` | `keymap` | Does any other entity hold a reference to this entity's `Identifier`? Does an allocator already exist? |
+| `DEC-DELETE-STRATEGY` | `soft-delete` | Is there an audit obligation, a model feature, or an analysis that depends on deletions? |
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the data genuinely single-zone and certain to stay so? |
+
+### 10.4 Design review checklist
 
 - [ ] Every attribute uses a logical type; no platform types leak into this document.
 - [ ] Every entity has the identity shape (`Identifier` + `NaturalKey`).

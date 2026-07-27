@@ -5,43 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - NearestNeighbors
-  - Embed
-  - ApproxIndex
-requires:
-  - capability: EntityJoinBack
-    strength: hard
-    provider: module:domain
-  - capability: CurrentStateFilter
-    strength: hard
-    provider: self
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: AccessView
-    strength: hard
-    provider: self
-  - capability: SemanticRegistration
-    strength: soft
-    provider: module:semantic
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - physical-storage
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-TEMPORAL-PATTERN
-    choice: scd2
-    because: an embedding is regenerated wholesale when its source content or model changes, so there is no late-arriving correction to a past embedding
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Search Module — Design Standard
@@ -294,6 +257,21 @@ Metric choice is semantic (mathematics), so it stays in design. The binding of e
 - [ ] This document passes the design linter with no ignore directive.
 
 **Embedding-model sourcing.** Prefer an established embedding model and record it: text families (e.g. BGE, Sentence-Transformers, OpenAI, NVIDIA NIM) or multi-modal families (e.g. CLIP) with their dimensionality. The specific model and version are recorded per embedding (`INV-SEARCH-003`).
+
+---
+
+### 11.1 Decisions to settle
+
+These are the catalogued decisions a Search module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TEMPORAL-PATTERN` | `scd2` | **Recommended over the advocated `bi-temporal` because** an embedding is regenerated wholesale when its source content or model changes — there is no late-arriving correction to a past embedding to represent. Choose `bi-temporal` if you need to reconstruct what the index believed at a past instant. |
+| `DEC-DELETE-STRATEGY` | `soft-delete` | Does anything analyse which embeddings were withdrawn, or when? |
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the data genuinely single-zone and certain to stay so? |
 
 ---
 

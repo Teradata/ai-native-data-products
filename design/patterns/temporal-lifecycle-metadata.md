@@ -5,18 +5,6 @@ type: pattern
 status: standard
 version: 2.0
 normative: true
-provides:
-  - CurrentStateFilter
-  - PointInTimeReconstruction
-  - SoftDelete
-requires:
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-patterns:
-  - object-placement
-  - access-layer
-  - validation
 ---
 
 # Temporal & Lifecycle Metadata — Pattern

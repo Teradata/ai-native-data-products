@@ -39,7 +39,7 @@ The four building blocks are:
 3. **Invariants** — testable, platform-neutral *rules* a conforming implementation must satisfy (Section 7).
 4. **Decisions** — named *choices* a design must make explicitly, each with an advocated default and stated criteria for departing from it (Section 8).
 
-Every document also carries **frontmatter** (Section 3.1) — the machine-readable header that makes the corpus navigable without any document having to name another by filename.
+Every document also carries **frontmatter** (Section 3.1) — a short machine-readable header that makes the corpus navigable without any document having to name another by filename. It carries identity only; substance stays in the body (Section 3.2).
 
 Design documents are written as **interface specifications** — they declare what an implementation must provide. Implementation documents are **conforming implementations** — they provide it. This mirrors the style already established by the pattern specs (`object-placement`, `physical-storage`).
 
@@ -80,7 +80,7 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 | `implementation` | `implementation/<platform>/{modules,patterns}/<anchor>/` | Conforming implementation | The concrete DDL, queries, and bindings that satisfy the matching design document. |
 | `platform-profile` | `implementation/<platform>/` | Platform reference | Physical-design conventions applying across every binding for one platform. |
 
-**Structure is carried in frontmatter, not in prose.** Which documents exist, what each one is, and how they relate is declared in frontmatter (Section 3.1) and resolved by anchor — never by a hand-maintained list of filenames, which goes stale the moment a document is added. Prose may still link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
+**Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (Section 3.1) and resolved by anchor — never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate* — what they provide, require, and apply — is stated in the body, where it can carry its reasoning (Section 3.2); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
 
 **Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented at `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
 
@@ -100,34 +100,32 @@ type: module              # core | module | pattern | implementation | platform-
 status: standard          # draft | standard | deprecated
 version: 2.0
 normative: true           # false marks the document advisory, not conformance-binding
-provides:                 # capabilities this document makes available (omit if none)
-  - NearestNeighbors
-requires:                  # capabilities consumed, with strength and provider
-  - capability: EntityJoinBack
-    strength: hard         # hard | soft
-    provider: module:domain
-patterns:                  # pattern anchors this document applies (omit if none)
-  - temporal-lifecycle-metadata
-decisions:                 # decisions this document declares (Section 8)
-  - id: DEC-TEMPORAL-PATTERN
-    choice: bi-temporal
-implements: search         # implementation docs only — the design anchor satisfied
-platform: teradata         # implementation docs only
-supersedes: []             # anchors this document replaces, when deprecating
+implements: search        # implementation documents only — the design anchor satisfied
+platform: teradata        # implementation and platform-profile documents only
+supersedes: []            # anchors this document replaces, when deprecating
 ---
 ```
 
 **Required of every document:** `title`, `anchor`, `type`, `status`, `version`, `normative`.
 **Required of `implementation` documents additionally:** `implements`, `platform`.
-**Optional everywhere:** `provides`, `requires`, `patterns`, `decisions`, `supersedes`.
+**Optional:** `supersedes`.
 
-Three rules make the corpus resolvable:
+Two rules make the corpus resolvable, both enforced by the linter:
 
-1. `anchor` must match the document's filename (or, for an implementation, its directory name).
-2. Every capability named in `provides` or `requires` must exist in the capability catalogue (Section 6.1) or be defined in the document itself.
-3. Every anchor named in `patterns`, `implements`, or `supersedes` must resolve to a document that exists.
+1. `anchor` must match the document's filename (or, for a binding, its directory name).
+2. Every anchor named in `implements` or `supersedes` must resolve to a document that exists.
 
-All three are enforced by the linter, so a dangling cross-reference fails the build rather than surviving as stale prose.
+### 3.2 What frontmatter is not for
+
+Frontmatter is an **index card, not an abstract**: it says what a document is and where it sits, never what it says. A document's substance — the capabilities it provides and requires, the patterns it applies, the decisions a designer must settle — lives in the document body, where it can carry the reasoning that makes it useful.
+
+This is a deliberate boundary, for three reasons:
+
+- **One source of truth.** A capability graph stated in both a header and a body table is two things to maintain and two things to disagree. The body table wins because it has room for a *why* column and for a provider that is genuinely `self` *or* `platform` — nuance a flat list silently drops.
+- **The reader is the point.** A designer working through what a module requires needs the rationale, not a list of names. Frontmatter cannot hold rationale without becoming the document.
+- **Machine access belongs in one place.** An agent traversing the corpus wants the capability graph *once*, in the generated catalogue, not repeated in fifteen headers. The catalogue is built by reading the body tables, so the graph stays machine-readable without any document restating it.
+
+The distinction that governs this: **these documents are standards, not designs.** A standard's header identifies it so an agent can find it. The full notation of this document — entity models, capability contracts, invariants, decisions — is the vocabulary a *data product's own design* is written in. Pushing a product-shaped description into a standard's header confuses the two.
 
 ---
 
@@ -347,30 +345,32 @@ Decision: DEC-<TOPIC>
 
 **ID convention:** `DEC-<TOPIC>`, uppercase, unique across the corpus. Decisions are catalogued in one `core` document so that a designer meets the full set in one place; individual module and pattern documents declare their choices rather than restating the options.
 
-### 8.2 Declaring a choice
+### 8.2 Where a module states its decisions
 
-A design document declares its decisions in frontmatter (Section 3.1):
+A standard does not *make* these choices — a product does. What a module or pattern document carries is the list of decisions a designer must settle for it, each with the option this standard recommends and the question that shifts the answer. That list lives under **Designer Responsibilities**, in a table of this shape:
 
-```yaml
-decisions:
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TEMPORAL-PATTERN
-    choice: scd2
-    because: corrections are not required for this reference set
-```
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TEMPORAL-PATTERN` | `bi-temporal` | Do features need point-in-time correctness? Do corrections arrive late? |
+| `DEC-DELETE-STRATEGY` | `soft-delete` | Is there an audit obligation, a feature, or an analysis that depends on deletions? |
 
-`because` is optional when the advocated option is chosen and **required** when it is not — a departure from the recommendation must carry its reason, in the document, where a reviewer will find it.
+Where a module recommends something other than the catalogue's advocated option, the row says why — a standard that quietly departs from its own recommendation is exactly the drift this construct exists to surface.
 
-### 8.3 What makes a decision testable
+It belongs under Designer Responsibilities rather than in a header because that is where a designer meets it. The design skill reads these tables and opens the conversation: it walks the human designer through each decision at design time, and records the answer in the product's design.
 
-Three checks follow from a declaration, which is the whole point of expressing advocacy this way:
+### 8.3 Where a product states its choices
 
-1. **Declared** — a document that applies a decision must declare a choice. The linter fails a design that silently omits one.
-2. **Valid** — the declared `choice` must be one of the options the decision defines, and a non-advocated choice must carry `because`.
-3. **Honoured** — the implementation must match the declaration. Choosing `soft-delete` and then binding a destructive delete is a conformance failure, checkable by the same machinery that checks invariants.
+The **product's** design document records what was actually chosen, and that record is what the implementation is checked against. A choice that departs from the recommendation carries its reason, in the design, where a reviewer will find it.
 
-A decision therefore travels with the design rather than sitting beside it as advice: an agent reading a module knows what was chosen and why, and a reviewer can tell the difference between a deliberate departure and an oversight.
+### 8.4 What makes a decision testable
+
+Three checks follow, which is the whole point of expressing advocacy this way rather than as prose:
+
+1. **Complete** — a module that describes a versioned entity has to list how it versions and how it deletes. The linter fails a standard that leaves either unstated.
+2. **Valid** — every decision named must exist in the catalogue, and every option recommended must be one that decision defines.
+3. **Honoured** — a product's implementation must match the choice its design recorded. Choosing `soft-delete` and then binding a destructive delete is a conformance failure, checkable by the same machinery that checks invariants.
+
+A decision therefore travels with the design rather than sitting beside it as advice: an agent reading a module knows what must be settled, a designer is asked rather than left to guess, and a reviewer can tell a deliberate departure from an oversight.
 
 ---
 
@@ -400,13 +400,13 @@ The exact token lists live with the linter (`tooling/validation`) so the linter 
 
 Before a design document is considered conforming:
 
-- [ ] Frontmatter is present and complete, and `anchor` matches the filename (Section 3.1).
+- [ ] Frontmatter is present, complete, and identity-only; `anchor` matches the filename (Section 3.1).
 - [ ] Every attribute uses a logical type from Section 4 (no platform types).
 - [ ] Structure is expressed in the Section 5 notation (no `CREATE`/`SELECT`).
 - [ ] Cross-cutting concerns are **referenced** by pattern anchor, not restated inline.
 - [ ] Every required behaviour is expressed as a capability (Section 6), not as a concrete query.
 - [ ] Principles are written as testable invariants with `INV-<MODULE>-<NNN>` ids (Section 7).
-- [ ] Every applicable decision is declared, and any departure from an advocated option carries its `because` (Section 8).
+- [ ] Every decision the design must settle is listed under Designer Responsibilities, and any recommendation departing from the advocated option says why (Section 8.2).
 - [ ] No other document is referred to by filename — cross-references resolve by anchor.
 - [ ] The matching implementation provides a binding for every capability and satisfies every invariant.
 - [ ] The document passes the validation linter (Section 9) with no ignore directive.

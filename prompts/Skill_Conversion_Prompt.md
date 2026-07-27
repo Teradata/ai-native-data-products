@@ -34,7 +34,7 @@ Read the repository before writing anything. Each skill draws from a specific sl
 
 | Skill | Reads from |
 |-------|-----------|
-| `design` | `design/core/` (all), `design/modules/*.md`, `design/patterns/*.md` |
+| `design` | `design/core/` (all, including the decision catalogue), `design/modules/*.md`, `design/patterns/*.md` |
 | `build` | `implementation/{platform}/` (all), plus each design doc's §"Implementation" and capability tables for the design→binding mapping |
 | `review` | Every `INV-*` invariant and every conformance-rule table (`TLM-*`, `VAL-*`, object-placement/physical-storage conformance checklists), `design/patterns/validation.md`, `tooling/validation/design_lint.py`, and each implementation's `validation.sql.j2` |
 | `access` | `design/modules/semantic.md` (§4 orientation, §5–6 discovery), `design/patterns/validation.md` (§8 the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql.j2` |
@@ -53,6 +53,7 @@ a lean `SKILL.md` read on every invocation, plus on-demand files.
 skills/
 ├── design/
 │   ├── SKILL.md               ← framework, design language, composition method, routing
+│   ├── decisions.md           ← the decision catalogue: options, advocated default, criteria
 │   ├── modules/{module}.md    ← per-module logical model, capabilities, invariants (6 files)
 │   └── patterns/{pattern}.md  ← per-pattern contract (5 files)
 ├── build/
@@ -102,14 +103,43 @@ Every generated `SKILL.md` carries a short handover note to this effect for its 
 `SKILL.md` (from `design/core/`): the composition method (modules provide/require capabilities;
 `[hard]`/`[soft]`; a composition is valid iff every hard requirement is met — Design Language §6.2);
 the named compositions (Master §4); the logical-type vocabulary and entity notation (Design Language
-§4–5); the capability catalogue (§6.1); the invariant convention (§7); and the deployment order
+§4–5); the capability catalogue (§6.1); the invariant convention (§7); **the decision construct and
+the decision catalogue** (§8 and `design/core/ADVOCATED_STANDARDS.md`); and the deployment order
 (Master §10). Routing: "read `SKILL.md`, then `modules/{module}.md` for the module you are designing
 and `patterns/{pattern}.md` for each pattern it applies."
 
+`decisions.md` (from `design/core/ADVOCATED_STANDARDS.md`): every catalogued decision, its options,
+which is advocated, and the criteria that make another sound. This is a reference the skill consults
+while working through §1.1 below — carry the options and the selection criteria, compress the
+rationale.
+
 `modules/{module}.md` (from `design/modules/`): the logical entity model in the entity notation, the
 Provides/Requires capabilities with strengths, applied patterns, the invariants to satisfy, and
-designer responsibilities. **Platform-agnostic — no platform types, no DDL.** This is the design
-document, compressed.
+designer responsibilities **including the module's Decisions-to-settle table, carried verbatim**.
+**Platform-agnostic — no platform types, no DDL.** This is the design document, compressed.
+
+#### 1.1 Working through the decisions — a required conversation
+
+A design is not complete until every decision its modules raise has been settled. `SKILL.md` must
+instruct the designer agent to **put these questions to the human designer rather than answering them
+itself**:
+
+1. After the composition is agreed, gather the union of the Decisions-to-settle tables from every
+   module in it. Deduplicate by decision id — several modules raise `DEC-TIMESTAMP-ZONE`, and it is
+   settled once for the product unless the designer wants it per module.
+2. Take them **one at a time**, in the order the modules were selected. For each: state the decision,
+   the option this standard recommends, and the question that shifts the answer — in plain language,
+   not by reciting the catalogue.
+3. Offer the recommendation as the default and say what it costs. A designer who says "use the
+   recommendation" should be able to move on in one exchange; a designer who wants to understand the
+   trade-off should get the alternatives and their criteria.
+4. **Record every answer**, including the ones that took the default. Where the designer chooses
+   other than the advocated option, record the reason in their words — that reason is what a reviewer
+   later uses to tell a deliberate departure from an oversight.
+5. Never settle a decision silently. If the designer defers one, carry it into the brief as
+   explicitly open rather than assuming the default.
+
+The agent may recommend, but the choice is the designer's. A standard recommends; a product decides.
 
 `patterns/{pattern}.md` (from `design/patterns/`): the contract the pattern imposes and the capabilities
 it underpins.
@@ -123,7 +153,9 @@ it arrives (a file, a pasted block, or an MCP resource):
 - per module: the entity model in logical types, the capabilities it requires, the patterns it applies,
   and the invariants it must satisfy;
 - attributes flagged `[pii]`;
-- design decisions and any deviations, with rationale (destined for Memory once built);
+- **the settled decisions** — every decision the composition raised, the option chosen, and, where
+  it was not the advocated one, the designer's reason; plus any decision explicitly left open;
+- other design decisions and deviations, with rationale (all of it destined for Memory once built);
 - target platform if known, else "TBD — builder confirms".
 
 The brief is platform-agnostic (lint-clean) and medium-agnostic. It is the one transient artifact in the
@@ -218,6 +250,8 @@ For every skill:
 - [ ] `SKILL.md` ≤ 150 lines, correct frontmatter, clear routing, no content that belongs in an on-demand file.
 - [ ] On-demand files present for every module/pattern in scope; none repeats `SKILL.md`.
 - [ ] `design` skill contains no platform types or DDL (lint-clean).
+- [ ] `design` skill carries every module's Decisions-to-settle table, and instructs the agent to work
+      through them with the human designer rather than choosing for them.
 - [ ] `build` skill preserves validated platform SQL verbatim and carries the capability→binding and invariant→check mappings.
 - [ ] `review` skill builds a **trust map**: every `INV-*` and conformance rule with its runnable check and severity, rolled up per area into coverage / status / confidence / gaps, plus recommendations — not a binary stop/go gate.
 - [ ] `access` skill leads with product-first discovery and the pre-use trust gate.

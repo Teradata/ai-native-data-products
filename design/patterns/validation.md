@@ -5,8 +5,6 @@ type: pattern
 status: standard
 version: 2.0
 normative: true
-patterns:
-  - temporal-lifecycle-metadata
 ---
 
 # Validation — Pattern

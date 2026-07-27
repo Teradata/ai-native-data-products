@@ -54,22 +54,21 @@ assert lint_text("design/modules/domain.md", text) == []
 | Rule | Fails when… |
 |------|-------------|
 | `frontmatter-missing` | a design document has no frontmatter block. |
-| `frontmatter-key` | a required key is absent, an unrecognised key is present, or an implementation omits `implements` / `platform`. |
-| `frontmatter-enum` | `type`, `status`, `normative`, or a requirement's `strength` carries a value outside its vocabulary. |
-| `frontmatter-shape` | a `requires` entry is not a mapping of capability, strength, and provider. |
+| `frontmatter-key` | a required key is absent, an unrecognised key is present (substance belongs in the body, Section 3.2), or an implementation omits `implements` / `platform`. |
+| `frontmatter-enum` | `type`, `status`, or `normative` carries a value outside its vocabulary. |
 | `anchor-mismatch` | `anchor` disagrees with the document's location. |
-| `unknown-capability` | a capability in `provides` / `requires` is not in the catalogue (Section 6.1). |
-| `unknown-anchor` | a `patterns` or `implements` anchor resolves to no document. |
-| `unknown-decision` | a declared decision id is not in the decision catalogue. |
-| `invalid-choice` | a declared `choice` is not one of that decision's options. |
-| `unjustified-choice` | a design departs from the advocated option without a `because` (Section 8.2). |
-| `undeclared-decision` | a module describes a `History` entity without declaring how it versions and deletes (Section 8.3). |
+| `unknown-capability` | a capability named in a body Provides / Requires table is not in the catalogue (Section 6.1). |
+| `unknown-anchor` | an `implements` or `supersedes` anchor resolves to no document. |
+| `unknown-decision` | a decision named in a Decisions-to-settle table is not in the catalogue. |
+| `invalid-choice` | a recommended option is not one of that decision's options. |
+| `unjustified-choice` | a standard recommends other than the advocated option without saying why (Section 8.2). |
+| `undeclared-decision` | a module describes a `History` entity without asking the designer to settle how it versions and deletes (Section 8.4). |
 | `glossary-order` | a glossary entry is out of alphabetical order. |
 | `glossary-entry` | a bold run opens a glossary line without the ` — ` separator — almost always a cross-reference that wrapped onto the left margin, where it reads as a phantom definition. |
 
-The capability and decision catalogues are **read from the documents that define them**,
-found by anchor rather than by filename — so adding a capability or a decision needs no
-change to the linter.
+Both catalogues, and the per-document graph, are **read from the documents themselves** —
+found by anchor rather than by filename, and from body tables rather than headers. Adding a
+capability, a decision, or a whole module needs no change to the linter.
 
 The rule is designed to catch real entanglement without flagging ordinary English —
 the words *table*, *view*, *date*, *index*, and *default* are fine in prose. Only

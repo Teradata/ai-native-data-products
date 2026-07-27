@@ -5,15 +5,6 @@ type: pattern
 status: standard
 version: 2.0
 normative: true
-provides:
-  - AccessView
-requires:
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-patterns:
-  - object-placement
-  - temporal-lifecycle-metadata
 ---
 
 # Access Layer — Pattern

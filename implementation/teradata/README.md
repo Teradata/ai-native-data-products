@@ -33,25 +33,25 @@ Generated from document frontmatter by
 
 ### Platform profile
 
-| Document | Anchor | Status | Provides | Requires |
-|---|---|---|---|---|
-| [Teradata Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `teradata` | standard | — | — |
+| Document | Anchor | Status | Provides | Requires | Decisions |
+|---|---|---|---|---|---|
+| [Teradata Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `teradata` | standard | — | — | — |
 
 ### Bindings
 
-| Document | Anchor | Status | Provides | Requires |
-|---|---|---|---|---|
-| [Teradata — Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | standard | — | — |
-| [Teradata — Domain Module Implementation](modules/domain/README.md) | `domain` | standard | — | — |
-| [Teradata — Memory Module Implementation](modules/memory/README.md) | `memory` | standard | — | — |
-| [Teradata — Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | standard | — | — |
-| [Teradata — Observability Module Implementation](modules/observability/README.md) | `observability` | standard | — | — |
-| [Teradata — Physical Storage Pattern Implementation](patterns/physical-storage/README.md) | `physical-storage` | standard | — | — |
-| [Teradata — Prediction Module Implementation](modules/prediction/README.md) | `prediction` | standard | — | — |
-| [Teradata — Search Module Implementation](modules/search/README.md) | `search` | standard | — | — |
-| [Teradata — Semantic Module Implementation](modules/semantic/README.md) | `semantic` | standard | — | — |
-| [Teradata — Temporal Lifecycle Metadata Pattern Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | standard | — | — |
-| [Teradata — Validation Pattern Implementation](patterns/validation/README.md) | `validation` | standard | — | — |
+| Document | Anchor | Status | Provides | Requires | Decisions |
+|---|---|---|---|---|---|
+| [Teradata — Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | standard | — | — | — |
+| [Teradata — Domain Module Implementation](modules/domain/README.md) | `domain` | standard | — | — | — |
+| [Teradata — Memory Module Implementation](modules/memory/README.md) | `memory` | standard | — | — | — |
+| [Teradata — Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | standard | — | — | — |
+| [Teradata — Observability Module Implementation](modules/observability/README.md) | `observability` | standard | — | — | — |
+| [Teradata — Physical Storage Pattern Implementation](patterns/physical-storage/README.md) | `physical-storage` | standard | — | — | — |
+| [Teradata — Prediction Module Implementation](modules/prediction/README.md) | `prediction` | standard | — | — | — |
+| [Teradata — Search Module Implementation](modules/search/README.md) | `search` | standard | — | — | — |
+| [Teradata — Semantic Module Implementation](modules/semantic/README.md) | `semantic` | standard | — | — | — |
+| [Teradata — Temporal Lifecycle Metadata Pattern Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | standard | — | — | — |
+| [Teradata — Validation Pattern Implementation](patterns/validation/README.md) | `validation` | standard | — | — | — |
 
 <!-- catalogue:end -->
 

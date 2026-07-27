@@ -5,44 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - PointInTimeReconstruction
-  - CurrentStateFilter
-  - AccessView
-requires:
-  - capability: EntityJoinBack
-    strength: hard
-    provider: module:domain
-  - capability: PointInTimeReconstruction
-    strength: hard
-    provider: self
-  - capability: CurrentStateFilter
-    strength: hard
-    provider: self
-  - capability: AccessView
-    strength: hard
-    provider: self
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: SemanticRegistration
-    strength: soft
-    provider: module:semantic
-  - capability: DocumentationCapture
-    strength: soft
-    provider: module:memory
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-TEMPORAL-PATTERN
-    choice: bi-temporal
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Prediction Module — Design Standard
@@ -240,6 +202,21 @@ definitions registered in Semantic.
 - [ ] Feature entities registered in the Semantic map (`SemanticRegistration`); documentation captured.
 - [ ] Every invariant has a check in the implementation.
 - [ ] This document passes the design linter with no ignore directive.
+
+---
+
+### 9.1 Decisions to settle
+
+These are the catalogued decisions a Prediction module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TEMPORAL-PATTERN` | `bi-temporal` | Point-in-time correctness is the module's reason for existing — departing from this option reintroduces feature leakage. |
+| `DEC-DELETE-STRATEGY` | `soft-delete` | Does an explanation of a past prediction need the feature values as they stood? |
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Are features computed or served across regions? |
 
 ---
 

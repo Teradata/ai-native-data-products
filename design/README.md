@@ -44,33 +44,33 @@ Generated from document frontmatter by
 
 ### Core
 
-| Document | Anchor | Status | Provides | Requires |
-|---|---|---|---|---|
-| [Advocated Standards — Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | — | — |
-| [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | — | — |
-| [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | — | — |
-| [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | — | — |
+| Document | Anchor | Status | Provides | Requires | Decisions |
+|---|---|---|---|---|---|
+| [Advocated Standards — Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | — | — | — |
+| [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | — | — | — |
+| [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | — | — | — |
+| [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | — | — | — |
 
 ### Patterns
 
-| Document | Anchor | Status | Provides | Requires |
-|---|---|---|---|---|
-| [Access Layer Pattern](patterns/access-layer.md) | `access-layer` | standard | `AccessView` | `DocumentationCapture` |
-| [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | — | — |
-| [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | — | — |
-| [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | `RichMetadata` |
-| [Validation Pattern](patterns/validation.md) | `validation` | standard | — | — |
+| Document | Anchor | Status | Provides | Requires | Decisions |
+|---|---|---|---|---|---|
+| [Access Layer Pattern](patterns/access-layer.md) | `access-layer` | standard | — | — | — |
+| [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | — | — | — |
+| [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | — | — | — |
+| [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | — | — | — |
+| [Validation Pattern](patterns/validation.md) | `validation` | standard | — | — | — |
 
 ### Modules
 
-| Document | Anchor | Status | Provides | Requires |
-|---|---|---|---|---|
-| [Domain Module](modules/domain.md) | `domain` | standard | `EntityJoinBack`, `CurrentStateFilter`, `PointInTimeReconstruction`, `NaturalKeyLookup`, `AccessView`, `SoftDelete` | `SurrogateKeyAllocation`, `RichMetadata`, `MetadataCoverageCheck`, `SemanticRegistration`, `DocumentationCapture` |
-| [Memory Module](modules/memory.md) | `memory` | standard | `DocumentationCapture` | `RichMetadata`, `DocumentationCapture`, `SemanticRegistration`, `EntityJoinBack`, `QualityScore`, `NearestNeighbors` |
-| [Observability Module](modules/observability.md) | `observability` | standard | `ChangeEventCapture`, `LineageCapture`, `QualityScore` | `RichMetadata`, `SemanticRegistration`, `DocumentationCapture`, `EntityJoinBack` |
-| [Prediction Module](modules/prediction.md) | `prediction` | standard | `PointInTimeReconstruction`, `CurrentStateFilter`, `AccessView` | `EntityJoinBack`, `PointInTimeReconstruction`, `CurrentStateFilter`, `AccessView`, `RichMetadata`, `SemanticRegistration`, `DocumentationCapture` |
-| [Search Module](modules/search.md) | `search` | standard | `NearestNeighbors`, `Embed`, `ApproxIndex` | `EntityJoinBack`, `CurrentStateFilter`, `RichMetadata`, `AccessView`, `SemanticRegistration`, `DocumentationCapture` |
-| [Semantic Module](modules/semantic.md) | `semantic` | standard | `SemanticRegistration` | `RichMetadata`, `DocumentationCapture`, `EntityJoinBack` |
+| Document | Anchor | Status | Provides | Requires | Decisions |
+|---|---|---|---|---|---|
+| [Domain Module](modules/domain.md) | `domain` | standard | `AccessView`, `CurrentStateFilter`, `EntityJoinBack`, `NaturalKeyLookup`, `PointInTimeReconstruction`, `SoftDelete` | `DocumentationCapture`, `MetadataCoverageCheck`, `RichMetadata`, `SemanticRegistration`, `SurrogateKeyAllocation` | `DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`, `DEC-DELETE-STRATEGY`, `DEC-TIMESTAMP-ZONE` |
+| [Memory Module](modules/memory.md) | `memory` | standard | `DocumentationCapture` | `DocumentationCapture`, `EntityJoinBack`, `RichMetadata`, `SemanticRegistration` | `DEC-TEMPORAL-PATTERN`, `DEC-DELETE-STRATEGY`, `DEC-TIMESTAMP-ZONE` |
+| [Observability Module](modules/observability.md) | `observability` | standard | `ChangeEventCapture`, `LineageCapture`, `QualityScore` | `DocumentationCapture`, `EntityJoinBack`, `RichMetadata`, `SemanticRegistration` | `DEC-QUALITY-STORAGE`, `DEC-AUDIT-RETENTION`, `DEC-TIMESTAMP-ZONE` |
+| [Prediction Module](modules/prediction.md) | `prediction` | standard | — | `AccessView`, `CurrentStateFilter`, `DocumentationCapture`, `EntityJoinBack`, `PointInTimeReconstruction`, `RichMetadata`, `SemanticRegistration` | `DEC-TEMPORAL-PATTERN`, `DEC-DELETE-STRATEGY`, `DEC-TIMESTAMP-ZONE` |
+| [Search Module](modules/search.md) | `search` | standard | `ApproxIndex`, `Embed`, `NearestNeighbors` | `AccessView`, `CurrentStateFilter`, `DocumentationCapture`, `EntityJoinBack`, `RichMetadata`, `SemanticRegistration` | `DEC-TEMPORAL-PATTERN`, `DEC-DELETE-STRATEGY`, `DEC-TIMESTAMP-ZONE` |
+| [Semantic Module](modules/semantic.md) | `semantic` | standard | `SemanticRegistration` | `DocumentationCapture`, `EntityJoinBack`, `RichMetadata` | `DEC-TIMESTAMP-ZONE` |
 
 <!-- catalogue:end -->
 
@@ -134,11 +134,16 @@ solves.
 
 ## Document identity
 
-Each document declares `title`, `anchor`, `type`, `status` (`draft` / `standard`
-/ `deprecated`), `version`, and `normative` in frontmatter, plus its capability
-flow, applied patterns, and declared decisions. That block is authoritative: the
-linter validates it, the catalogue above is generated from it, and a cross-
-reference that does not resolve fails the build rather than going stale.
+Each document opens with a short frontmatter block declaring `title`, `anchor`,
+`type`, `status` (`draft` / `standard` / `deprecated`), `version`, and
+`normative` — identity only.
+
+Everything else lives in the body: what a document provides and requires, and
+the decisions it asks a designer to settle. Frontmatter is an index card, not an
+abstract — a capability graph stated in both a header and a body table is two
+things to maintain and two things to disagree. The catalogue above reads the
+body tables, so the graph is machine-readable in one place without any document
+restating it.
 
 ---
 

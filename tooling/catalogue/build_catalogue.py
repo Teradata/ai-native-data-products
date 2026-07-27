@@ -28,7 +28,12 @@ from typing import Dict, List, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "validation"))
 
-from design_lint import is_design_document, parse_frontmatter  # noqa: E402
+from design_lint import (  # noqa: E402
+    is_design_document,
+    parse_frontmatter,
+    read_document_capabilities,
+    read_document_decisions,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 START = "<!-- catalogue:start -->"
@@ -44,7 +49,12 @@ TYPE_HEADINGS = [
 
 
 def collect(roots: List[Path]) -> List[Tuple[Path, dict]]:
-    """Every design document under `roots`, with its frontmatter."""
+    """Every design document under `roots`, with its identity and its capability graph.
+
+    Identity comes from frontmatter; the graph is read from the body tables, which are
+    where it is stated (Design Language Section 3.2). Collecting it here is the point of
+    the catalogue: an agent gets the whole graph in one file instead of opening fifteen.
+    """
     found = []
     for root in roots:
         if not root.exists():
@@ -52,9 +62,19 @@ def collect(roots: List[Path]) -> List[Tuple[Path, dict]]:
         for md in sorted(root.rglob("*.md")):
             if not is_design_document(md):
                 continue
-            fm, _ = parse_frontmatter(md.read_text(encoding="utf-8"))
-            if fm:
-                found.append((md, fm))
+            text = md.read_text(encoding="utf-8")
+            fm, _ = parse_frontmatter(text)
+            if not fm:
+                continue
+            caps = read_document_capabilities(text)
+            entry = dict(fm)
+            entry["provides"] = sorted(set(caps["provides"]))
+            entry["requires"] = sorted(set(caps["requires"]))
+            # The design language shows an illustrative decisions table to define the
+            # notation; it settles nothing, so it is not read as a declaration.
+            entry["decisions"] = ([] if fm.get("anchor") == "design-language"
+                                  else [d for d, _, _ in read_document_decisions(text)])
+            found.append((md, entry))
     return found
 
 
@@ -81,8 +101,9 @@ def render(docs: List[Tuple[Path, dict]], relative_to: Path) -> str:
         entries = by_type.get(type_key)
         if not entries:
             continue
-        lines = [f"### {heading}", "", "| Document | Anchor | Status | Provides | Requires |",
-                 "|---|---|---|---|---|"]
+        lines = [f"### {heading}", "",
+                 "| Document | Anchor | Status | Provides | Requires | Decisions |",
+                 "|---|---|---|---|---|---|"]
         for path, fm in sorted(entries, key=lambda e: e[1].get("anchor", "")):
             try:
                 href = path.relative_to(relative_to).as_posix()
@@ -93,7 +114,8 @@ def render(docs: List[Tuple[Path, dict]], relative_to: Path) -> str:
             normative = "" if str(fm.get("normative", "")).lower() == "true" else " *(advisory)*"
             lines.append(
                 f"| [{title}]({href}){normative} | `{fm.get('anchor', '?')}` | "
-                f"{fm.get('status', '?')} | {_cell(fm, 'provides')} | {_cell(fm, 'requires')} |"
+                f"{fm.get('status', '?')} | {_cell(fm, 'provides')} | {_cell(fm, 'requires')} | "
+                f"{_cell(fm, 'decisions')} |"
             )
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)

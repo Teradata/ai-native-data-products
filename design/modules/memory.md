@@ -5,40 +5,6 @@ type: module
 status: standard
 version: 2.0
 normative: true
-provides:
-  - DocumentationCapture
-requires:
-  - capability: RichMetadata
-    strength: hard
-    provider: self
-  - capability: DocumentationCapture
-    strength: soft
-    provider: self
-  - capability: SemanticRegistration
-    strength: soft
-    provider: module:semantic
-  - capability: EntityJoinBack
-    strength: soft
-    provider: module:domain
-  - capability: QualityScore
-    strength: soft
-    provider: module:observability
-  - capability: NearestNeighbors
-    strength: soft
-    provider: module:search
-patterns:
-  - temporal-lifecycle-metadata
-  - object-placement
-  - access-layer
-  - validation
-decisions:
-  - id: DEC-TEMPORAL-PATTERN
-    choice: scd2
-    because: design memory is superseded by a later version rather than corrected retrospectively, so there is no transaction-time question to answer
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TIMESTAMP-ZONE
-    choice: zone-aware
 ---
 
 # Memory Module — Design Standard
@@ -391,6 +357,21 @@ so it composes with any product, and either facet can be deployed alone. See the
 - [ ] Memory's own entities registered in the Semantic map when Semantic is present (`SemanticRegistration`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] This document passes the design linter with no ignore directive.
+
+---
+
+### 11.1 Decisions to settle
+
+These are the catalogued decisions a Memory module design must settle. The recommendation is this
+standard's default; the question is what shifts it. The design skill walks a designer through
+each one at design time and records the answer in the product's own design.
+
+
+| Decision | Recommended | Settle it by asking |
+|---|---|---|
+| `DEC-TEMPORAL-PATTERN` | `scd2` | **Recommended over the advocated `bi-temporal` because** design memory is superseded by a later version rather than corrected retrospectively — there is no transaction-time question to answer. Choose `bi-temporal` if the product must reconstruct what it recorded as of a past instant. |
+| `DEC-DELETE-STRATEGY` | `soft-delete` | Is a withdrawn decision or retired glossary term still evidence? |
+| `DEC-TIMESTAMP-ZONE` | `zone-aware` | Do agent sessions span regions? |
 
 ---
 

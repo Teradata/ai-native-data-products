@@ -5,14 +5,6 @@ type: core
 status: draft
 version: 2.0
 normative: true
-decisions:
-  - id: DEC-TEMPORAL-PATTERN
-  - id: DEC-COLUMN-STRATEGY
-  - id: DEC-SURROGATE-ALLOCATION
-  - id: DEC-DELETE-STRATEGY
-  - id: DEC-TIMESTAMP-ZONE
-  - id: DEC-QUALITY-STORAGE
-  - id: DEC-AUDIT-RETENTION
 ---
 
 # Advocated Standards — Decision Catalogue
@@ -27,28 +19,21 @@ This document catalogues the **decisions** (Design Language Section 8) that an A
 
 These recommendations come from three decades of enterprise data management practice. They are strong defaults, not mandates: a small controlled vocabulary and a hundred-million-row transaction history genuinely warrant different answers, and a standard that pretended otherwise would simply be ignored where it did not fit.
 
-**What is normative here is the requirement to choose, not the choice.** A design document that applies a decision must declare which option it took. Taking the advocated option needs no justification; taking any other requires a recorded reason. Silence is the one thing that is not conformant.
+**What is normative here is the requirement to choose, not the choice.** A module or pattern must state which decisions its designers have to settle; a product's design must record what it settled them to. Taking the advocated option needs no justification; taking any other requires a recorded reason. Silence is the one thing that is not conformant.
 
 ### 1.1 Why this is a catalogue and not guidance
 
 Advisory prose has no purchase on a design workflow. Nothing records which option a product actually took, nothing checks that its implementation matches, and an agent reading the design cannot tell a deliberate departure from an oversight.
 
-Expressing the same material as decisions fixes all three. A choice is declared in frontmatter, validated by the linter, and checked against the implementation by the same machinery that checks invariants. The recommendation carries exactly as much weight as before — what changes is that using it, or not using it, becomes visible and testable.
+Expressing the same material as decisions fixes all three. Each module names the decisions it obliges a designer to settle, the design skill puts those questions to the designer at design time, and the answer is recorded in the product's design where the linter and the reviewer can both find it. The recommendation carries exactly as much weight as before — what changes is that using it, or not using it, becomes visible and testable.
 
-### 1.2 How to declare a choice
+### 1.2 How a decision reaches a design
 
-A module or pattern document declares its decisions in frontmatter:
+A module or pattern document lists, under **Designer Responsibilities**, the decisions its designers must settle — each with the option this standard recommends and the question that shifts the answer. Nothing there fixes a choice: a standard recommends, a product decides.
 
-```yaml
-decisions:
-  - id: DEC-DELETE-STRATEGY
-    choice: soft-delete
-  - id: DEC-TEMPORAL-PATTERN
-    choice: scd2
-    because: a controlled vocabulary with no late-arriving corrections
-```
+At design time the design skill reads those tables and works through them with the human designer, one question at a time, recording each answer in the product's own design. A choice that departs from the recommendation is recorded with its reason.
 
-`because` is required whenever the choice is not the advocated option.
+This is why the decisions live in the document body rather than a header: a header is metadata a reader skips, while Designer Responsibilities is exactly where someone doing the design is already looking.
 
 ### 1.3 Scope
 
@@ -346,13 +331,13 @@ Retention of definitional lineage is governed separately by `INV-OBS-004`: defin
 
 ## 9. Applying the catalogue
 
-A designer meets these decisions in one place, and declares the resulting choices where they belong — in the module or pattern document the choice applies to. The catalogue holds the options and the reasoning; individual documents hold the answers.
+This catalogue holds the options and the reasoning in one place. Each module names, under Designer Responsibilities, which of them its designers must settle. A product's design records the answers.
 
 Three properties follow, and they are the reason this material is expressed as decisions rather than advice:
 
-- **An agent reading a design knows what was chosen**, without inferring it from the implementation.
-- **A reviewer can distinguish a deliberate departure from an oversight**, because the former carries a reason and the latter fails the linter.
-- **Recommendations can change without invalidating existing products**: a product that declared `scd2` with a reason remains conformant when the advocated option is restated, because it recorded that it was choosing.
+- **A designer is asked rather than left to guess.** The questions arrive during design, from the skill, instead of sitting in a document someone was supposed to have read.
+- **A reviewer can distinguish a deliberate departure from an oversight**, because the former carries a reason and the latter is missing an answer the linter expected.
+- **Recommendations can change without invalidating existing products**: a product that recorded `scd2` with a reason remains conformant when the advocated option is restated, because it recorded that it was choosing.
 
 ---
 

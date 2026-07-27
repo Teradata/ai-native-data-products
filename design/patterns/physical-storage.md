@@ -5,9 +5,6 @@ type: pattern
 status: standard
 version: 2.0
 normative: true
-patterns:
-  - object-placement
-  - validation
 ---
 
 # Physical Storage — Pattern
