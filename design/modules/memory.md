@@ -62,7 +62,7 @@ Two principles govern what Memory stores:
 
 **Entity = table, not instance.** Memory references **entities (tables)**, never the individual instance keys or rows from a query's results (`INV-MEMORY-001`).
 
-**Big questions, small answers.** Agents process millions of records; Memory stores the *metadata* about those processes, the query run, the tables involved, the outcome, the counts, never the result data (`INV-MEMORY-002`). Memory holds thousands to tens of thousands of rows, not millions.
+**Big questions, small answers.** Agents process millions of records; Memory stores the *metadata* about those processes (the query run, the tables involved, the outcome, the counts) and never the result data (`INV-MEMORY-002`). Memory holds thousands to tens of thousands of rows, not millions.
 
 **In scope:** agent interaction metadata (what was asked, what query ran, which tables, the outcome), agent learning metadata (strategies, patterns, success rates), preferences, session state, and, via the documentation facet, design decisions, glossary, cookbook, registry, and change history.
 
@@ -150,7 +150,7 @@ All runtime entities `Apply patterns: object-placement, access-layer` and `Requi
 
 ## 5. Entity Model: Documentation Facet
 
-The documentation facet **is** design memory: it records *why* a product is the way it is, *how* to use it, and *what changed*: the counterpart to runtime memory's record of what agents did.
+The documentation facet **is** design memory: it records *why* a product is the way it is, *how* to use it, and *what changed*. Runtime memory records what agents did; this records what the designers decided.
 
 **Boundary with Semantic.** Semantic stores *what exists and how it connects* (tables, columns, join paths); documentation stores *why it exists, how to use it, and what changed*. Documentation never duplicates Semantic metadata (`INV-MEMORY-004`).
 
@@ -255,7 +255,7 @@ Every **runtime** record carries a privacy scope, both a `scope_level` (`USER`/`
 
 ## 8. Capabilities and Composition
 
-Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing: so it composes with any product, and either facet can be deployed alone. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing, so it composes with any product and either facet can be deployed alone. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 

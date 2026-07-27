@@ -122,7 +122,7 @@ A module names the capabilities it provides and requires; the platform implement
 ## 6. Cross-Module Integration Patterns
 
 1. **Join-back**: every module references Domain entities by `Identifier` and joins back for content. Single source of truth, no duplication (`EntityJoinBack`, `INV-MASTER-001`).
-2. **Enhancement**: modules progressively enhance Domain: Search adds embeddings, Prediction adds features, Semantic adds relationship metadata. Each can deploy incrementally.
+2. **Enhancement**: modules progressively enhance Domain. Search adds embeddings, Prediction adds features, Semantic adds relationship metadata, and each can deploy incrementally.
 3. **Feedback loop**. Observability → Memory → Prediction: outcomes captured by Observability inform Memory and, in turn, future features and predictions. Present only when those modules are.
 
 ---

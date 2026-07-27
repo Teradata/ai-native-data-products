@@ -30,7 +30,7 @@ This document defines **what** a Domain module must be and **why**, in platform-
 
 ## 1. Purpose
 
-The Domain module is the **authoritative source of truth** for a data product's core business entities. It is AI-native not because of any one storage choice but because of the guarantees it offers an autonomous agent:
+The Domain module is the **authoritative source of truth** for a data product's core business entities. Its AI-native character comes from the guarantees it offers an autonomous agent, rather than from any particular storage choice:
 
 | AI-native characteristic | Purpose |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -184,7 +184,7 @@ Domain does not restate cross-cutting concerns; it applies them. Each pattern is
 
 ## 5. Capabilities and Composition
 
-Domain is the **composition root**: it has no hard dependency on any other module and can be deployed alone: for example as a Data Asset (Domain + Memory `documentation` facet + Access Layer). See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Domain is the **composition root**: it has no hard dependency on any other module and can be deployed alone, for example as a Data Asset (Domain + Memory `documentation` facet + Access Layer). See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides** (to other modules and to agents):
 

@@ -217,7 +217,7 @@ A live **column catalogue** joins the deployed structural facts to the curated `
 
 ## 8. Capabilities and Composition
 
-Semantic is **cross-cutting and soft**: nothing hard-depends on it (modules register *when it is present*), and it hard-depends on nothing: it describes whatever modules are in the composition. It is present in a traditional data product and an AI-native product, absent in a minimal Data Asset. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Semantic is **cross-cutting and soft**: nothing hard-depends on it (modules register *when it is present*), and it hard-depends on nothing, so it describes whatever modules are in the composition. It appears in a traditional data product and an AI-native product, and is absent from a minimal Data Asset. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 

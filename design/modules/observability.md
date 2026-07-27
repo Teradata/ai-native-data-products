@@ -53,7 +53,7 @@ Lineage is modelled as two distinct concerns (`INV-OBS-003`):
 | **Definitional** | `DataLineage` | *What are the declared data flows?* | One row per source → job → target |
 | **Operational** | `LineageRun` | *Did this flow run, and how did it go?* | Many rows per flow over time |
 
-This gives a stable, deduplicated edge list for graph visualisation (definition only), keeps execution monitoring on the events-and-metrics principle, allows **independent retention** (definitions live as long as the product; runs follow event-retention windows, `INV-OBS-004`), and gives clear mutation semantics: a new `DataLineage` row is a new flow; a new `LineageRun` row is a new execution of an existing flow.
+Separating them yields a stable, deduplicated edge list for graph visualisation, and keeps execution monitoring on the events-and-metrics principle. It also allows **independent retention**: definitions live as long as the product, while runs follow event-retention windows (`INV-OBS-004`). Mutation semantics stay clear, since a new `DataLineage` row is a new flow and a new `LineageRun` row is a new execution of an existing flow.
 
 ---
 
@@ -169,7 +169,7 @@ The lineage entities align with **OpenLineage**: the definition/execution split 
 
 ## 8. Capabilities and Composition
 
-Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing: it observes whatever modules are present. It is in a traditional data product and an AI-native product, absent in a minimal Data Asset.
+Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing, so it observes whatever modules are present. It appears in a traditional data product and an AI-native product, and is absent from a minimal Data Asset.
 
 **Provides:**
 

@@ -40,7 +40,7 @@ The Search module enables **semantic retrieval**: finding relevant content by me
 | **Autonomous discovery** | Agents find relevant data without human direction. |
 | **Multi-modal** | Text, image, and structured-data embeddings under one contract. |
 
-It enables similarity search, retrieval-augmented generation, similarity analysis, content discovery, and multi-modal search: all built on one entity: the embedding.
+Similarity search, retrieval-augmented generation, content discovery, and multi-modal search all build on one entity: the embedding.
 
 ---
 
@@ -137,7 +137,7 @@ Entity: EntityEmbedding           [kind: History]
 
 ## 6. Capabilities and Composition
 
-Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain entity and joins back for content), so it cannot be deployed alone: but it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Search is an **enhancement** module: it hard-depends on Domain (an embedding references a Domain entity and joins back for content), so it cannot be deployed alone, though it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides** (to agents and consumers):
 

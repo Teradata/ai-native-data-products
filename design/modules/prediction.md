@@ -126,7 +126,7 @@ Using current features to train on a historical label causes **data leakage**. P
 
 ## 6. Capabilities and Composition
 
-Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain entities and join back for context), so it cannot be deployed alone: valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain entities and join back for context), so it cannot be deployed alone, though it is valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
