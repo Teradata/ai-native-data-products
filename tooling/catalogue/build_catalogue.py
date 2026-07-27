@@ -81,12 +81,12 @@ def collect(roots: List[Path]) -> List[Tuple[Path, dict]]:
 def _cell(fm: dict, key: str) -> str:
     value = fm.get(key)
     if not value:
-        return "—"
+        return "-"
     if isinstance(value, list):
         names = []
         for item in value:
             names.append(item.get("capability", "?") if isinstance(item, dict) else str(item))
-        return ", ".join(f"`{n}`" for n in names) if names else "—"
+        return ", ".join(f"`{n}`" for n in names) if names else "-"
     return str(value)
 
 

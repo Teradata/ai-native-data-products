@@ -267,12 +267,12 @@ normative: false
 
 # Glossary
 
-**Anchor** — The short name identifying a module across the corpus.
+**Anchor**: The short name identifying a module across the corpus.
 
-**Composition** — A chosen set of modules assembled into a data design pattern,
+**Composition**: A chosen set of modules assembled into a data design pattern,
 so that a **facet** may be taken without the whole module.
 
-**Decision** — A named choice a design must settle explicitly.
+**Decision**: A named choice a design must settle explicitly.
 
 ---
 
@@ -285,7 +285,7 @@ class GlossaryRules(unittest.TestCase):
         self.assertEqual(find_glossary_violations(GLOSSARY_CLEAN, "GLOSSARY.md"), [])
 
     def test_out_of_order_entry_flagged(self):
-        text = GLOSSARY_CLEAN.replace("**Anchor** —", "**Zebra** —")
+        text = GLOSSARY_CLEAN.replace("**Anchor**:", "**Zebra**:")
         self.assertEqual([f.rule for f in find_glossary_violations(text, "GLOSSARY.md")],
                          ["glossary-order"])
 
@@ -309,7 +309,7 @@ SPINE_DOC = "\n".join(
      "version: 1.0", "normative: true", "---", ""]
     + [f"## {i}. {name}\n\nprose\n"
        for i, name in enumerate([
-           "Purpose", "Scope and Boundaries", "Entity Model — Runtime Facet",
+           "Purpose", "Scope and Boundaries", "Entity Model: Runtime Facet",
            "Something Module-Specific", "Applied Patterns",
            "Capabilities and Composition", "Integration with Other Modules",
            "Invariants", "Designer Responsibilities", "Implementation"], start=1)]
@@ -328,8 +328,8 @@ class ModuleSpine(unittest.TestCase):
         self.assertEqual([f.rule for f in findings], ["module-spine"])
         self.assertIn("Integration with Other Modules", findings[0].message)
 
-    def test_subtitle_after_em_dash_still_matches(self):
-        """`Entity Model — Runtime Facet` satisfies the `Entity Model` requirement."""
+    def test_subtitle_after_colon_still_matches(self):
+        """`Entity Model: Runtime Facet` satisfies the `Entity Model` requirement."""
         from design_lint import find_spine_violations
         self.assertFalse(any("Entity Model" in f.message
                              for f in find_spine_violations(SPINE_DOC, "m.md")))

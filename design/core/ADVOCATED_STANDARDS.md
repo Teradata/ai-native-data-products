@@ -1,5 +1,5 @@
 ---
-title: Advocated Standards — Decision Catalogue
+title: Advocated Standards: Decision Catalogue
 anchor: advocated-standards
 type: core
 status: draft
@@ -9,7 +9,7 @@ normative: true
 
 # Advocated Standards — Decision Catalogue
 
-## AI-Native Data Product Architecture — Foundational Reference
+## AI-Native Data Product Architecture: Foundational Reference
 
 ---
 

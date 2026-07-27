@@ -2,10 +2,7 @@
 
 # tooling/validation — design linter
 
-`design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md)
-across both hierarchies. It is the executable form of the **No-Platform-SQL Rule**
-(Section 9), the **frontmatter schema** (Section 3.1), and the **decision rules**
-(Section 8). Stdlib-only, Python 3.8+.
+`design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md) across both hierarchies. It is the executable form of the **No-Platform-SQL Rule** (Section 9), the **frontmatter schema** (Section 3.1), and the **decision rules** (Section 8). Stdlib-only, Python 3.8+.
 
 ## Run it
 
@@ -21,18 +18,13 @@ Lint specific files or folders:
 python tooling/validation/design_lint.py design/modules/domain.md design/patterns
 ```
 
-Exit code is `0` when clean, `1` when any violation is found. Wire it into CI so a
-platform-SQL leak, a malformed frontmatter block, or a dangling cross-reference fails
-the build.
+Exit code is `0` when clean, `1` when any violation is found. Wire it into CI so a platform-SQL leak, a malformed frontmatter block, or a dangling cross-reference fails the build.
 
-The no-platform-SQL rules apply to `design/` only — concrete SQL is exactly what
-`implementation/` exists to hold. The frontmatter and corpus rules apply to every design
-document in both trees.
+The no-platform-SQL rules apply to `design/` only — concrete SQL is exactly what `implementation/` exists to hold. The frontmatter and corpus rules apply to every design document in both trees.
 
 ## Use it in module unit tests
 
-When validating a worked module, import the checks so a test can assert its design
-document is clean:
+When validating a worked module, import the checks so a test can assert its design document is clean:
 
 ```python
 from design_lint import lint_text
@@ -67,18 +59,13 @@ assert lint_text("design/modules/domain.md", text) == []
 | `glossary-order` | a glossary entry is out of alphabetical order. |
 | `glossary-entry` | a bold run opens a glossary line without the ` — ` separator — almost always a cross-reference that wrapped onto the left margin, where it reads as a phantom definition. |
 
-Both catalogues, and the per-document graph, are **read from the documents themselves** —
-found by anchor rather than by filename, and from body tables rather than headers. Adding a
-capability, a decision, or a whole module needs no change to the linter.
+Both catalogues, and the per-document graph, are **read from the documents themselves** — found by anchor rather than by filename, and from body tables rather than headers. Adding a capability, a decision, or a whole module needs no change to the linter.
 
-The rule is designed to catch real entanglement without flagging ordinary English —
-the words *table*, *view*, *date*, *index*, and *default* are fine in prose. Only
-high-precision tokens that never appear outside SQL are matched.
+The rule is designed to catch real entanglement without flagging ordinary English — the words *table*, *view*, *date*, *index*, and *default* are fine in prose. Only high-precision tokens that never appear outside SQL are matched.
 
 ## Escape hatch
 
-A core/meta document that must legitimately name SQL (the Design Language itself, this
-README) opts out in its frontmatter:
+A core/meta document that must legitimately name SQL (the Design Language itself, this README) opts out in its frontmatter:
 
 ```yaml
 lint: ignore-file
@@ -91,11 +78,9 @@ A document without frontmatter uses the legacy directive on its first line:
 <!-- design-lint: ignore-file (reason) -->
 ```
 
-The waiver covers the **content** rules only. An opted-out document still has to declare
-valid frontmatter, and still contributes its anchor and catalogues to the corpus.
+The waiver covers the **content** rules only. An opted-out document still has to declare valid frontmatter, and still contributes its anchor and catalogues to the corpus.
 
-Module and pattern documents must never use it — they are exactly the content the rule
-keeps clean.
+Module and pattern documents must never use it — they are exactly the content the rule keeps clean.
 
 ## Tests
 

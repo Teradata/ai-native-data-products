@@ -1,5 +1,5 @@
 ---
-title: Teradata — Access Layer Pattern Implementation
+title: Teradata: Access Layer Pattern Implementation
 anchor: access-layer
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Access Layer Implementation
 
-Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patterns/access-layer.md).
-Creates the three product roles and grants them access as each module deploys. Read the pattern
-first for the role model, grant matrix, and two-phase timing.
+Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patterns/access-layer.md). Creates the three product roles and grants them access as each module deploys. Read the pattern first for the role model, grant matrix, and two-phase timing.
 
 ## Files
 
@@ -33,7 +31,4 @@ first for the role model, grant matrix, and two-phase timing.
 
 ## Artefact location
 
-In a data product's artefact tree the DCL lives at `00-access/{ProductName}_access_layer.dcl`, the
-`00-` prefix marking it as a prerequisite alongside the module directories. How the two phases are
-executed (one pass or two) is left to the deploying team. The roles are product artefacts created
-once; assigning users/service accounts to them is an operational event, not part of this artefact.
+In a data product's artefact tree the DCL lives at `00-access/{ProductName}_access_layer.dcl`, the `00-` prefix marking it as a prerequisite alongside the module directories. How the two phases are executed (one pass or two) is left to the deploying team. The roles are product artefacts created once; assigning users/service accounts to them is an operational event, not part of this artefact.

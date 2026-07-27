@@ -24,18 +24,13 @@ normative: true
 | **Notation**        | [Design Language](../core/DESIGN_LANGUAGE.md)                                              |
 | **Implementations** | [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/) |
 
-This document defines **what** a Domain module must be and **why**, in platform-neutral
-terms. **How** a specific platform realises it lives in that platform's implementation
-directory. Every capability named here has a binding there; every invariant named here
-has a check there.
+This document defines **what** a Domain module must be and **why**, in platform-neutral terms. **How** a specific platform realises it lives in that platform's implementation directory. Every capability named here has a binding there; every invariant named here has a check there.
 
 ---
 
 ## 1. Purpose
 
-The Domain module is the **authoritative source of truth** for a data product's core
-business entities. It is AI-native not because of any one storage choice but because of
-the guarantees it offers an autonomous agent:
+The Domain module is the **authoritative source of truth** for a data product's core business entities. It is AI-native not because of any one storage choice but because of the guarantees it offers an autonomous agent:
 
 | AI-native characteristic     | Purpose                                                         |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -51,8 +46,7 @@ All other modules (Search, Prediction, Observability, Semantic, Memory) referenc
 
 ## 2. Scope and Boundaries
 
-**In scope** — anything that represents the business domain (what the business *is* and
-*does*):
+**In scope**: anything that represents the business domain (what the business *is* and *does*):
 
 - Core business entities (party, product, location, agreement, …) and their history.
 - Relationships between entities.
@@ -60,7 +54,7 @@ All other modules (Search, Prediction, Observability, Semantic, Memory) referenc
 - Domain events and transactions (customer transactions, product usage, agreement changes).
 - Domain measurements (balances, amounts, usage metrics).
 
-**Out of scope** — anything about the *data product's operation*:
+**Out of scope**: anything about the *data product's operation*:
 
 | Concern                                 | Owning module |
 | --------------------------------------- | ------------- |
@@ -76,8 +70,7 @@ All other modules (Search, Prediction, Observability, Semantic, Memory) referenc
 
 ## 3. Entity Model
 
-Domain entities are declared in the [entity notation](../core/DESIGN_LANGUAGE.md).
-Four entity kinds recur. None of them fixes a physical shape — the temporal columns, the storage layout, and the index strategy come from the applied patterns and the platform implementation, not from here.
+Domain entities are declared in the [entity notation](../core/DESIGN_LANGUAGE.md). Four entity kinds recur. None of them fixes a physical shape — the temporal columns, the storage layout, and the index strategy come from the applied patterns and the platform implementation, not from here.
 
 ### 3.1 Core entity (History)
 
@@ -108,13 +101,11 @@ Entity: <EntityName>              [kind: History]
     - RichMetadata
 ```
 
-The `Identifier` / `NaturalKey` split is deliberate: `<entity>_id` is the internal,
-join-facing surrogate; `<entity>_key` is the human- and report-facing business key from source. Every entity carries both, under the same names.
+The `Identifier` / `NaturalKey` split is deliberate: `<entity>_id` is the internal, join-facing surrogate; `<entity>_key` is the human- and report-facing business key from source. Every entity carries both, under the same names.
 
 ### 3.2 Reference data (Reference)
 
-Controlled vocabularies and lookups, with temporal validity but simpler than a full
-history entity.
+Controlled vocabularies and lookups, with temporal validity but simpler than a full history entity.
 
 ```
 Entity: <ReferenceName>           [kind: Reference]
@@ -160,9 +151,7 @@ Entity: <Entity1><Entity2>        [kind: Relationship]
 
 ### 3.4 Surrogate-key allocation (Keymap)
 
-For entities that are reference targets, the surrogate `Identifier` must stay the same
-across every version of the entity. Allocation is therefore separated into a keymap, so
-the surrogate is assigned once per natural key and reused across all versions.
+For entities that are reference targets, the surrogate `Identifier` must stay the same across every version of the entity. Allocation is therefore separated into a keymap, so the surrogate is assigned once per natural key and reused across all versions.
 
 ```
 Entity: <EntityName>Keymap        [kind: Keymap]
@@ -226,8 +215,7 @@ Other modules reference Domain entities with **one** consistent pattern, chosen 
 - **Generic reference** — a `Reference` plus an `Enum` entity-kind discriminator, used when a module points at *many* entity types (e.g. an embedding that may describe a party, a product, or a document).
 - **Specific reference** — one `Reference [-> <Entity>]` per referenced entity, used when a module points at a *few* known types.
 
-In both cases, **content is obtained by join-back, never duplicated** (`EntityJoinBack`).
-A referencing module stores the `Identifier` and joins to the Domain entity for names, descriptions, and other attributes. This keeps Domain the single source of truth and avoids drift between copies.
+In both cases, **content is obtained by join-back, never duplicated** (`EntityJoinBack`). A referencing module stores the `Identifier` and joins to the Domain entity for names, descriptions, and other attributes. This keeps Domain the single source of truth and avoids drift between copies.
 
 ---
 
@@ -237,14 +225,12 @@ These are semantic requirements — true on every platform — that make the mod
 
 1. **Consistent patterns.** Every entity presents the same identity shape (`Identifier` + `NaturalKey`), the same current/deleted flags, and the same temporal contract. An agent generalises from one entity to all.
 2. **Rich metadata.** Every object and attribute carries a meaningful description of business meaning (not restated structure), including units, sensitivity, and source (`RichMetadata`).
-3. **Descriptive references.** A reference attribute names the entity it points to; generic
-   opaque foreign keys are prohibited.
+3. **Descriptive references.** A reference attribute names the entity it points to; generic opaque foreign keys are prohibited.
 4. **Standard views.** Every entity exposes at least a *current* view with an explicit column contract, so an agent reads the contract, not the query body (`AccessView`).
 5. **Documented conventions.** Naming conventions and suffix signals are recorded in the Semantic module so an agent can look them up rather than infer them.
 6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy, every entity, its columns, and its relationships are registered in the product's Semantic map (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture (see Documentation Capture Requirements) is the other. In a composition without Semantic, discovery falls back to the platform catalogue plus `RichMetadata`.
 
-**Discoverability test.** An agent that has never seen these entities can: discover what
-entities exist; understand what each represents; retrieve current active records; navigate relationships; and generate valid queries — using metadata alone.
+**Discoverability test.** An agent that has never seen these entities can: discover what entities exist; understand what each represents; retrieve current active records; navigate relationships; and generate valid queries — using metadata alone.
 
 ---
 
@@ -274,16 +260,9 @@ This standard defines **structure and patterns, not a specific implementation**.
 | **Deletion representation** | How a logical deletion is recorded.                                          | The audit trail must be preserved — deletion is soft, retained for audit (`INV-DOMAIN-002`, `INV-DOMAIN-005`). |
 | **Storage optimisation**    | Normalisation vs denormalisation, partitioning, indexing.                    | A platform concern — lives entirely in `implementation/` and must not change the logical contract.             |
 
-**Rule:** whatever is chosen must support the AI-native characteristics (see Purpose) and
-satisfy every invariant (see Invariants).
+**Rule:** whatever is chosen must support the AI-native characteristics (see Purpose) and satisfy every invariant (see Invariants).
 
-The first four dimensions are not free-form: each corresponds to a catalogued **decision**
-(`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`,
-`DEC-DELETE-STRATEGY`), and this module's choices are declared in its frontmatter — the
-advocated option in every case. A product that departs from one records its reason there,
-so the choice is traceable rather than implicit, and the linter enforces that it is made at
-all. Storage optimisation carries no decision because it is a platform concern that never
-reaches the logical contract.
+The first four dimensions are not free-form: each corresponds to a catalogued **decision** (`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`, `DEC-DELETE-STRATEGY`), and this module's choices are declared in its frontmatter — the advocated option in every case. A product that departs from one records its reason there, so the choice is traceable rather than implicit, and the linter enforces that it is made at all. Storage optimisation carries no decision because it is a platform concern that never reaches the logical contract.
 
 ---
 
@@ -308,8 +287,7 @@ Platform-neutral decisions the designer owns:
 
 Source entities from an established model wherever one exists, and **document the choice** so agents and reviewers can trace it:
 
-1. **Enterprise data model** — integrated logical data model (iLDM), common data model (CDM),
-   or corporate data dictionary.
+1. **Enterprise data model** — integrated logical data model (iLDM), common data model (CDM), or corporate data dictionary.
 2. **Industry standards**, by domain:
    
    - Finance — FIBO, BIAN, ISO 20022
@@ -324,15 +302,11 @@ Source entities from an established model wherever one exists, and **document th
 3. **Open standards** — Schema.org (common entities), Dublin Core (metadata), SKOS (taxonomies).
 4. **Custom models** — when no standard fits; document the rationale and structure, and consider future standardisation.
 
-**Best practice:** adopt the enterprise or industry standard, **document it in the Semantic module** so agents can reference it, and **apply it consistently** across every entity.
-Consistency is what lets an agent generalise one entity's pattern to all (see Agent
-Discoverability Requirements).
+**Best practice:** adopt the enterprise or industry standard, **document it in the Semantic module** so agents can reference it, and **apply it consistently** across every entity. Consistency is what lets an agent generalise one entity's pattern to all (see Agent Discoverability Requirements).
 
 ### 10.3 Decisions to settle
 
-These are the catalogued decisions a Domain module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Domain module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -365,9 +339,7 @@ Every settled decision is recorded as part of designing the product — see *Cap
 
 ## 11. Implementation
 
-The Teradata binding of this module — concrete table and view templates, the capability binding table, and the invariant checks — lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/).
-Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/`
-without any change to this document.
+The Teradata binding of this module — concrete table and view templates, the capability binding table, and the invariant checks — lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/). Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/` without any change to this document.
 
 ---
 

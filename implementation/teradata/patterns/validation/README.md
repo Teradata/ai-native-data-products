@@ -1,5 +1,5 @@
 ---
-title: Teradata — Validation Pattern Implementation
+title: Teradata: Validation Pattern Implementation
 anchor: validation
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Validation Implementation
 
-Teradata binding of [`design/patterns/validation.md`](../../../../design/patterns/validation.md).
-Validation results are operational evidence and live in the **Observability** module, alongside its
-other run/event tables. Wire schema 2.0 is canonical; 1.0 is a registered legacy binding.
+Teradata binding of [`design/patterns/validation.md`](../../../../design/patterns/validation.md). Validation results are operational evidence and live in the **Observability** module, alongside its other run/event tables. Wire schema 2.0 is canonical; 1.0 is a registered legacy binding.
 
 ## Files
 
@@ -35,19 +33,11 @@ other run/event tables. Wire schema 2.0 is canonical; 1.0 is a registered legacy
 
 ## Publish semantics
 
-Append, never replace — each run inserts exactly one row (VAL-09). `run_id` is deterministic (first
-32 hex of a SHA-256 over `prefix|producer_id|started_iso|completed_iso|result_count`). Consumers read
-through `LOCKING ROW FOR ACCESS` views, never the base table. The product-level gate is the row whose
-`producer_id` matches the gate-authoritative producer designated in the product's orientation
-metadata; other rows are evidence.
+Append, never replace — each run inserts exactly one row (VAL-09). `run_id` is deterministic (first 32 hex of a SHA-256 over `prefix|producer_id|started_iso|completed_iso|result_count`). Consumers read through `LOCKING ROW FOR ACCESS` views, never the base table. The product-level gate is the row whose `producer_id` matches the gate-authoritative producer designated in the product's orientation metadata; other rows are evidence.
 
 ## Legacy binding (wire schema 1.0)
 
-1.0 publishes the same status/count/score/JSON columns without the producer-identity, `source_format`,
-`payload_schema_version`, or audit columns, with run timestamps as `VARCHAR(40)` ISO-8601
-(`started_at`/`completed_at`) under producer-specific object names in the **Semantic** module
-(`trust_engine_run` / `trust_engine_latest`). Migration is a re-publish (start inserting into
-`validation_run` with identity populated; repoint orientation), not a rename.
+1.0 publishes the same status/count/score/JSON columns without the producer-identity, `source_format`, `payload_schema_version`, or audit columns, with run timestamps as `VARCHAR(40)` ISO-8601 (`started_at`/`completed_at`) under producer-specific object names in the **Semantic** module (`trust_engine_run` / `trust_engine_latest`). Migration is a re-publish (start inserting into `validation_run` with identity populated; repoint orientation), not a rename.
 
 ## Check sources lifted into validator profiles
 

@@ -24,16 +24,13 @@ normative: true
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/) |
 
-Memory is the module that **provides `DocumentationCapture`** — the capability every other module
-soft-requires to record its design decisions. It is also the store of agent runtime state.
+Memory is the module that **provides `DocumentationCapture`** — the capability every other module soft-requires to record its design decisions. It is also the store of agent runtime state.
 
 ---
 
 ## 1. Purpose
 
-Memory enables agent **learning, continuity, and collaboration** across sessions, users, and agent
-instances, and it holds the product's **design memory** — the decisions, glossary, and change
-history that make the product self-describing.
+Memory enables agent **learning, continuity, and collaboration** across sessions, users, and agent instances, and it holds the product's **design memory** — the decisions, glossary, and change history that make the product self-describing.
 
 | AI-native characteristic | Purpose |
 |--------------------------|---------|
@@ -48,18 +45,14 @@ history that make the product self-describing.
 
 ## 2. Facets
 
-Memory is one module with two **facets** (see the
-[composition mechanism](../core/DESIGN_LANGUAGE.md)),
-enabled independently:
+Memory is one module with two **facets** (see the [composition mechanism](../core/DESIGN_LANGUAGE.md)), enabled independently:
 
 | Facet | Holds | Provides |
 |-------|-------|----------|
 | **`documentation`** (design memory) | Module registry, design decisions, glossary, query cookbook, implementation notes, change log. | `DocumentationCapture` — consumed by every module. |
 | **`runtime`** (agent state) | Sessions, interactions, learned strategies, preferences, discovered patterns. | Agent continuity and learning, consumed by agents. |
 
-A **Data Asset** takes the `documentation` facet only (Domain + Memory[`documentation`] + Access
-Layer). An **AI-Native Data Product** takes both. Neither facet has a hard dependency on another
-module, so Memory can be deployed alongside Domain alone.
+A **Data Asset** takes the `documentation` facet only (Domain + Memory[`documentation`] + Access Layer). An **AI-Native Data Product** takes both. Neither facet has a hard dependency on another module, so Memory can be deployed alongside Domain alone.
 
 ---
 
@@ -67,28 +60,19 @@ module, so Memory can be deployed alongside Domain alone.
 
 Two principles govern what Memory stores:
 
-**Entity = table, not instance.** Memory references **entities (tables)**, never the individual
-instance keys or rows from a query's results (`INV-MEMORY-001`).
+**Entity = table, not instance.** Memory references **entities (tables)**, never the individual instance keys or rows from a query's results (`INV-MEMORY-001`).
 
-**Big questions, small answers.** Agents process millions of records; Memory stores the *metadata*
-about those processes — the query run, the tables involved, the outcome, the counts — never the
-result data (`INV-MEMORY-002`). Memory holds thousands to tens of thousands of rows, not millions.
+**Big questions, small answers.** Agents process millions of records; Memory stores the *metadata* about those processes — the query run, the tables involved, the outcome, the counts — never the result data (`INV-MEMORY-002`). Memory holds thousands to tens of thousands of rows, not millions.
 
-**In scope:** agent interaction metadata (what was asked, what query ran, which tables, the
-outcome), agent learning metadata (strategies, patterns, success rates), preferences, session
-state, and — via the documentation facet — design decisions, glossary, cookbook, registry, and
-change history.
+**In scope:** agent interaction metadata (what was asked, what query ran, which tables, the outcome), agent learning metadata (strategies, patterns, success rates), preferences, session state, and — via the documentation facet — design decisions, glossary, cookbook, registry, and change history.
 
-**Out of scope:** business domain data (→ Domain), query results (→ Domain or temporary tables),
-individual record keys/ids, and detailed personal profiles (→ Domain, referenced by key).
+**Out of scope:** business domain data (→ Domain), query results (→ Domain or temporary tables), individual record keys/ids, and detailed personal profiles (→ Domain, referenced by key).
 
 ---
 
-## 4. Entity Model — Runtime Facet
+## 4. Entity Model: Runtime Facet
 
-Runtime entities are append-oriented operational records. Every one carries a **privacy scope**
-(see Privacy and Scoping). None stores business content — table references are table-level, and content is
-obtained by join-back to Domain.
+Runtime entities are append-oriented operational records. Every one carries a **privacy scope** (see Privacy and Scoping). None stores business content — table references are table-level, and content is obtained by join-back to Domain.
 
 ```
 Entity: AgentSession              [kind: Record]
@@ -164,19 +148,15 @@ All runtime entities `Apply patterns: object-placement, access-layer` and `Requi
 
 ---
 
-## 5. Entity Model — Documentation Facet
+## 5. Entity Model: Documentation Facet
 
-The documentation facet **is** design memory: it records *why* a product is the way it is, *how*
-to use it, and *what changed* — the counterpart to runtime memory's record of what agents did.
+The documentation facet **is** design memory: it records *why* a product is the way it is, *how* to use it, and *what changed* — the counterpart to runtime memory's record of what agents did.
 
-**Boundary with Semantic.** Semantic stores *what exists and how it connects* (tables, columns,
-join paths); documentation stores *why it exists, how to use it, and what changed*. Documentation
-never duplicates Semantic metadata (`INV-MEMORY-004`).
+**Boundary with Semantic.** Semantic stores *what exists and how it connects* (tables, columns, join paths); documentation stores *why it exists, how to use it, and what changed*. Documentation never duplicates Semantic metadata (`INV-MEMORY-004`).
 
 ### 5.1 Documentation entities
 
-Documentation entities are temporally versioned (they apply `temporal-lifecycle-metadata`);
-corrections supersede prior versions rather than overwriting them (`INV-MEMORY-005`).
+Documentation entities are temporally versioned (they apply `temporal-lifecycle-metadata`); corrections supersede prior versions rather than overwriting them (`INV-MEMORY-005`).
 
 ```
 Entity: ModuleRegistry            [kind: History]
@@ -235,40 +215,30 @@ Entity: ChangeLog                 [kind: History]
   related_decision_id : NaturalKey [optional] [-> DesignDecision]
 ```
 
-Use `source_module` on every documentation entity except `ModuleRegistry` (which uses
-`module_name` to identify the registered module). Never add `module_name` to the other entities.
+Use `source_module` on every documentation entity except `ModuleRegistry` (which uses `module_name` to identify the registered module). Never add `module_name` to the other entities.
 
 ### 5.2 Capture protocol (the `DocumentationCapture` contract)
 
-When any module is designed for the product, it records its documentation here. Each deployed
-module must produce, at minimum:
+When any module is designed for the product, it records its documentation here. Each deployed module must produce, at minimum:
 
 | Record | Minimum | Id convention |
 |--------|---------|---------------|
-| Module registry entry | 1 per module *considered* (with `deployment_status`) | — |
+| Module registry entry | 1 per module *considered* (with `deployment_status`) | - |
 | Design decision | 3 per deployed module | `DD-{MODULE}-{NNN}` |
 | Change-log entry | 1 (initial release) | `CL-{MODULE}-{NNN}` |
-| Business-glossary term | 3 | — |
+| Business-glossary term | 3 | - |
 | Query-cookbook recipe | 1 per deployed module; 1 cross-module recipe per deployed pair | `QC-{MODULE}-{NNN}` |
 | Implementation note | as needed | `IN-{MODULE}-{NNN}` |
 
-`{MODULE}` is the short module name (`DOMAIN`, `SEARCH`, …). Additional required records: a design
-decision for every *deferred or deprecated* module; a design decision for **every deviation** from
-a design standard (category `ARCHITECTURE`); and the ERD recipe `QC-SEMANTIC-002` when Semantic is
-present. This protocol is the provider side of `INV-MASTER-002` — it is what Domain's the Designer Responsibilities section
-and Search's the Implementation section point at.
+`{MODULE}` is the short module name (`DOMAIN`, `SEARCH`, …). Additional required records: a design decision for every *deferred or deprecated* module; a design decision for **every deviation** from a design standard (category `ARCHITECTURE`); and the ERD recipe `QC-SEMANTIC-002` when Semantic is present. This protocol is the provider side of `INV-MASTER-002` — it is what Domain's the Designer Responsibilities section and Search's the Implementation section point at.
 
 ---
 
 ## 6. Privacy and Scoping
 
-Every **runtime** record carries a privacy scope — both a `scope_level`
-(`USER`/`TEAM`/`ORGANIZATION`/`AGENT`) and a `scope_identifier` — with no exceptions
-(`INV-MEMORY-003`). Retrieval always filters on scope, so a user sees only their own records, a
-team its shared records, and so on.
+Every **runtime** record carries a privacy scope — both a `scope_level` (`USER`/`TEAM`/`ORGANIZATION`/`AGENT`) and a `scope_identifier` — with no exceptions (`INV-MEMORY-003`). Retrieval always filters on scope, so a user sees only their own records, a team its shared records, and so on.
 
-**Data minimisation.** Store the `user_key` (an identifier), never names, emails, or demographics —
-those are obtained by join-back to Domain when genuinely needed.
+**Data minimisation.** Store the `user_key` (an identifier), never names, emails, or demographics — those are obtained by join-back to Domain when genuinely needed.
 
 ---
 
@@ -285,9 +255,7 @@ those are obtained by join-back to Domain when genuinely needed.
 
 ## 8. Capabilities and Composition
 
-Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing —
-so it composes with any product, and either facet can be deployed alone. See the
-[composition mechanism](../core/DESIGN_LANGUAGE.md).
+Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing — so it composes with any product, and either facet can be deployed alone. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
@@ -311,13 +279,10 @@ so it composes with any product, and either facet can be deployed alone. See the
 
 ## 9. Integration with Other Modules
 
-- **Observability → Memory** — Memory learns strategies from observed outcomes (which query
-  patterns performed well). Soft: absent Observability simply means no outcome-driven learning.
+- **Observability → Memory** — Memory learns strategies from observed outcomes (which query patterns performed well). Soft: absent Observability simply means no outcome-driven learning.
 - **Memory + Search** — find similar historical sessions via Search's `NearestNeighbors`. Soft.
-- **Memory + Semantic** — apply learned rules alongside Semantic's business rules; register Memory's
-  own entities in the Semantic map. Soft.
-- **Memory + Domain** — table-level references resolve to Domain entity context by join-back when
-  needed. Memory never copies Domain content.
+- **Memory + Semantic** — apply learned rules alongside Semantic's business rules; register Memory's own entities in the Semantic map. Soft.
+- **Memory + Domain** — table-level references resolve to Domain entity context by join-back when needed. Memory never copies Domain content.
 
 ---
 
@@ -362,9 +327,7 @@ so it composes with any product, and either facet can be deployed alone. See the
 
 ### 11.1 Decisions to settle
 
-These are the catalogued decisions a Memory module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Memory module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -377,10 +340,7 @@ each one at design time and records the answer in the product's own design.
 
 ## 12. Implementation
 
-The Teradata binding — the runtime and documentation tables, the standard views, the capture-protocol
-templates, and the invariant checks — lives in
-[`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/).
-Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding — the runtime and documentation tables, the standard views, the capture-protocol templates, and the invariant checks — lives in [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

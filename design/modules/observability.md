@@ -24,32 +24,23 @@ normative: true
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/) |
 
-Observability is the operational-evidence module: it monitors product health, records lineage, and
-is the **home of validation results** ([validation pattern](../patterns/validation.md)). It closes
-the feedback loop by supplying the learning inputs Memory consumes.
+Observability is the operational-evidence module: it monitors product health, records lineage, and is the **home of validation results** ([validation pattern](../patterns/validation.md)). It closes the feedback loop by supplying the learning inputs Memory consumes.
 
 ---
 
 ## 1. Purpose
 
-Observability monitors data-product health and enables continuous improvement through outcome
-tracking and feedback loops. Its capabilities: data-quality monitoring, change tracking (audit
-trail), data lineage (definitional and operational), performance monitoring, outcome tracking, and
-hosting validation evidence.
+Observability monitors data-product health and enables continuous improvement through outcome tracking and feedback loops. Its capabilities: data-quality monitoring, change tracking (audit trail), data lineage (definitional and operational), performance monitoring, outcome tracking, and hosting validation evidence.
 
-**Events and metrics, not data** (`INV-OBS-001`). Observability records *that* something happened
-and *how it measured* — never the business data itself. "Party_H was updated by ETL at 02:15,
-250,000 records affected, quality 0.95" — never the customer records.
+**Events and metrics, not data** (`INV-OBS-001`). Observability records *that* something happened and *how it measured* — never the business data itself. "Party_H was updated by ETL at 02:15, 250,000 records affected, quality 0.95" — never the customer records.
 
 ---
 
 ## 2. Scope and Boundaries
 
-**In scope:** change events (what/when/who/why, table-level), data-quality metrics, data lineage
-(declared flows and their executions), performance metrics, outcome tracking, and validation results.
+**In scope:** change events (what/when/who/why, table-level), data-quality metrics, data lineage (declared flows and their executions), performance metrics, outcome tracking, and validation results.
 
-**Out of scope:** business domain data (→ Domain); query result sets (not stored). Event-scale volume
-is acceptable (millions of events); business content is not.
+**Out of scope:** business domain data (→ Domain); query result sets (not stored). Event-scale volume is acceptable (millions of events); business content is not.
 
 ---
 
@@ -62,19 +53,13 @@ Lineage is modelled as two distinct concerns (`INV-OBS-003`):
 | **Definitional** | `DataLineage` | *What are the declared data flows?* | One row per source → job → target |
 | **Operational** | `LineageRun` | *Did this flow run, and how did it go?* | Many rows per flow over time |
 
-This gives a stable, deduplicated edge list for graph visualisation (definition only), keeps
-execution monitoring on the events-and-metrics principle, allows **independent retention**
-(definitions live as long as the product; runs follow event-retention windows, `INV-OBS-004`), and
-gives clear mutation semantics — a new `DataLineage` row is a new flow; a new `LineageRun` row is a
-new execution of an existing flow.
+This gives a stable, deduplicated edge list for graph visualisation (definition only), keeps execution monitoring on the events-and-metrics principle, allows **independent retention** (definitions live as long as the product; runs follow event-retention windows, `INV-OBS-004`), and gives clear mutation semantics — a new `DataLineage` row is a new flow; a new `LineageRun` row is a new execution of an existing flow.
 
 ---
 
 ## 4. Entity Model
 
-All entities are append-oriented operational records (`EVENT_APPEND_ONLY`, except `DataLineage` which
-carries an `is_active` lifecycle). All apply `object-placement`, `access-layer`; all require
-`RichMetadata`. Table references are table-level; content is obtained by join-back to Domain.
+All entities are append-oriented operational records (`EVENT_APPEND_ONLY`, except `DataLineage` which carries an `is_active` lifecycle). All apply `object-placement`, `access-layer`; all require `RichMetadata`. Table references are table-level; content is obtained by join-back to Domain.
 
 ```
 Entity: ChangeEvent               [kind: Record]
@@ -152,33 +137,22 @@ Entity: AgentOutcome              [kind: Record]
   records_processed : Integer [optional]             — aggregate count
 ```
 
-**Validation results.** The [validation pattern](../patterns/validation.md)'s result record is homed
-in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by
-the validation pattern; this module provides its container.
+**Validation results.** The [validation pattern](../patterns/validation.md)'s result record is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container.
 
 ---
 
 ## 5. Discovery Exposure
 
-Two views are deployed **into the Semantic container** so agents discover lineage from the same place
-they discover everything else (Semantic):
+Two views are deployed **into the Semantic container** so agents discover lineage from the same place they discover everything else (Semantic):
 
-- **`lineage_graph`** — a graph-ready edge list built from `DataLineage`, with jobs surfaced as
-  first-class nodes (source → job, job → target). Reads **active definitions only** — no duplicate
-  edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`).
-- **`lineage_run_latest`** — each active flow joined to its most recent execution, for dashboards
-  showing last-run status against the blueprint.
+- **`lineage_graph`** — a graph-ready edge list built from `DataLineage`, with jobs surfaced as first-class nodes (source → job, job → target). Reads **active definitions only** — no duplicate edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`).
+- **`lineage_run_latest`** — each active flow joined to its most recent execution, for dashboards showing last-run status against the blueprint.
 
 ---
 
 ## 6. Open Standards Alignment
 
-The lineage entities align with **OpenLineage**: the definition/execution split mirrors OpenLineage's
-separation of a `Job` (declared flow → `DataLineage`) from a `Run` (execution → `LineageRun`).
-`source`/`target` container+table compose into OpenLineage dataset names; `openlineage_namespace` and
-`openlineage_job_name`/`openlineage_run_id` carry the OpenLineage identifiers. Data-quality metric
-names align with common frameworks (Great Expectations, Deequ). The concrete event construction is an
-implementation concern.
+The lineage entities align with **OpenLineage**: the definition/execution split mirrors OpenLineage's separation of a `Job` (declared flow → `DataLineage`) from a `Run` (execution → `LineageRun`). `source`/`target` container+table compose into OpenLineage dataset names; `openlineage_namespace` and `openlineage_job_name`/`openlineage_run_id` carry the OpenLineage identifiers. Data-quality metric names align with common frameworks (Great Expectations, Deequ). The concrete event construction is an implementation concern.
 
 ---
 
@@ -195,9 +169,7 @@ implementation concern.
 
 ## 8. Capabilities and Composition
 
-Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on
-nothing — it observes whatever modules are present. It is in a traditional data product and an
-AI-native product, absent in a minimal Data Asset.
+Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing — it observes whatever modules are present. It is in a traditional data product and an AI-native product, absent in a minimal Data Asset.
 
 **Provides:**
 
@@ -222,12 +194,9 @@ AI-native product, absent in a minimal Data Asset.
 
 ## 9. Integration with Other Modules
 
-- **Observability → Memory** — outcomes and quality trends feed Memory's learned strategies (the
-  closed loop). Memory soft-requires these learning inputs.
-- **Observability + Domain** — table-level change tracking of Domain loads; one event per batch, never
-  per record.
-- **Observability monitors all modules** — quality, performance, and lineage across whatever is
-  deployed.
+- **Observability → Memory** — outcomes and quality trends feed Memory's learned strategies (the closed loop). Memory soft-requires these learning inputs.
+- **Observability + Domain** — table-level change tracking of Domain loads; one event per batch, never per record.
+- **Observability monitors all modules** — quality, performance, and lineage across whatever is deployed.
 
 ---
 
@@ -244,8 +213,7 @@ AI-native product, absent in a minimal Data Asset.
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the quality metrics and thresholds; the declared lineage flows; the OpenLineage
-scope; retention policies (separately for `DataLineage` vs `LineageRun`); which modules are monitored.
+**Designers supply:** the quality metrics and thresholds; the declared lineage flows; the OpenLineage scope; retention policies (separately for `DataLineage` vs `LineageRun`); which modules are monitored.
 
 **Design review checklist:**
 
@@ -262,9 +230,7 @@ scope; retention policies (separately for `DataLineage` vs `LineageRun`); which 
 
 ### 11.1 Decisions to settle
 
-These are the catalogued decisions a Observability module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Observability module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -277,12 +243,7 @@ each one at design time and records the answer in the product's own design.
 
 ## 12. Implementation
 
-The Teradata binding — the event/metric/lineage tables, the `lineage_graph` and `lineage_run_latest`
-Semantic views, and the OpenLineage event construction — lives in
-[`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/).
-The validation results table is defined by the
-[validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed
-into this module's container.
+The Teradata binding — the event/metric/lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, and the OpenLineage event construction — lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container.
 
 ---
 

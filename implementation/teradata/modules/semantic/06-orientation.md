@@ -1,13 +1,10 @@
 # Semantic — Data Product Orientation Layer (Teradata / MCP)
 
-Binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md) §4. Product-first
-discovery: a client orients to the product before touching module maps or data. Backed by
-`governance.data_product_registry` (`03-registry.sql`); the manifest is stored in `manifest_json`.
+Binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md) §4. Product-first discovery: a client orients to the product before touching module maps or data. Backed by `governance.data_product_registry` (`03-registry.sql`); the manifest is stored in `manifest_json`.
 
 ## MCP resource / tool shapes
 
-MCP servers expose the orientation layer as **resources first** (context) and **tools second**
-(actions):
+MCP servers expose the orientation layer as **resources first** (context) and **tools second** (actions):
 
 ```text
 /resources
@@ -61,12 +58,8 @@ recommended_navigation:
   - data_access
 ```
 
-The manifest tells the agent what the product is, what it means, what it trusts, what it may access,
-and how to proceed. The registry also names the **gate-authoritative producer** the
-[validation pattern](../../patterns/validation/) reads, so trust evaluation precedes analytical use.
+The manifest tells the agent what the product is, what it means, what it trusts, what it may access, and how to proceed. The registry also names the **gate-authoritative producer** the [validation pattern](../../patterns/validation/) reads, so trust evaluation precedes analytical use.
 
 ## Required documentation record
 
-When the orientation layer is deployed, generate `DD-DISCOVERY-001` in the product's Memory
-documentation facet (recording why agents read the manifest before metadata maps or data) — per the
-Memory capture protocol.
+When the orientation layer is deployed, generate `DD-DISCOVERY-001` in the product's Memory documentation facet (recording why agents read the manifest before metadata maps or data) — per the Memory capture protocol.

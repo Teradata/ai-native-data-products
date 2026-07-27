@@ -1,8 +1,6 @@
 # AI-Native Data Product Design Standards
 
-A modular library of data design patterns for building **AI-Native Data Products** — self-describing
-data assets optimised for autonomous agent discovery and operation. The library is a set of
-independent, composable modules; assembling a chosen subset produces a particular kind of data asset.
+A modular library of data design patterns for building **AI-Native Data Products** — self-describing data assets optimised for autonomous agent discovery and operation. The library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset.
 
 ---
 
@@ -10,14 +8,10 @@ independent, composable modules; assembling a chosen subset produces a particula
 
 The framework is split along one boundary:
 
-- **[`design/`](design/)** — **platform-agnostic** standards. Written in logical types, capabilities,
-  and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
-- **[`implementation/{platform}/`](implementation/)** — **platform-specific** bindings (the concrete
-  DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms
-  are added as sibling directories, changing no design document.
+- **[`design/`](design/)** — **platform-agnostic** standards. Written in logical types, capabilities, and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
+- **[`implementation/{platform}/`](implementation/)** — **platform-specific** bindings (the concrete DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms are added as sibling directories, changing no design document.
 
-The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/):
-a design document that leaks platform SQL fails the build.
+The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/): a design document that leaks platform SQL fails the build.
 
 ```
 ai-native-data-products/
@@ -35,19 +29,13 @@ ai-native-data-products/
 └── skills/                     generated agent skills (gitignored)
 ```
 
-**Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint),
-[`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written
-in), and [`design/core/ADVOCATED_STANDARDS.md`](design/core/ADVOCATED_STANDARDS.md) (the decisions a
-design must settle, and the recommended answer for each).
+**Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint), [`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written in), and [`design/core/ADVOCATED_STANDARDS.md`](design/core/ADVOCATED_STANDARDS.md) (the decisions a design must settle, and the recommended answer for each).
 
 ---
 
-## Compositions — one library, many patterns
+## Compositions: one library, many patterns
 
-There is no single fixed architecture. Modules declare what they **provide** and **require** (each
-requirement `[hard]` or `[soft]`); a composition is valid when every hard requirement is met within
-it, and unmet soft requirements simply disable a feature. An **AI-Native Data Product is the fullest
-composition**, not the only one.
+There is no single fixed architecture. Modules declare what they **provide** and **require** (each requirement `[hard]` or `[soft]`); a composition is valid when every hard requirement is met within it, and unmet soft requirements simply disable a feature. An **AI-Native Data Product is the fullest composition**, not the only one.
 
 | Composition | Modules | 
 |-------------|---------|
@@ -103,15 +91,13 @@ Modules deploy in dependency order — only those the composition includes:
 
 ## Tooling
 
-`tooling/validation/design_lint.py` enforces the platform-agnostic boundary on `design/`, the
-frontmatter schema on every design document, and the decision rules across both hierarchies:
+`tooling/validation/design_lint.py` enforces the platform-agnostic boundary on `design/`, the frontmatter schema on every design document, and the decision rules across both hierarchies:
 
 ```bash
 python tooling/validation/design_lint.py design implementation
 ```
 
-`tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy
-READMEs from document frontmatter — run it after adding or renaming a document:
+`tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy READMEs from document frontmatter — run it after adding or renaming a document:
 
 ```bash
 python tooling/catalogue/build_catalogue.py
@@ -136,8 +122,6 @@ python -m unittest discover -s tooling/validation/tests
 
 ## License
 
-Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons
-Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See
-[LICENSE.md](LICENSE.md) for full terms.
+Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See [LICENSE.md](LICENSE.md) for full terms.
 
 Developed by Teradata's Worldwide Data Architecture Team, Field Technology Organization.

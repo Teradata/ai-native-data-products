@@ -1,5 +1,5 @@
 ---
-title: Teradata — Temporal Lifecycle Metadata Pattern Implementation
+title: Teradata: Temporal Lifecycle Metadata Pattern Implementation
 anchor: temporal-lifecycle-metadata
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Temporal & Lifecycle Metadata Implementation
 
-Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../../design/patterns/temporal-lifecycle-metadata.md).
-Read the pattern first; nothing here changes its semantics. Targets Teradata v20.0; conformance
-queries use `DBC` dictionary views.
+Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../../design/patterns/temporal-lifecycle-metadata.md). Read the pattern first; nothing here changes its semantics. Targets Teradata v20.0; conformance queries use `DBC` dictionary views.
 
 ## Files
 
@@ -35,20 +33,17 @@ queries use `DBC` dictionary views.
 | Open-end sentinel | `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'` (always with `+00:00`). |
 | Row audit defaults | `NOT NULL DEFAULT CURRENT_TIMESTAMP(6)`. |
 
-`TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant (TLM-05): it makes the UTC persistence
-rule unverifiable and the sentinel ambiguous under session-zone changes. Single-character `'Y'/'N'`
-encodings and nullable flags are non-conformant (TLM-06).
+`TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant (TLM-05): it makes the UTC persistence rule unverifiable and the sentinel ambiguous under session-zone changes. Single-character `'Y'/'N'` encodings and nullable flags are non-conformant (TLM-06).
 
 ## Surface bindings (pattern §8)
 
 | Object | Pattern surface | Responsibility |
 |--------|-----------------|----------------|
-| Physical table (`{db}.agreement`) | — | Full canonical column contract; no direct consumer access. |
+| Physical table (`{db}.agreement`) | - | Full canonical column contract; no direct consumer access. |
 | Governed view (`{db}.v_agreement`) | Governed full-contract surface | 1:1 `LOCKING ROW FOR ACCESS` view exposing every column. |
 | Access views (`{db}.agreement_current`, …) | Default current / purpose-specific | Select from the governed view, never the base table (TLM-14). |
 
-Database/layer naming is owned by the [object-placement](../object-placement/) implementation; the
-generic tags here bind there.
+Database/layer naming is owned by the [object-placement](../object-placement/) implementation; the generic tags here bind there.
 
 ## Conformance rules → checks
 

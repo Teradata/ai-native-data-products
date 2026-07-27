@@ -1,5 +1,5 @@
 ---
-title: Teradata — Prediction Module Implementation
+title: Teradata: Prediction Module Implementation
 anchor: prediction
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Prediction Module Implementation
 
-Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/prediction.md). The
-feature store: engineered features, model predictions, point-in-time training data. Hard-depends on
-Domain. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Prediction`.
+Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/prediction.md). The feature store: engineered features, model predictions, point-in-time training data. Hard-depends on Domain. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Prediction`.
 
 ## Files
 
@@ -48,8 +46,7 @@ Domain. Read the design document first. Replace `{{ product }}`; tables live in 
 | `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
 | `Flag` | `BYTEINT` |
 
-Temporal columns (`valid_from_dts`/`valid_to_dts`/`is_current`) follow the
-[temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/) `SCD2_HISTORY` profile.
+Temporal columns (`valid_from_dts`/`valid_to_dts`/`is_current`) follow the [temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/) `SCD2_HISTORY` profile.
 
 ## Invariants → checks
 

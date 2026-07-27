@@ -1,5 +1,5 @@
 ---
-title: Teradata — Observability Module Implementation
+title: Teradata: Observability Module Implementation
 anchor: observability
 type: implementation
 status: standard
@@ -11,10 +11,7 @@ platform: teradata
 
 # Teradata — Observability Module Implementation
 
-Teradata binding of [`design/modules/observability.md`](../../../../design/modules/observability.md).
-Operational evidence: events, metrics, lineage, and the home of validation results. Read the design
-document first. Replace `{{ product }}`; tables live in `{{ product }}_Observability`, the lineage
-discovery views deploy into `{{ product }}_Semantic`.
+Teradata binding of [`design/modules/observability.md`](../../../../design/modules/observability.md). Operational evidence: events, metrics, lineage, and the home of validation results. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Observability`, the lineage discovery views deploy into `{{ product }}_Semantic`.
 
 ## Files
 
@@ -25,9 +22,7 @@ discovery views deploy into `{{ product }}_Semantic`.
 | `03-lineage-views.sql.j2` | `lineage_graph` and `lineage_run_latest` — deployed into the Semantic container. |
 | `04-openlineage.md` | OpenLineage entity/column mapping and RunEvent construction. |
 
-**Validation results.** The `validation_run` table and its `validation_latest` gate view are defined
-by the [validation pattern implementation](../../patterns/validation/) and deployed into this
-module's `{{ product }}_Observability` container. This module does not redefine them.
+**Validation results.** The `validation_run` table and its `validation_latest` gate view are defined by the [validation pattern implementation](../../patterns/validation/) and deployed into this module's `{{ product }}_Observability` container. This module does not redefine them.
 
 ## Capability bindings
 

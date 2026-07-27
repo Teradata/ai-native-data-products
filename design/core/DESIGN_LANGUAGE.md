@@ -11,7 +11,7 @@ lint_reason: meta document - necessarily names SQL keywords and shows platform b
 
 # Design Language
 
-## AI-Native Data Product Architecture — Foundational Notation
+## AI-Native Data Product Architecture: Foundational Notation
 
 ---
 
@@ -88,20 +88,13 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 
 ### 3.1 The module spine
 
-Every module document carries the same nine sections, so that an agent — or a reviewer — finds the
-same concern in the same place in any of them:
+Every module document carries the same nine sections, so that an agent — or a reviewer — finds the same concern in the same place in any of them:
 
-**Purpose · Scope and Boundaries · Entity Model · Applied Patterns · Capabilities and Composition ·
-Integration with Other Modules · Invariants · Designer Responsibilities · Implementation**
+**Purpose · Scope and Boundaries · Entity Model · Applied Patterns · Capabilities and Composition · Integration with Other Modules · Invariants · Designer Responsibilities · Implementation**
 
-A module adds its own sections wherever they belong, and numbers them as it likes; a section may
-carry a subtitle after an em dash (`Entity Model — Runtime Facet`). What is fixed is that these
-nine are present under these names. The linter checks presence and naming, never order or number.
+A module adds its own sections wherever they belong, and numbers them as it likes; a section may carry a subtitle after an em dash (`Entity Model — Runtime Facet`). What is fixed is that these nine are present under these names. The linter checks presence and naming, never order or number.
 
-**References name sections, never number them.** A cross-document reference cites the document; an
-intra-document reference names the section. Numbering is then free to change without breaking a
-single reference — and with the spine consistent, a named reference is enough for anything reading
-the corpus to find its target.
+**References name sections, never number them.** A cross-document reference cites the document; an intra-document reference names the section. Numbering is then free to change without breaking a single reference — and with the spine consistent, a named reference is enough for anything reading the corpus to find its target.
 
 ### 3.2 Frontmatter
 
@@ -123,9 +116,7 @@ supersedes: []            # anchors this document replaces, when deprecating
 ---
 ```
 
-**Required of every document:** `title`, `anchor`, `type`, `status`, `version`, `normative`.
-**Required of `implementation` documents additionally:** `implements`, `platform`.
-**Optional:** `supersedes`.
+**Required of every document:** `title`, `anchor`, `type`, `status`, `version`, `normative`. **Required of `implementation` documents additionally:** `implements`, `platform`. **Optional:** `supersedes`.
 
 Two rules make the corpus resolvable, both enforced by the linter:
 
@@ -278,36 +269,18 @@ Capabilities not in this catalogue may be introduced by a design document, but m
 
 ### 6.2 Provision, requirement, and composition
 
-The framework is a **library of modules** that compose into different data design patterns — a
-minimal governed data asset, a traditional data product, a full AI-native data product, or an
-add-on to something that already exists. Modules must therefore function independently and in
-any valid combination. This works because every module declares both sides of its capability
-relationships.
+The framework is a **library of modules** that compose into different data design patterns — a minimal governed data asset, a traditional data product, a full AI-native data product, or an add-on to something that already exists. Modules must therefore function independently and in any valid combination. This works because every module declares both sides of its capability relationships.
 
 A module design document declares, at module level:
 
-- **Provides** — capabilities the module makes available to other modules or to agents (Domain
-  provides `EntityJoinBack`; Search provides `NearestNeighbors`; Semantic provides
-  `SemanticRegistration`; Memory provides `DocumentationCapture`).
-- **Requires** — capabilities the module consumes, each tagged with a **strength** and a
-  **provider**:
-  - Strength — `[hard]` (the module cannot function without it; its absence makes the module
-    undeployable) or `[soft]` (used when available; its absence disables the dependent feature,
-    but the module still functions).
-  - Provider — `self` (the module and its platform binding), `module:<Name>` (another module in
-    the composition), `platform`, or `external`.
+- **Provides** — capabilities the module makes available to other modules or to agents (Domain provides `EntityJoinBack`; Search provides `NearestNeighbors`; Semantic provides `SemanticRegistration`; Memory provides `DocumentationCapture`).
+- **Requires** — capabilities the module consumes, each tagged with a **strength** and a **provider**:
+  - Strength — `[hard]` (the module cannot function without it; its absence makes the module undeployable) or `[soft]` (used when available; its absence disables the dependent feature, but the module still functions).
+  - Provider — `self` (the module and its platform binding), `module:<Name>` (another module in the composition), `platform`, or `external`.
 
-**Facets.** A module may expose named **facets** that can be enabled independently — for example
-Memory's `documentation` facet (the design-memory / documentation store) versus its `runtime`
-facet (agent state and learning). A capability may be provided by a facet; enabling the facet
-enables the capability. A composition may include a module with only some of its facets.
+**Facets.** A module may expose named **facets** that can be enabled independently — for example Memory's `documentation` facet (the design-memory / documentation store) versus its `runtime` facet (agent state and learning). A capability may be provided by a facet; enabling the facet enables the capability. A composition may include a module with only some of its facets.
 
-**Composition.** A composition is a chosen set of modules (and facets) assembled into a data
-design pattern. A composition is **valid** if and only if every `[hard]` requirement is
-satisfied by a `Provides` within the composition (or by `platform`). An unmet `[soft]`
-requirement never invalidates a composition — it simply disables that feature (graceful
-degradation). The named standard compositions, and the modules each includes, are catalogued in
-the [Master Design](MASTER_DESIGN.md).
+**Composition.** A composition is a chosen set of modules (and facets) assembled into a data design pattern. A composition is **valid** if and only if every `[hard]` requirement is satisfied by a `Provides` within the composition (or by `platform`). An unmet `[soft]` requirement never invalidates a composition — it simply disables that feature (graceful degradation). The named standard compositions, and the modules each includes, are catalogued in the [Master Design](MASTER_DESIGN.md).
 
 ---
 
@@ -431,7 +404,7 @@ Before a design document is considered conforming:
 
 ---
 
-## Appendix A — Illustrative Platform Bindings
+## Appendix A: Illustrative Platform Bindings
 
 This appendix is illustrative only. Authoritative bindings live in each platform's implementation. It is here to make the boundary concrete; it is why this document carries the `ignore-file` directive.
 

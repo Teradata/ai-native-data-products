@@ -1,5 +1,5 @@
 ---
-title: Teradata — Memory Module Implementation
+title: Teradata: Memory Module Implementation
 anchor: memory
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Memory Module Implementation
 
-Concrete Teradata binding of [`design/modules/memory.md`](../../../../design/modules/memory.md).
-Read the design document first; this directory only adds Teradata specifics. Memory is one module
-with two facets — `runtime` and `documentation` — deployed independently.
+Concrete Teradata binding of [`design/modules/memory.md`](../../../../design/modules/memory.md). Read the design document first; this directory only adds Teradata specifics. Memory is one module with two facets — `runtime` and `documentation` — deployed independently.
 
 ## Files
 
@@ -26,8 +24,7 @@ with two facets — `runtime` and `documentation` — deployed independently.
 | `12-capture-protocol.sql.j2` | documentation | The `DocumentationCapture` binding — the `INSERT` templates every module uses to register and record its design memory, plus the standard ERD recipe. |
 | `validation.sql.j2` | both | Runnable checks for the module's invariants. |
 
-A **Data Asset** deploys `10`–`12` only (documentation facet). An **AI-Native** product deploys all.
-Replace `{{ product }}` with the data product name; all tables live in `{{ product }}_Memory`.
+A **Data Asset** deploys `10`–`12` only (documentation facet). An **AI-Native** product deploys all. Replace `{{ product }}` with the data product name; all tables live in `{{ product }}_Memory`.
 
 ## Capability bindings
 

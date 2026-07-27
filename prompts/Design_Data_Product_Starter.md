@@ -9,48 +9,35 @@ For designing a new data product (platform-agnostic). Uses the **`design` skill*
 
 ## How to use
 
-Copy this prompt, fill the intake, paste into a new conversation, then let the agent drive one
-deliverable at a time.
+Copy this prompt, fill the intake, paste into a new conversation, then let the agent drive one deliverable at a time.
 
 ---
 
 ## Starter
 
-You are collaborating with a data architect to **design** the `[PRODUCT_NAME]` data product using the
-AI-Native Data Product standards. Load the `design` skill and follow it.
+You are collaborating with a data architect to **design** the `[PRODUCT_NAME]` data product using the AI-Native Data Product standards. Load the `design` skill and follow it.
 
-We are producing a **platform-agnostic design** — entities in logical types, the capabilities the
-product requires, and the invariants it must satisfy. No platform SQL at this stage (that is the
-builder's job). Apply the standards first; customise only where the business demands it, and record
-every deviation as a design decision.
+We are producing a **platform-agnostic design** — entities in logical types, the capabilities the product requires, and the invariants it must satisfy. No platform SQL at this stage (that is the builder's job). Apply the standards first; customise only where the business demands it, and record every deviation as a design decision.
 
 ### Intake
 
 - **Business purpose:** [what problem this solves]
 - **Primary consumers:** [agents, apps, analysts, APIs?]
 - **Top use cases:** [3–5 concrete cases]
-- **Composition:** [Data Asset · Traditional Data Product · AI-Native · or an extension onto an existing
-  Domain — or "recommend one" and the agent will pick from the use cases]
+- **Composition:** [Data Asset · Traditional Data Product · AI-Native · or an extension onto an existing Domain — or "recommend one" and the agent will pick from the use cases]
 - **Data sources:** [source systems]
 - **Approximate volumes:** [row counts / growth for the main entities]
 - **Sensitivity:** [any PII / regulated data to flag as `[pii]`]
 
 ### How to proceed
 
-1. **Confirm the composition.** From the use cases, choose the modules; check that every `[hard]`
-   dependency is satisfied (Search/Prediction require Domain). State what each `[soft]` gap disables.
-2. **Design module by module**, in dependency order. For each: read the module's design file, model its
-   entities in the logical-type notation, list the capabilities it requires and the patterns it applies,
-   and state the invariants it must satisfy.
-3. **Record design decisions** as you go (the flexible-dimension choices, any deviations), ready for the
-   Memory documentation facet.
+1. **Confirm the composition.** From the use cases, choose the modules; check that every `[hard]` dependency is satisfied (Search/Prediction require Domain). State what each `[soft]` gap disables.
+2. **Design module by module**, in dependency order. For each: read the module's design file, model its entities in the logical-type notation, list the capabilities it requires and the patterns it applies, and state the invariants it must satisfy.
+3. **Record design decisions** as you go (the flexible-dimension choices, any deviations), ready for the Memory documentation facet.
 4. **Hand off:** produce the design as the input for the **Build** starter (and the **Review** starter).
 
 Ask me for anything you need. Drive one module at a time; don't dump the whole design at once.
 
 ### Handover
 
-The **intake above is your input**; your **output is the design brief** (contents per the `design`
-skill) — platform-agnostic, the single thing the Build starter needs. Agree with me where it goes — a
-file, this conversation, my repo, or an MCP resource — based on what you can access; don't assume you can
-write files. It's the transient bridge to Build; once the product is built, its decisions live in Memory.
+The **intake above is your input**; your **output is the design brief** (contents per the `design` skill) — platform-agnostic, the single thing the Build starter needs. Agree with me where it goes — a file, this conversation, my repo, or an MCP resource — based on what you can access; don't assume you can write files. It's the transient bridge to Build; once the product is built, its decisions live in Memory.

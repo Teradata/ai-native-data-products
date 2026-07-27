@@ -1,5 +1,5 @@
 ---
-title: Teradata — Semantic Module Implementation
+title: Teradata: Semantic Module Implementation
 anchor: semantic
 type: implementation
 status: standard
@@ -11,10 +11,7 @@ platform: teradata
 
 # Teradata — Semantic Module Implementation
 
-Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md). Semantic
-is the discovery map that provides `SemanticRegistration` and the product orientation layer. Read the
-design document first. Replace `{{ product }}` with the product name; catalogue tables live in
-`{{ product }}_Semantic`, the product registry in a shared `governance` container.
+Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md). Semantic is the discovery map that provides `SemanticRegistration` and the product orientation layer. Read the design document first. Replace `{{ product }}` with the product name; catalogue tables live in `{{ product }}_Semantic`, the product registry in a shared `governance` container.
 
 ## Files
 
@@ -48,9 +45,7 @@ design document first. Replace `{{ product }}` with the product name; catalogue 
 | `Flag` | `BYTEINT` with `CHECK (col IN (0,1))` |
 | `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
 
-New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns from the
-[temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/); `temporal_pattern` on
-`entity_metadata` carries each entity's temporal profile for the whole product.
+New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns from the [temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/); `temporal_pattern` on `entity_metadata` carries each entity's temporal profile for the whole product.
 
 ## Invariants → checks
 

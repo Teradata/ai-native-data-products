@@ -1,5 +1,5 @@
 ---
-title: Teradata — Domain Module Implementation
+title: Teradata: Domain Module Implementation
 anchor: domain
 type: implementation
 status: standard
@@ -11,9 +11,7 @@ platform: teradata
 
 # Teradata — Domain Module Implementation
 
-Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/modules/domain.md).
-The design document owns *what* and *why*; the files here own *how* on Teradata. Read the
-design document first — this directory only adds platform specifics.
+Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/modules/domain.md). The design document owns *what* and *why*; the files here own *how* on Teradata. Read the design document first — this directory only adds platform specifics.
 
 ## Files
 
@@ -26,8 +24,7 @@ design document first — this directory only adds platform specifics.
 | `05-views.sql.j2` | Standard `_Current` / `_Enriched` views (`AccessView` binding). |
 | `validation.sql.j2` | Runnable checks for the module's invariants (`MetadataCoverageCheck` and others). |
 
-The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`. Each declares its
-template variables in a header comment.
+The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`. Each declares its template variables in a header comment.
 
 ## Capability bindings
 

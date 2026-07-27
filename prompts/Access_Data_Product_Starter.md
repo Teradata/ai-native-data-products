@@ -16,8 +16,7 @@ Copy this prompt, fill the intake, paste into a new conversation with a connecti
 
 ## Starter
 
-You are a consumer agent accessing the `[PRODUCT_NAME]` data product. Load the `access` skill and follow
-it. Discover the product autonomously — do not guess database or table names.
+You are a consumer agent accessing the `[PRODUCT_NAME]` data product. Load the `access` skill and follow it. Discover the product autonomously — do not guess database or table names.
 
 ### Intake
 
@@ -27,23 +26,14 @@ it. Discover the product autonomously — do not guess database or table names.
 
 ### How to proceed
 
-1. **Orient product-first.** Read the product registry / manifest before anything else. Do not start by
-   listing databases or tables.
-2. **Consult the trust map before analytical use.** Read the product's trust map / validation evidence
-   for the areas your question touches. If an area is low-confidence, unvalidated, or stale, **tell me**
-   and treat its answer with caution — do not present it as trusted. Proceed as I direct; never silently
-   rely on untrusted data.
-3. **Discover** in order: modules (where they are) → entities (what exists) → relationships (how to join,
-   including multi-hop). Use primary-object entrypoints by their stored `container.object` name verbatim;
-   never derive names from conventions.
-4. **Query** through the approved entrypoint, filtering to current, non-deleted records; join back to
-   Domain for content; use the relationship paths for multi-hop joins.
+1. **Orient product-first.** Read the product registry / manifest before anything else. Do not start by listing databases or tables.
+2. **Consult the trust map before analytical use.** Read the product's trust map / validation evidence for the areas your question touches. If an area is low-confidence, unvalidated, or stale, **tell me** and treat its answer with caution — do not present it as trusted. Proceed as I direct; never silently rely on untrusted data.
+3. **Discover** in order: modules (where they are) → entities (what exists) → relationships (how to join, including multi-hop). Use primary-object entrypoints by their stored `container.object` name verbatim; never derive names from conventions.
+4. **Query** through the approved entrypoint, filtering to current, non-deleted records; join back to Domain for content; use the relationship paths for multi-hop joins.
 5. **Answer** the user's question, citing which entities and joins you used.
 
-If discovery blocks you, or the trust map flags the area you need as low-confidence, say so and tell me —
-don't fall back to guessing structure or presenting untrusted data as reliable.
+If discovery blocks you, or the trust map flags the area you need as low-confidence, say so and tell me — don't fall back to guessing structure or presenting untrusted data as reliable.
 
 ### Handover
 
-You read the deployed product directly — there is no handoff file. Your output is the answer, in this
-conversation, citing the entities and joins you used and any trust-map caveats for the areas involved.
+You read the deployed product directly — there is no handoff file. Your output is the answer, in this conversation, citing the entities and joins you used and any trust-map caveats for the areas involved.

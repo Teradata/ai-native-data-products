@@ -10,14 +10,9 @@ platform: teradata
 
 # Teradata — Platform Profile
 
-Platform-specific physical-design guidance for Teradata implementations of the AI-Native Data
-Product standard. The structural requirements live in [`design/`](../../design/) and are
-platform-agnostic; the guidance here is Teradata-specific. Teams on other platforms produce an
-equivalent profile covering the same topics: physical key strategy, partitioning, indexing,
-statistics, compression, and query optimisation.
+Platform-specific physical-design guidance for Teradata implementations of the AI-Native Data Product standard. The structural requirements live in [`design/`](../../design/) and are platform-agnostic; the guidance here is Teradata-specific. Teams on other platforms produce an equivalent profile covering the same topics: physical key strategy, partitioning, indexing, statistics, compression, and query optimisation.
 
-This profile complements the per-pattern and per-module implementation directories (which carry the
-concrete DDL); it collects the cross-cutting physical-design advice that applies across them.
+This profile complements the per-pattern and per-module implementation directories (which carry the concrete DDL); it collects the cross-cutting physical-design advice that applies across them.
 
 > **Advocacy, not mandate.** These are recommended defaults for AI-native workloads (point-in-time
 > feature computation, high-volume batch ML, low-latency agent lookups, cross-module joins). Deviate
@@ -37,9 +32,7 @@ The Primary Index (PI) is the most critical physical-design decision in Teradata
 | Relationship tables | Composite FK (NUPI) | Co-locate with the parent entity |
 | Time-series entities | Composite entity + time (NUPI) | Partition-elimination benefits |
 
-**Decision:** single-row lookup by surrogate → surrogate UPI; by natural key → natural-key UPI;
-time-range on entity → composite `(entity_id, time_column)` NUPI; frequent join to parent → parent FK
-NUPI for co-location; mixed → surrogate UPI plus secondary indexes.
+**Decision:** single-row lookup by surrogate → surrogate UPI; by natural key → natural-key UPI; time-range on entity → composite `(entity_id, time_column)` NUPI; frequent join to parent → parent FK NUPI for co-location; mixed → surrogate UPI plus secondary indexes.
 
 ```sql
 -- Surrogate key UPI (most common); UNIQUE PI includes the SCD2 period for versioned tables
@@ -56,16 +49,13 @@ PRIMARY INDEX (party_id, transaction_dts)
 PARTITION BY RANGE_N(transaction_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' MONTH);
 ```
 
-Note: the [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/) uses NUPI on the
-natural key for co-located joins across versions; choose UPI-with-period where in-schema uniqueness of
-`(natural_key, valid_from_dts)` is preferred.
+Note: the [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/) uses NUPI on the natural key for co-located joins across versions; choose UPI-with-period where in-schema uniqueness of `(natural_key, valid_from_dts)` is preferred.
 
 ---
 
 ## 2. Partitioning
 
-Advocate partitioning for tables > 100M rows, time-series access patterns, or where partition
-elimination materially helps. Below 100M rows, usually skip it.
+Advocate partitioning for tables > 100M rows, time-series access patterns, or where partition elimination materially helps. Below 100M rows, usually skip it.
 
 | Dimension | When | Example |
 |-----------|------|---------|
@@ -89,9 +79,7 @@ PARTITION BY (
 
 ## 3. Secondary Indexes
 
-Selective use only: create when a critical, frequent query doesn't use the PI and performance is
-unacceptable, and insert volume is moderate. Avoid on rare/ad-hoc queries, when the PI already covers
-the query, or under high insert/update volume.
+Selective use only: create when a critical, frequent query doesn't use the PI and performance is unacceptable, and insert volume is moderate. Avoid on rare/ad-hoc queries, when the PI already covers the query, or under high insert/update volume.
 
 ```sql
 -- Natural-key lookup when PI is the surrogate (current rows only)
@@ -104,8 +92,7 @@ CREATE INDEX idx_partyproduct_product ON PartyProduct_H (product_id) WHERE is_cu
 
 ## 4. Join Indexes
 
-Advocate for expensive, frequently-used joins, pre-computed aggregations, and materialised current
-views. Costs write throughput, so reserve for genuinely hot patterns.
+Advocate for expensive, frequently-used joins, pre-computed aggregations, and materialised current views. Costs write throughput, so reserve for genuinely hot patterns.
 
 ```sql
 -- Materialised current-version view
@@ -123,8 +110,7 @@ Also usable for denormalised hot joins and pre-computed aggregations (counts, su
 
 ## 5. Compression
 
-Advocate compression for large text (> 500 chars), JSON, and sparse columns; skip small strings,
-numerics, and frequently-updated columns (recompression cost).
+Advocate compression for large text (> 500 chars), JSON, and sparse columns; skip small strings, numerics, and frequently-updated columns (recompression cost).
 
 ```sql
 CREATE TABLE Document_H ( document_id BIGINT NOT NULL, document_content CLOB )

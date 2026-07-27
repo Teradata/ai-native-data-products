@@ -24,15 +24,13 @@ normative: true
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/) |
 
-Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on
-Domain — it references Domain entities and joins back for raw context.
+Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on Domain — it references Domain entities and joins back for raw context.
 
 ---
 
 ## 1. Purpose
 
-Prediction stores **engineered features** for ML training and serving with **point-in-time
-correctness** and **feature discoverability**.
+Prediction stores **engineered features** for ML training and serving with **point-in-time correctness** and **feature discoverability**.
 
 | AI-native characteristic | Purpose |
 |--------------------------|---------|
@@ -46,8 +44,7 @@ correctness** and **feature discoverability**.
 
 ## 2. Scope and Boundaries
 
-**In scope:** engineered feature values (and their history), feature groups, model predictions
-(scores, classes, confidence), and optionally training datasets.
+**In scope:** engineered feature values (and their history), feature groups, model predictions (scores, classes, confidence), and optionally training datasets.
 
 **Out of scope:**
 
@@ -58,20 +55,13 @@ correctness** and **feature discoverability**.
 | Feature monitoring / drift | Observability |
 | Vector embeddings | Search |
 
-**Engineering requirement (`INV-PRED-001`).** The feature store holds *engineered* values —
-normalised, transformed, aggregated — **not** raw copies of Domain columns. A feature that is just a
-domain column with no transformation must not be duplicated here; it is obtained by join-back.
-`recency_score = 1 − days_since_last / 365` belongs here; `legal_name`, `birth_date`, raw
-`credit_limit` do not. Selective duplication is acceptable **only** for documented low-latency scoring
-exceptions.
+**Engineering requirement (`INV-PRED-001`).** The feature store holds *engineered* values — normalised, transformed, aggregated — **not** raw copies of Domain columns. A feature that is just a domain column with no transformation must not be duplicated here; it is obtained by join-back. `recency_score = 1 − days_since_last / 365` belongs here; `legal_name`, `birth_date`, raw `credit_limit` do not. Selective duplication is acceptable **only** for documented low-latency scoring exceptions.
 
 ---
 
 ## 3. Entity Model
 
-Two storage patterns are supported; a designer chooses per feature set (and may mix them). Both are
-versioned (`SCD2_HISTORY`) and reference Domain by the generic-reference pattern. Content is obtained
-by join-back; raw domain values are never copied (`INV-PRED-003`).
+Two storage patterns are supported; a designer chooses per feature set (and may mix them). Both are versioned (`SCD2_HISTORY`) and reference Domain by the generic-reference pattern. Content is obtained by join-back; raw domain values are never copied (`INV-PRED-003`).
 
 ```
 Entity: FeatureGroup              [kind: History]     — WIDE format
@@ -113,19 +103,13 @@ Entity: ModelPrediction           [kind: History]
   is_current             : Flag [current-flag]
 ```
 
-**Pattern choice:** wide when features are dense and always accessed together; tall when features are
-sparse, dynamic, or mixed-type.
+**Pattern choice:** wide when features are dense and always accessed together; tall when features are sparse, dynamic, or mixed-type.
 
 ---
 
 ## 4. Point-in-Time Correctness
 
-Using current features to train on a historical label causes **data leakage**. Prediction guarantees
-features are reconstructable as they existed at any past instant (`INV-PRED-002`), by applying the
-`temporal-lifecycle-metadata` pattern: each feature carries `observation_at` plus the pattern's
-validity period, aligned with the Domain entity's temporal tracking. Training as-of a date selects the
-feature version valid at that date and joins to the Domain entity state valid at the same date. This
-is the `PointInTimeReconstruction` capability, shared with Domain.
+Using current features to train on a historical label causes **data leakage**. Prediction guarantees features are reconstructable as they existed at any past instant (`INV-PRED-002`), by applying the `temporal-lifecycle-metadata` pattern: each feature carries `observation_at` plus the pattern's validity period, aligned with the Domain entity's temporal tracking. Training as-of a date selects the feature version valid at that date and joins to the Domain entity state valid at the same date. This is the `PointInTimeReconstruction` capability, shared with Domain.
 
 ---
 
@@ -142,10 +126,7 @@ is the `PointInTimeReconstruction` capability, shared with Domain.
 
 ## 6. Capabilities and Composition
 
-Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain
-entities and join back for context), so it cannot be deployed alone — valid as an add-on to an
-existing Domain. See the
-[composition mechanism](../core/DESIGN_LANGUAGE.md).
+Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain entities and join back for context), so it cannot be deployed alone — valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
@@ -171,13 +152,9 @@ existing Domain. See the
 
 ## 7. Integration with Other Modules
 
-- **Prediction + Domain** — features reference Domain entities by `Identifier` and join back for raw
-  values; engineered values live here, raw values stay in Domain, views join them (no duplication).
-- **Prediction + Semantic** — feature *definitions* and computation metadata live in Semantic; feature
-  *values* live here (`INV-PRED-004`). Agents read Semantic to learn what features mean, then read
-  Prediction for the values.
-- **Prediction + Observability** — feature drift and quality are monitored in Observability, not here
-  (`INV-PRED-005`); model performance metrics are Observability's `ModelPerformance`.
+- **Prediction + Domain** — features reference Domain entities by `Identifier` and join back for raw values; engineered values live here, raw values stay in Domain, views join them (no duplication).
+- **Prediction + Semantic** — feature *definitions* and computation metadata live in Semantic; feature *values* live here (`INV-PRED-004`). Agents read Semantic to learn what features mean, then read Prediction for the values.
+- **Prediction + Observability** — feature drift and quality are monitored in Observability, not here (`INV-PRED-005`); model performance metrics are Observability's `ModelPerformance`.
 
 ---
 
@@ -193,9 +170,7 @@ existing Domain. See the
 
 ## 9. Designer Responsibilities
 
-**Designers supply:** the feature list and computation logic; the storage pattern (wide/tall) per
-feature set; feature groups; source dependencies; refresh frequency; retention policy; the feature
-definitions registered in Semantic.
+**Designers supply:** the feature list and computation logic; the storage pattern (wide/tall) per feature set; feature groups; source dependencies; refresh frequency; retention policy; the feature definitions registered in Semantic.
 
 **Design review checklist:**
 
@@ -213,9 +188,7 @@ definitions registered in Semantic.
 
 ### 9.1 Decisions to settle
 
-These are the catalogued decisions a Prediction module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Prediction module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -228,10 +201,7 @@ each one at design time and records the answer in the product's own design.
 
 ## 10. Implementation
 
-The Teradata binding — the wide and tall feature tables, the prediction table, the current / enriched
-/ point-in-time views, and the invariant checks — lives in
-[`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/).
-Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding — the wide and tall feature tables, the prediction table, the current / enriched / point-in-time views, and the invariant checks — lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

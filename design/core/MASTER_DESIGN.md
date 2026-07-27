@@ -9,7 +9,7 @@ normative: true
 
 # AI-Native Data Product — Master Design Standard
 
-## AI-Native Data Product Architecture — Core Framework
+## AI-Native Data Product Architecture: Core Framework
 
 ---
 
@@ -27,11 +27,9 @@ normative: true
 
 ## 1. Purpose
 
-This is the architectural blueprint for a **modular library of data design patterns**. The
-library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset — a minimal governed data asset, a traditional data product, a full AI-native data product, or an extension bolted onto something that already exists. There is no single fixed architecture: an **AI-Native Data Product is the fullest composition**, not the only one.
+This is the architectural blueprint for a **modular library of data design patterns**. The library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset — a minimal governed data asset, a traditional data product, a full AI-native data product, or an extension bolted onto something that already exists. There is no single fixed architecture: an **AI-Native Data Product is the fullest composition**, not the only one.
 
-The standards are **platform-agnostic**. Everything here holds on every deployment platform; each platform's concrete binding lives under [`implementation/`](../../implementation/)
-(see Design Standards and Platform Implementation). Module design standards extend this document with per-module detail; a specific data product (a Customer 360, a fraud-detection product) *applies* a composition with concrete entity names.
+The standards are **platform-agnostic**. Everything here holds on every deployment platform; each platform's concrete binding lives under [`implementation/`](../../implementation/) (see Design Standards and Platform Implementation). Module design standards extend this document with per-module detail; a specific data product (a Customer 360, a fraud-detection product) *applies* a composition with concrete entity names.
 
 | This document defines (reusable)         | A specific product supplies (varies) |
 | ---------------------------------------- | ------------------------------------ |
@@ -106,8 +104,7 @@ Where a pattern wants documentation but deploys no Memory module, its documentat
 
 ## 5. Framework Capabilities
 
-Every module provides and requires capabilities from the
-[capability catalogue](DESIGN_LANGUAGE.md), bound per platform in `implementation/`. The guiding principles are realised as these capabilities:
+Every module provides and requires capabilities from the [capability catalogue](DESIGN_LANGUAGE.md), bound per platform in `implementation/`. The guiding principles are realised as these capabilities:
 
 | Principle                    | Realised as capability                                                                  | Availability                                                |
 | ---------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -118,9 +115,7 @@ Every module provides and requires capabilities from the
 | Self-describing (provenance) | `DocumentationCapture` — modules record decisions, glossary, and change history.        | Only when Memory's `documentation` facet is present (soft). |
 | Agent-native access          | The **Access Layer** roles that make a deployed composition reachable (see Access Layer).      | When deployed for consumption.                              |
 
-A module names the capabilities it provides and requires; the platform implementation binds each
-one. No capability assumes a platform mechanism, and cross-module capabilities are conditional on
-the composition (see Compositions).
+A module names the capabilities it provides and requires; the platform implementation binds each one. No capability assumes a platform mechanism, and cross-module capabilities are conditional on the composition (see Compositions).
 
 ---
 
@@ -140,8 +135,7 @@ When a composition includes the Semantic module, it is the **map** an agent uses
 2. **Entity discovery** — which entities exist in each module, and their keys and structure.
 3. **Relationship discovery** — how entities relate, including multi-hop join paths.
 
-**Bootstrap convention.** An agent is given only the product name, locates the Semantic module by naming convention, reads the module registry, then explores entities and relationships — and is autonomous from there. The discovery entities and the naming convention are defined in the [Semantic module standard](../modules/semantic.md); the platform queries live in `implementation/`.
-In a composition without Semantic (e.g. a Data Asset), discovery degrades to the platform catalogue plus `RichMetadata`.
+**Bootstrap convention.** An agent is given only the product name, locates the Semantic module by naming convention, reads the module registry, then explores entities and relationships — and is autonomous from there. The discovery entities and the naming convention are defined in the [Semantic module standard](../modules/semantic.md); the platform queries live in `implementation/`. In a composition without Semantic (e.g. a Data Asset), discovery degrades to the platform catalogue plus `RichMetadata`.
 
 ---
 
@@ -165,8 +159,7 @@ Three standard roles are created per product, named `{ProductName}_ROLE_{TIER}`:
 | `{ProductName}_ROLE_AGENT` | AI agents, automated tools       | Read access, kept separate for independent lifecycle management. |
 | `{ProductName}_ROLE_ADMIN` | Product owner, data steward      | Read access across all containers.                               |
 
-The roles are product artefacts owned by the product team; assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the
-[access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
+The roles are product artefacts owned by the product team; assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the [access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
 
 ---
 
@@ -199,16 +192,9 @@ A platform "profile" *is* an `implementation/{platform}/` tree: platform capabil
 
 ## 12. Capturing the Design
 
-Every design decision a product makes is **recorded as part of designing it**, not reconstructed
-afterwards. This applies to every module and every design task, which is why it lives here rather
-than being restated in each module standard.
+Every design decision a product makes is **recorded as part of designing it**, not reconstructed afterwards. This applies to every module and every design task, which is why it lives here rather than being restated in each module standard.
 
-**What is captured.** The settled decisions (each catalogued decision the composition raised, the
-option chosen, and — where it was not the advocated one — the reason), the module registry entry
-and version, the business-glossary terms the design introduces, at least one query-cookbook recipe
-per module, and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one
-of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`,
-`INTEGRATION`, `OPERATIONAL`.
+**What is captured.** The settled decisions (each catalogued decision the composition raised, the option chosen, and — where it was not the advocated one — the reason), the module registry entry and version, the business-glossary terms the design introduces, at least one query-cookbook recipe per module, and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION`, `OPERATIONAL`.
 
 **Where it goes** depends on the composition, and the obligation does not:
 
@@ -217,14 +203,9 @@ of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `
 | Present | The product's own Memory store, via `DocumentationCapture` — the product is self-describing, and the record travels with it. |
 | Absent | A design record kept alongside the product as a Markdown document, carrying the same content. |
 
-**`DocumentationCapture` is a `[soft]` requirement** for exactly this reason: a composition without
-Memory does not fail, it loses the *in-product* destination. What it must not lose is the record.
-A design whose decisions were never written down cannot be reviewed, cannot be explained, and
-cannot tell a deliberate departure from an oversight — which is the whole purpose of settling
-decisions explicitly.
+**`DocumentationCapture` is a `[soft]` requirement** for exactly this reason: a composition without Memory does not fail, it loses the *in-product* destination. What it must not lose is the record. A design whose decisions were never written down cannot be reviewed, cannot be explained, and cannot tell a deliberate departure from an oversight — which is the whole purpose of settling decisions explicitly.
 
-The record definitions, capture workflow, and templates are owned by the Memory module design and
-its binding; they are not restated here.
+The record definitions, capture workflow, and templates are owned by the Memory module design and its binding; they are not restated here.
 
 ---
 
@@ -246,14 +227,9 @@ Product-level rules every conforming composition satisfies. Several are **condit
 
 - [Design Language](DESIGN_LANGUAGE.md) — the notation every design document is written in, including the composition mechanism ().
 - [Glossary](GLOSSARY.md) — shared vocabulary.
-- Module standards — [Domain](../modules/domain.md), [Search](../modules/search.md),
-  [Prediction](../modules/prediction.md), [Observability](../modules/observability.md),
-  [Semantic](../modules/semantic.md), [Memory](../modules/memory.md).
-- Patterns — [object-placement](../patterns/object-placement.md),
-  [physical-storage](../patterns/physical-storage.md),
-  [temporal-lifecycle-metadata](../patterns/temporal-lifecycle-metadata.md),
-  [validation](../patterns/validation.md), [access-layer](../patterns/access-layer.md).
+- Module standards — [Domain](../modules/domain.md), [Search](../modules/search.md), [Prediction](../modules/prediction.md), [Observability](../modules/observability.md), [Semantic](../modules/semantic.md), [Memory](../modules/memory.md).
+- Patterns — [object-placement](../patterns/object-placement.md), [physical-storage](../patterns/physical-storage.md), [temporal-lifecycle-metadata](../patterns/temporal-lifecycle-metadata.md), [validation](../patterns/validation.md), [access-layer](../patterns/access-layer.md).
 
 ---
 
-**End of Master Design Standard** — *a living standard; modules compose into patterns, and product implementations apply them.*
+**End of Master Design Standard**: *a living standard; modules compose into patterns, and product implementations apply them.*

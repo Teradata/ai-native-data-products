@@ -131,11 +131,11 @@ FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 DECISION_DECL_RE = re.compile(r"^\s*Decision:\s*(DEC-[A-Z0-9-]+)\s*$")
 OPTION_DECL_RE = re.compile(r"^\s*Option:\s*(\S+)\s*(\[advocated\])?\s*$")
 CAPABILITY_ROW_RE = re.compile(r"^\|\s*`([A-Za-z][A-Za-z0-9]*)")
-# A glossary entry opens a line as `**Term** — definition`. A bold run at the start of a
+# A glossary entry opens a line as `**Term**: definition`. A bold run at the start of a
 # line *without* that separator is a cross-reference that happened to wrap, which reads as
 # a phantom entry to anyone (or anything) scanning the left margin.
 GLOSSARY_BOLD_RE = re.compile(r"^\*\*([^*]+)\*\*(.*)$")
-GLOSSARY_SEPARATOR = " — "
+GLOSSARY_SEPARATOR = ": "
 INVARIANT_CANDIDATE_RE = re.compile(r"\bINV-[A-Za-z0-9]+-[A-Za-z0-9]+\b")
 INVARIANT_STRICT_RE = re.compile(r"^INV-[A-Z][A-Z0-9]*-\d{3}$")
 ATTRIBUTE_LINE_RE = re.compile(r"^\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s*:\s*(\S.*)$")
@@ -483,12 +483,11 @@ def find_spine_violations(text: str, path: str) -> List[Finding]:
 
     A module may add sections of its own anywhere, and the numbering is its business —
     what has to hold is that the same concern is findable under the same heading in every
-    module. A section may carry a subtitle after an em dash (`Entity Model — Runtime
-    Facet`); the head of the heading is what must match.
+    module. A section may carry a subtitle after a colon (`Entity Model: Runtime Facet`); the head of the heading is what must match.
     """
     headings = []
     for name in SECTION_HEADING_RE.findall(text):
-        headings.append(re.split(r"\s+[—–-]\s+", name)[0].strip())
+        headings.append(re.split(r"\s*:\s*", name)[0].strip())
     missing = [s for s in MODULE_SPINE if s not in headings]
     return [Finding(path, 1, "module-spine",
                     f"module is missing the '{s}' section — every module carries the same "

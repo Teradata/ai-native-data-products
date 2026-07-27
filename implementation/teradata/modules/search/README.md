@@ -1,5 +1,5 @@
 ---
-title: Teradata — Search Module Implementation
+title: Teradata: Search Module Implementation
 anchor: search
 type: implementation
 status: standard
@@ -11,8 +11,7 @@ platform: teradata
 
 # Teradata — Search Module Implementation
 
-Concrete Teradata binding of [`design/modules/search.md`](../../../../design/modules/search.md).
-Read the design document first; this directory only adds Teradata specifics.
+Concrete Teradata binding of [`design/modules/search.md`](../../../../design/modules/search.md). Read the design document first; this directory only adds Teradata specifics.
 
 ## Files
 
@@ -53,10 +52,7 @@ The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`.
 | `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
 | `Flag` | `BYTEINT` |
 
-**Legacy note.** On Vantage versions below 20.00.26.XX, or where per-dimension analytics are
-required, bind `Vector[dim]` to columnar `FLOAT` columns `emb_0 … emb_{dim-1}` and reference
-them with `TD_VectorDistance` range notation `[emb_0:emb_{dim-1}]`. Prefer the native `VECTOR`
-type otherwise.
+**Legacy note.** On Vantage versions below 20.00.26.XX, or where per-dimension analytics are required, bind `Vector[dim]` to columnar `FLOAT` columns `emb_0 … emb_{dim-1}` and reference them with `TD_VectorDistance` range notation `[emb_0:emb_{dim-1}]`. Prefer the native `VECTOR` type otherwise.
 
 ## Invariants → checks
 

@@ -24,16 +24,13 @@ normative: true
 | **Notation**        | [Design Language](../core/DESIGN_LANGUAGE.md)                                              |
 | **Implementations** | [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/) |
 
-This document defines **what** the Search module must be and **why**, in platform-neutral
-terms. Vector storage formats, distance functions, and index mechanisms are platform
-specifics — they live in the implementation directory, bound to the capabilities named here.
+This document defines **what** the Search module must be and **why**, in platform-neutral terms. Vector storage formats, distance functions, and index mechanisms are platform specifics — they live in the implementation directory, bound to the capabilities named here.
 
 ---
 
 ## 1. Purpose
 
-The Search module enables **semantic retrieval**: finding relevant content by meaning rather
-than exact keyword match, using vector embeddings.
+The Search module enables **semantic retrieval**: finding relevant content by meaning rather than exact keyword match, using vector embeddings.
 
 | AI-native characteristic | Purpose                                                         |
 | ------------------------ | --------------------------------------------------------------- |
@@ -43,8 +40,7 @@ than exact keyword match, using vector embeddings.
 | **Autonomous discovery** | Agents find relevant data without human direction.              |
 | **Multi-modal**          | Text, image, and structured-data embeddings under one contract. |
 
-It enables similarity search, retrieval-augmented generation, similarity analysis, content
-discovery, and multi-modal search — all built on one entity: the embedding.
+It enables similarity search, retrieval-augmented generation, similarity analysis, content discovery, and multi-modal search — all built on one entity: the embedding.
 
 ---
 
@@ -52,10 +48,8 @@ discovery, and multi-modal search — all built on one entity: the embedding.
 
 **In scope:**
 
-- **Vector embeddings** — semantic representations of entities; multiple models and
-  dimensionalities supported.
-- **Entity references** — the `Identifier` of the Domain entity each embedding describes, plus
-  its kind. **Never the content itself.**
+- **Vector embeddings** — semantic representations of entities; multiple models and dimensionalities supported.
+- **Entity references** — the `Identifier` of the Domain entity each embedding describes, plus its kind. **Never the content itself.**
 - **Embedding metadata** — which model and version produced the vector, and when.
 - **Similarity acceleration** (optional) — approximate-nearest-neighbour indexes.
 
@@ -72,8 +66,7 @@ discovery, and multi-modal search — all built on one entity: the embedding.
 
 ## 3. Core Principle
 
-The Search module stores **vectors and entity references only**. It never copies the content that produced the embedding. Content is obtained by joining back to Domain
-(`EntityJoinBack`). This is the single most important rule of the module:
+The Search module stores **vectors and entity references only**. It never copies the content that produced the embedding. Content is obtained by joining back to Domain (`EntityJoinBack`). This is the single most important rule of the module:
 
 - **Efficient** — storage is vectors plus ids, nothing more.
 - **Single source of truth** — content lives once, in Domain.
@@ -124,13 +117,9 @@ Entity: EntityEmbedding           [kind: History]
     - INV-SEARCH-003: records the model and dimensionality that produced the vector.
 ```
 
-`entity_id` + `entity_kind` is the **generic reference** pattern from the Domain module
-() — one embedding table serves many entity kinds. The dimensionality `dim` is
-model-dependent and varies per row; it is both carried by the `Vector[dim]` type and
-recorded in `embedding_dimensions` for discovery and reproducibility.
+`entity_id` + `entity_kind` is the **generic reference** pattern from the Domain module () — one embedding table serves many entity kinds. The dimensionality `dim` is model-dependent and varies per row; it is both carried by the `Vector[dim]` type and recorded in `embedding_dimensions` for discovery and reproducibility.
 
-**No content columns.** There is deliberately no `name`, `description`, or `text` attribute
-here — those belong to Domain and are reached by join-back.
+**No content columns.** There is deliberately no `name`, `description`, or `text` attribute here — those belong to Domain and are reached by join-back.
 
 ---
 
@@ -169,8 +158,7 @@ Search is an **enhancement** module: it hard-depends on Domain (an embedding ref
 | `SemanticRegistration` | `[soft]` | `module:Semantic`   | Register the embedding entity and its columns in the Semantic map when Semantic is present (`INV-MASTER-002`).              |
 | `DocumentationCapture` | `[soft]` | `module:Memory`     | Record decisions, glossary, and change history when Memory's documentation facet is present (the Documentation Capture Requirements section, `INV-MASTER-002`). |
 
-**Portability note.** `Embed` differs materially across platforms — some provide in-database embedding, others are external-API only. It is therefore declared with a
-`computation_method` and treated as pluggable, and `ApproxIndex` is optional. A design that assumed in-database embedding would silently encode one platform's capability; this module does not.
+**Portability note.** `Embed` differs materially across platforms — some provide in-database embedding, others are external-API only. It is therefore declared with a `computation_method` and treated as pluggable, and `ApproxIndex` is optional. A design that assumed in-database embedding would silently encode one platform's capability; this module does not.
 
 ---
 
@@ -262,9 +250,7 @@ Metric choice is semantic (mathematics), so it stays in design. The binding of e
 
 ### 11.1 Decisions to settle
 
-These are the catalogued decisions a Search module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Search module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -280,8 +266,7 @@ Every settled decision is recorded as part of designing the product — see *Cap
 
 ## 12. Implementation
 
-The Teradata binding — the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks — lives in
-[`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding — the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks — lives in [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

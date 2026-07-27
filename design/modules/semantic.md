@@ -24,47 +24,36 @@ normative: true
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/) |
 
-Semantic is the module that **provides `SemanticRegistration`** and the discovery map every other
-module and pattern points at: the entity/column catalogue, the relationship graph, the module and
-primary-object registries, and the product orientation layer. It is the map that makes
-[Master agent discovery](../core/MASTER_DESIGN.md) possible.
+Semantic is the module that **provides `SemanticRegistration`** and the discovery map every other module and pattern points at: the entity/column catalogue, the relationship graph, the module and primary-object registries, and the product orientation layer. It is the map that makes [Master agent discovery](../core/MASTER_DESIGN.md) possible.
 
 ---
 
 ## 1. Purpose
 
-Semantic helps an agent generate correct queries by answering, from queryable metadata rather than
-inference:
+Semantic helps an agent generate correct queries by answering, from queryable metadata rather than inference:
 
 1. What products exist, and how do I orient to one?
 2. What modules are deployed, and where?
 3. What entities (tables) exist, and what attributes (columns) do they have?
 4. How do entities relate — and how do I join A to B, including multi-hop?
 
-**Key terminology:** an **entity** is a table, an **attribute** is a column, a **relationship** is
-how tables join. The catalogue registers *objects*, never rows.
+**Key terminology:** an **entity** is a table, an **attribute** is a column, a **relationship** is how tables join. The catalogue registers *objects*, never rows.
 
 ---
 
 ## 2. Scope and Boundaries
 
-**In scope:** schema metadata — hundreds of rows describing entities, attributes, relationships,
-naming standards, module locations, primary objects, and product orientation.
+**In scope:** schema metadata — hundreds of rows describing entities, attributes, relationships, naming standards, module locations, primary objects, and product orientation.
 
-**Out of scope:** instance data (millions of rows → Domain and the other modules); business content;
-individual records. Semantic stores *what exists and how it connects*, never the data itself
-(`INV-SEMANTIC-001`).
+**Out of scope:** instance data (millions of rows → Domain and the other modules); business content; individual records. Semantic stores *what exists and how it connects*, never the data itself (`INV-SEMANTIC-001`).
 
-**Boundary with Memory's documentation facet:** Semantic stores *what exists and how it connects*;
-Memory's design memory stores *why it exists, how to use it, and what changed*. They must not
-duplicate each other.
+**Boundary with Memory's documentation facet:** Semantic stores *what exists and how it connects*; Memory's design memory stores *why it exists, how to use it, and what changed*. They must not duplicate each other.
 
 ---
 
-## 3. Entity Model — The Discovery Map
+## 3. Entity Model: The Discovery Map
 
-Semantic's entities are the discovery catalogue. All apply `object-placement` and `access-layer`;
-those that are versioned apply `temporal-lifecycle-metadata`; all require `RichMetadata`.
+Semantic's entities are the discovery catalogue. All apply `object-placement` and `access-layer`; those that are versioned apply `temporal-lifecycle-metadata`; all require `RichMetadata`.
 
 ### 3.1 Catalogue
 
@@ -164,44 +153,30 @@ Entity: PrimaryObject             [kind: Record]         — one row per agent-f
   is_active         : Flag
 ```
 
-`ViewMetadata` (one row per base-table exposure, with a `view_type` and a single primary exposure per
-base table) and `ViewColumnType` (curated types for view columns) complete the catalogue; both are
-platform-detail-heavy and specified in the implementation.
+`ViewMetadata` (one row per base-table exposure, with a `view_type` and a single primary exposure per base table) and `ViewColumnType` (curated types for view columns) complete the catalogue; both are platform-detail-heavy and specified in the implementation.
 
 ---
 
 ## 4. Data Product Orientation Layer
 
-Discovery is **product-first, not tables-first** (`INV-SEMANTIC-004`). A client must not begin by
-guessing containers or listing tables; it orients to the product, then navigates.
+Discovery is **product-first, not tables-first** (`INV-SEMANTIC-004`). A client must not begin by guessing containers or listing tables; it orients to the product, then navigates.
 
 **Metadata-first handshake:**
 
 1. The client asks what products are available → reads `DataProductRegistry`.
 2. It reads the selected product's **manifest**.
-3. The manifest recommends navigation: contract → semantic model → policy → quality → lineage →
-   approved data access.
+3. The manifest recommends navigation: contract → semantic model → policy → quality → lineage → approved data access.
 4. It queries data **only** through the approved entrypoint.
 
-Where the product is reached over MCP, the orientation layer is exposed as **resources first** (the
-product list, per-product manifest, contract, semantic model, policy, quality, lineage, physical
-map) and **tools second** (search products, describe a product, get the recommended entrypoint,
-query approved data, explain an access path). The registry also designates the
-**gate-authoritative producer** the [validation pattern](../patterns/validation.md) reads, and its
-`manifest` records the entrypoints and recommended navigation.
+Where the product is reached over MCP, the orientation layer is exposed as **resources first** (the product list, per-product manifest, contract, semantic model, policy, quality, lineage, physical map) and **tools second** (search products, describe a product, get the recommended entrypoint, query approved data, explain an access path). The registry also designates the **gate-authoritative producer** the [validation pattern](../patterns/validation.md) reads, and its `manifest` records the entrypoints and recommended navigation.
 
 ---
 
 ## 5. Multi-Hop Path Discovery
 
-`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery
-surface** lets an agent find how to join any two entities — directly or through intermediate
-entities, in either direction, up to a bounded number of hops — and returns the join conditions to
-use. This is the single most important discovery capability: an agent cannot traverse a path it has
-no record of.
+`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities — directly or through intermediate entities, in either direction, up to a bounded number of hops — and returns the join conditions to use. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
 
-**Completeness requirement (`INV-SEMANTIC-005`).** `TableRelationship` must register **every**
-relationship an agent is expected to traverse — not only those with physical foreign keys:
+**Completeness requirement (`INV-SEMANTIC-005`).** `TableRelationship` must register **every** relationship an agent is expected to traverse — not only those with physical foreign keys:
 
 | Category | Common omission |
 |----------|-----------------|
@@ -211,8 +186,7 @@ relationship an agent is expected to traverse — not only those with physical f
 | Multi-hop semantic chains | Chains used in lineage and audit |
 | Reverse directions | Bidirectional traversal needs |
 
-An entity that appears in `EntityMetadata` but in no `TableRelationship` is either a *documented*
-standalone (recorded as a design decision) or an omission that will cause agent navigation failures.
+An entity that appears in `EntityMetadata` but in no `TableRelationship` is either a *documented* standalone (recorded as a design decision) or an omission that will cause agent navigation failures.
 
 ---
 
@@ -222,15 +196,11 @@ The discovery order realises [Master](../core/MASTER_DESIGN.md):
 
 1. **Product** — read `DataProductRegistry` / the manifest (orientation).
 2. **Module** — read `DataProductMap` for deployed modules and their containers.
-3. **Object** — read `PrimaryObject` for each module's entrypoints by `object_role`, using the stored
-   `container.object` **verbatim** — never deriving names from conventions.
+3. **Object** — read `PrimaryObject` for each module's entrypoints by `object_role`, using the stored `container.object` **verbatim** — never deriving names from conventions.
 4. **Entity / attribute** — read `EntityMetadata` / the column catalogue.
 5. **Relationship** — read the path-discovery surface to join.
 
-A live **column catalogue** joins the deployed structural facts to the curated `ColumnMetadata`,
-carrying the **provenance** of every resolved value (declared-type source, description source,
-documentation coverage) so consumers see a complete schema without the curated store copying
-structural facts. Its construction is platform-specific (implementation).
+A live **column catalogue** joins the deployed structural facts to the curated `ColumnMetadata`, carrying the **provenance** of every resolved value (declared-type source, description source, documentation coverage) so consumers see a complete schema without the curated store copying structural facts. Its construction is platform-specific (implementation).
 
 ---
 
@@ -247,10 +217,7 @@ structural facts. Its construction is platform-specific (implementation).
 
 ## 8. Capabilities and Composition
 
-Semantic is **cross-cutting and soft**: nothing hard-depends on it (modules register *when it is
-present*), and it hard-depends on nothing — it describes whatever modules are in the composition. It
-is present in a traditional data product and an AI-native product, absent in a minimal Data Asset.
-See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Semantic is **cross-cutting and soft**: nothing hard-depends on it (modules register *when it is present*), and it hard-depends on nothing — it describes whatever modules are in the composition. It is present in a traditional data product and an AI-native product, absent in a minimal Data Asset. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
@@ -271,18 +238,12 @@ See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 ## 9. Integration with Other Modules
 
-Semantic is the map every other module registers itself in. The relationship is uniform: a module
-deploys, then registers its entities, attributes, and relationships through `SemanticRegistration`.
+Semantic is the map every other module registers itself in. The relationship is uniform: a module deploys, then registers its entities, attributes, and relationships through `SemanticRegistration`.
 
-- **Every module → Semantic** — on deploy, each module registers its primary objects so agents can
-  discover them. Soft in both directions: a composition without Semantic simply has no discovery
-  map, and agents fall back to the platform catalogue plus `RichMetadata`.
-- **Domain → Semantic** — Semantic describes Domain entities and their relationships; it holds no
-  copy of their content, and resolves a catalogue entry to its entity by joining back.
-- **Observability → Semantic** — the lineage views are deployed into the Semantic container, so
-  lineage is discoverable alongside the structure it describes.
-- **Temporal profiles** — a table declares its temporal profile in Semantic's entity metadata,
-  which is where validators read it rather than inferring behaviour from column names.
+- **Every module → Semantic** — on deploy, each module registers its primary objects so agents can discover them. Soft in both directions: a composition without Semantic simply has no discovery map, and agents fall back to the platform catalogue plus `RichMetadata`.
+- **Domain → Semantic** — Semantic describes Domain entities and their relationships; it holds no copy of their content, and resolves a catalogue entry to its entity by joining back.
+- **Observability → Semantic** — the lineage views are deployed into the Semantic container, so lineage is discoverable alongside the structure it describes.
+- **Temporal profiles** — a table declares its temporal profile in Semantic's entity metadata, which is where validators read it rather than inferring behaviour from column names.
 
 Semantic never becomes a dependency of the modules it describes: it observes and indexes them.
 
@@ -302,9 +263,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the entity/column/relationship catalogue for every module; naming standards;
-the module map and primary objects with their roles; the product registry and manifest; the temporal
-profile per entity.
+**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest; the temporal profile per entity.
 
 **Design review checklist:**
 
@@ -321,9 +280,7 @@ profile per entity.
 
 ### 10.1 Decisions to settle
 
-These are the catalogued decisions a Semantic module design must settle. The recommendation is this
-standard's default; the question is what shifts it. The design skill walks a designer through
-each one at design time and records the answer in the product's own design.
+These are the catalogued decisions a Semantic module design must settle. The recommendation is this standard's default; the question is what shifts it. The design skill walks a designer through each one at design time and records the answer in the product's own design.
 
 
 | Decision | Recommended | Settle it by asking |
@@ -334,11 +291,7 @@ each one at design time and records the answer in the product's own design.
 
 ## 12. Implementation
 
-The Teradata binding — the catalogue and registry tables, the recursive path-discovery view, the
-live hybrid column catalogue, the orientation manifest / MCP resource shapes, and the validation
-queries — lives in
-[`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/).
-Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding — the catalogue and registry tables, the recursive path-discovery view, the live hybrid column catalogue, the orientation manifest / MCP resource shapes, and the validation queries — lives in [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 
