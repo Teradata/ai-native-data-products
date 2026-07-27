@@ -3,7 +3,7 @@ title: Glossary
 anchor: glossary
 type: core
 status: standard
-version: 1.0
+version: 1.1
 normative: false
 ---
 
@@ -11,9 +11,10 @@ normative: false
 
 ## AI-Native Data Product Architecture — Shared Vocabulary
 
-Terms used across the design standards. Notation terms (logical types, capabilities,
-invariants) are defined in the [Design Language](DESIGN_LANGUAGE.md); this glossary covers the
-architectural and domain vocabulary.
+Terms used across the design standards. Notation terms — logical types, capabilities,
+invariants, and decisions — are defined authoritatively in the
+[Design Language](DESIGN_LANGUAGE.md); the entries here give the short definition and point at
+it. This glossary covers the architectural and domain vocabulary.
 
 ---
 
@@ -22,12 +23,24 @@ standard roles (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) and grants them read ac
 containers, making the product discoverable and queryable. Deployed in two phases interleaved
 with the module sequence. See the [access-layer pattern](../patterns/access-layer.md).
 
+**Advocated option** — The recommended answer to a **Decision**. Choosing it needs no
+justification; choosing another option requires a recorded reason. Advocacy is not mandate: what
+conformance requires is that the choice be *declared*, not that it match the recommendation. See
+the [decision catalogue](ADVOCATED_STANDARDS.md).
+
 **Agent** — An autonomous software entity that perceives, reasons, and acts, consuming data
 products to achieve goals without human mediation.
 
+**Anchor** — The short name that identifies a module or pattern across the corpus, declared
+in its **frontmatter** and matching the document's location. Anchors are how documents
+reference each other: a design document and its platform binding share one, so either path is
+computable from the other without a lookup table. Cross-references resolve by anchor, never by
+filename.
+
 **Architecture Decision Record (ADR)** — A structured record of a significant design decision:
 context, alternatives, rationale, consequences. Captured in the Memory module's design-decision
-store.
+store. Distinct from a **Decision**: an ADR is a *product's* record of something it settled;
+a Decision is a *catalogued* choice the framework poses to every product.
 
 **Attribute** — A field of an entity. For example, `party_key` is an attribute of the Party
 entity. Typed with the [logical vocabulary](DESIGN_LANGUAGE.md#4-logical-type-vocabulary).
@@ -40,6 +53,13 @@ movement. A physical optimisation; its availability and mechanism are platform-s
 
 **Data Product** — A self-contained, well-defined data asset with clear ownership, interfaces,
 and contracts — treated as a product, not a byproduct.
+
+**Decision** — A named choice a design must settle explicitly, carrying an **advocated
+option** and stated criteria for departing from it. The third construct alongside capabilities
+and invariants: where an invariant states what must be true of every implementation, a decision
+states what legitimately varies between them. Written `DEC-<TOPIC>`, catalogued in the
+[decision catalogue](ADVOCATED_STANDARDS.md), and declared in each document's frontmatter. See
+the [Design Language](DESIGN_LANGUAGE.md#8-decisions).
 
 **Design / Implementation split** — The framework's core boundary: platform-agnostic standards
 in `design/`, platform-specific bindings in `implementation/{platform}/`. See the
@@ -58,6 +78,13 @@ Party row is an *instance*.
 
 **Feature Store** — A repository for storing, managing, and serving ML features with
 consistency between training and inference. The role of the Prediction module.
+
+**Frontmatter** — The YAML block opening every design document, declaring its identity and its
+relationships: title, **anchor**, type, status, version, normative classification, the
+capabilities it provides and requires, the patterns it applies, and the decisions it declares.
+Frontmatter is authoritative — the linter validates it and corpus navigation is generated from
+it, so structure never depends on hand-maintained lists. See the
+[Design Language](DESIGN_LANGUAGE.md#31-frontmatter).
 
 **Identifier / Natural key** — `Identifier` is the internal, system-generated surrogate stable
 across an entity's versions; a `NaturalKey` is the business identifier from the source system.
@@ -81,6 +108,16 @@ standards, naming conventions, industry reference models) — distinct from the 
 capability. The six standard modules are Domain, Search, Prediction, Observability, Semantic,
 and Memory. Modules integrate through join-back and cross-module reference patterns.
 
+**Normative / advisory** — A document's conformance weight, declared in its **frontmatter**.
+*Normative* content is required: violating it makes a product non-conformant. *Advisory* content
+is recommended but not required. Placement in the hierarchy is a navigation aid and never a
+substitute for the declaration.
+
+**Platform profile** — A per-platform document collecting the physical-design conventions that
+apply across every binding for that platform — key strategy, partitioning, indexing, compression,
+statistics. Advisory rather than normative: it records recommended defaults, and a workload
+with different needs may deviate from them.
+
 **Point-in-Time (PIT)** — Reconstructing data as it existed at a specific past moment — critical
 for reproducible ML features without leakage. Realised by the `PointInTimeReconstruction`
 capability.
@@ -94,6 +131,12 @@ attribute (`Reference -> <Entity>`), a hierarchy, or a semantic association.
 **Semantic map** — The discovery metadata in the Semantic module (module registry, entity
 catalogue, column dictionary, relationship graph, path finder, naming standards) that lets an
 agent discover structure and generate valid queries autonomously.
+
+**Soft delete** — Recording a deletion by marking the instance rather than destroying it: it
+leaves the current set, stays reachable historically, and the deletion is itself an observable
+event. The advocated option of `DEC-DELETE-STRATEGY`, realised by the `SoftDelete` capability.
+A destructive delete answers "which instances were removed, and when" with silence, which is why
+deletion is treated as information rather than absence.
 
 **Temporal data** — Data that tracks change over time, distinguishing *valid time* (when true in
 reality) from *transaction time* (when recorded). Governed by the
