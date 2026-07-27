@@ -64,6 +64,8 @@ assert lint_text("design/modules/domain.md", text) == []
 | `invalid-choice` | a declared `choice` is not one of that decision's options. |
 | `unjustified-choice` | a design departs from the advocated option without a `because` (Section 8.2). |
 | `undeclared-decision` | a module describes a `History` entity without declaring how it versions and deletes (Section 8.3). |
+| `glossary-order` | a glossary entry is out of alphabetical order. |
+| `glossary-entry` | a bold run opens a glossary line without the ` — ` separator — almost always a cross-reference that wrapped onto the left margin, where it reads as a phantom definition. |
 
 The capability and decision catalogues are **read from the documents that define them**,
 found by anchor rather than by filename — so adding a capability or a decision needs no

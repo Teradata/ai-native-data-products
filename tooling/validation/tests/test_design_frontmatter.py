@@ -15,6 +15,7 @@ from design_lint import (  # noqa: E402
     expected_anchor,
     find_frontmatter_violations,
     find_corpus_violations,
+    find_glossary_violations,
     load_capability_catalogue,
     load_decision_catalogue,
 )
@@ -225,3 +226,47 @@ class CorpusRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+GLOSSARY_CLEAN = """---
+title: Glossary
+anchor: glossary
+type: core
+status: standard
+version: 1.2
+normative: false
+---
+
+# Glossary
+
+**Anchor** — The short name identifying a module across the corpus.
+
+**Composition** — A chosen set of modules assembled into a data design pattern,
+so that a **facet** may be taken without the whole module.
+
+**Decision** — A named choice a design must settle explicitly.
+
+---
+
+**End of Glossary**
+"""
+
+
+class GlossaryRules(unittest.TestCase):
+    def test_clean_glossary_passes(self):
+        self.assertEqual(find_glossary_violations(GLOSSARY_CLEAN, "GLOSSARY.md"), [])
+
+    def test_out_of_order_entry_flagged(self):
+        text = GLOSSARY_CLEAN.replace("**Anchor** —", "**Zebra** —")
+        findings = find_glossary_violations(text, "GLOSSARY.md")
+        self.assertEqual([f.rule for f in findings], ["glossary-order"])
+
+    def test_wrapped_cross_reference_flagged(self):
+        text = GLOSSARY_CLEAN.replace(
+            "so that a **facet** may be taken", "so that a\n**facet** may be taken")
+        findings = find_glossary_violations(text, "GLOSSARY.md")
+        self.assertEqual([f.rule for f in findings], ["glossary-entry"])
+
+    def test_end_marker_is_not_an_entry(self):
+        self.assertFalse(any("End of" in f.message
+                             for f in find_glossary_violations(GLOSSARY_CLEAN, "GLOSSARY.md")))

@@ -36,7 +36,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 # --------------------------------------------------------------------------- #
 # Rule vocabulary (authoritative companion to Design Language Section 9)
@@ -110,6 +110,11 @@ FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 DECISION_DECL_RE = re.compile(r"^\s*Decision:\s*(DEC-[A-Z0-9-]+)\s*$")
 OPTION_DECL_RE = re.compile(r"^\s*Option:\s*(\S+)\s*(\[advocated\])?\s*$")
 CAPABILITY_ROW_RE = re.compile(r"^\|\s*`([A-Za-z][A-Za-z0-9]*)")
+# A glossary entry opens a line as `**Term** — definition`. A bold run at the start of a
+# line *without* that separator is a cross-reference that happened to wrap, which reads as
+# a phantom entry to anyone (or anything) scanning the left margin.
+GLOSSARY_BOLD_RE = re.compile(r"^\*\*([^*]+)\*\*(.*)$")
+GLOSSARY_SEPARATOR = " — "
 INVARIANT_CANDIDATE_RE = re.compile(r"\bINV-[A-Za-z0-9]+-[A-Za-z0-9]+\b")
 INVARIANT_STRICT_RE = re.compile(r"^INV-[A-Z][A-Z0-9]*-\d{3}$")
 ATTRIBUTE_LINE_RE = re.compile(r"^\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s*:\s*(\S.*)$")
@@ -382,6 +387,42 @@ def load_decision_catalogue(text: str) -> dict:
     return decisions
 
 
+def find_glossary_violations(text: str, path: str) -> List[Finding]:
+    """A glossary stays alphabetical, and every left-margin bold run is a real entry.
+
+    Both failures are the same underlying mistake seen from different angles: a bold
+    cross-reference that wraps onto the start of a line looks like a definition, and
+    sorts as one. Catching it keeps the glossary scannable and keeps anything that
+    parses entries off the left margin honest.
+    """
+    findings: List[Finding] = []
+    entries: List[Tuple[str, int]] = []
+
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        m = GLOSSARY_BOLD_RE.match(raw)
+        if not m:
+            continue
+        term, rest = m.group(1), m.group(2)
+        if term.startswith("End of"):
+            continue
+        if not rest.startswith(GLOSSARY_SEPARATOR):
+            findings.append(Finding(
+                path, lineno, "glossary-entry",
+                f"'{term}' opens a line but is not an entry — a wrapped cross-reference "
+                f"reads as a phantom definition; reflow so it is not at the left margin",
+            ))
+            continue
+        entries.append((term, lineno))
+
+    for (previous, _), (term, lineno) in zip(entries, entries[1:]):
+        if term.lower() < previous.lower():
+            findings.append(Finding(
+                path, lineno, "glossary-order",
+                f"'{term}' is out of alphabetical order (follows '{previous}')",
+            ))
+    return findings
+
+
 def find_corpus_violations(docs: dict) -> List[Finding]:
     """Every capability, anchor, and decision named in frontmatter must resolve."""
     findings: List[Finding] = []
@@ -440,6 +481,9 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
                 findings.append(Finding(p, 1, "unjustified-choice",
                                         f"{did} chooses '{choice}' over the advocated option "
                                         f"without a 'because' (Design Language S8.2)"))
+
+        if fm.get("anchor") == "glossary":
+            findings.extend(find_glossary_violations(text, p))
 
         # A module with a versioned entity has to have settled how it versions and deletes.
         if fm.get("type") == "module" and HISTORY_KIND_RE.search(text):
