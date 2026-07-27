@@ -1,5 +1,5 @@
 ---
-title: Teradata: Temporal Lifecycle Metadata Pattern Implementation
+title: Teradata Temporal Lifecycle Metadata Pattern Implementation
 anchor: temporal-lifecycle-metadata
 type: implementation
 status: standard

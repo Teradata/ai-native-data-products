@@ -1,5 +1,5 @@
 ---
-title: Teradata: Physical Storage Pattern Implementation
+title: Teradata Physical Storage Pattern Implementation
 anchor: physical-storage
 type: implementation
 status: standard

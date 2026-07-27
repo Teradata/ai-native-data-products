@@ -1,5 +1,5 @@
 ---
-title: Teradata: Access Layer Pattern Implementation
+title: Teradata Access Layer Pattern Implementation
 anchor: access-layer
 type: implementation
 status: standard

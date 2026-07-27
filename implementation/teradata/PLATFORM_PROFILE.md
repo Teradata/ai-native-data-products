@@ -14,8 +14,7 @@ Platform-specific physical-design guidance for Teradata implementations of the A
 
 This profile complements the per-pattern and per-module implementation directories (which carry the concrete DDL); it collects the cross-cutting physical-design advice that applies across them.
 
-> **Advocacy, not mandate.** These are recommended defaults for AI-native workloads (point-in-time
-> feature computation, high-volume batch ML, low-latency agent lookups, cross-module joins). Deviate where a workload justifies it and record the deviation as a design decision.
+> **These are recommended defaults** for AI-native workloads (point-in-time feature computation, high-volume batch ML, low-latency agent lookups, cross-module joins). Deviate where a workload justifies it and record the deviation as a design decision.
 
 ---
 

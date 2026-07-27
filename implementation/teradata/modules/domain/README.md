@@ -1,5 +1,5 @@
 ---
-title: Teradata: Domain Module Implementation
+title: Teradata Domain Module Implementation
 anchor: domain
 type: implementation
 status: standard

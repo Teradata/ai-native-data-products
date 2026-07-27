@@ -1,5 +1,5 @@
 ---
-title: Teradata: Search Module Implementation
+title: Teradata Search Module Implementation
 anchor: search
 type: implementation
 status: standard

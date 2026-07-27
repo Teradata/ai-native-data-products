@@ -1,5 +1,5 @@
 ---
-title: Teradata: Validation Pattern Implementation
+title: Teradata Validation Pattern Implementation
 anchor: validation
 type: implementation
 status: standard

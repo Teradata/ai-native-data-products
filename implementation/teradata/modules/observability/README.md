@@ -1,5 +1,5 @@
 ---
-title: Teradata: Observability Module Implementation
+title: Teradata Observability Module Implementation
 anchor: observability
 type: implementation
 status: standard

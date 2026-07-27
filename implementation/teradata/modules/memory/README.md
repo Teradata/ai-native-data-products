@@ -1,5 +1,5 @@
 ---
-title: Teradata: Memory Module Implementation
+title: Teradata Memory Module Implementation
 anchor: memory
 type: implementation
 status: standard

@@ -1,5 +1,5 @@
 ---
-title: Teradata: Prediction Module Implementation
+title: Teradata Prediction Module Implementation
 anchor: prediction
 type: implementation
 status: standard

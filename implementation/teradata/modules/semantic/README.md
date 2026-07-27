@@ -1,5 +1,5 @@
 ---
-title: Teradata: Semantic Module Implementation
+title: Teradata Semantic Module Implementation
 anchor: semantic
 type: implementation
 status: standard

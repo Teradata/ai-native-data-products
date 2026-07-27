@@ -31,7 +31,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
-| [Advocated Standards: Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | - | - | - |
+| [Advocated Standards Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | - | - | - |
 | [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | - | - | - |
 | [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |

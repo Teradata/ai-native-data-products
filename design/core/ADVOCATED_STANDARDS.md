@@ -1,5 +1,5 @@
 ---
-title: Advocated Standards: Decision Catalogue
+title: Advocated Standards Decision Catalogue
 anchor: advocated-standards
 type: core
 status: draft

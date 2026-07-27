@@ -1,5 +1,5 @@
 ---
-title: Teradata: Object Placement Pattern Implementation
+title: Teradata Object Placement Pattern Implementation
 anchor: object-placement
 type: implementation
 status: standard
@@ -30,7 +30,7 @@ Parent + child. A parent database allocates `PERM` space and owns child database
 | Stored procedure / function | `{{Product}}_{{Module}}` |
 | Temporary/volatile | not persisted in a named container |
 
-Rule A (container-discriminated): the container is the sole type discriminator; object names are identical across the base and view containers; type markers (`v_`, `_vw`) are prohibited. View-tier architecture: two tiers: a **governed** view (1:1 over its base table, may reference the base container) and **access** views (reference the governed view only).
+Rule A (container-discriminated): the container is the sole type discriminator; object names are identical across the base and view containers; type markers (`v_`, `_vw`) are prohibited. View-tier architecture, in two tiers. A **governed** view (1:1 over its base table, may reference the base container) and **access** views (reference the governed view only).
 
 ## Section 5: Separation Policy
 `STRICT_SEPARATION`. Tables and views live in separate databases so that consumers granted the view database cannot reach the base tables. Exception: temporary/volatile objects.
