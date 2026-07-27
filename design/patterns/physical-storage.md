@@ -33,7 +33,7 @@ If an organisation uses only proprietary block storage, this pattern does not ap
 
 ## 1. Purpose
 
-Object-placement governs the **logical layer** (container and object naming, access principals). This pattern governs the **physical layer**, object-store paths, file formats, partition strategies, physical access controls, and data lifecycle, so physical placement is deterministic and governed rather than ad hoc.
+Object-placement governs the **logical layer** (container and object naming, access principals). This pattern governs the **physical layer**: object-store paths, file formats, partition strategies, physical access controls, and data lifecycle. Physical placement is then deterministic and governed rather than ad hoc.
 
 **This pattern provides no capability.** Like object placement, it imposes a contract on physical paths, formats, and lifecycle rather than offering an operation a design can require.
 

@@ -32,7 +32,7 @@ This pattern is an **interface specification**: it defines what a conforming obj
 
 Where an object lives determines who can reach it. This pattern makes container placement and its access consequences **explicit and machine-readable**, so agents place objects deterministically and never co-locate objects that must be separated for access control.
 
-**This pattern provides no capability.** It imposes a contract, on where objects are placed and how access follows from placement, rather than offering an operation a design can require. Every module applies it; none requires it.
+**This pattern provides no capability.** It imposes a contract on where objects are placed and how access follows from placement, rather than offering an operation a design can require. Every module applies it; none requires it.
 
 ---
 

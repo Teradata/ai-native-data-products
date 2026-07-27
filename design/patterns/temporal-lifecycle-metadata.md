@@ -30,7 +30,7 @@ This pattern defines **semantic contracts only**: the canonical names and meanin
 
 ## 1. Purpose
 
-Without a single temporal contract, products and standards drift into failure modes that break every consumer filtering on a shared contract: competing spellings for one concept (`valid_from_dts` vs bare `valid_from` vs `effective_date`; `created_at` vs `created_dts` vs `created_date`), one flag carrying two meanings (`is_active` for currency here and lifecycle there), transaction time both mandated and optional, two open-state conventions coexisting, and audit-only dialects that leave consumers nothing to filter on.
+Without a single temporal contract, products and standards drift apart in ways that break every consumer relying on a shared filter. One concept acquires competing spellings (`valid_from_dts` against bare `valid_from` or `effective_date`; `created_at` against `created_dts` or `created_date`). One flag carries two meanings, with `is_active` marking currency in one product and lifecycle state in another. Transaction time is mandated in one place and optional in the next, two open-state conventions coexist, and audit-only dialects leave consumers nothing to filter on at all.
 
 This pattern gives each concept **exactly one name and one meaning**, defines the SCD2 period contract precisely, and makes each table declare which temporal profile it implements so validators enforce the contract mechanically.
 

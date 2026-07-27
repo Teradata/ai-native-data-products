@@ -35,7 +35,7 @@ This pattern defines the **validation result contract** and the **gate** an agen
 An agent needs a published validation *result* and an explicit gate to evaluate a product before querying it. This pattern defines both.
 
 1. **One results contract, many producers.** A unit-test harness, a simple validator, or a full trust engine all publish the same record shape, distinguished by `producer_id`.
-2. **Trust is computed by a validator, only.** Consumers are read-only: they act on published results and never re-derive a verdict from raw evidence.
+2. **Only a validator computes trust.** Consumers are read-only: they act on published results and never re-derive a verdict from raw evidence.
 3. **The stop/go decision is authoritative and singular.** Each product designates one gate-authoritative producer; its latest `agent_use_allowed` is a decision, not advice. Critical failures block use regardless of any score.
 4. **Validation results are operational evidence**: append-only event records in Observability.
 
@@ -205,7 +205,7 @@ Every record carries `payload_schema_version`; the canonical version is **`2.0`*
 
 1. **Evidence window.** A producer may declare per-record expiry; a product may declare a maximum evidence age in orientation. Absent both, the default window is **7 days** from `completed_dts`.
 2. **Stale evidence** (past expiry / older than window): autonomous consumers treat the product as stop, whatever the recorded status; interactive consumers surface staleness prominently.
-3. **No evidence**: the product is *unvalidated*, not trusted-by-default: autonomous consumers must not proceed.
+3. **No evidence**: the product is *unvalidated* rather than trusted by default. Autonomous consumers must not proceed.
 4. **Incomplete evidence** (`total_checks = 0` or unparseable): treat as no evidence.
 
 Staleness can only downgrade a decision, never upgrade one.
