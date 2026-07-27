@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Prediction Module — Design Standard
+# Prediction Module: Design Standard
 
 ## AI-Native Data Product Architecture
 
@@ -19,12 +19,12 @@ normative: true
 |-----------|-------|
 | **Status** | STANDARD |
 | **Type** | Module Design Standard (platform-agnostic) |
-| **Scope** | Prediction module — the feature store: engineered features, model outputs, point-in-time training data |
+| **Scope** | Prediction module: the feature store: engineered features, model outputs, point-in-time training data |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/) |
 
-Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on Domain — it references Domain entities and joins back for raw context.
+Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on Domain: it references Domain entities and joins back for raw context.
 
 ---
 
@@ -34,8 +34,8 @@ Prediction stores **engineered features** for ML training and serving with **poi
 
 | AI-native characteristic | Purpose |
 |--------------------------|---------|
-| **Feature engineering** | Features are transformed, normalised, aggregated — not raw copies. |
-| **Normalised scaling** | Features scaled to a common range (typically 0–1) for equal weighting in training. |
+| **Feature engineering** | Features are transformed, normalised, aggregated: not raw copies. |
+| **Normalised scaling** | Features scaled to a common range (typically 0-1) for equal weighting in training. |
 | **Point-in-time correctness** | Features reconstructable exactly as they existed historically (no leakage). |
 | **Feature discoverability** | Agents discover available features without human direction. |
 | **Training/serving consistency** | The same features serve training and inference. |
@@ -51,11 +51,11 @@ Prediction stores **engineered features** for ML training and serving with **poi
 | Concern | Owning module |
 |---------|---------------|
 | Feature definitions / computation metadata | Semantic |
-| Source entity data (raw values) | Domain — join back for it |
+| Source entity data (raw values) | Domain: join back for it |
 | Feature monitoring / drift | Observability |
 | Vector embeddings | Search |
 
-**Engineering requirement (`INV-PRED-001`).** The feature store holds *engineered* values — normalised, transformed, aggregated — **not** raw copies of Domain columns. A feature that is just a domain column with no transformation must not be duplicated here; it is obtained by join-back. `recency_score = 1 − days_since_last / 365` belongs here; `legal_name`, `birth_date`, raw `credit_limit` do not. Selective duplication is acceptable **only** for documented low-latency scoring exceptions.
+**Engineering requirement (`INV-PRED-001`).** The feature store holds *engineered* values, normalised, transformed, aggregated, **not** raw copies of Domain columns. A feature that is just a domain column with no transformation must not be duplicated here; it is obtained by join-back. `recency_score = 1 − days_since_last / 365` belongs here; `legal_name`, `birth_date`, raw `credit_limit` do not. Selective duplication is acceptable **only** for documented low-latency scoring exceptions.
 
 ---
 
@@ -64,43 +64,43 @@ Prediction stores **engineered features** for ML training and serving with **poi
 Two storage patterns are supported; a designer chooses per feature set (and may mix them). Both are versioned (`SCD2_HISTORY`) and reference Domain by the generic-reference pattern. Content is obtained by join-back; raw domain values are never copied (`INV-PRED-003`).
 
 ```
-Entity: FeatureGroup              [kind: History]     — WIDE format
-  feature_group_id      : Identifier
-  entity_id             : Reference [required]         — Domain entity (id only)
-  entity_kind           : Enum{PARTY|PRODUCT|DOCUMENT} — generic-reference discriminator
-  <feature>             : Decimal(5,4) [optional]      — ENGINEERED, normalised 0–1; designer-supplied
-  observation_at        : Timestamp [required]         — when observed/computed (point-in-time)
-  is_current            : Flag [current-flag]
-  feature_group_name    : ShortText [required]
-  feature_group_version : ShortText [optional]         — feature-engineering logic version
+Entity: FeatureGroup              [kind: History]  // WIDE format
+  feature_group_id: Identifier
+  entity_id: Reference [required]  // Domain entity (id only)
+  entity_kind: Enum{PARTY|PRODUCT|DOCUMENT}  // generic-reference discriminator
+  <feature>: Decimal(5,4) [optional]  // ENGINEERED, normalised 0-1; designer-supplied
+  observation_at: Timestamp [required]  // when observed/computed (point-in-time)
+  is_current: Flag [current-flag]
+  feature_group_name: ShortText [required]
+  feature_group_version: ShortText [optional]  // feature-engineering logic version
 
-Entity: FeatureValue              [kind: History]     — TALL format
-  feature_value_id : Identifier
-  entity_id        : Reference [required]
-  entity_kind      : Enum{PARTY|PRODUCT|DOCUMENT}
-  feature_name     : ShortText [required]
-  feature_group    : ShortText [optional]
-  value_numeric    : Decimal(18,4) [optional]          — normalised 0–1 where appropriate
-  value_text       : Text [optional]
-  value_json       : Json [optional]
-  value_type       : Enum{NUMERIC|TEXT|JSON|BOOLEAN} [required]
-  observation_at   : Timestamp [required]
-  is_current       : Flag [current-flag]
-  feature_version  : ShortText [optional]
+Entity: FeatureValue              [kind: History]  // TALL format
+  feature_value_id: Identifier
+  entity_id: Reference [required]
+  entity_kind: Enum{PARTY|PRODUCT|DOCUMENT}
+  feature_name: ShortText [required]
+  feature_group: ShortText [optional]
+  value_numeric: Decimal(18,4) [optional]  // normalised 0-1 where appropriate
+  value_text: Text [optional]
+  value_json: Json [optional]
+  value_type: Enum{NUMERIC|TEXT|JSON|BOOLEAN} [required]
+  observation_at: Timestamp [required]
+  is_current: Flag [current-flag]
+  feature_version: ShortText [optional]
 
 Entity: ModelPrediction           [kind: History]
-  prediction_id          : Identifier
-  entity_id              : Reference [required]
-  entity_kind            : Enum{PARTY|PRODUCT|DOCUMENT}
-  model_key              : ShortText [required]
-  model_version          : ShortText [required]
-  prediction_value       : Decimal(10,6) [optional]    — score / probability / continuous output
-  prediction_class       : ShortText [optional]        — classification label
-  prediction_json        : Json [optional]             — multi-class or structured output
-  confidence_score       : Decimal(5,4) [optional]     — 0–1
-  predicted_at           : Timestamp [required]
-  feature_observation_at : Timestamp [optional]        — links the prediction to its feature timestamp (reproducibility)
-  is_current             : Flag [current-flag]
+  prediction_id: Identifier
+  entity_id: Reference [required]
+  entity_kind: Enum{PARTY|PRODUCT|DOCUMENT}
+  model_key: ShortText [required]
+  model_version: ShortText [required]
+  prediction_value: Decimal(10,6) [optional]  // score / probability / continuous output
+  prediction_class: ShortText [optional]  // classification label
+  prediction_json: Json [optional]  // multi-class or structured output
+  confidence_score: Decimal(5,4) [optional]  // 0-1
+  predicted_at: Timestamp [required]
+  feature_observation_at: Timestamp [optional]  // links the prediction to its feature timestamp (reproducibility)
+  is_current: Flag [current-flag]
 ```
 
 **Pattern choice:** wide when features are dense and always accessed together; tall when features are sparse, dynamic, or mixed-type.
@@ -126,13 +126,13 @@ Using current features to train on a historical label causes **data leakage**. P
 
 ## 6. Capabilities and Composition
 
-Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain entities and join back for context), so it cannot be deployed alone — valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
+Prediction is an **enhancement** module: it hard-depends on Domain (features reference Domain entities and join back for context), so it cannot be deployed alone: valid as an add-on to an existing Domain. See the [composition mechanism](../core/DESIGN_LANGUAGE.md).
 
 **Provides:**
 
 | Capability | Made available to |
 |------------|-------------------|
-| `PointInTimeReconstruction` | Model training and scoring, as the guarantee that a feature can be read as it stood at any past instant — the module's reason for existing. |
+| `PointInTimeReconstruction` | Model training and scoring, as the guarantee that a feature can be read as it stood at any past instant: the module's reason for existing. |
 | `CurrentStateFilter` | Agents and serving paths reading only current feature values. |
 | `AccessView` | Consumers, as current / enriched / point-in-time views over feature values and model predictions with explicit column contracts. |
 
@@ -152,16 +152,16 @@ Prediction is an **enhancement** module: it hard-depends on Domain (features ref
 
 ## 7. Integration with Other Modules
 
-- **Prediction + Domain** — features reference Domain entities by `Identifier` and join back for raw values; engineered values live here, raw values stay in Domain, views join them (no duplication).
-- **Prediction + Semantic** — feature *definitions* and computation metadata live in Semantic; feature *values* live here (`INV-PRED-004`). Agents read Semantic to learn what features mean, then read Prediction for the values.
-- **Prediction + Observability** — feature drift and quality are monitored in Observability, not here (`INV-PRED-005`); model performance metrics are Observability's `ModelPerformance`.
+- **Prediction + Domain**: features reference Domain entities by `Identifier` and join back for raw values; engineered values live here, raw values stay in Domain, views join them (no duplication).
+- **Prediction + Semantic**: feature *definitions* and computation metadata live in Semantic; feature *values* live here (`INV-PRED-004`). Agents read Semantic to learn what features mean, then read Prediction for the values.
+- **Prediction + Observability**: feature drift and quality are monitored in Observability, not here (`INV-PRED-005`); model performance metrics are Observability's `ModelPerformance`.
 
 ---
 
 ## 8. Invariants
 
 - `INV-PRED-001`: the feature store holds engineered features (transformed / normalised / aggregated), never raw copies of Domain columns.
-- `INV-PRED-002`: features are point-in-time reconstructable — feature observation and validity align with Domain temporal tracking, so training uses features as they existed (no leakage).
+- `INV-PRED-002`: features are point-in-time reconstructable: feature observation and validity align with Domain temporal tracking, so training uses features as they existed (no leakage).
 - `INV-PRED-003`: features reference Domain entities by `Identifier` and obtain raw context by join-back; no Domain content is duplicated, except documented low-latency exceptions recorded as design decisions.
 - `INV-PRED-004`: feature definitions and computation metadata live in Semantic; feature values live here.
 - `INV-PRED-005`: feature monitoring, drift, and model-performance metrics live in Observability, not here.
@@ -193,7 +193,7 @@ These are the catalogued decisions a Prediction module design must settle. The r
 
 | Decision | Recommended | Settle it by asking |
 |---|---|---|
-| `DEC-TEMPORAL-PATTERN` | `bi-temporal` | Point-in-time correctness is the module's reason for existing — departing from this option reintroduces feature leakage. |
+| `DEC-TEMPORAL-PATTERN` | `bi-temporal` | Point-in-time correctness is the module's reason for existing: departing from this option reintroduces feature leakage. |
 | `DEC-DELETE-STRATEGY` | `soft-delete` | Does an explanation of a past prediction need the feature values as they stood? |
 | `DEC-TIMESTAMP-ZONE` | `zone-aware` | Are features computed or served across regions? |
 
@@ -201,7 +201,7 @@ These are the catalogued decisions a Prediction module design must settle. The r
 
 ## 10. Implementation
 
-The Teradata binding — the wide and tall feature tables, the prediction table, the current / enriched / point-in-time views, and the invariant checks — lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
+The Teradata binding, the wide and tall feature tables, the prediction table, the current / enriched / point-in-time views, and the invariant checks, lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
 
 ---
 

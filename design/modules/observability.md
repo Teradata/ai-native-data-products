@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Observability Module — Design Standard
+# Observability Module: Design Standard
 
 ## AI-Native Data Product Architecture
 
@@ -19,7 +19,7 @@ normative: true
 |-----------|-------|
 | **Status** | STANDARD |
 | **Type** | Module Design Standard (platform-agnostic) |
-| **Scope** | Observability module — monitoring, feedback, lineage, and the home of validation results |
+| **Scope** | Observability module: monitoring, feedback, lineage, and the home of validation results |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/) |
@@ -32,7 +32,7 @@ Observability is the operational-evidence module: it monitors product health, re
 
 Observability monitors data-product health and enables continuous improvement through outcome tracking and feedback loops. Its capabilities: data-quality monitoring, change tracking (audit trail), data lineage (definitional and operational), performance monitoring, outcome tracking, and hosting validation evidence.
 
-**Events and metrics, not data** (`INV-OBS-001`). Observability records *that* something happened and *how it measured* — never the business data itself. "Party_H was updated by ETL at 02:15, 250,000 records affected, quality 0.95" — never the customer records.
+**Events and metrics, not data** (`INV-OBS-001`). Observability records *that* something happened and *how it measured*, never the business data itself. "Party_H was updated by ETL at 02:15, 250,000 records affected, quality 0.95", never the customer records.
 
 ---
 
@@ -53,7 +53,7 @@ Lineage is modelled as two distinct concerns (`INV-OBS-003`):
 | **Definitional** | `DataLineage` | *What are the declared data flows?* | One row per source → job → target |
 | **Operational** | `LineageRun` | *Did this flow run, and how did it go?* | Many rows per flow over time |
 
-This gives a stable, deduplicated edge list for graph visualisation (definition only), keeps execution monitoring on the events-and-metrics principle, allows **independent retention** (definitions live as long as the product; runs follow event-retention windows, `INV-OBS-004`), and gives clear mutation semantics — a new `DataLineage` row is a new flow; a new `LineageRun` row is a new execution of an existing flow.
+This gives a stable, deduplicated edge list for graph visualisation (definition only), keeps execution monitoring on the events-and-metrics principle, allows **independent retention** (definitions live as long as the product; runs follow event-retention windows, `INV-OBS-004`), and gives clear mutation semantics: a new `DataLineage` row is a new flow; a new `LineageRun` row is a new execution of an existing flow.
 
 ---
 
@@ -63,78 +63,78 @@ All entities are append-oriented operational records (`EVENT_APPEND_ONLY`, excep
 
 ```
 Entity: ChangeEvent               [kind: Record]
-  change_event_id  : Identifier
-  container_name   : ShortText [optional]
-  table_name       : ShortText [required]            — TABLE-LEVEL, not individual records
-  change_type      : Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE} [required]
-  change_at        : Timestamp [required]
-  changed_by       : ShortText [required]
-  change_source    : Enum{ETL|API|MANUAL|AGENT} [optional]
-  records_affected : Integer [optional]              — aggregate count, never the keys
-  columns_changed  : Text [optional]
-  batch_key        : ShortText [optional]
+  change_event_id: Identifier
+  container_name: ShortText [optional]
+  table_name: ShortText [required]  // TABLE-LEVEL, not individual records
+  change_type: Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE} [required]
+  change_at: Timestamp [required]
+  changed_by: ShortText [required]
+  change_source: Enum{ETL|API|MANUAL|AGENT} [optional]
+  records_affected: Integer [optional]  // aggregate count, never the keys
+  columns_changed: Text [optional]
+  batch_key: ShortText [optional]
 
 Entity: DataQualityMetric         [kind: Record]
-  quality_metric_id : Identifier
-  container_name    : ShortText [optional]
-  table_name        : ShortText [required]
-  column_name       : ShortText [optional]           — null for table-level metrics
-  metric_name       : Enum{COMPLETENESS|VALIDITY|UNIQUENESS|TIMELINESS|CONSISTENCY|ACCURACY} [required]
-  metric_value      : Decimal(10,4) [optional]
-  measured_at       : Timestamp [required]
-  quality_threshold : Decimal(5,4) [optional]
-  is_threshold_met  : Flag
-  sample_size       : Integer [optional]
+  quality_metric_id: Identifier
+  container_name: ShortText [optional]
+  table_name: ShortText [required]
+  column_name: ShortText [optional]  // null for table-level metrics
+  metric_name: Enum{COMPLETENESS|VALIDITY|UNIQUENESS|TIMELINESS|CONSISTENCY|ACCURACY} [required]
+  metric_value: Decimal(10,4) [optional]
+  measured_at: Timestamp [required]
+  quality_threshold: Decimal(5,4) [optional]
+  is_threshold_met: Flag
+  sample_size: Integer [optional]
 
-Entity: DataLineage               [kind: Record]     — definitional; one row per flow
-  lineage_id            : Identifier
-  source_container      : ShortText [optional]
-  source_table          : ShortText [optional]
-  source_system         : ShortText [optional]       — external origin; null if internal
-  target_container      : ShortText [optional]
-  target_table          : ShortText [required]
-  job_name              : ShortText [optional]
-  transformation_type   : Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT} [optional]
-  transformation_logic  : Text [optional]
-  openlineage_job_name  : ShortText [optional]
-  openlineage_namespace : ShortText [optional]
-  is_active             : Flag
-  registered_at         : Timestamp [optional]
-  retired_at            : Timestamp [optional]
+Entity: DataLineage               [kind: Record]  // definitional; one row per flow
+  lineage_id: Identifier
+  source_container: ShortText [optional]
+  source_table: ShortText [optional]
+  source_system: ShortText [optional]  // external origin; null if internal
+  target_container: ShortText [optional]
+  target_table: ShortText [required]
+  job_name: ShortText [optional]
+  transformation_type: Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT} [optional]
+  transformation_logic: Text [optional]
+  openlineage_job_name: ShortText [optional]
+  openlineage_namespace: ShortText [optional]
+  is_active: Flag
+  registered_at: Timestamp [optional]
+  retired_at: Timestamp [optional]
 
-Entity: LineageRun                [kind: Record]     — operational; one row per execution
-  lineage_run_id     : Identifier
-  lineage_id         : Reference [required] [-> DataLineage]
-  run_at             : Timestamp [required]
-  run_status         : Enum{SUCCESS|FAILED|PARTIAL|RUNNING} [required]
-  run_duration_ms    : Integer [optional]
-  records_read       : Integer [optional]
-  records_written    : Integer [optional]
-  records_rejected   : Integer [optional]
-  batch_key          : ShortText [optional]          — links to ChangeEvent.batch_key
-  openlineage_run_id : ShortText [optional]
-  error_message      : Text [optional]
+Entity: LineageRun                [kind: Record]  // operational; one row per execution
+  lineage_run_id: Identifier
+  lineage_id: Reference [required] [-> DataLineage]
+  run_at: Timestamp [required]
+  run_status: Enum{SUCCESS|FAILED|PARTIAL|RUNNING} [required]
+  run_duration_ms: Integer [optional]
+  records_read: Integer [optional]
+  records_written: Integer [optional]
+  records_rejected: Integer [optional]
+  batch_key: ShortText [optional]  // links to ChangeEvent.batch_key
+  openlineage_run_id: ShortText [optional]
+  error_message: Text [optional]
 
 Entity: ModelPerformance          [kind: Record]
-  performance_id : Identifier
-  model_key      : ShortText [required]
-  model_version  : ShortText [required]
-  metric_name    : Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE} [required]
-  metric_value   : Decimal(10,6) [optional]
-  evaluated_at   : Timestamp [required]
-  sample_size    : Integer [optional]
-  is_sla_met     : Flag
+  performance_id: Identifier
+  model_key: ShortText [required]
+  model_version: ShortText [required]
+  metric_name: Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE} [required]
+  metric_value: Decimal(10,6) [optional]
+  evaluated_at: Timestamp [required]
+  sample_size: Integer [optional]
+  is_sla_met: Flag
 
 Entity: AgentOutcome              [kind: Record]
-  outcome_id        : Identifier
-  agent_key         : ShortText [required]
-  session_key       : ShortText [optional]
-  action_type       : Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION} [required]
-  action_at         : Timestamp [required]
-  tables_accessed   : Text [optional]                — TABLE-LEVEL, comma-separated
-  outcome_status    : Enum{SUCCESS|PARTIAL|FAILED} [required]
-  user_feedback     : Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION} [optional]
-  records_processed : Integer [optional]             — aggregate count
+  outcome_id: Identifier
+  agent_key: ShortText [required]
+  session_key: ShortText [optional]
+  action_type: Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION} [required]
+  action_at: Timestamp [required]
+  tables_accessed: Text [optional]  // TABLE-LEVEL, comma-separated
+  outcome_status: Enum{SUCCESS|PARTIAL|FAILED} [required]
+  user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION} [optional]
+  records_processed: Integer [optional]  // aggregate count
 ```
 
 **Validation results.** The [validation pattern](../patterns/validation.md)'s result record is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container.
@@ -145,8 +145,8 @@ Entity: AgentOutcome              [kind: Record]
 
 Two views are deployed **into the Semantic container** so agents discover lineage from the same place they discover everything else (Semantic):
 
-- **`lineage_graph`** — a graph-ready edge list built from `DataLineage`, with jobs surfaced as first-class nodes (source → job, job → target). Reads **active definitions only** — no duplicate edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`).
-- **`lineage_run_latest`** — each active flow joined to its most recent execution, for dashboards showing last-run status against the blueprint.
+- **`lineage_graph`**: a graph-ready edge list built from `DataLineage`, with jobs surfaced as first-class nodes (source → job, job → target). Reads **active definitions only**: no duplicate edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`).
+- **`lineage_run_latest`**: each active flow joined to its most recent execution, for dashboards showing last-run status against the blueprint.
 
 ---
 
@@ -162,20 +162,20 @@ The lineage entities align with **OpenLineage**: the definition/execution split 
 |---------|-------------------------------|
 | `temporal-lifecycle-metadata` | Event entities declare the `EVENT_APPEND_ONLY` profile; `DataLineage` carries an `is_active` lifecycle. |
 | `object-placement` | Which container the tables and views live in, and who may reach them. |
-| `access-layer` | `ROLE_AGENT` write-back (append) to this module — agents record outcomes and quality signals (Phase 2.5). |
+| `access-layer` | `ROLE_AGENT` write-back (append) to this module: agents record outcomes and quality signals (Phase 2.5). |
 | `validation` | Hosts the validation results; its own quality/lineage evidence is a validator source. |
 
 ---
 
 ## 8. Capabilities and Composition
 
-Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing — it observes whatever modules are present. It is in a traditional data product and an AI-native product, absent in a minimal Data Asset.
+Observability is **cross-cutting and soft**: nothing hard-depends on it, and it hard-depends on nothing: it observes whatever modules are present. It is in a traditional data product and an AI-native product, absent in a minimal Data Asset.
 
 **Provides:**
 
 | Capability | Made available to |
 |------------|-------------------|
-| `ChangeEventCapture` | Any module recording who changed an entity instance, when, and why — the audit trail that `DEC-COLUMN-STRATEGY` offloads here. |
+| `ChangeEventCapture` | Any module recording who changed an entity instance, when, and why: the audit trail that `DEC-COLUMN-STRATEGY` offloads here. |
 | `LineageCapture` | Any module recording the origin of an instance: source system, source record, and producing run. |
 | `QualityScore` | Agents judging fitness before use, and Memory as a learning input. Held as a time series per `DEC-QUALITY-STORAGE`. |
 | Validation results home | The validation pattern, as the container for `validation_run`. |
@@ -194,17 +194,17 @@ Observability is **cross-cutting and soft**: nothing hard-depends on it, and it 
 
 ## 9. Integration with Other Modules
 
-- **Observability → Memory** — outcomes and quality trends feed Memory's learned strategies (the closed loop). Memory soft-requires these learning inputs.
-- **Observability + Domain** — table-level change tracking of Domain loads; one event per batch, never per record.
-- **Observability monitors all modules** — quality, performance, and lineage across whatever is deployed.
+- **Observability → Memory**: outcomes and quality trends feed Memory's learned strategies (the closed loop). Memory soft-requires these learning inputs.
+- **Observability + Domain**: table-level change tracking of Domain loads; one event per batch, never per record.
+- **Observability monitors all modules**: quality, performance, and lineage across whatever is deployed.
 
 ---
 
 ## 10. Invariants
 
 - `INV-OBS-001`: Observability stores events and metrics, never business data or query result sets.
-- `INV-OBS-002`: change tracking is table-level with aggregate metrics (e.g. `records_affected`), never individual record keys, and **never** before/after business values — capturing changed column *values* (e.g. old/new `legal_name`, `email`) duplicates Domain content into Observability and is a PII / data-privacy defect. The audit trail records *what table changed, when, by whom, and how many rows* — not the data itself; the prior state is reconstructed from Domain's temporal history.
-- `INV-OBS-003`: lineage is split — `DataLineage` declares flows (one row per source → job → target), `LineageRun` records executions (one row per run).
+- `INV-OBS-002`: change tracking is table-level with aggregate metrics (e.g. `records_affected`), never individual record keys, and **never** before/after business values: capturing changed column *values* (e.g. old/new `legal_name`, `email`) duplicates Domain content into Observability and is a PII / data-privacy defect. The audit trail records *what table changed, when, by whom, and how many rows*: not the data itself; the prior state is reconstructed from Domain's temporal history.
+- `INV-OBS-003`: lineage is split: `DataLineage` declares flows (one row per source → job → target), `LineageRun` records executions (one row per run).
 - `INV-OBS-004`: definitional lineage is retained for the life of the product; execution records follow independent event-retention windows.
 - `INV-OBS-005`: validation results are homed here as append-only evidence (`EVENT_APPEND_ONLY`).
 - `INV-OBS-006`: the lineage graph/edge-list consumed by discovery reads active definitions only, so it is stable and deduplicated.
@@ -243,7 +243,7 @@ These are the catalogued decisions a Observability module design must settle. Th
 
 ## 12. Implementation
 
-The Teradata binding — the event/metric/lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, and the OpenLineage event construction — lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container.
+The Teradata binding, the event/metric/lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, and the OpenLineage event construction, lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container.
 
 ---
 

@@ -1,8 +1,8 @@
--- Observability module — lineage tables (Teradata). Binding of design/modules/observability.md §3.
+-- Observability module: lineage tables (Teradata). Binding of design/modules/observability.md §3.
 -- Definition/execution split: data_lineage (one row per flow) + lineage_run (one row per execution).
 -- Replace {{ product }}.
 
--- data_lineage: DEFINITIONAL — one row per source -> job -> target -----------
+-- data_lineage: DEFINITIONAL: one row per source -> job -> target -----------
 CREATE TABLE {{ product }}_Observability.data_lineage (
     lineage_id            INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     source_database       VARCHAR(128),
@@ -39,7 +39,7 @@ COMMENT ON COLUMN {{ product }}_Observability.data_lineage.registered_dts IS 'Wh
 COMMENT ON COLUMN {{ product }}_Observability.data_lineage.retired_dts IS 'When retired - NULL while active.';
 COMMENT ON COLUMN {{ product }}_Observability.data_lineage.created_at IS 'When this definition row was created.';
 
--- lineage_run: OPERATIONAL — one row per execution --------------------------
+-- lineage_run: OPERATIONAL: one row per execution --------------------------
 CREATE TABLE {{ product }}_Observability.lineage_run (
     lineage_run_id     INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     lineage_id         INTEGER NOT NULL,         -- FK -> data_lineage.lineage_id

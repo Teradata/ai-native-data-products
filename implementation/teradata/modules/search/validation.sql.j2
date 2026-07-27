@@ -1,10 +1,10 @@
--- Search module — Teradata invariant checks.
+-- Search module. Teradata invariant checks.
 -- Runnable checks backing the invariants in design/modules/search.md §10.
 -- Each query must return ZERO rows for a conforming deployment.
 -- Replace {{ product }} with the data product name before running.
 
 -- ---------------------------------------------------------------------------
--- INV-SEARCH-001 : keys only — the embedding table holds no Domain-owned content.
+-- INV-SEARCH-001 : keys only: the embedding table holds no Domain-owned content.
 -- Flags any column whose name looks like content rather than a key/metadata column.
 -- ---------------------------------------------------------------------------
 SELECT ColumnName
@@ -33,7 +33,7 @@ WHERE is_current = 1
 
 -- ---------------------------------------------------------------------------
 -- INV-SEARCH-002 : every embedding references exactly one current Domain entity.
--- Template — repeat per entity_kind against its Domain table. Example: PARTY.
+-- Template: repeat per entity_kind against its Domain table. Example: PARTY.
 -- Any current embedding whose entity_id has no current Domain row is a violation.
 -- ---------------------------------------------------------------------------
 SELECT e.embedding_id, e.entity_id

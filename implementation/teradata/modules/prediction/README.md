@@ -9,7 +9,7 @@ implements: prediction
 platform: teradata
 ---
 
-# Teradata — Prediction Module Implementation
+# Teradata: Prediction Module Implementation
 
 Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/prediction.md). The feature store: engineered features, model predictions, point-in-time training data. Hard-depends on Domain. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Prediction`.
 
@@ -52,6 +52,6 @@ Temporal columns (`valid_from_dts`/`valid_to_dts`/`is_current`) follow the [temp
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-PRED-001` (engineered, not raw copies) | `validation.sql.j2` §1 — no raw domain-content column names on feature tables. |
-| `INV-PRED-002` (point-in-time) | `validation.sql.j2` §2 — `observation_dts` + validity columns present. |
+| `INV-PRED-001` (engineered, not raw copies) | `validation.sql.j2` §1: no raw domain-content column names on feature tables. |
+| `INV-PRED-002` (point-in-time) | `validation.sql.j2` §2: `observation_dts` + validity columns present. |
 | `INV-PRED-003` (join-back, no dup) | Enforced by schema + reviewed at design time. |

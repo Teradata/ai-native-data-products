@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build_catalogue — derive corpus navigation from frontmatter.
+"""build_catalogue: derive corpus navigation from frontmatter.
 
 Every design document declares its own identity in frontmatter (Design Language
 Section 3.1). This script reads those declarations and writes the navigation

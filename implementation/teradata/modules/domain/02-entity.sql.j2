@@ -1,5 +1,5 @@
 {#
-  Core History entity — Teradata binding of design/modules/domain.md §3.1.
+  Core History entity. Teradata binding of design/modules/domain.md §3.1.
   Realises the temporal-lifecycle-metadata pattern with a bi-temporal strategy.
   Capabilities: CurrentStateFilter, PointInTimeReconstruction, NaturalKeyLookup,
                 RichMetadata. Invariant support: INV-DOMAIN-001,002,004,006,007.
@@ -14,7 +14,7 @@
         { name, type, nullable(bool), comment,
           ref(optional target entity for FK columns) }
 
-  {entity}_id is sourced from {entity}_Keymap on load — NOT generated here — so the
+  {entity}_id is sourced from {entity}_Keymap on load. NOT generated here: so the
   surrogate is stable across all SCD versions (INV-DOMAIN-003).
 #}
 CREATE TABLE {{ database }}.{{ entity.name }}_H (

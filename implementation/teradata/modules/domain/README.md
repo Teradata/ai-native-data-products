@@ -9,16 +9,16 @@ implements: domain
 platform: teradata
 ---
 
-# Teradata — Domain Module Implementation
+# Teradata: Domain Module Implementation
 
-Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/modules/domain.md). The design document owns *what* and *why*; the files here own *how* on Teradata. Read the design document first — this directory only adds platform specifics.
+Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/modules/domain.md). The design document owns *what* and *why*; the files here own *how* on Teradata. Read the design document first: this directory only adds platform specifics.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `01-keymap.sql.j2` | Surrogate-key allocation table (`SurrogateKeyAllocation` binding). |
-| `02-entity.sql.j2` | Core History entity table — bi-temporal columns, current/deleted flags, full column metadata. |
+| `02-entity.sql.j2` | Core History entity table: bi-temporal columns, current/deleted flags, full column metadata. |
 | `03-reference.sql.j2` | Reference data table (controlled vocabularies). |
 | `04-relationship.sql.j2` | Associative relationship table. |
 | `05-views.sql.j2` | Standard `_Current` / `_Enriched` views (`AccessView` binding). |
@@ -61,10 +61,10 @@ Every capability required by the design document is bound here:
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-DOMAIN-001` (every attribute has metadata) | `validation.sql.j2` §1 — zero uncommented columns. |
+| `INV-DOMAIN-001` (every attribute has metadata) | `validation.sql.j2` §1: zero uncommented columns. |
 | `INV-DOMAIN-002` (current filter) | `_Current` views exist and apply the flag filter. |
 | `INV-DOMAIN-003` (stable surrogate) | Keymap allocation; `{entity}_id` not `GENERATED` on `_H`. |
-| `INV-DOMAIN-004` (identity shape) | `validation.sql.j2` §2 — every `_H` table has `{entity}_id` + `{entity}_key`. |
+| `INV-DOMAIN-004` (identity shape) | `validation.sql.j2` §2: every `_H` table has `{entity}_id` + `{entity}_key`. |
 | `INV-DOMAIN-005` (no duplicated content) | Reviewed at design time; other modules store `{entity}_id` only. |
 | `INV-DOMAIN-006` (point-in-time) | Bi-temporal columns present on `_H` tables. |
 | `INV-DOMAIN-007` (named references) | Reference columns named `{target}_id`, not `fk1`/`fk2`. |

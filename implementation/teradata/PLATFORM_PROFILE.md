@@ -8,7 +8,7 @@ normative: false
 platform: teradata
 ---
 
-# Teradata — Platform Profile
+# Teradata: Platform Profile
 
 Platform-specific physical-design guidance for Teradata implementations of the AI-Native Data Product standard. The structural requirements live in [`design/`](../../design/) and are platform-agnostic; the guidance here is Teradata-specific. Teams on other platforms produce an equivalent profile covering the same topics: physical key strategy, partitioning, indexing, statistics, compression, and query optimisation.
 
@@ -36,15 +36,15 @@ The Primary Index (PI) is the most critical physical-design decision in Teradata
 
 ```sql
 -- Surrogate key UPI (most common); UNIQUE PI includes the SCD2 period for versioned tables
-CREATE TABLE Party_H ( party_id BIGINT NOT NULL /* ... */ )
+CREATE TABLE Party_H ( party_id BIGINT NOT NULL /*... */)
 UNIQUE PRIMARY INDEX (party_id, valid_from_dts, transaction_from_dts);
 
 -- Relationship table co-located with the first parent
-CREATE TABLE PartyProduct_H ( /* ... */ )
+CREATE TABLE PartyProduct_H ( /*... */)
 PRIMARY INDEX (party_id, product_id);
 
 -- Time-series composite + monthly partitioning
-CREATE TABLE Transaction_H ( transaction_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL /* ... */ )
+CREATE TABLE Transaction_H ( transaction_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL /*... */)
 PRIMARY INDEX (party_id, transaction_dts)
 PARTITION BY RANGE_N(transaction_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' MONTH);
 ```
@@ -71,8 +71,7 @@ PARTITION BY RANGE_N(transaction_from_dts BETWEEN DATE '2020-01-01' AND DATE '20
 -- Multi-level: yearly validity + active/deleted split
 PARTITION BY (
     RANGE_N(valid_from_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' YEAR),
-    CASE_N(is_deleted = 0, is_deleted = 1, UNKNOWN)
-);
+    CASE_N(is_deleted = 0, is_deleted = 1, UNKNOWN));
 ```
 
 ---
@@ -113,8 +112,8 @@ Also usable for denormalised hot joins and pre-computed aggregations (counts, su
 Advocate compression for large text (> 500 chars), JSON, and sparse columns; skip small strings, numerics, and frequently-updated columns (recompression cost).
 
 ```sql
-CREATE TABLE Document_H ( document_id BIGINT NOT NULL, document_content CLOB )
-WITH COLUMN_PARTITION = ( COLUMN (document_content) COMPRESS USING ZLIBHIGH );
+CREATE TABLE Document_H ( document_id BIGINT NOT NULL, document_content CLOB)
+WITH COLUMN_PARTITION = ( COLUMN (document_content) COMPRESS USING ZLIBHIGH);
 ```
 
 ---
@@ -134,7 +133,7 @@ ON Party_H;
 | Table size | Frequency | Method |
 |------------|-----------|--------|
 | < 1M rows | After major loads | Full scan |
-| 1M–100M rows | Daily | 10% sample |
+| 1M-100M rows | Daily | 10% sample |
 | > 100M rows | Weekly | 5% sample |
 | Reference tables | After changes only | Full scan |
 

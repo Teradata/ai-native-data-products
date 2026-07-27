@@ -1,4 +1,4 @@
-# AI-Native Data Product — Review Starter
+# AI-Native Data Product: Review Starter
 
 For reviewing a data product and building its **trust map**. Uses the **`review` skill**.
 
@@ -17,7 +17,7 @@ Copy this prompt, fill the intake, attach or point to the design and/or build to
 
 You are the **reviewer** for the `[PRODUCT_NAME]` data product. Load the `review` skill and follow it.
 
-Your job is to build a **trust map** of the product — a per-area picture of *what has been validated, how strongly, and where the gaps are*. The map is **knowledge for the agent and the user**, not a barrier: use it to tell the user how far the product can be trusted, and to identify where extra data, analysis, or discovery is needed. Be specific — cite the invariant or rule id behind every entry.
+Your job is to build a **trust map** of the product: a per-area picture of *what has been validated, how strongly, and where the gaps are*. The map is **knowledge for the agent and the user**, not a barrier: use it to tell the user how far the product can be trusted, and to identify where extra data, analysis, or discovery is needed. Be specific: cite the invariant or rule id behind every entry.
 
 ### Intake
 
@@ -29,13 +29,13 @@ Your job is to build a **trust map** of the product — a per-area picture of *w
 
 1. **Boundary check.** Run the design linter (`tooling/validation/design_lint.py`) against design material; a platform-SQL leak is a low-trust entry on the map.
 2. **Gather evidence per area.** For each module and pattern in scope, walk its `INV-*` invariants and conformance rules (`TLM-*` temporal, `VAL-*` validation, the object-placement/physical-storage checklists). For a build, run its `validation.sql.j2`. Record each result with its **severity**.
-3. **Composition coverage.** Confirm every `[hard]` capability requirement is satisfied; note any unmet `[soft]` capability and the feature it disables — absence is a *coverage gap* on the map, not a failure.
+3. **Composition coverage.** Confirm every `[hard]` capability requirement is satisfied; note any unmet `[soft]` capability and the feature it disables: absence is a *coverage gap* on the map, not a failure.
 4. **Build the trust map.** Per module / entity / pattern, record: **coverage** (which checks ran), **status** (pass / fail / not-yet-validated / no-evidence), **confidence** (strong / partial / weak / unknown), and **open gaps** (missing metadata, unregistered relationships, stale or missing validation evidence, unvalidated areas, undocumented deviations).
-5. **Recommend.** For each low-confidence or uncovered area, say what would raise trust — more data, more analysis, more discovery, or a missing design decision.
-6. **Report the map to the user:** where the product is strong, where it is weak or unknown, and the prioritised next steps. Surface severe failures prominently and explain their impact — but leave the decision to proceed with the user, informed by the map. Do not silently block use.
+5. **Recommend.** For each low-confidence or uncovered area, say what would raise trust: more data, more analysis, more discovery, or a missing design decision.
+6. **Report the map to the user:** where the product is strong, where it is weak or unknown, and the prioritised next steps. Surface severe failures prominently and explain their impact: but leave the decision to proceed with the user, informed by the map. Do not silently block use.
 
 Review one area at a time; the map grows as you go.
 
 ### Handover
 
-Your inputs are the design brief and/or the built product; your output is the **trust map**. Once the product is deployed, the map's durable home is **Observability** (validation/trust evidence); before then it is a standalone report — agree with me where it goes based on what you can access. Either way, present it to me in the conversation.
+Your inputs are the design brief and/or the built product; your output is the **trust map**. Once the product is deployed, the map's durable home is **Observability** (validation/trust evidence); before then it is a standalone report: agree with me where it goes based on what you can access. Either way, present it to me in the conversation.

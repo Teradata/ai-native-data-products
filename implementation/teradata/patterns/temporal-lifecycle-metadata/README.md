@@ -9,7 +9,7 @@ implements: temporal-lifecycle-metadata
 platform: teradata
 ---
 
-# Teradata — Temporal & Lifecycle Metadata Implementation
+# Teradata: Temporal & Lifecycle Metadata Implementation
 
 Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../../design/patterns/temporal-lifecycle-metadata.md). Read the pattern first; nothing here changes its semantics. Targets Teradata v20.0; conformance queries use `DBC` dictionary views.
 
@@ -28,7 +28,7 @@ Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../
 | Pattern concept | Teradata binding |
 |-----------------|------------------|
 | All `*_dts` columns | `TIMESTAMP(6) WITH TIME ZONE`, persisted normalised to UTC (`+00:00`). |
-| Day-grain event (`*_date`) | `DATE` — never for validity bounds or audit. |
+| Day-grain event (`*_date`) | `DATE`: never for validity bounds or audit. |
 | Flags (`is_current`, `is_deleted`, `is_active`) | `BYTEINT NOT NULL` with `CHECK (col IN (0,1))`. |
 | Open-end sentinel | `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'` (always with `+00:00`). |
 | Row audit defaults | `NOT NULL DEFAULT CURRENT_TIMESTAMP(6)`. |
@@ -49,7 +49,7 @@ Database/layer naming is owned by the [object-placement](../object-placement/) i
 
 | Rule | Check |
 |------|-------|
-| TLM-04 (prohibited names) | `conformance-queries.sql` §1 — catalogue scan for banned column names. |
-| TLM-05 (type/precision) | `conformance-queries.sql` §2 — `*_dts` columns not `TIMESTAMP(6) WITH TIME ZONE`. |
-| TLM-06 (flag representation) | `conformance-queries.sql` §3 — `is_*` columns not `BYTEINT NOT NULL`. |
-| TLM-08/09/10/11 (data invariants) | `conformance-queries.sql` §4 — overlap, multiple current, flag disagreement, deletion without time. |
+| TLM-04 (prohibited names) | `conformance-queries.sql` §1: catalogue scan for banned column names. |
+| TLM-05 (type/precision) | `conformance-queries.sql` §2: `*_dts` columns not `TIMESTAMP(6) WITH TIME ZONE`. |
+| TLM-06 (flag representation) | `conformance-queries.sql` §3: `is_*` columns not `BYTEINT NOT NULL`. |
+| TLM-08/09/10/11 (data invariants) | `conformance-queries.sql` §4: overlap, multiple current, flag disagreement, deletion without time. |

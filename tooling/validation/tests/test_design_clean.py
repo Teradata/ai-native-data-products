@@ -1,6 +1,6 @@
 """Integration check: the whole design/ tree must pass the linter.
 
-This is the gate for every worked module — converting a module means its design
+This is the gate for every worked module: converting a module means its design
 document lints clean here. Run:
 
     python -m unittest discover -s tooling/validation/tests

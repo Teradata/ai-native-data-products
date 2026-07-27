@@ -1,4 +1,4 @@
--- Semantic module — product registry (Teradata). Binding of design/modules/semantic.md §3.2, §4.
+-- Semantic module: product registry (Teradata). Binding of design/modules/semantic.md §3.2, §4.
 -- The Data Product Orientation Layer anchor. Lives in a shared 'governance' container so agents
 -- and MCP clients discover products across the platform. Product-first, not tables-first.
 

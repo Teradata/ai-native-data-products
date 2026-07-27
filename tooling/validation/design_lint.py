@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""design_lint — enforce the AI-Native Data Product design language.
+"""design_lint: enforce the AI-Native Data Product design language.
 
 Three families of rule:
 
-  * **No platform SQL** (Design Language Section 9) — applies to `design/` only,
+  * **No platform SQL** (Design Language Section 9): applies to `design/` only,
     since concrete SQL is exactly what `implementation/` exists to hold.
-  * **Frontmatter** (Section 3.1) — every design document declares a valid,
+  * **Frontmatter** (Section 3.1): every design document declares a valid,
     correctly anchored machine-readable identity.
-  * **Corpus** (Sections 6.1 and 8) — every capability and decision a document
+  * **Corpus** (Sections 6.1 and 8): every capability and decision a document
     names *in its body* resolves against the catalogues, and a standard that
     recommends other than the advocated option says why.
 
@@ -28,7 +28,7 @@ capability and decision catalogues are the exception: they are read from the
 documents that define them, so adding a capability or a decision needs no code
 change here.
 
-Stdlib only — runs anywhere Python 3.8+ runs (Teradata, Postgres, DuckDB shops alike).
+Stdlib only: runs anywhere Python 3.8+ runs (Teradata, Postgres, DuckDB shops alike).
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ STATEMENT_KEYWORDS = {
 }
 
 # High-precision vendor / platform-type tokens. Every entry here is something that
-# only ever appears in SQL — never ordinary English prose — so matching anywhere
+# only ever appears in SQL: never ordinary English prose: so matching anywhere
 # (prose or code) is safe. Deliberately does NOT include bare words like TABLE,
 # VIEW, DATE, INDEX, DEFAULT, VECTOR that also occur in normal writing.
 VENDOR_TOKEN_PATTERNS = [
@@ -90,8 +90,8 @@ RESERVED_ENTITY_LABELS = {
 
 # Frontmatter vocabulary (authoritative companion to Design Language Section 3.1).
 REQUIRED_FM_KEYS = {"title", "anchor", "type", "status", "version", "normative"}
-# Frontmatter is identity only (Section 3.2). A document's substance — what it provides,
-# requires, applies, and asks a designer to settle — is read from the body, where it can
+# Frontmatter is identity only (Section 3.2). A document's substance: what it provides,
+# requires, applies, and asks a designer to settle: is read from the body, where it can
 # carry its reasoning. Keys outside this set are rejected rather than silently tolerated,
 # so substance cannot drift back into the header.
 OPTIONAL_FM_KEYS = {"supersedes", "implements", "platform", "lint", "lint_reason"}
@@ -171,8 +171,8 @@ def _is_ignored(text: str) -> bool:
 def parse_frontmatter(text: str):
     """Parse the leading YAML frontmatter block.
 
-    Deliberately handles only the subset Section 3.1 defines — scalars, lists of
-    scalars, and lists of flat mappings — so the linter stays stdlib-only. Returns
+    Deliberately handles only the subset Section 3.1 defines: scalars, lists of
+    scalars, and lists of flat mappings: so the linter stays stdlib-only. Returns
     ``(mapping, line_count)``; ``(None, 0)`` when the document has no frontmatter.
     """
     m = FRONTMATTER_RE.match(text)
@@ -222,7 +222,7 @@ def _strip_comment(value: str) -> str:
 def expected_anchor(path: Path) -> str:
     """The anchor a document's location implies.
 
-    A binding README or a platform profile is anchored on its directory — the module,
+    A binding README or a platform profile is anchored on its directory: the module,
     pattern, or platform it belongs to. Everything else is anchored on its filename,
     normalised to the kebab-case the anchor vocabulary uses (`MASTER_DESIGN.md` is
     anchored `master-design`).
@@ -317,7 +317,7 @@ def find_sql_violations(text: str, path: str = "<text>") -> List[Finding]:
             if pattern.search(raw):
                 findings.append(Finding(
                     path, lineno, "vendor-token",
-                    f"platform SQL token '{label}' — use a logical type instead (Design Language S4)",
+                    f"platform SQL token '{label}': use a logical type instead (Design Language S4)",
                 ))
 
         # Structural: unknown logical type inside an Entity pseudo-block.
@@ -358,13 +358,13 @@ def find_invariant_violations(text: str, path: str = "<text>") -> List[Finding]:
             if not INVARIANT_STRICT_RE.match(tok):
                 findings.append(Finding(
                     path, lineno, "invariant-id",
-                    f"malformed invariant id '{tok}' — expected INV-<MODULE>-<NNN>",
+                    f"malformed invariant id '{tok}': expected INV-<MODULE>-<NNN>",
                 ))
     return findings
 
 
 # --------------------------------------------------------------------------- #
-# Corpus checks — cross-document references (Design Language S3.1, S6.1, S8)
+# Corpus checks: cross-document references (Design Language S3.1, S6.1, S8)
 # --------------------------------------------------------------------------- #
 
 def load_capability_catalogue(text: str) -> set:
@@ -419,7 +419,7 @@ def find_glossary_violations(text: str, path: str) -> List[Finding]:
         if not rest.startswith(GLOSSARY_SEPARATOR):
             findings.append(Finding(
                 path, lineno, "glossary-entry",
-                f"'{term}' opens a line but is not an entry — a wrapped cross-reference "
+                f"'{term}' opens a line but is not an entry: a wrapped cross-reference "
                 f"reads as a phantom definition; reflow so it is not at the left margin",
             ))
             continue
@@ -458,7 +458,7 @@ def read_document_capabilities(text: str) -> dict:
             cell = stripped.strip("|").split("|")[0]
             found[section].extend(BODY_CAPABILITY_RE.findall(cell))
         elif stripped:
-            # Any non-table line closes the table — including a heading, which is how a
+            # Any non-table line closes the table: including a heading, which is how a
             # Decisions table two sections later once got read as a list of capabilities.
             section = None
     return found
@@ -481,8 +481,7 @@ def read_document_decisions(text: str) -> List[Tuple[str, str, str]]:
 def find_spine_violations(text: str, path: str) -> List[Finding]:
     """Every module document carries the canonical spine sections, by name.
 
-    A module may add sections of its own anywhere, and the numbering is its business —
-    what has to hold is that the same concern is findable under the same heading in every
+    A module may add sections of its own anywhere, and the numbering is its business: what has to hold is that the same concern is findable under the same heading in every
     module. A section may carry a subtitle after a colon (`Entity Model: Runtime Facet`); the head of the heading is what must match.
     """
     headings = []
@@ -490,7 +489,7 @@ def find_spine_violations(text: str, path: str) -> List[Finding]:
         headings.append(re.split(r"\s*:\s*", name)[0].strip())
     missing = [s for s in MODULE_SPINE if s not in headings]
     return [Finding(path, 1, "module-spine",
-                    f"module is missing the '{s}' section — every module carries the same "
+                    f"module is missing the '{s}' section: every module carries the same "
                     f"spine so an agent finds the same concern in the same place")
             for s in missing]
 
@@ -584,7 +583,7 @@ def is_design_document(path: Path) -> bool:
     """Design documents carry frontmatter; navigation and supporting files do not.
 
     A README is a design document only when it is the binding document at the root of
-    an implementation directory — a README directly under `design/` or a platform root
+    an implementation directory: a README directly under `design/` or a platform root
     is navigation, and the supporting `.md` files inside a binding directory describe
     it rather than declaring it.
     """

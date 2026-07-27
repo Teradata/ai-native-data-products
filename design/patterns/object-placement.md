@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Object Placement — Pattern
+# Object Placement: Pattern
 
 ## AI-Native Data Product Architecture
 
@@ -19,12 +19,12 @@ normative: true
 |-----------|-------|
 | **Status** | STANDARD |
 | **Type** | Pattern (cross-cutting, platform-agnostic interface spec) |
-| **Scope** | Any relational or cloud data platform — where objects live and who may reach them |
+| **Scope** | Any relational or cloud data platform: where objects live and who may reach them |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/patterns/object-placement/`](../../implementation/teradata/patterns/object-placement/) |
 
-This pattern is an **interface specification**: it defines what a conforming object-placement implementation must **declare**, not a fixed convention. An AI-native data product agent must not assume how an organisation structures its containers — it must read a conforming implementation before generating any DDL, placement decision, or access statement. It realises the `object-placement` concern that every module applies.
+This pattern is an **interface specification**: it defines what a conforming object-placement implementation must **declare**, not a fixed convention. An AI-native data product agent must not assume how an organisation structures its containers: it must read a conforming implementation before generating any DDL, placement decision, or access statement. It realises the `object-placement` concern that every module applies.
 
 ---
 
@@ -32,7 +32,7 @@ This pattern is an **interface specification**: it defines what a conforming obj
 
 Where an object lives determines who can reach it. This pattern makes container placement and its access consequences **explicit and machine-readable**, so agents place objects deterministically and never co-locate objects that must be separated for access control.
 
-**This pattern provides no capability.** It imposes a contract — on where objects are placed and how access follows from placement — rather than offering an operation a design can require. Every module applies it; none requires it.
+**This pattern provides no capability.** It imposes a contract, on where objects are placed and how access follows from placement, rather than offering an operation a design can require. Every module applies it; none requires it.
 
 ---
 
@@ -60,9 +60,9 @@ When generating any object:
 1. **Locate** a conforming implementation (priority order below).
 2. **Read all required sections** before generating any DDL, grant, or revocation.
 3. **For each object**, call the derivation function with its type and context to find its container.
-4. **Generate** the object in that container only — never in a structural or parent container, nor one for a different type.
+4. **Generate** the object in that container only: never in a structural or parent container, nor one for a different type.
 5. **Provision implied grants** as part of the standard sequence, not as an afterthought.
-6. **Validate** after generation; on failure, halt and report — do not proceed with dependent objects.
+6. **Validate** after generation; on failure, halt and report: do not proceed with dependent objects.
 7. **Never assume** co-location or a flat structure. If uncertain, ask.
 
 **Priority order for locating an implementation:**
@@ -78,32 +78,31 @@ When generating any object:
 
 Every conforming implementation MUST include all eight, using these exact headings. An agent may reject an implementation that omits any required section.
 
-**Section 1 — Platform Declaration.** Target platform and version; the platform's term for "container" and "access principal"; whether the namespace is hierarchical or flat; the maximum container-name length; reserved characters/words.
+**Section 1. Platform Declaration.** Target platform and version; the platform's term for "container" and "access principal"; whether the namespace is hierarchical or flat; the maximum container-name length; reserved characters/words.
 
-**Section 2 — Container Model.** Whether structural, parent, and/or child containers are used and what each may hold; the full hierarchy depth; the rule for which containers may hold data objects; whether physical system boundaries exist between lifecycle phases.
+**Section 2. Container Model.** Whether structural, parent, and/or child containers are used and what each may hold; the full hierarchy depth; the rule for which containers may hold data objects; whether physical system boundaries exist between lifecycle phases.
 
-**Section 3 — Naming Pattern.** The complete pattern as an ordered sequence of `{{Segment}}` segments, each with position, data type, permitted values/derivation, whether mandatory or conditional, and the separator. A worked example. The ordering principle. **Environment-agnostic rule:** object names must be stable across lifecycle phases — only the container changes between environments; environment markers (`_dev`, `_uat`) on object names are prohibited (`INV-MASTER-006`).
+**Section 3. Naming Pattern.** The complete pattern as an ordered sequence of `{{Segment}}` segments, each with position, data type, permitted values/derivation, whether mandatory or conditional, and the separator. A worked example. The ordering principle. **Environment-agnostic rule:** object names must be stable across lifecycle phases, only the container changes between environments; environment markers (`_dev`, `_uat`) on object names are prohibited (`INV-MASTER-006`).
 
-**Section 4 — Object Placement Rules.** A table mapping each recognised object type to its container; the separation policy; abbreviations. Must address persistent tables, views, stored procedures, and functions/UDFs (MUST), and macros/indexes/temporary objects (SHOULD). Must declare one of two mutually exclusive object-naming rules:
-- **Rule A — container-discriminated** (`STRICT_SEPARATION`): the container is the sole type discriminator; object names are identical across container types; type markers (`v_`, `_vw`) are prohibited.
-- **Rule B — name-discriminated** (`CO_LOCATED`/`TYPE_GROUPED`): a declared, consistent, reversible disambiguation rule producing a unique name per `(logical_name × type)`, demonstrated with ≥2 examples.
+**Section 4. Object Placement Rules.** A table mapping each recognised object type to its container; the separation policy; abbreviations. Must address persistent tables, views, stored procedures, and functions/UDFs (MUST), and macros/indexes/temporary objects (SHOULD). Must declare one of two mutually exclusive object-naming rules:
+- **Rule A: container-discriminated** (`STRICT_SEPARATION`): the container is the sole type discriminator; object names are identical across container types; type markers (`v_`, `_vw`) are prohibited.
+- **Rule B: name-discriminated** (`CO_LOCATED`/`TYPE_GROUPED`): a declared, consistent, reversible disambiguation rule producing a unique name per `(logical_name × type)`, demonstrated with ≥2 examples.
 For implementations with views, a **view-layer architecture** declaration: whether views are divided into tiers with different rules on which container types each tier may reference, or an explicit statement that no tier architecture applies.
 
-**Section 5 — Separation Policy.** Exactly one of `STRICT_SEPARATION`, `TYPE_GROUPED`, `CO_LOCATED`, `CUSTOM`, with rationale, exceptions, and the access implication of the choice.
+**Section 5. Separation Policy.** Exactly one of `STRICT_SEPARATION`, `TYPE_GROUPED`, `CO_LOCATED`, `CUSTOM`, with rationale, exceptions, and the access implication of the choice.
 
-**Section 6 — Derivation Function.** A deterministic algorithm computing the target container for any object, executable by an agent, with all input parameters, conditional branches, ≥3 worked examples, and parent-container derivation where applicable. Minimum signature:
+**Section 6. Derivation Function.** A deterministic algorithm computing the target container for any object, executable by an agent, with all input parameters, conditional branches, ≥3 worked examples, and parent-container derivation where applicable. Minimum signature:
 
 ```
 derive_container(
   object_type,        // the type of object to be placed
   environment_inputs, // platform-specific environment identifiers
-  classification      // security/access classification, if applicable
-) -> container_name
+  classification      // security/access classification, if applicable) -> container_name
 ```
 
-**Section 7 — Access Model.** How access is granted (role/user/policy-based); container-level vs object-level and which is preferred; standard principal types; naming; prohibitions; how the separation policy interacts with access; and any **implied grants** the architecture requires — declared explicitly, with when they must be provisioned, in the standard sequence.
+**Section 7. Access Model.** How access is granted (role/user/policy-based); container-level vs object-level and which is preferred; standard principal types; naming; prohibitions; how the separation policy interacts with access; and any **implied grants** the architecture requires: declared explicitly, with when they must be provisioned, in the standard sequence.
 
-**Section 8 — Validation Procedure.** An agent-executable procedure confirming: objects are in their intended containers; not in containers for a different type; not in parent/structural containers; end-user principals granted at the correct level; all implied grants present. States passing/failing output and requires halt-and-report on failure — never silent auto-correct.
+**Section 8. Validation Procedure.** An agent-executable procedure confirming: objects are in their intended containers; not in containers for a different type; not in parent/structural containers; end-user principals granted at the correct level; all implied grants present. States passing/failing output and requires halt-and-report on failure: never silent auto-correct.
 
 ---
 

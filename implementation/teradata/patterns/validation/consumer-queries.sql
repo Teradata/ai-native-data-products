@@ -1,4 +1,4 @@
--- Validation — consumer queries (Teradata). Binding of design/patterns/validation.md §8, §10.
+-- Validation: consumer queries (Teradata). Binding of design/patterns/validation.md §8, §10.
 -- {db} is a generic tag, e.g. {Product}_Observability. :gate_producer comes from orientation.
 
 -- Product gate check BEFORE analytical use.

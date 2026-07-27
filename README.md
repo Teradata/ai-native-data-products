@@ -1,6 +1,6 @@
 # AI-Native Data Product Design Standards
 
-A modular library of data design patterns for building **AI-Native Data Products** — self-describing data assets optimised for autonomous agent discovery and operation. The library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset.
+A modular library of data design patterns for building **AI-Native Data Products**: self-describing data assets optimised for autonomous agent discovery and operation. The library is a set of independent, composable modules; assembling a chosen subset produces a particular kind of data asset.
 
 ---
 
@@ -8,8 +8,8 @@ A modular library of data design patterns for building **AI-Native Data Products
 
 The framework is split along one boundary:
 
-- **[`design/`](design/)** — **platform-agnostic** standards. Written in logical types, capabilities, and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
-- **[`implementation/{platform}/`](implementation/)** — **platform-specific** bindings (the concrete DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms are added as sibling directories, changing no design document.
+- **[`design/`](design/)**: **platform-agnostic** standards. Written in logical types, capabilities, and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
+- **[`implementation/{platform}/`](implementation/)**: **platform-specific** bindings (the concrete DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms are added as sibling directories, changing no design document.
 
 The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/): a design document that leaks platform SQL fails the build.
 
@@ -37,7 +37,7 @@ ai-native-data-products/
 
 There is no single fixed architecture. Modules declare what they **provide** and **require** (each requirement `[hard]` or `[soft]`); a composition is valid when every hard requirement is met within it, and unmet soft requirements simply disable a feature. An **AI-Native Data Product is the fullest composition**, not the only one.
 
-| Composition | Modules | 
+| Composition | Modules |
 |-------------|---------|
 | **Data Asset** | Domain + Memory (documentation) + Access Layer |
 | **Traditional Data Product** | Domain + Semantic + Observability (+ optional Memory) |
@@ -52,8 +52,8 @@ See [`design/core/MASTER_DESIGN.md#4-compositions`](design/core/MASTER_DESIGN.md
 
 | Module | Purpose | Composition role |
 |--------|---------|------------------|
-| **[Domain](design/modules/domain.md)** | Authoritative business entities — the source of truth | Root; stands alone |
-| **[Semantic](design/modules/semantic.md)** | The discovery map — entity/column/relationship catalogue + orientation | Cross-cutting (soft) |
+| **[Domain](design/modules/domain.md)** | Authoritative business entities: the source of truth | Root; stands alone |
+| **[Semantic](design/modules/semantic.md)** | The discovery map: entity/column/relationship catalogue + orientation | Cross-cutting (soft) |
 | **[Search](design/modules/search.md)** | Vector embeddings and similarity search | Hard-depends on Domain |
 | **[Prediction](design/modules/prediction.md)** | Feature store and model outputs | Hard-depends on Domain |
 | **[Observability](design/modules/observability.md)** | Events, quality, lineage; home of validation results | Cross-cutting (soft) |
@@ -77,15 +77,15 @@ Cross-cutting concerns that modules *apply* (referenced, never restated):
 
 ## Deployment order
 
-Modules deploy in dependency order — only those the composition includes:
+Modules deploy in dependency order: only those the composition includes:
 
 | Phase | Deploy (if present) |
 |-------|---------------------|
-| 1 — Infrastructure | Memory, then Semantic |
-| 1.5 — Access (initial) | Create roles; grant read on Semantic + Memory |
-| 2 — Foundation | Domain, then Observability |
-| 2.5 — Access (extend) | Extend grants to Domain + Observability |
-| 3 — Enhancement | Search, Prediction |
+| 1. Infrastructure | Memory, then Semantic |
+| 1.5. Access (initial) | Create roles; grant read on Semantic + Memory |
+| 2. Foundation | Domain, then Observability |
+| 2.5. Access (extend) | Extend grants to Domain + Observability |
+| 3. Enhancement | Search, Prediction |
 
 ---
 
@@ -97,7 +97,7 @@ Modules deploy in dependency order — only those the composition includes:
 python tooling/validation/design_lint.py design implementation
 ```
 
-`tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy READMEs from document frontmatter — run it after adding or renaming a document:
+`tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy READMEs from document frontmatter: run it after adding or renaming a document:
 
 ```bash
 python tooling/catalogue/build_catalogue.py
@@ -111,12 +111,12 @@ python -m unittest discover -s tooling/validation/tests
 
 ## Key principles
 
-1. **Platform-neutral by construction** — enforced by the design/implementation split and the linter.
-2. **Modular and composable** — modules function independently and in any valid combination.
-3. **Zero data duplication** — modules reference Domain by identifier and join back; never copy.
-4. **Self-describing** — queryable metadata, standard patterns, and multi-hop discovery enable autonomy.
-5. **Self-contained products** — discovery and documentation stores live within the product.
-6. **Design memory** — every module records its decisions into Memory during design.
+1. **Platform-neutral by construction**: enforced by the design/implementation split and the linter.
+2. **Modular and composable**: modules function independently and in any valid combination.
+3. **Zero data duplication**: modules reference Domain by identifier and join back; never copy.
+4. **Self-describing**: queryable metadata, standard patterns, and multi-hop discovery enable autonomy.
+5. **Self-contained products**: discovery and documentation stores live within the product.
+6. **Design memory**: every module records its decisions into Memory during design.
 
 ---
 

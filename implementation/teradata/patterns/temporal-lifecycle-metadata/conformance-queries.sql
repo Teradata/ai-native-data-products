@@ -1,4 +1,4 @@
--- Temporal & Lifecycle Metadata — conformance queries (Teradata).
+-- Temporal & Lifecycle Metadata: conformance queries (Teradata).
 -- Implementable checks for the pattern's conformance rules (design §9).
 -- ColumnType codes: SZ = TIMESTAMP WITH TIME ZONE, TS = TIMESTAMP, I1 = BYTEINT.
 -- Each catalogue/data query must return ZERO rows for a conforming deployment.

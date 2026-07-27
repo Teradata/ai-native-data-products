@@ -1,4 +1,4 @@
--- Memory module — DocumentationCapture binding (Teradata).
+-- Memory module. DocumentationCapture binding (Teradata).
 -- The INSERT templates every module uses to record its design memory
 -- (design/modules/memory.md §5.2). Replace {{ product }}, {MODULE}, {NNN}, and
 -- {...} placeholders. Temporal field standards: valid_from = CURRENT_DATE,
@@ -68,7 +68,7 @@ VALUES
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 
 -- ---------------------------------------------------------------------------
--- Standard ERD recipe (QC-SEMANTIC-002) — required whenever Semantic is present.
+-- Standard ERD recipe (QC-SEMANTIC-002): required whenever Semantic is present.
 -- Lets any agent regenerate a current ER diagram from the living relationship data.
 -- ---------------------------------------------------------------------------
 INSERT INTO {{ product }}_Memory.Query_Cookbook

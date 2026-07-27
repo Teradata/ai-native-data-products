@@ -1,11 +1,11 @@
--- Domain module — Teradata invariant checks.
+-- Domain module. Teradata invariant checks.
 -- Runnable checks backing the invariants in design/modules/domain.md §8.
 -- Each query must return ZERO rows for a conforming deployment.
 -- Replace {{ product }} with the data product name before running.
 
 -- ---------------------------------------------------------------------------
 -- INV-DOMAIN-001 : every attribute of every entity carries descriptive metadata.
--- MetadataCoverageCheck — any table with uncommented columns is a violation.
+-- MetadataCoverageCheck: any table with uncommented columns is a violation.
 -- ---------------------------------------------------------------------------
 SELECT TableName,
        COUNT(*) AS total_columns,

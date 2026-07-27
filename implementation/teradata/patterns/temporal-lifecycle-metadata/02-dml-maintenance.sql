@@ -1,4 +1,4 @@
--- Temporal & Lifecycle Metadata — DML maintenance patterns (Teradata).
+-- Temporal & Lifecycle Metadata. DML maintenance patterns (Teradata).
 -- Binding of design/patterns/temporal-lifecycle-metadata.md §5.2 invariants.
 -- {db}, {entity}, {natural_key} are generic tags; :params are runtime values.
 
@@ -27,7 +27,7 @@ WHERE NOT EXISTS (
 
 ET;
 
--- 6.2 Logical deletion — a NEW current version, never update-in-place (invariant 10).
+-- 6.2 Logical deletion: a NEW current version, never update-in-place (invariant 10).
 BT;
 
 UPDATE {db}.agreement
@@ -45,6 +45,6 @@ ET;
 -- Restoration inserts a further successor with is_deleted = 0.
 
 -- 6.3 Late-arriving change (invariant 9): place the change at its actual effective
--- instant and split the covering period — close the covering version at :late_dts,
+-- instant and split the covering period: close the covering version at :late_dts,
 -- insert the late version [:late_dts, original_valid_to_dts), preserving is_current
 -- on whichever row now holds the sentinel. Same close + insert transaction shape as 6.1.

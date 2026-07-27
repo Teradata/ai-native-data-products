@@ -1,5 +1,5 @@
 -- =============================================================================
--- ACCESS LAYER — {ProductName} Data Product (Teradata)
+-- ACCESS LAYER: {ProductName} Data Product (Teradata)
 -- Binding of design/patterns/access-layer.md. File: 00-access/{ProductName}_access_layer.dcl
 --
 -- Phase 1.5: apply after Memory + Semantic are deployed.
@@ -24,7 +24,7 @@ CREATE ROLE {ProductName}_ROLE_ADMIN;
 COMMENT ON ROLE {ProductName}_ROLE_ADMIN IS
     '{ProductName} data product - owner and data steward access. Read on all containers.';
 
--- Phase 1.5 — after Memory + Semantic ------------------------------------------
+-- Phase 1.5: after Memory + Semantic ------------------------------------------
 GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_READ;
 GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_AGENT;
 GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_ADMIN;
@@ -36,7 +36,7 @@ GRANT SELECT ON {ProductName}_Memory   TO {ProductName}_ROLE_ADMIN;
 -- Agent write-back to Memory: interactions, learned strategies, design decisions
 GRANT INSERT ON {ProductName}_Memory   TO {ProductName}_ROLE_AGENT;
 
--- Phase 2.5 — after Domain + Observability -------------------------------------
+-- Phase 2.5: after Domain + Observability -------------------------------------
 GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_READ;
 GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_AGENT;
 GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_ADMIN;

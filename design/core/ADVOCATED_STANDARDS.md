@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Advocated Standards — Decision Catalogue
+# Advocated Standards: Decision Catalogue
 
 ## AI-Native Data Product Architecture: Foundational Reference
 
@@ -25,11 +25,11 @@ These recommendations come from three decades of enterprise data management prac
 
 Advisory prose has no purchase on a design workflow. Nothing records which option a product actually took, nothing checks that its implementation matches, and an agent reading the design cannot tell a deliberate departure from an oversight.
 
-Expressing the same material as decisions fixes all three. Each module names the decisions it obliges a designer to settle, the design skill puts those questions to the designer at design time, and the answer is recorded in the product's design where the linter and the reviewer can both find it. The recommendation carries exactly as much weight as before — what changes is that using it, or not using it, becomes visible and testable.
+Expressing the same material as decisions fixes all three. Each module names the decisions it obliges a designer to settle, the design skill puts those questions to the designer at design time, and the answer is recorded in the product's design where the linter and the reviewer can both find it. The recommendation carries exactly as much weight as before: what changes is that using it, or not using it, becomes visible and testable.
 
 ### 1.2 How a decision reaches a design
 
-A module or pattern document lists, under **Designer Responsibilities**, the decisions its designers must settle — each with the option this standard recommends and the question that shifts the answer. Nothing there fixes a choice: a standard recommends, a product decides.
+A module or pattern document lists, under **Designer Responsibilities**, the decisions its designers must settle: each with the option this standard recommends and the question that shifts the answer. Nothing there fixes a choice: a standard recommends, a product decides.
 
 At design time the design skill reads those tables and works through them with the human designer, one question at a time, recording each answer in the product's own design. A choice that departs from the recommendation is recorded with its reason.
 
@@ -37,7 +37,7 @@ This is why the decisions live in the document body rather than a header: a head
 
 ### 1.3 Scope
 
-This catalogue covers **logical** decisions — the shape of the data and where responsibility sits. It is deliberately silent on where objects are placed, how containers are named, and how access is granted: those are governed by the `object-placement` pattern, which prescribes structure where this document recommends practice. Physical-design decisions belong to each platform's profile.
+This catalogue covers **logical** decisions: the shape of the data and where responsibility sits. It is deliberately silent on where objects are placed, how containers are named, and how access is granted: those are governed by the `object-placement` pattern, which prescribes structure where this document recommends practice. Physical-design decisions belong to each platform's profile.
 
 ---
 
@@ -49,7 +49,7 @@ Decision: DEC-TEMPORAL-PATTERN
   Applies to: every entity of kind History
 
   Option: bi-temporal                                  [advocated]
-    Summary:      Two independent time dimensions — valid time (when the fact
+    Summary:      Two independent time dimensions  // valid time (when the fact
                   was true in the world) and transaction time (when the database
                   recorded it).
     Implies:      pattern temporal-lifecycle-metadata, profile SCD2_BITEMPORAL;
@@ -70,14 +70,14 @@ Decision: DEC-TEMPORAL-PATTERN
   Option: current-state
     Summary:      No history. The entity holds only its present state.
     Implies:      pattern temporal-lifecycle-metadata, profile CURRENT_STATE
-    Acceptable when: history has no analytical or regulatory value — typically
+    Acceptable when: history has no analytical or regulatory value  // typically
                   staging, scratch, or derived sets rebuilt from source.
     Requires:     a recorded reason.
 ```
 
 **Why bi-temporal is advocated.** The two dimensions answer different questions, and machine learning needs both. *What did we believe on the day the model scored?* is a transaction-time question; answering it with valid time alone silently leaks post-hoc corrections into training features, which is how a model comes to look accurate in backtest and fail in production. A single dimension also cannot represent a correction at all: restating a fact overwrites the record of having been wrong, and regulated explanations require that record.
 
-The cost is real — two extra period pairs per row and a more careful load — which is why `scd2` remains a legitimate choice where corrections genuinely do not occur.
+The cost is real, two extra period pairs per row and a more careful load, which is why `scd2` remains a legitimate choice where corrections genuinely do not occur.
 
 **Selection.** Point-in-time correctness for model features, or common late-arriving facts, or corrections, or a regulatory audit trail → `bi-temporal`. None of those, and simplicity is worth more → `scd2`. No analytical value in history at all → `current-state`.
 
@@ -120,11 +120,11 @@ Decision: DEC-COLUMN-STRATEGY
                   history is limited to the latest state.
 ```
 
-**Why offload is advocated.** Audit, lineage, and quality are *properties of a change*, not properties of an entity — one entity accumulates many of each over its life. Carrying them inline forces a one-to-one shape onto one-to-many data, which has two consequences: only the most recent value survives, and every row of the entity pays for attributes that are null on most of them. Offloading stores each fact once, keeps the full series, and leaves the entity to hold what it actually is.
+**Why offload is advocated.** Audit, lineage, and quality are *properties of a change*, not properties of an entity: one entity accumulates many of each over its life. Carrying them inline forces a one-to-one shape onto one-to-many data, which has two consequences: only the most recent value survives, and every row of the entity pays for attributes that are null on most of them. Offloading stores each fact once, keeps the full series, and leaves the entity to hold what it actually is.
 
 The objection is that a join is now required. That objection is answered by `AccessView` rather than by duplication: consumers read a view that presents the joined result as one surface, so the normalisation is invisible where it would otherwise be inconvenient.
 
-**Selection.** Volume is the discriminator. A small reference set can afford `inline` and gains simplicity; a large history cannot, and the advantage of `offload` grows with row count. Between the two, `reference` is the compromise — but adopt it against a measured access path, not a predicted one.
+**Selection.** Volume is the discriminator. A small reference set can afford `inline` and gains simplicity; a large history cannot, and the advantage of `offload` grows with row count. Between the two, `reference` is the compromise: but adopt it against a measured access path, not a predicted one.
 
 ---
 
@@ -143,9 +143,9 @@ Decision: DEC-SURROGATE-ALLOCATION
     Acceptable when: always.
 
   Option: external-allocator
-    Summary:      An existing organisational mechanism — a central sequence
+    Summary:      An existing organisational mechanism  // a central sequence
                   service, a key management framework, a shared identifier
-                  registry — allocates the Identifier.
+                  registry  // allocates the Identifier.
     Implies:      capability SurrogateKeyAllocation required from external
     Acceptable when: the organisation already operates such a mechanism and it
                   guarantees stability across versions.
@@ -156,7 +156,7 @@ Decision: DEC-SURROGATE-ALLOCATION
                   written.
     Implies:      capability SurrogateKeyAllocation provided by self
     Acceptable when: no other entity holds a reference to this entity's
-                  Identifier — reference sets and detail entities that are
+                  Identifier  // reference sets and detail entities that are
                   never themselves referenced.
     Requires:     a recorded reason confirming nothing references it.
 
@@ -169,9 +169,9 @@ Decision: DEC-SURROGATE-ALLOCATION
                   key becomes a breaking change to every referencing entity.
 ```
 
-**Why keymap is advocated.** In a versioned entity, many rows describe the same real-world thing. If the identifier is minted as rows are written, each version receives a different one, and a reference held elsewhere becomes ambiguous — it cannot say *which* version it meant, and it breaks the moment a new version arrives. Allocating the identifier separately, keyed on the natural key, makes it a property of the thing rather than of the row.
+**Why keymap is advocated.** In a versioned entity, many rows describe the same real-world thing. If the identifier is minted as rows are written, each version receives a different one, and a reference held elsewhere becomes ambiguous: it cannot say *which* version it meant, and it breaks the moment a new version arrives. Allocating the identifier separately, keyed on the natural key, makes it a property of the thing rather than of the row.
 
-The stability requirement is what matters; the keymap is one way to meet it. An organisation with an established allocator should use it — `external-allocator` exists precisely so that meeting the requirement does not mean discarding working infrastructure.
+The stability requirement is what matters; the keymap is one way to meet it. An organisation with an established allocator should use it: `external-allocator` exists precisely so that meeting the requirement does not mean discarding working infrastructure.
 
 **Selection.** The discriminating question is a single one: *does any other entity hold a reference to this entity's Identifier?* If yes, stability is required and `inline` is unsound. If no, `inline` is sufficient and the keymap is unnecessary machinery.
 
@@ -200,8 +200,8 @@ Decision: DEC-DELETE-STRATEGY
     Implies:      no SoftDelete capability
     Acceptable when: no regulatory audit obligation applies, no model feature
                   depends on deletion status, no analysis examines deletion
-                  patterns, and the data genuinely has no future value —
-                  typically staging or test data.
+                  patterns, and the data genuinely has no future value.
+                  Typically staging or test data.
     Requires:     a recorded reason, and confirmation that no reference to the
                   instance survives elsewhere.
 ```
@@ -210,7 +210,7 @@ Decision: DEC-DELETE-STRATEGY
 
 Soft deletion also keeps referential reasoning honest. A reference to a destroyed instance dangles; a reference to a soft-deleted one still resolves, and the consumer can see that the target is no longer current rather than encountering an absence it cannot interpret.
 
-**Selection.** When in doubt, `soft-delete` — it is the safe default and the reversible one. `hard-delete` needs *all four* of its conditions to hold simultaneously, which in practice restricts it to data that was never intended to persist.
+**Selection.** When in doubt, `soft-delete`: it is the safe default and the reversible one. `hard-delete` needs *all four* of its conditions to hold simultaneously, which in practice restricts it to data that was never intended to persist.
 
 ---
 
@@ -240,13 +240,13 @@ Decision: DEC-TIMESTAMP-ZONE
                   metadata, so a consumer can interpret the value correctly.
 ```
 
-**Why zone-aware is advocated.** A wall-clock reading without a zone is not a point in time — it is a point in time *plus an assumption held somewhere else*. As long as the assumption is universal and remembered, nothing goes wrong. Neither condition survives contact with a second region, a daylight-saving boundary, or a consumer who was not told.
+**Why zone-aware is advocated.** A wall-clock reading without a zone is not a point in time: it is a point in time *plus an assumption held somewhere else*. As long as the assumption is universal and remembered, nothing goes wrong. Neither condition survives contact with a second region, a daylight-saving boundary, or a consumer who was not told.
 
 The failure is quiet, which is what makes it serious: comparisons across zone-naive values silently produce wrong orderings and wrong durations rather than errors, and the result looks plausible. Ordering is exactly what temporal data is for.
 
 **Practice under the advocated option.** Store normalised to UTC. Convert to a local zone for presentation, at the edge, never in storage. Write zone-explicit literals in queries and comparisons.
 
-**Selection.** Choose `zone-naive` only when one of its three conditions genuinely holds — and record the assumed zone when doing so. An unrecorded assumption is the failure mode this decision exists to prevent.
+**Selection.** Choose `zone-naive` only when one of its three conditions genuinely holds: and record the assumed zone when doing so. An unrecorded assumption is the failure mode this decision exists to prevent.
 
 ---
 
@@ -272,7 +272,7 @@ Decision: DEC-QUALITY-STORAGE
     Requires:     a recorded reason.
 ```
 
-**Why observability is advocated.** A quality score is a measurement taken at a moment, and its value lies in the series: *is this entity getting better or worse, and which rule started failing?* An attribute on the entity holds one number and answers neither. It also discards the per-rule detail that makes a score actionable — an agent told only that quality is `0.72` knows that something is wrong but not what, and cannot judge whether the failure matters for its purpose.
+**Why observability is advocated.** A quality score is a measurement taken at a moment, and its value lies in the series: *is this entity getting better or worse, and which rule started failing?* An attribute on the entity holds one number and answers neither. It also discards the per-rule detail that makes a score actionable: an agent told only that quality is `0.72` knows that something is wrong but not what, and cannot judge whether the failure matters for its purpose.
 
 This is the same argument as `DEC-COLUMN-STRATEGY`, applied to one specific concern, and the same answer applies to the join objection: present the result through a view.
 
@@ -286,7 +286,7 @@ This is the same argument as `DEC-COLUMN-STRATEGY`, applied to one specific conc
 | Accuracy | Values agree with an authoritative source | 15% |
 | Timeliness | Data is fresh enough for its purpose | 10% |
 
-Weights are indicative and may be tuned per product; the categories are not, since comparability depends on them. The composite is expressed on a `0.00`–`1.00` scale.
+Weights are indicative and may be tuned per product; the categories are not, since comparability depends on them. The composite is expressed on a `0.00`-`1.00` scale.
 
 ---
 
@@ -298,7 +298,7 @@ Decision: DEC-AUDIT-RETENTION
   Applies to: the observability module, per product
 
   Option: regulatory                                   [advocated]
-    Summary:      Retention tiered by obligation — recent change history
+    Summary:      Retention tiered by obligation  // recent change history
                   immediately queryable, older history retained but archived,
                   deletion records held longest, and high-risk entities held
                   indefinitely.
@@ -314,7 +314,7 @@ Decision: DEC-AUDIT-RETENTION
                   retention obligation.
 ```
 
-**Why tiered retention is advocated.** Audit data does not have one purpose. Recent change history serves active investigation and needs to be queryable now; older history serves regulatory obligation and needs to survive, not to be fast; deletion records serve accountability regimes that outlive the data they describe. A single window either over-retains what is merely operational or under-retains what is legally required — and the second failure is discovered only when it matters.
+**Why tiered retention is advocated.** Audit data does not have one purpose. Recent change history serves active investigation and needs to be queryable now; older history serves regulatory obligation and needs to survive, not to be fast; deletion records serve accountability regimes that outlive the data they describe. A single window either over-retains what is merely operational or under-retains what is legally required: and the second failure is discovered only when it matters.
 
 **Indicative periods.** These are the recommended starting points; the governing obligation always wins where it differs.
 
@@ -349,4 +349,4 @@ Three properties follow, and they are the reason this material is expressed as d
 | 1.6 | Added the access-layer section, deferring placement and naming to the Object Placement Standard. |
 | 1.5 | Established platform neutrality; Teradata physical design identified as a platform profile. |
 | 1.4 | Surrogate key strategy rewritten to address instability in versioned entities. |
-| 1.0–1.3 | Initial advocated standards and naming alignment. |
+| 1.0-1.3 | Initial advocated standards and naming alignment. |

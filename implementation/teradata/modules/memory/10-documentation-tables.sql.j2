@@ -1,9 +1,9 @@
--- Memory module — documentation facet tables (Teradata).
+-- Memory module: documentation facet tables (Teradata).
 -- Binding of design/modules/memory.md §5. These six tables ARE the design memory.
 -- Temporally versioned (INV-MEMORY-005). Replace {{ product }} with the product name.
 
 -- ---------------------------------------------------------------------------
--- Module_Registry — every module considered during design (deployed or not)
+-- Module_Registry: every module considered during design (deployed or not)
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Module_Registry (
     module_registry_key  BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -48,7 +48,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.created_timestamp IS 'Whe
 COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.updated_timestamp IS 'When this row was last updated.';
 
 -- ---------------------------------------------------------------------------
--- Design_Decision — Architecture Decision Records with version chain
+-- Design_Decision. Architecture Decision Records with version chain
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Design_Decision (
     decision_key            BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,

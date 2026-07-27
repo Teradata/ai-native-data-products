@@ -1,4 +1,4 @@
-# Observability — OpenLineage Alignment (Teradata)
+# Observability: OpenLineage Alignment (Teradata)
 
 Binding of [`design/modules/observability.md`](../../../../design/modules/observability.md) §6. The lineage tables align with [OpenLineage](https://openlineage.io/): the definition/execution split mirrors OpenLineage's `Job` (declared flow) vs `Run` (execution).
 
@@ -21,7 +21,7 @@ OpenLineage identifies datasets by `namespace` + `name`. Teradata convention: na
 
 ## Event construction
 
-Construct a RunEvent by joining `lineage_run` to `data_lineage` and composing a JSON object with native JSON functions (`JSON_COMPOSE`, `JSON_AGG`) for correct typing and escaping — one payload per execution, suitable for emission to Marquez / Amundsen / a collector.
+Construct a RunEvent by joining `lineage_run` to `data_lineage` and composing a JSON object with native JSON functions (`JSON_COMPOSE`, `JSON_AGG`) for correct typing and escaping: one payload per execution, suitable for emission to Marquez / Amundsen / a collector.
 
 ```json
 {
@@ -40,5 +40,5 @@ Construct a RunEvent by joining `lineage_run` to `data_lineage` and composing a 
 
 - **Run lifecycle**: we store a single final-status row per execution (pragmatic for Teradata). Full START/COMPLETE lifecycle can be added by allowing multiple rows per `openlineage_run_id`.
 - **Multi-input jobs**: a job with several inputs is several `data_lineage` rows sharing `job_name`; aggregate into one event with `JSON_AGG`.
-- **Custom facets**: `transformation_type`, `batch_key`, `records_rejected` have no standard facet — emit as project-prefixed custom facets.
+- **Custom facets**: `transformation_type`, `batch_key`, `records_rejected` have no standard facet: emit as project-prefixed custom facets.
 - **Data freshness**: derive from `MAX(lineage_run.run_dts)` per active flow where `run_status = 'SUCCESS'`.

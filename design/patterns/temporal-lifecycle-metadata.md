@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Temporal & Lifecycle Metadata — Pattern
+# Temporal & Lifecycle Metadata: Pattern
 
 ## AI-Native Data Product Architecture
 
@@ -19,12 +19,12 @@ normative: true
 |-----------|-------|
 | **Status** | STANDARD |
 | **Type** | Pattern (cross-cutting, platform-agnostic) |
-| **Scope** | Every persisted table in every module — temporal and lifecycle metadata |
+| **Scope** | Every persisted table in every module: temporal and lifecycle metadata |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Implementations** | [`implementation/teradata/patterns/temporal-lifecycle-metadata/`](../../implementation/teradata/patterns/temporal-lifecycle-metadata/) |
 
-This pattern defines **semantic contracts only** — the canonical names and meanings of temporal and lifecycle metadata. It contains no platform types, sentinel literals, or catalogue queries; those bind in the implementation. It underpins the `CurrentStateFilter` and `PointInTimeReconstruction` capabilities, and its conformance rules are lifted directly by the [validation pattern](validation.md).
+This pattern defines **semantic contracts only**: the canonical names and meanings of temporal and lifecycle metadata. It contains no platform types, sentinel literals, or catalogue queries; those bind in the implementation. It underpins the `CurrentStateFilter` and `PointInTimeReconstruction` capabilities, and its conformance rules are lifted directly by the [validation pattern](validation.md).
 
 ---
 
@@ -42,7 +42,7 @@ This pattern gives each concept **exactly one name and one meaning**, defines th
 
 | Capability | Made available to |
 |------------|-------------------|
-| `CurrentStateFilter` | Every module with versioned entities — the canonical columns and flag semantics are what make "the current version" a single predictable filter. |
+| `CurrentStateFilter` | Every module with versioned entities: the canonical columns and flag semantics are what make "the current version" a single predictable filter. |
 | `PointInTimeReconstruction` | Consumers reconstructing an entity as at a past instant, over the validity period this pattern defines. |
 | `SoftDelete` | Modules recording deletion as a state rather than a destruction, via the lifecycle flag contract. |
 
@@ -69,7 +69,7 @@ Every temporal or lifecycle column represents exactly one of these. Conflating t
 | 6 | **Logical deletion** | Does this version record deletion of the entity? | `is_deleted`, `deleted_dts` |
 | 7 | **Lifecycle state** | Is this thing operationally live / approved for use, independent of versioning? | `is_active` |
 
-**Transaction time** (`transaction_from_dts`, `transaction_to_dts`) is an optional bitemporal extension of concept 1 for full correction semantics — **not** part of the mandatory core ().
+**Transaction time** (`transaction_from_dts`, `transaction_to_dts`) is an optional bitemporal extension of concept 1 for full correction semantics: **not** part of the mandatory core.
 
 ---
 
@@ -87,9 +87,9 @@ Every temporal or lifecycle column represents exactly one of these. Conflating t
 | `ingested_dts` | Time accepted at the ingestion boundary | Conditional |
 | `is_deleted` | Logical deletion state | Required when deletion is supported |
 | `deleted_dts` | Effective logical deletion time | Required when `is_deleted` is present |
-| `is_active` | Domain/metadata lifecycle state, independent of currency and deletion | Conditional; semantics must be documented () |
+| `is_active` | Domain/metadata lifecycle state, independent of currency and deletion | Conditional; semantics must be documented |
 | `<event>_dts` | Named business/technical event time | Conditional on table grain |
-| `transaction_from_dts` / `transaction_to_dts` | Database (transaction-time) validity | Optional — bitemporal variant only () |
+| `transaction_from_dts` / `transaction_to_dts` | Database (transaction-time) validity | Optional: bitemporal variant only |
 
 All `*_dts` columns are timestamp-grain (logical type `Timestamp`). Day-grain business facts (e.g. a contractual `decided_date`, logical type `Date`) remain legal as *event* columns, but validity bounds and audit columns are always timestamps. Precision, time-zone handling, and physical types bind per implementation.
 
@@ -115,13 +115,13 @@ Flags are `Flag`-typed (the implementation defines the physical representation, 
 
 **4.1 `is_current`**: *"Is this the current SCD2 version for this natural key?"* The validity period remains **authoritative**; the flag is a consumer convenience. It changes transactionally with `valid_to_dts`; validation fails any disagreement; no more than one current row per natural key.
 
-**4.2 `is_deleted`**: *"Does this version represent logical deletion?"* Not an expired historical version. `deleted_dts` required when true. Governed history is retained; deletion never rewrites it. Default current surfaces exclude deleted rows (). Restoration creates a successor version.
+**4.2 `is_deleted`**: *"Does this version represent logical deletion?"* Not an expired historical version. `deleted_dts` required when true. Governed history is retained; deletion never rewrites it. Default current surfaces exclude deleted rows. Restoration creates a successor version.
 
-**4.3 `is_active`**: an independently defined domain/metadata lifecycle state (e.g. a cookbook recipe approved for discovery, a lineage flow live, an agreement operationally in force). It must **not** alias `is_current` or `is_deleted`, must not be added mechanically to every table, and its meaning, owner, and allowed transitions must be documented — an undocumented `is_active` is a conformance failure.
+**4.3 `is_active`**: an independently defined domain/metadata lifecycle state (e.g. a cookbook recipe approved for discovery, a lineage flow live, an agreement operationally in force). It must **not** alias `is_current` or `is_deleted`, must not be added mechanically to every table, and its meaning, owner, and allowed transitions must be documented: an undocumented `is_active` is a conformance failure.
 
 > Where a table needs both version currency *and* an approval/discoverability state (common for
 > curated registries such as glossaries and cookbooks), use `is_current` for currency and
-> `is_active` for approval — never one flag for both.
+> `is_active` for approval: never one flag for both.
 
 ---
 
@@ -145,20 +145,20 @@ The end bound is exclusive. Adjacent versions share a boundary instant (`predece
 
 ### 5.2 Required invariants
 
-1. Both validity boundaries are non-null ().
-2. `valid_from_dts < valid_to_dts` — no zero-duration or negative periods.
+1. Both validity boundaries are non-null.
+2. `valid_from_dts < valid_to_dts`: no zero-duration or negative periods.
 3. Periods for one natural key do not overlap.
 4. No more than one current row exists per natural key.
 5. `is_current` agrees with the open-ended validity representation.
 6. Unchanged input does not create another version (change detection is mandatory).
 7. Predecessor closure and successor insertion occur in one transaction.
-8. Replay is idempotent — reprocessing the same input produces no new versions.
+8. Replay is idempotent: reprocessing the same input produces no new versions.
 9. Late-arriving changes are placed at their actual effective instant, splitting existing periods.
 10. Logical deletion preserves governed history: a deletion is a new current version with `is_deleted` set and `deleted_dts` recorded.
 
 ### 5.3 Bitemporal extension (optional)
 
-Products requiring correction semantics ("what did we believe on date X about date Y?") add `transaction_from_dts` / `transaction_to_dts` with the same half-open semantics on the transaction-time axis. Corrections close the transaction period of the mistaken row and insert corrected rows; business validity is never destructively rewritten. Transaction time is an **optional profile variant** (), never part of the mandatory core — `created_dts` / `updated_dts` already provide physical audit time.
+Products requiring correction semantics ("what did we believe on date X about date Y?") add `transaction_from_dts` / `transaction_to_dts` with the same half-open semantics on the transaction-time axis. Corrections close the transaction period of the mistaken row and insert corrected rows; business validity is never destructively rewritten. Transaction time is an **optional profile variant**, never part of the mandatory core: `created_dts` / `updated_dts` already provide physical audit time.
 
 ---
 
@@ -170,7 +170,7 @@ Every persisted table **declares exactly one profile**. The declaration lives in
 |---------|------------------|----------|------------|
 | Current-state table | `CURRENT_STATE` | `created_dts`, `updated_dts` | SCD2 validity pair, `is_current` |
 | Append-only event / fact | `EVENT_APPEND_ONLY` | audit columns + ≥1 `<event>_dts` | lifecycle flags, SCD2 period (normally) |
-| SCD2 history | `SCD2_HISTORY` | validity pair, `is_current`, audit columns | — (`is_deleted`/`is_active` only when applicable) |
+| SCD2 history | `SCD2_HISTORY` | validity pair, `is_current`, audit columns |: (`is_deleted`/`is_active` only when applicable) |
 | Association / bridge | `ASSOCIATION_CURRENT` or `ASSOCIATION_SCD2` | per the chosen underlying profile | per the chosen underlying profile |
 | Operational log / audit | `OPERATIONAL_LOG` | audit + event timestamps | lifecycle / SCD2 columns unless the logged object is versioned |
 | SCD2 bitemporal | `SCD2_BITEMPORAL` | SCD2 required columns + transaction-time pair | - |
@@ -190,7 +190,7 @@ Two different "still open" situations take different representations:
 
 ## 9. Access Exposure Policy
 
-The pattern defines two exposure **surfaces** per consumable entity. How each is realised — views, schemas, grants, or direct table access — is a platform decision bound in the implementation and governed by the [access-layer pattern](access-layer.md); every platform provides both surfaces, however thinly.
+The pattern defines two exposure **surfaces** per consumable entity. How each is realised, views, schemas, grants, or direct table access, is a platform decision bound in the implementation and governed by the [access-layer pattern](access-layer.md); every platform provides both surfaces, however thinly.
 
 - The **governed full-contract surface** exposes every temporal and lifecycle column, for auditors, maintainers, and history-aware consumers.
 - The **default current surface** per consumable entity: filters on authoritative current validity **plus** `is_current`; additionally excludes deleted rows when deletion is supported; hides `valid_to_dts`, `is_current`, deletion metadata, and operational audit timestamps by default; may expose `valid_from_dts` as "effective since"; exposes `is_active` only where business-meaningful; exposes event timestamps when part of the consumer contract.
@@ -205,10 +205,10 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 
 | Rule | Check |
 |------|-------|
-| TLM-01 **[B]** | Every persisted table declares exactly one profile () in the Semantic entity metadata. |
+| TLM-01 **[B]** | Every persisted table declares exactly one profile  in the Semantic entity metadata. |
 | TLM-02 **[B]** | All required columns for the declared profile exist. |
 | TLM-03 | No prohibited columns for the declared profile exist. |
-| TLM-04 | No prohibited generic names () exist. |
+| TLM-04 | No prohibited generic names  exist. |
 | TLM-05 | Physical type, precision, time-zone handling, and flag representation match the implementation. |
 | TLM-06 **[B]** | Flags are non-null and restricted to the two values. |
 | TLM-07 **[B]** | Validity bounds are non-null and `valid_from_dts < valid_to_dts`. |
@@ -230,7 +230,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 
 **Legacy-to-canonical mapping** (forms found in existing products and their replacements): DATE-grain `valid_from`/`valid_to` and `effective_date`/`expiration_date` → `valid_from_dts`/`valid_to_dts` (grain widens day → timestamp); `created_at`/`created_dt`/`created_timestamp`/`created_date` → `created_dts`; `updated_at`/`updated_timestamp` → `updated_dts`; `is_active`-as-currency → `is_current` (retain `is_active` only for a distinct documented approval state); audit-only dialects (`rec_load_dts`/`rec_updt_dts`) → canonical audit columns; transaction-time-as-mandatory → optional `SCD2_BITEMPORAL` variant.
 
-**Migration rules:** new products apply the canonical contract immediately; deployed products migrate through **versioned compatibility projections** (a compatibility surface presenting canonical names over legacy columns until base tables are regenerated — consumers never parse dialects); widening alone cannot recover semantics (DATE→timestamp migrations document that intra-day ordering is unavailable for historical rows); validators flag non-canonical names on new objects while allowing registered legacy aliases with an expiry.
+**Migration rules:** new products apply the canonical contract immediately; deployed products migrate through **versioned compatibility projections** (a compatibility surface presenting canonical names over legacy columns until base tables are regenerated, consumers never parse dialects); widening alone cannot recover semantics (DATE→timestamp migrations document that intra-day ordering is unavailable for historical rows); validators flag non-canonical names on new objects while allowing registered legacy aliases with an expiry.
 
 **Precedence.** Where any other design standard disagrees on the naming, typing, grain, sentinel, or lifecycle semantics of temporal metadata, this pattern takes precedence; a disagreeing document is aligned at its next revision.
 
@@ -238,11 +238,11 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 
 ## 12. Relationship to Other Standards
 
-- **[Validation pattern](validation.md)** — rules are written to lift directly into validator profiles; blocking rules gate agent use.
-- **[Object-placement pattern](object-placement.md)** — layer *naming* is owned by object placement; defines layer *responsibilities* only.
-- **[Access-layer pattern](access-layer.md)** — realises the surfaces as concrete access objects.
-- **[Semantic module](../modules/semantic.md)** — its entity metadata carries the profile declaration (); its own catalogue tables follow the current-state or SCD2 profile.
-- **Implementation** — the Teradata binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in [`implementation/teradata/patterns/temporal-lifecycle-metadata/`](../../implementation/teradata/patterns/temporal-lifecycle-metadata/).
+- **[Validation pattern](validation.md)**: rules are written to lift directly into validator profiles; blocking rules gate agent use.
+- **[Object-placement pattern](object-placement.md)**: layer *naming* is owned by object placement; defines layer *responsibilities* only.
+- **[Access-layer pattern](access-layer.md)**: realises the surfaces as concrete access objects.
+- **[Semantic module](../modules/semantic.md)**: its entity metadata carries the profile declaration; its own catalogue tables follow the current-state or SCD2 profile.
+- **Implementation**: the Teradata binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in [`implementation/teradata/patterns/temporal-lifecycle-metadata/`](../../implementation/teradata/patterns/temporal-lifecycle-metadata/).
 
 ---
 

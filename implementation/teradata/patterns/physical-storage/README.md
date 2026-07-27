@@ -9,7 +9,7 @@ implements: physical-storage
 platform: teradata
 ---
 
-# Teradata — Physical Storage (conforming reference implementation)
+# Teradata: Physical Storage (conforming reference implementation)
 
 A conforming implementation of the [`physical-storage`](../../../../design/patterns/physical-storage.md) interface spec, for Teradata deployments that use **object storage with an Open Table Format** (Teradata's Open Table Format / Lake support over Iceberg on S3/ADLS/GCS). It is the companion to the [object-placement](../object-placement/) implementation.
 

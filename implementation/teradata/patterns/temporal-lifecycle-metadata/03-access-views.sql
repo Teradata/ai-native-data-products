@@ -1,4 +1,4 @@
--- Temporal & Lifecycle Metadata — access views (Teradata).
+-- Temporal & Lifecycle Metadata: access views (Teradata).
 -- Binding of design/patterns/temporal-lifecycle-metadata.md §8. Default current
 -- surface selects from the governed view, never the base table (TLM-14).
 

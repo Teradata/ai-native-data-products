@@ -1,5 +1,5 @@
 {#
-  Similarity search and RAG retrieval — Teradata binding of design/modules/search.md §7.
+  Similarity search and RAG retrieval. Teradata binding of design/modules/search.md §7.
   Capability: NearestNeighbors (TD_VectorDistance). Content always comes from the
   join-back to Domain, never from the embedding row (INV-SEARCH-004).
 
@@ -48,7 +48,7 @@ ORDER BY dt.distance;
 
 
 -- RAG retrieval: same shape with a query embedding and k tuned for context assembly.
--- :query_embedding is produced by Embed(question, model) — in-database ONNX or external API.
+-- :query_embedding is produced by Embed(question, model): in-database ONNX or external API.
 SELECT
     d.{{ entity.lower }}_key,
 {%- for c in entity.content_columns %}

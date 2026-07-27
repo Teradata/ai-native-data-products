@@ -7,7 +7,7 @@ version: 2.0
 normative: true
 ---
 
-# Validation — Pattern
+# Validation: Pattern
 
 ## AI-Native Data Product Architecture
 
@@ -21,12 +21,12 @@ normative: true
 | **Type** | Pattern (cross-cutting, platform-agnostic) |
 | **Scope** | Machine-readable validation results and the agent stop/go gate for every product |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
-| **Module home** | [Observability](../modules/observability.md) — validation results are operational evidence |
+| **Module home** | [Observability](../modules/observability.md): validation results are operational evidence |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Wire schema** | 2.0 (canonical); 1.0 registered as a legacy binding |
 | **Implementations** | [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/) |
 
-This pattern defines the **validation result contract** and the **gate** an agent evaluates before using a product. Each module and pattern contributes *conformance checks* — its invariants, the temporal `TLM-01..17` rules, the Semantic primary-object validations — which validators execute and publish as results in this contract. Results are append-only operational evidence in the Observability module (temporal profile `EVENT_APPEND_ONLY`).
+This pattern defines the **validation result contract** and the **gate** an agent evaluates before using a product. Each module and pattern contributes *conformance checks*, its invariants, the temporal `TLM-01..17` rules, the Semantic primary-object validations, which validators execute and publish as results in this contract. Results are append-only operational evidence in the Observability module (temporal profile `EVENT_APPEND_ONLY`).
 
 ---
 
@@ -36,8 +36,8 @@ An agent needs a published validation *result* and an explicit gate to evaluate 
 
 1. **One results contract, many producers.** A unit-test harness, a simple validator, or a full trust engine all publish the same record shape, distinguished by `producer_id`.
 2. **Trust is computed by a validator, only.** Consumers are read-only: they act on published results and never re-derive a verdict from raw evidence.
-3. **The stop/go decision is authoritative and singular.** Each product designates one gate-authoritative producer (); its latest `agent_use_allowed` is a decision, not advice. Critical failures block use regardless of any score.
-4. **Validation results are operational evidence** — append-only event records in Observability.
+3. **The stop/go decision is authoritative and singular.** Each product designates one gate-authoritative producer; its latest `agent_use_allowed` is a decision, not advice. Critical failures block use regardless of any score.
+4. **Validation results are operational evidence**: append-only event records in Observability.
 
 ---
 
@@ -66,22 +66,22 @@ One logical record per product per producer per run; consumers read the **latest
 | `product_prefix` | Product identity the run evaluated |
 | `producer_id`, `producer_version` | Identity and version of the producing validator/harness |
 | `profile_id`, `profile_version` | Decision/check profile evaluated (nullable for simple harnesses) |
-| `source_format` | Provenance: `NATIVE`, or the interchange format it was ingested from () |
+| `source_format` | Provenance: `NATIVE`, or the interchange format it was ingested from |
 | `payload_schema_version` | Wire schema version of this record |
 | `run_id` | Deterministic run identifier |
 | `started_dts`, `completed_dts` | Run instants (typed timestamps, persisted UTC) |
-| `trust_status` | `TRUSTED` \| `DEGRADED` \| `UNTRUSTED` () |
+| `trust_status` | `TRUSTED` \| `DEGRADED` \| `UNTRUSTED` |
 | `agent_use_allowed` | Stop/go decision: go / stop |
-| `total_checks`, `passed_count`, `failed_count`, `error_count` | Check totals by **status** () |
-| `critical_failure_count`, `error_failure_count` | Gate counts by **severity** among failed/errored checks () |
-| `data_product_trust_score` | Conformance score, 0–100 or null () |
-| `performance_readiness_score`, `operational_readiness_score` | Other score dimensions, 0–100 or null () |
+| `total_checks`, `passed_count`, `failed_count`, `error_count` | Check totals by **status** |
+| `critical_failure_count`, `error_failure_count` | Gate counts by **severity** among failed/errored checks |
+| `data_product_trust_score` | Conformance score, 0-100 or null |
+| `performance_readiness_score`, `operational_readiness_score` | Other score dimensions, 0-100 or null |
 | `repair_candidate_count` | True (uncapped) number of repair candidates |
-| `failed_checks_json` | Machine-readable failure detail, capped () |
-| `repair_candidates_json` | Machine-readable repair proposals, capped () |
+| `failed_checks_json` | Machine-readable failure detail, capped |
+| `repair_candidates_json` | Machine-readable repair proposals, capped |
 | `evidence_expires_dts` | Producer-declared expiry of this evidence (nullable;) |
 
-A simple test harness populates the identity, status, and count fields and leaves scores, JSON blobs, and profile fields null — a fully conformant result. Runs are **appended**, never overwritten.
+A simple test harness populates the identity, status, and count fields and leaves scores, JSON blobs, and profile fields null: a fully conformant result. Runs are **appended**, never overwritten.
 
 ---
 
@@ -111,8 +111,8 @@ Implementation profiles may **tighten** the default profile but never loosen it.
 
 Two independent axes:
 
-- **Status** — what happened when the check ran: `PASSED` | `FAILED` | `ERROR` (could not execute).
-- **Severity** — how much a failure matters: `INFO` | `WARNING` | `ERROR` | `CRITICAL`.
+- **Status**: what happened when the check ran: `PASSED` | `FAILED` | `ERROR` (could not execute).
+- **Severity**: how much a failure matters: `INFO` | `WARNING` | `ERROR` | `CRITICAL`.
 
 | Field | Counts |
 |-------|--------|
@@ -121,7 +121,7 @@ Two independent axes:
 | `error_failure_count` | Failed/errored checks with **severity** `ERROR` |
 | `failed_count` | Checks with status `FAILED`, any severity |
 
-`WARNING`/`INFO` failures feed `failed_count` but not the gate counts — they can produce `DEGRADED`, never `UNTRUSTED`. Producers whose native format carries no severity default failed checks to `ERROR`. The three gate counts are **authoritative**; the JSON blobs are capped and must never be counted by consumers.
+`WARNING`/`INFO` failures feed `failed_count` but not the gate counts: they can produce `DEGRADED`, never `UNTRUSTED`. Producers whose native format carries no severity default failed checks to `ERROR`. The three gate counts are **authoritative**; the JSON blobs are capped and must never be counted by consumers.
 
 ---
 
@@ -135,7 +135,7 @@ Scores are **optional**: null means *not assessed*, never *perfect*. Where compu
 | `performance_readiness_score` | PERFORMANCE |
 | `operational_readiness_score` | OPERATIONAL |
 
-Only `data_product_trust_score` participates in the default profile's thresholds (). The three scores are reported separately and must not be blended.
+Only `data_product_trust_score` participates in the default profile's thresholds. The three scores are reported separately and must not be blended.
 
 ---
 
@@ -164,7 +164,7 @@ Only `data_product_trust_score` participates in the default profile's thresholds
 }
 ```
 
-Rules: the check-level identifier is **`test_id`** (`issue_code` exists only inside `sample_rows`); every `sample_rows` element carries `issue_code`, `repair_hint`, and the object-identifying keys; `row_count` is the **true** total, `sample_rows` the first ≤ 3 — consumers render the remainder as `+ (row_count − shown) more`, never by counting the blob; `error_message` is non-null only for status `ERROR`; every issue code is catalogued in the producer's documentation; the blob is optional for count-only producers.
+Rules: the check-level identifier is **`test_id`** (`issue_code` exists only inside `sample_rows`); every `sample_rows` element carries `issue_code`, `repair_hint`, and the object-identifying keys; `row_count` is the **true** total, `sample_rows` the first ≤ 3: consumers render the remainder as `+ (row_count − shown) more`, never by counting the blob; `error_message` is non-null only for status `ERROR`; every issue code is catalogued in the producer's documentation; the blob is optional for count-only producers.
 
 ---
 
@@ -183,13 +183,13 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 }
 ```
 
-`mode` ∈ `detect` | `proposal` | `safe-auto`. `requires_approval = true` candidates must never be executed autonomously — a candidate is a proposal, not an instruction; a consumer executing repair does so under its own change-management controls. Optional when no repairs are proposed.
+`mode` ∈ `detect` | `proposal` | `safe-auto`. `requires_approval = true` candidates must never be executed autonomously: a candidate is a proposal, not an instruction; a consumer executing repair does so under its own change-management controls. Optional when no repairs are proposed.
 
 ---
 
 ## 9. Consumption Contract and Gate Authority
 
-**Gate authority.** Multiple producers may publish for one product; the decision stays singular. Each product **designates exactly one gate-authoritative producer** in its orientation metadata. The product-level gate is that producer's latest `agent_use_allowed` / `trust_status`. Other producers' results are **evidence** — surfaced (especially disagreements) but not gate-moving. Absent a designation, consumers apply the conservative composite: blocked if **any** producer's latest blocks.
+**Gate authority.** Multiple producers may publish for one product; the decision stays singular. Each product **designates exactly one gate-authoritative producer** in its orientation metadata. The product-level gate is that producer's latest `agent_use_allowed` / `trust_status`. Other producers' results are **evidence**: surfaced (especially disagreements) but not gate-moving. Absent a designation, consumers apply the conservative composite: blocked if **any** producer's latest blocks.
 
 **Consumer rules.** Read the gate **before** analytical use (discovering its location and the designated producer through product orientation); `agent_use_allowed = stop` (or `UNTRUSTED`) is a stop signal for autonomous use with no silent override; `DEGRADED` permits use but the degradation is surfaced; never re-derive verdicts or recount capped blobs; treat unknown JSON keys as additive extension (ignore, don't fail); apply the staleness rules.
 
@@ -197,7 +197,7 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 
 ## 10. Schema Versioning and Evolution
 
-Every record carries `payload_schema_version`; the canonical version is **`2.0`**. **Wire schema `1.0`** is the registered legacy binding (the same status/count/score/JSON fields without the producer-identity, `source_format`, `payload_schema_version`, or `evidence_expires_dts` fields); consumers treat a 1.0 record as an implied single producer. Incompatible changes bump the major version; additive optional fields are compatible within a major version. Producer and consumer are held together by a **shared golden fixture** — both build gates fail on drift.
+Every record carries `payload_schema_version`; the canonical version is **`2.0`**. **Wire schema `1.0`** is the registered legacy binding (the same status/count/score/JSON fields without the producer-identity, `source_format`, `payload_schema_version`, or `evidence_expires_dts` fields); consumers treat a 1.0 record as an implied single producer. Incompatible changes bump the major version; additive optional fields are compatible within a major version. Producer and consumer are held together by a **shared golden fixture**: both build gates fail on drift.
 
 ---
 
@@ -205,7 +205,7 @@ Every record carries `payload_schema_version`; the canonical version is **`2.0`*
 
 1. **Evidence window.** A producer may declare per-record expiry; a product may declare a maximum evidence age in orientation. Absent both, the default window is **7 days** from `completed_dts`.
 2. **Stale evidence** (past expiry / older than window): autonomous consumers treat the product as stop, whatever the recorded status; interactive consumers surface staleness prominently.
-3. **No evidence**: the product is *unvalidated*, not trusted-by-default — autonomous consumers must not proceed.
+3. **No evidence**: the product is *unvalidated*, not trusted-by-default: autonomous consumers must not proceed.
 4. **Incomplete evidence** (`total_checks = 0` or unparseable): treat as no evidence.
 
 Staleness can only downgrade a decision, never upgrade one.
@@ -216,7 +216,7 @@ Staleness can only downgrade a decision, never upgrade one.
 
 - **`test_id` scheme:** `{PRODUCT-PREFIX}-{FAMILY}-{NNN}` (e.g. `CALLCENTRE-SEM-008`); parameterised checks may extend the suffix. Stable across runs. Ingested results map their native identity into this scheme deterministically.
 - **Categories** (drive score families): `STRUCTURAL`, `SEMANTIC`, `QUERY`, `CAPABILITY`, `PERFORMANCE`, `OPERATIONAL`, `DATA_QUALITY`, `FREE_TEXT`.
-- Validators prove the product's **self-describing metadata** (semantic catalogue, orientation manifest, relationships, cookbook) against what is physically deployed. The temporal pattern's `TLM-01..17` rules (blocking → CRITICAL/ERROR) and the Semantic module's primary-object validations lift directly into validator profiles — as do each module's own `INV-*` invariant checks.
+- Validators prove the product's **self-describing metadata** (semantic catalogue, orientation manifest, relationships, cookbook) against what is physically deployed. The temporal pattern's `TLM-01..17` rules (blocking → CRITICAL/ERROR) and the Semantic module's primary-object validations lift directly into validator profiles: as do each module's own `INV-*` invariant checks.
 
 ---
 
@@ -243,24 +243,24 @@ The result is mappable from/to established open formats; `source_format` records
 | VAL-02 | `agent_use_allowed` agrees with `trust_status` per. |
 | VAL-03 | The default decision profile is never loosened. |
 | VAL-04 | `total_checks = passed_count + failed_count + error_count`. |
-| VAL-05 | Gate counts are consistent with the severity model (). |
-| VAL-06 | Scores are 0–100 integers or null; null only when not assessed. |
+| VAL-05 | Gate counts are consistent with the severity model. |
+| VAL-06 | Scores are 0-100 integers or null; null only when not assessed. |
 | VAL-07 | JSON blobs respect their caps; true totals live in `row_count` / `repair_candidate_count`. |
 | VAL-08 | Every `sample_rows` element carries `issue_code` and `repair_hint`; every issue code is catalogued. |
 | VAL-09 | Runs are appended; the latest-per-(product, producer) projection is deterministic (`completed_dts`, then `run_id`). |
 | VAL-10 | Consumers apply staleness outcomes; no silent override of a blocked gate. |
 | VAL-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
 | VAL-12 | Every record carries non-null `producer_id` and `payload_schema_version`. |
-| VAL-13 | The gate is taken only from the designated producer (); absent designation, the conservative composite applies. |
+| VAL-13 | The gate is taken only from the designated producer; absent designation, the conservative composite applies. |
 
 ---
 
 ## 15. Relationship to Other Standards
 
-- **[Observability module](../modules/observability.md)** — the module home for validation results, alongside its other run/event evidence.
-- **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)** — the results table declares profile `EVENT_APPEND_ONLY`; `TLM` blocking rules are canonical CRITICAL/ERROR checks.
-- **[Semantic module](../modules/semantic.md)** — its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation declares the results location and the gate-authoritative producer, so trust evaluation precedes analytical resource use.
-- **Implementation** — the Teradata binding (results table, DBC/data checks, wire-schema bindings) lives in [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/).
+- **[Observability module](../modules/observability.md)**: the module home for validation results, alongside its other run/event evidence.
+- **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)**: the results table declares profile `EVENT_APPEND_ONLY`; `TLM` blocking rules are canonical CRITICAL/ERROR checks.
+- **[Semantic module](../modules/semantic.md)**: its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation declares the results location and the gate-authoritative producer, so trust evaluation precedes analytical resource use.
+- **Implementation**: the Teradata binding (results table, DBC/data checks, wire-schema bindings) lives in [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/).
 
 ---
 

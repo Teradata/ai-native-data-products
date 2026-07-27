@@ -9,7 +9,7 @@ implements: access-layer
 platform: teradata
 ---
 
-# Teradata — Access Layer Implementation
+# Teradata: Access Layer Implementation
 
 Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patterns/access-layer.md). Creates the three product roles and grants them access as each module deploys. Read the pattern first for the role model, grant matrix, and two-phase timing.
 

@@ -1,7 +1,7 @@
 """Unit tests for the frontmatter, corpus, and decision rules (Design Language S3.1, S3.2, S8).
 
-Frontmatter carries identity only; a document's substance — capabilities and the decisions
-it asks a designer to settle — is read from the body. These tests hold that line.
+Frontmatter carries identity only; a document's substance: capabilities and the decisions
+it asks a designer to settle: is read from the body. These tests hold that line.
 
 Run from anywhere:
     python -m unittest discover -s tooling/validation/tests
@@ -76,7 +76,7 @@ normative: true
 
 ### 6.2 Something else
 
-| `NotACapability` | should not be picked up | — |
+| `NotACapability` | should not be picked up |: |
 """
 
 DECISION_DOC = """---

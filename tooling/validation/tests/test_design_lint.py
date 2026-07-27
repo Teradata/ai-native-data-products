@@ -19,14 +19,14 @@ from design_lint import (  # noqa: E402
 
 CLEAN_ENTITY_DOC = """# Domain
 
-Some prose that mentions a table, a view, a date, and the default metric — all fine.
+Some prose that mentions a table, a view, a date, and the default metric: all fine.
 
 ```
 Entity: Party                     [kind: History]
-  party_id   : Identifier                     — surrogate, stable across versions
-  party_key  : NaturalKey [required] [unique] — business identifier from source
-  legal_name : ShortText [optional]           — registered legal name
-  tax_id     : ShortText [optional] [pii]     — tax identifier
+  party_id   : Identifier: surrogate, stable across versions
+  party_key  : NaturalKey [required] [unique]: business identifier from source
+  legal_name : ShortText [optional]: registered legal name
+  tax_id     : ShortText [optional] [pii]: tax identifier
 
   Keys:
     surrogate: party_id

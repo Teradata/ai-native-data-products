@@ -1,4 +1,4 @@
--- Access Layer — mandatory documentation record (Teradata).
+-- Access Layer: mandatory documentation record (Teradata).
 -- Binding of design/patterns/access-layer.md §5. Captures the accepted role model,
 -- permission boundary, and rationale inside the product so agents can read the
 -- access contract at runtime. Delivered with the product's Memory documentation inserts.

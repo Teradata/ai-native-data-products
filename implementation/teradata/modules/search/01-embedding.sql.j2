@@ -1,5 +1,5 @@
 {#
-  Entity embedding table — Teradata binding of design/modules/search.md §4.
+  Entity embedding table. Teradata binding of design/modules/search.md §4.
   Native VECTOR datatype, keys only (no content). Capabilities: RichMetadata,
   CurrentStateFilter. Invariant support: INV-SEARCH-001,002,003,005.
 
@@ -13,7 +13,7 @@
 CREATE TABLE {{ database }}.entity_embedding (
     embedding_id        INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
 
-    -- Entity reference (KEY ONLY — no content duplication)
+    -- Entity reference (KEY ONLY: no content duplication)
     entity_id           BIGINT NOT NULL,        -- FK to a Domain entity
     entity_kind         VARCHAR(50) NOT NULL,   -- {{ entity_kinds | default('PARTY, PRODUCT, DOCUMENT') }}
 
