@@ -1,3 +1,12 @@
+---
+title: Glossary
+anchor: glossary
+type: core
+status: standard
+version: 1.0
+normative: false
+---
+
 # Glossary
 
 ## AI-Native Data Product Architecture — Shared Vocabulary

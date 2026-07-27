@@ -1,3 +1,14 @@
+---
+title: Teradata — Observability Module Implementation
+anchor: observability
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: observability
+platform: teradata
+---
+
 # Teradata — Observability Module Implementation
 
 Teradata binding of [`design/modules/observability.md`](../../../../design/modules/observability.md).
@@ -9,9 +20,9 @@ discovery views deploy into `{{ product }}_Semantic`.
 
 | File | Purpose |
 |------|---------|
-| `01-event-tables.sql` | `change_event`, `data_quality_metric`, `model_performance`, `agent_outcome`. |
-| `02-lineage-tables.sql` | `data_lineage` (definitional) and `lineage_run` (operational). |
-| `03-lineage-views.sql` | `lineage_graph` and `lineage_run_latest` — deployed into the Semantic container. |
+| `01-event-tables.sql.j2` | `change_event`, `data_quality_metric`, `model_performance`, `agent_outcome`. |
+| `02-lineage-tables.sql.j2` | `data_lineage` (definitional) and `lineage_run` (operational). |
+| `03-lineage-views.sql.j2` | `lineage_graph` and `lineage_run_latest` — deployed into the Semantic container. |
 | `04-openlineage.md` | OpenLineage entity/column mapping and RunEvent construction. |
 
 **Validation results.** The `validation_run` table and its `validation_latest` gate view are defined

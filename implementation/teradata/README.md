@@ -3,9 +3,9 @@
 Teradata's conforming implementation of the patterns and modules defined under
 [`design/`](../../design). Mirrors the design hierarchy by anchor name.
 
-This directory is currently **scaffolding only**. Content migrates from
-`platform-standards/` — and from the DDL currently living inside the generated
-skill package — in a follow-up PR; see issue #44.
+Physical-design conventions that apply across every binding here — primary
+index selection, partitioning, compression, statistics — live in
+[`PLATFORM_PROFILE.md`](PLATFORM_PROFILE.md).
 
 ---
 
@@ -23,6 +23,37 @@ than one artifact — a binding document plus one or more templates.
 
 Adding a platform means creating a same-shaped sibling of this directory
 (`implementation/postgres/`, say), not inventing a new layout.
+
+## Catalogue
+
+Generated from document frontmatter by
+[`tooling/catalogue`](../../tooling/catalogue) — do not edit by hand.
+
+<!-- catalogue:start -->
+
+### Platform profile
+
+| Document | Anchor | Status | Provides | Requires |
+|---|---|---|---|---|
+| [Teradata Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `teradata` | standard | — | — |
+
+### Bindings
+
+| Document | Anchor | Status | Provides | Requires |
+|---|---|---|---|---|
+| [Teradata — Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | standard | — | — |
+| [Teradata — Domain Module Implementation](modules/domain/README.md) | `domain` | standard | — | — |
+| [Teradata — Memory Module Implementation](modules/memory/README.md) | `memory` | standard | — | — |
+| [Teradata — Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | standard | — | — |
+| [Teradata — Observability Module Implementation](modules/observability/README.md) | `observability` | standard | — | — |
+| [Teradata — Physical Storage Pattern Implementation](patterns/physical-storage/README.md) | `physical-storage` | standard | — | — |
+| [Teradata — Prediction Module Implementation](modules/prediction/README.md) | `prediction` | standard | — | — |
+| [Teradata — Search Module Implementation](modules/search/README.md) | `search` | standard | — | — |
+| [Teradata — Semantic Module Implementation](modules/semantic/README.md) | `semantic` | standard | — | — |
+| [Teradata — Temporal Lifecycle Metadata Pattern Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | standard | — | — |
+| [Teradata — Validation Pattern Implementation](patterns/validation/README.md) | `validation` | standard | — | — |
+
+<!-- catalogue:end -->
 
 ---
 

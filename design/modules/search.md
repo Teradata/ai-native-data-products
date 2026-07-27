@@ -1,3 +1,49 @@
+---
+title: Search Module
+anchor: search
+type: module
+status: standard
+version: 2.0
+normative: true
+provides:
+  - NearestNeighbors
+  - Embed
+  - ApproxIndex
+requires:
+  - capability: EntityJoinBack
+    strength: hard
+    provider: module:domain
+  - capability: CurrentStateFilter
+    strength: hard
+    provider: self
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+  - capability: AccessView
+    strength: hard
+    provider: self
+  - capability: SemanticRegistration
+    strength: soft
+    provider: module:semantic
+  - capability: DocumentationCapture
+    strength: soft
+    provider: module:memory
+patterns:
+  - temporal-lifecycle-metadata
+  - object-placement
+  - physical-storage
+  - access-layer
+  - validation
+decisions:
+  - id: DEC-TEMPORAL-PATTERN
+    choice: scd2
+    because: an embedding is regenerated wholesale when its source content or model changes, so there is no late-arriving correction to a past embedding
+  - id: DEC-DELETE-STRATEGY
+    choice: soft-delete
+  - id: DEC-TIMESTAMP-ZONE
+    choice: zone-aware
+---
+
 # Search Module — Design Standard
 
 ## AI-Native Data Product Architecture

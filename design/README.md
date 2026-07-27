@@ -5,9 +5,10 @@ Platform-neutral design hierarchy — **what** an AI-Native Data Product is and
 [`implementation/`](../implementation), which holds the **how** for each
 platform.
 
-This directory is currently **scaffolding only**. Content migrates from
-`design-standards/` and `platform-standards/` in a follow-up PR; see issue #44
-for the phasing and the old-path → new-path mapping.
+Everything here is written in the notation defined by
+[`core/DESIGN_LANGUAGE.md`](core/DESIGN_LANGUAGE.md), and the
+[design linter](../tooling/validation) enforces it — a design document that
+leaks platform SQL fails the build.
 
 ---
 
@@ -15,31 +16,63 @@ for the phasing and the old-path → new-path mapping.
 
 ```
 design/
-├── core/       philosophy, vocabulary, and cross-cutting guidance
+├── core/       the notation, the vocabulary, the architecture, the decisions
 ├── modules/    one document per module — logical rules only
 └── patterns/   the logical/physical bridge — each has a platform binding
 ```
 
-### `core/`
+**`core/`** describes the architecture as a whole rather than any one module or
+pattern: the notation everything is written in, the shared vocabulary, the master
+design, and the decision catalogue.
 
-The master design and the vocabulary it depends on. Documents here describe the
-architecture as a whole rather than any one module or pattern.
+**`modules/`** holds one document per module, carrying logical rules — entities,
+responsibilities, relationships — with no physical representation.
 
-### `modules/`
+**`patterns/`** is the bridge layer between logical design and physical
+implementation. The membership test is: **does this document have, or need, a
+per-platform binding document?** If yes, it is a pattern, regardless of which
+module references it. The validation pattern names Observability as its module
+home but lives here, because the binding pairing is the structural signal and
+module ownership is a content-level cross-reference.
 
-One document per module, named for the module: `domain.md`, `semantic.md`,
-`search.md`, `prediction.md`, `observability.md`, `memory.md`. These carry the
-logical rules — entities, responsibilities, relationships — with no physical
-representation.
+## Catalogue
 
-### `patterns/`
+Generated from document frontmatter by
+[`tooling/catalogue`](../tooling/catalogue) — do not edit by hand.
 
-The bridge layer between logical design and physical implementation. The
-membership test is: **does this document have, or need, a per-platform binding
-document?** If yes, it is a pattern, regardless of which module references it.
-`validation.md` names Observability as its module home but lives here, because
-the binding pairing is the structural signal and module ownership is a
-content-level cross-reference.
+<!-- catalogue:start -->
+
+### Core
+
+| Document | Anchor | Status | Provides | Requires |
+|---|---|---|---|---|
+| [Advocated Standards — Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | — | — |
+| [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | — | — |
+| [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | — | — |
+| [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | — | — |
+
+### Patterns
+
+| Document | Anchor | Status | Provides | Requires |
+|---|---|---|---|---|
+| [Access Layer Pattern](patterns/access-layer.md) | `access-layer` | standard | `AccessView` | `DocumentationCapture` |
+| [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | — | — |
+| [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | — | — |
+| [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | `RichMetadata` |
+| [Validation Pattern](patterns/validation.md) | `validation` | standard | — | — |
+
+### Modules
+
+| Document | Anchor | Status | Provides | Requires |
+|---|---|---|---|---|
+| [Domain Module](modules/domain.md) | `domain` | standard | `EntityJoinBack`, `CurrentStateFilter`, `PointInTimeReconstruction`, `NaturalKeyLookup`, `AccessView`, `SoftDelete` | `SurrogateKeyAllocation`, `RichMetadata`, `MetadataCoverageCheck`, `SemanticRegistration`, `DocumentationCapture` |
+| [Memory Module](modules/memory.md) | `memory` | standard | `DocumentationCapture` | `RichMetadata`, `DocumentationCapture`, `SemanticRegistration`, `EntityJoinBack`, `QualityScore`, `NearestNeighbors` |
+| [Observability Module](modules/observability.md) | `observability` | standard | `ChangeEventCapture`, `LineageCapture`, `QualityScore` | `RichMetadata`, `SemanticRegistration`, `DocumentationCapture`, `EntityJoinBack` |
+| [Prediction Module](modules/prediction.md) | `prediction` | standard | `PointInTimeReconstruction`, `CurrentStateFilter`, `AccessView` | `EntityJoinBack`, `PointInTimeReconstruction`, `CurrentStateFilter`, `AccessView`, `RichMetadata`, `SemanticRegistration`, `DocumentationCapture` |
+| [Search Module](modules/search.md) | `search` | standard | `NearestNeighbors`, `Embed`, `ApproxIndex` | `EntityJoinBack`, `CurrentStateFilter`, `RichMetadata`, `AccessView`, `SemanticRegistration`, `DocumentationCapture` |
+| [Semantic Module](modules/semantic.md) | `semantic` | standard | `SemanticRegistration` | `RichMetadata`, `DocumentationCapture`, `EntityJoinBack` |
+
+<!-- catalogue:end -->
 
 ---
 
@@ -83,24 +116,29 @@ Not everything under `design/` carries the same weight:
 - **Advisory** — recommended practice. Useful, but not a conformance
   requirement.
 
-Every document declares its own classification in its Document Control table
-(see the `Type` and `Status` rows). Directory placement is a navigation aid, not
-a substitute for that declaration — read the header before treating a rule as
-binding.
+Every document declares its own classification in frontmatter, as `normative:
+true` or `normative: false`; the catalogue above marks advisory documents
+explicitly. Directory placement is a navigation aid, not a substitute for that
+declaration — read the frontmatter before treating a rule as binding.
 
-Where advocated (advisory) guidance ultimately lives is an open question:
-issue #16 proposes a separate `guidance/` directory to keep advisory material
-out of `core/`, so that placement alone does not imply conformance. That is
-resolved as part of the content migration, not here.
+**Advocated practice is not a third category.** Recommendations that were once
+advisory prose are expressed as **decisions** (Design Language Section 8): each
+names its options, marks one advocated, and states when the others are sound.
+What is normative is that an applicable decision must be *declared*; which option
+a product picks is its own. This is why there is no `guidance/` directory —
+advisory material that sits outside the design workflow cannot be applied
+consistently or checked at all, which is the problem the decision construct
+solves.
 
 ---
 
-## Document control
+## Document identity
 
-Each document carries a Document Control table recording version, status
-(`DRAFT` / `APPROVED` / `DEPRECATED`), last-updated date, owner, scope, type,
-and — for patterns — its platform bindings. When a contract changes, the
-compatibility and deprecation rules are recorded in that table.
+Each document declares `title`, `anchor`, `type`, `status` (`draft` / `standard`
+/ `deprecated`), `version`, and `normative` in frontmatter, plus its capability
+flow, applied patterns, and declared decisions. That block is authoritative: the
+linter validates it, the catalogue above is generated from it, and a cross-
+reference that does not resolve fails the build rather than going stale.
 
 ---
 
@@ -125,9 +163,9 @@ open work, tracked against #44 rather than settled here.
 
 ---
 
-## Placeholders
+## Empty directories
 
-Directories in this scaffold that hold no content yet are kept in git by an
-empty `.gitkeep` file. A `.gitkeep` marks a **reserved, unpopulated** location:
-there is no document there, and the absence of one carries no meaning. Nothing
-should read, render, or compile a `.gitkeep`.
+A directory reserved before it has content is held in git by an empty `.gitkeep`
+file. It marks the location and nothing more — no document is there, and the
+absence of one carries no meaning. Nothing should read, render, or compile a
+`.gitkeep`.

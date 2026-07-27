@@ -1,4 +1,13 @@
-<!-- design-lint: ignore-file (meta document: necessarily names SQL keywords and shows platform bindings to define the boundary) -->
+---
+title: Design Language
+anchor: design-language
+type: core
+status: standard
+version: 2.0
+normative: true
+lint: ignore-file
+lint_reason: meta document - necessarily names SQL keywords and shows platform bindings to define the boundary
+---
 
 # Design Language
 
@@ -23,11 +32,14 @@ This document defines the **notation and vocabulary** used by every document und
 
 `design/` is platform-agnostic. `implementation/{platform}/` is platform-specific. This document is the contract between the two: it defines the logical vocabulary that design documents write in, and that each platform implementation binds to concrete syntax.
 
-The three building blocks are:
+The four building blocks are:
 
 1. **Logical types** — a fixed vocabulary of attribute types with platform-neutral *semantics* (Section 4).
 2. **Capability contracts** — named *operations* a design requires, which each platform binds to its own mechanism (Section 6).
 3. **Invariants** — testable, platform-neutral *rules* a conforming implementation must satisfy (Section 7).
+4. **Decisions** — named *choices* a design must make explicitly, each with an advocated default and stated criteria for departing from it (Section 8).
+
+Every document also carries **frontmatter** (Section 3.1) — the machine-readable header that makes the corpus navigable without any document having to name another by filename.
 
 Design documents are written as **interface specifications** — they declare what an implementation must provide. Implementation documents are **conforming implementations** — they provide it. This mirrors the style already established by the pattern specs (`object-placement`, `physical-storage`).
 
@@ -54,22 +66,68 @@ The one-line rule: **semantics stay, syntax moves.**
 
 ### 2.1 The enforceable inclusion test
 
-The boundary is enforced automatically: **a `design/` document must contain no platform SQL.** This is checked by the validation linter (`tooling/validation`) and defined precisely in Section 8. If a design document needs to show SQL to make its point, that SQL belongs in the matching implementation document instead.
+The boundary is enforced automatically: **a `design/` document must contain no platform SQL.** This is checked by the validation linter (`tooling/validation`) and defined precisely in Section 9. If a design document needs to show SQL to make its point, that SQL belongs in the matching implementation document instead.
 
 ---
 
 ## 3. Document Types
 
-| Layer | Path | Written as | Contains |
+| `type` | Path | Written as | Contains |
 |---|---|---|---|
-| **Core** | `design/core/` | Foundational reference | This notation, the glossary, advocated standards, the master design. |
-| **Module** | `design/modules/<name>.md` | Interface spec | Logical entity model + capabilities + invariants for one module. |
-| **Pattern** | `design/patterns/<name>.md` | Interface spec | A cross-cutting concern that requires a platform binding (temporal lifecycle, object placement, physical storage, validation, access layer). |
-| **Implementation** | `implementation/<platform>/{modules,patterns}/<name>/` | Conforming implementation | The concrete DDL, queries, and bindings that satisfy the matching design document. |
+| `core` | `design/core/` | Foundational reference | The notation, the vocabulary, the architecture-level design, the decision catalogue. |
+| `module` | `design/modules/<anchor>.md` | Interface spec | Logical entity model + capabilities + invariants for one module. |
+| `pattern` | `design/patterns/<anchor>.md` | Interface spec | A cross-cutting concern that requires a platform binding. |
+| `implementation` | `implementation/<platform>/{modules,patterns}/<anchor>/` | Conforming implementation | The concrete DDL, queries, and bindings that satisfy the matching design document. |
+| `platform-profile` | `implementation/<platform>/` | Platform reference | Physical-design conventions applying across every binding for one platform. |
 
-**Anchor-name parity is required.** `design/modules/search.md` is implemented by `implementation/teradata/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by name.
+**Structure is carried in frontmatter, not in prose.** Which documents exist, what each one is, and how they relate is declared in frontmatter (Section 3.1) and resolved by anchor — never by a hand-maintained list of filenames, which goes stale the moment a document is added. Prose may still link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
 
-**Patterns are referenced, not re-encoded.** When a module depends on a cross-cutting concern (temporal columns, object placement), it *references the pattern* (Section 5) rather than restating it. Re-stating a pattern inline in every module is the duplication this structure exists to remove.
+**Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented at `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
+
+**Patterns are referenced, not re-encoded.** When a module depends on a cross-cutting concern, it *references the pattern by anchor* (Section 5) rather than restating it. Re-stating a pattern inline in every module is the duplication this structure exists to remove.
+
+### 3.1 Frontmatter
+
+Every **design document** opens with a YAML frontmatter block, delimited by `---`, before any Markdown. It is the machine-readable identity of the document: the linter validates it, and navigation is derived from it.
+
+A design document is a core, module, or pattern document under `design/`, a platform profile, or the binding document at the root of an implementation directory. Directory-level navigation files (`README.md` at a hierarchy root) and supporting material inside a binding directory are not design documents and carry no frontmatter — they describe or support the corpus rather than forming part of it.
+
+```yaml
+---
+title: Search Module
+anchor: search
+type: module              # core | module | pattern | implementation | platform-profile
+status: standard          # draft | standard | deprecated
+version: 2.0
+normative: true           # false marks the document advisory, not conformance-binding
+provides:                 # capabilities this document makes available (omit if none)
+  - NearestNeighbors
+requires:                  # capabilities consumed, with strength and provider
+  - capability: EntityJoinBack
+    strength: hard         # hard | soft
+    provider: module:domain
+patterns:                  # pattern anchors this document applies (omit if none)
+  - temporal-lifecycle-metadata
+decisions:                 # decisions this document declares (Section 8)
+  - id: DEC-TEMPORAL-PATTERN
+    choice: bi-temporal
+implements: search         # implementation docs only — the design anchor satisfied
+platform: teradata         # implementation docs only
+supersedes: []             # anchors this document replaces, when deprecating
+---
+```
+
+**Required of every document:** `title`, `anchor`, `type`, `status`, `version`, `normative`.
+**Required of `implementation` documents additionally:** `implements`, `platform`.
+**Optional everywhere:** `provides`, `requires`, `patterns`, `decisions`, `supersedes`.
+
+Three rules make the corpus resolvable:
+
+1. `anchor` must match the document's filename (or, for an implementation, its directory name).
+2. Every capability named in `provides` or `requires` must exist in the capability catalogue (Section 6.1) or be defined in the document itself.
+3. Every anchor named in `patterns`, `implements`, or `supersedes` must resolve to a document that exists.
+
+All three are enforced by the linter, so a dangling cross-reference fails the build rather than surviving as stale prose.
 
 ---
 
@@ -90,7 +148,7 @@ Design documents describe attributes using these logical types only. Each has fi
 | `Enum{A\|B\|C}` | A value from a small closed set fixed at design time. | Lists its members inline. Use `Code` instead when the set is data-driven or governed as reference data. |
 | `Integer` | Whole number (counts, ordinals, dimensions). | |
 | `Decimal(p,s)` | Exact fixed-point number (money, rates). | Precision/scale are semantic and stay in design. |
-| `Timestamp` | A point in time. Time-zone-aware unless stated otherwise. | Precision is an implementation choice. |
+| `Timestamp` | A point in time, **zone-aware**: the value fixes an instant, not a wall-clock reading. Stored normalised to UTC; presentation in a local zone is a consumer concern. | Precision is an implementation choice. A design that genuinely needs a zone-naive wall-clock value must declare `DEC-TIMESTAMP-ZONE` and record the assumed zone — it is never the silent default. |
 | `Date` | A calendar date with no time component. | |
 | `Flag` | A two-state indicator (yes/no, current/superseded, active/deleted). | Binds to whatever boolean-like type the platform prefers. |
 | `Vector[dim]` | A dense numeric embedding of fixed dimensionality `dim`. | `dim` is semantic (tied to the embedding model) and stays in design; the storage format is an implementation choice. |
@@ -187,6 +245,10 @@ A design document lists the capabilities it requires. Each platform implementati
 | `EntityJoinBack` | From a row in any module, obtain the referenced Domain entity's content. | foreign-key join to the Domain entity. |
 | `RichMetadata` | Attach descriptive, agent-readable metadata to every object and attribute. | column/table comments; catalogue metadata. |
 | `AccessView` | Expose a predictable, named view of current (and optionally enriched) records with an explicit column contract. | view with declared column list. |
+| `SoftDelete` | Mark an entity instance deleted without destroying its history: the instance stops satisfying `CurrentStateFilter`, remains reachable by `PointInTimeReconstruction`, and the deletion itself is an observable event. | deleted-flag predicate; the flag update as a versioning operation. |
+| `ChangeEventCapture` | Record who changed an entity instance, when, and why, as a queryable event separate from the instance itself. | insert into the Observability change-event entity. |
+| `LineageCapture` | Record the origin of an entity instance — source system, source record, and the run that produced it. | insert into the Observability lineage entities. |
+| `QualityScore` | Obtain a reliability score in `0.00`–`1.00` for an entity instance or set, decomposed into the rule categories that produced it, so an agent can judge fitness before use. | quality metric entity plus a scoring view. |
 | `MetadataCoverageCheck` | Confirm programmatically that every attribute carries metadata. | catalogue query returning uncommented columns. |
 | `SemanticRegistration` | Register the module's entities, columns, and relationships in the product's Semantic map so agents can discover them. | inserts into the Semantic discovery entities. |
 | `DocumentationCapture` | Record the module's design decisions, glossary terms, and change history in the product's Memory store. | inserts into the Memory documentation entities. |
@@ -256,7 +318,63 @@ Each invariant should have a corresponding check in the module's implementation 
 
 ---
 
-## 8. The No-Platform-SQL Rule (enforceable)
+## 8. Decisions
+
+Not everything a design must settle is a conformance requirement. Some things are genuine **choices** — bi-temporal or single-dimension history, soft delete or hard delete, quality scores stored inline or offloaded. There is a recommended answer for each, but the recommendation is not universal: a small reference table and a hundred-million-row entity warrant different answers.
+
+Historically this material lived in prose as *advocated guidance*, sitting outside the design workflow entirely. Guidance in that form has two defects: nothing records which option a design actually chose, and nothing can check that the implementation matches. A decision fixes both by making the choice a declared, checkable part of the design.
+
+**A decision is a named choice with an advocated default and stated criteria for departing from it.**
+
+### 8.1 Notation
+
+```
+Decision: DEC-<TOPIC>
+  Question:   <what must be settled>
+  Applies to: <module | pattern | entity kind | product>
+
+  Option: <option-name>            [advocated]
+    Summary:      <what choosing this means>
+    Implies:      <capabilities required / patterns applied when chosen>
+    Acceptable when: <criteria — always satisfiable for the advocated option>
+
+  Option: <option-name>
+    Summary:      <what choosing this means>
+    Implies:      <capabilities required / patterns applied when chosen>
+    Acceptable when: <the conditions under which this is a sound choice>
+    Requires:     <what must additionally be recorded to justify it>
+```
+
+**ID convention:** `DEC-<TOPIC>`, uppercase, unique across the corpus. Decisions are catalogued in one `core` document so that a designer meets the full set in one place; individual module and pattern documents declare their choices rather than restating the options.
+
+### 8.2 Declaring a choice
+
+A design document declares its decisions in frontmatter (Section 3.1):
+
+```yaml
+decisions:
+  - id: DEC-DELETE-STRATEGY
+    choice: soft-delete
+  - id: DEC-TEMPORAL-PATTERN
+    choice: scd2
+    because: corrections are not required for this reference set
+```
+
+`because` is optional when the advocated option is chosen and **required** when it is not — a departure from the recommendation must carry its reason, in the document, where a reviewer will find it.
+
+### 8.3 What makes a decision testable
+
+Three checks follow from a declaration, which is the whole point of expressing advocacy this way:
+
+1. **Declared** — a document that applies a decision must declare a choice. The linter fails a design that silently omits one.
+2. **Valid** — the declared `choice` must be one of the options the decision defines, and a non-advocated choice must carry `because`.
+3. **Honoured** — the implementation must match the declaration. Choosing `soft-delete` and then binding a destructive delete is a conformance failure, checkable by the same machinery that checks invariants.
+
+A decision therefore travels with the design rather than sitting beside it as advice: an agent reading a module knows what was chosen and why, and a reviewer can tell the difference between a deliberate departure and an oversight.
+
+---
+
+## 9. The No-Platform-SQL Rule (enforceable)
 
 A `design/` document must contain no platform SQL. The validation linter enforces this. The rule is defined to catch real entanglement while not flagging ordinary English (the words "table", "view", "date", "index" are fine in prose).
 
@@ -274,21 +392,24 @@ A design document **fails** the linter if any of the following appear:
 
 Module and pattern documents must never use the ignore directive — they are the content the rule exists to keep clean.
 
-The exact token lists live with the linter (`tooling/validation`) so the linter and this document stay in agreement; Section 8 is the human-readable statement of what that linter enforces.
+The exact token lists live with the linter (`tooling/validation`) so the linter and this document stay in agreement; Section 9 is the human-readable statement of what that linter enforces.
 
 ---
 
-## 9. Authoring Checklist
+## 10. Authoring Checklist
 
 Before a design document is considered conforming:
 
+- [ ] Frontmatter is present and complete, and `anchor` matches the filename (Section 3.1).
 - [ ] Every attribute uses a logical type from Section 4 (no platform types).
 - [ ] Structure is expressed in the Section 5 notation (no `CREATE`/`SELECT`).
-- [ ] Cross-cutting concerns are **referenced** as patterns, not restated inline.
+- [ ] Cross-cutting concerns are **referenced** by pattern anchor, not restated inline.
 - [ ] Every required behaviour is expressed as a capability (Section 6), not as a concrete query.
 - [ ] Principles are written as testable invariants with `INV-<MODULE>-<NNN>` ids (Section 7).
-- [ ] The matching `implementation/{platform}/…/<name>/` provides a binding for every capability and satisfies every invariant.
-- [ ] The document passes the validation linter (Section 8) with no ignore directive.
+- [ ] Every applicable decision is declared, and any departure from an advocated option carries its `because` (Section 8).
+- [ ] No other document is referred to by filename — cross-references resolve by anchor.
+- [ ] The matching implementation provides a binding for every capability and satisfies every invariant.
+- [ ] The document passes the validation linter (Section 9) with no ignore directive.
 
 ---
 

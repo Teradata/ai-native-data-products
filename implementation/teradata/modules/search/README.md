@@ -1,3 +1,14 @@
+---
+title: Teradata — Search Module Implementation
+anchor: search
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: search
+platform: teradata
+---
+
 # Teradata — Search Module Implementation
 
 Concrete Teradata binding of [`design/modules/search.md`](../../../../design/modules/search.md).
@@ -10,7 +21,7 @@ Read the design document first; this directory only adds Teradata specifics.
 | `01-embedding.sql.j2` | `entity_embedding` table — native `VECTOR`, keys only, full column metadata. |
 | `02-searchable-view.sql.j2` | `v_{entity}_searchable` — embedding joined to Domain content (`AccessView`). |
 | `03-similarity.sql.j2` | Similarity search and RAG retrieval templates (`NearestNeighbors` binding). |
-| `validation.sql` | Runnable checks for the module's invariants. |
+| `validation.sql.j2` | Runnable checks for the module's invariants. |
 
 The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`.
 
@@ -51,8 +62,8 @@ type otherwise.
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-SEARCH-001` (keys only) | `validation.sql` §1 — no content-like column on the embedding table. |
-| `INV-SEARCH-002` (references a current entity) | `validation.sql` §2 — every `entity_id` resolves to a current Domain row. |
-| `INV-SEARCH-003` (model + dims recorded) | `validation.sql` §3 — no null `embedding_model` / `embedding_dimensions`. |
+| `INV-SEARCH-001` (keys only) | `validation.sql.j2` §1 — no content-like column on the embedding table. |
+| `INV-SEARCH-002` (references a current entity) | `validation.sql.j2` §2 — every `entity_id` resolves to a current Domain row. |
+| `INV-SEARCH-003` (model + dims recorded) | `validation.sql.j2` §3 — no null `embedding_model` / `embedding_dimensions`. |
 | `INV-SEARCH-004` (content by join-back) | Enforced by pattern: similarity templates join to Domain; embedding table has no content. |
 | `INV-SEARCH-005` (history preserved) | Bi-temporal / `is_current` columns present; superseded rows retained. |

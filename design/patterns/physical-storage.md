@@ -1,3 +1,15 @@
+---
+title: Physical Storage Pattern
+anchor: physical-storage
+type: pattern
+status: standard
+version: 2.0
+normative: true
+patterns:
+  - object-placement
+  - validation
+---
+
 # Physical Storage — Pattern
 
 ## AI-Native Data Product Architecture

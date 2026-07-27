@@ -1,3 +1,12 @@
+---
+title: Master Design
+anchor: master-design
+type: core
+status: standard
+version: 2.0
+normative: true
+---
+
 # AI-Native Data Product — Master Design Standard
 
 ## AI-Native Data Product Architecture — Core Framework

@@ -22,20 +22,23 @@ a design document that leaks platform SQL fails the build.
 ```
 ai-native-data-products/
 ├── design/                     ← platform-agnostic standards (source of truth)
-│   ├── core/                   MASTER_DESIGN · DESIGN_LANGUAGE · GLOSSARY
+│   ├── core/                   MASTER_DESIGN · DESIGN_LANGUAGE · ADVOCATED_STANDARDS · GLOSSARY
 │   ├── modules/                domain · search · prediction · observability · semantic · memory
 │   └── patterns/               temporal-lifecycle-metadata · object-placement ·
 │                               physical-storage · validation · access-layer
 ├── implementation/
 │   └── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
 ├── tooling/
-│   └── validation/             the design linter (+ tests)
+│   ├── validation/             the design linter (+ tests)
+│   └── catalogue/              generates corpus navigation from frontmatter
 ├── prompts/                    how to use the standards
 └── skills/                     generated agent skills (gitignored)
 ```
 
-**Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint) and
-[`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written in).
+**Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint),
+[`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written
+in), and [`design/core/ADVOCATED_STANDARDS.md`](design/core/ADVOCATED_STANDARDS.md) (the decisions a
+design must settle, and the recommended answer for each).
 
 ---
 
@@ -100,10 +103,21 @@ Modules deploy in dependency order — only those the composition includes:
 
 ## Tooling
 
-`tooling/validation/design_lint.py` enforces the platform-agnostic boundary on `design/`:
+`tooling/validation/design_lint.py` enforces the platform-agnostic boundary on `design/`, the
+frontmatter schema on every design document, and the decision rules across both hierarchies:
 
 ```bash
-python tooling/validation/design_lint.py design
+python tooling/validation/design_lint.py design implementation
+```
+
+`tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy
+READMEs from document frontmatter — run it after adding or renaming a document:
+
+```bash
+python tooling/catalogue/build_catalogue.py
+```
+
+```bash
 python -m unittest discover -s tooling/validation/tests
 ```
 

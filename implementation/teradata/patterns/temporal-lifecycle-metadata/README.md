@@ -1,3 +1,14 @@
+---
+title: Teradata — Temporal Lifecycle Metadata Pattern Implementation
+anchor: temporal-lifecycle-metadata
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: temporal-lifecycle-metadata
+platform: teradata
+---
+
 # Teradata — Temporal & Lifecycle Metadata Implementation
 
 Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../../design/patterns/temporal-lifecycle-metadata.md).

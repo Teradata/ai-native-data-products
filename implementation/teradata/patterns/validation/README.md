@@ -1,3 +1,14 @@
+---
+title: Teradata — Validation Pattern Implementation
+anchor: validation
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: validation
+platform: teradata
+---
+
 # Teradata — Validation Implementation
 
 Teradata binding of [`design/patterns/validation.md`](../../../../design/patterns/validation.md).
@@ -45,4 +56,4 @@ metadata; other rows are evidence.
 | Temporal & lifecycle pattern | TLM-04/05/06 dictionary; TLM-08/09/10/11 data invariants | STRUCTURAL / blocking → CRITICAL |
 | Semantic module | Orphan modules, missing objects, invalid roles, kind mismatches, duplicate registrations | SEMANTIC / STRUCTURAL, ERROR–CRITICAL |
 | Object-placement pattern | Container and naming conformance | STRUCTURAL, WARNING–ERROR |
-| Each module's `INV-*` checks | The per-module `validation.sql` invariant checks | per the module |
+| Each module's `INV-*` checks | The per-module `validation.sql.j2` invariant checks | per the module |

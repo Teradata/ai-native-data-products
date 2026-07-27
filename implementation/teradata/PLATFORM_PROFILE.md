@@ -1,3 +1,13 @@
+---
+title: Teradata Platform Profile
+anchor: teradata
+type: platform-profile
+status: standard
+version: 2.0
+normative: false
+platform: teradata
+---
+
 # Teradata — Platform Profile
 
 Platform-specific physical-design guidance for Teradata implementations of the AI-Native Data

@@ -1,3 +1,14 @@
+---
+title: Teradata — Prediction Module Implementation
+anchor: prediction
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: prediction
+platform: teradata
+---
+
 # Teradata — Prediction Module Implementation
 
 Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/prediction.md). The
@@ -9,10 +20,10 @@ Domain. Read the design document first. Replace `{{ product }}`; tables live in 
 | File | Purpose |
 |------|---------|
 | `01-feature-group.sql.j2` | Wide-format feature group table (dense engineered features, SCD2). |
-| `02-feature-value.sql` | Tall-format feature-value table (sparse/dynamic/mixed-type features, SCD2). |
-| `03-model-prediction.sql` | Model prediction outputs with confidence and reproducibility linkage. |
+| `02-feature-value.sql.j2` | Tall-format feature-value table (sparse/dynamic/mixed-type features, SCD2). |
+| `03-model-prediction.sql.j2` | Model prediction outputs with confidence and reproducibility linkage. |
 | `04-views.sql.j2` | `v_{entity}_features_current` / `_enriched` / `_pit` (`AccessView`). |
-| `validation.sql` | Invariant checks (no raw-copy columns; point-in-time columns present). |
+| `validation.sql.j2` | Invariant checks (no raw-copy columns; point-in-time columns present). |
 
 ## Capability bindings
 
@@ -44,6 +55,6 @@ Temporal columns (`valid_from_dts`/`valid_to_dts`/`is_current`) follow the
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-PRED-001` (engineered, not raw copies) | `validation.sql` §1 — no raw domain-content column names on feature tables. |
-| `INV-PRED-002` (point-in-time) | `validation.sql` §2 — `observation_dts` + validity columns present. |
+| `INV-PRED-001` (engineered, not raw copies) | `validation.sql.j2` §1 — no raw domain-content column names on feature tables. |
+| `INV-PRED-002` (point-in-time) | `validation.sql.j2` §2 — `observation_dts` + validity columns present. |
 | `INV-PRED-003` (join-back, no dup) | Enforced by schema + reviewed at design time. |

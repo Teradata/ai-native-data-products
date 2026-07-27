@@ -1,3 +1,32 @@
+---
+title: Semantic Module
+anchor: semantic
+type: module
+status: standard
+version: 2.0
+normative: true
+provides:
+  - SemanticRegistration
+requires:
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+  - capability: DocumentationCapture
+    strength: soft
+    provider: module:memory
+  - capability: EntityJoinBack
+    strength: soft
+    provider: module:domain
+patterns:
+  - temporal-lifecycle-metadata
+  - object-placement
+  - access-layer
+  - validation
+decisions:
+  - id: DEC-TIMESTAMP-ZONE
+    choice: zone-aware
+---
+
 # Semantic Module — Design Standard
 
 ## AI-Native Data Product Architecture

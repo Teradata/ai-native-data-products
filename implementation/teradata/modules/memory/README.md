@@ -1,3 +1,14 @@
+---
+title: Teradata — Memory Module Implementation
+anchor: memory
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: memory
+platform: teradata
+---
+
 # Teradata — Memory Module Implementation
 
 Concrete Teradata binding of [`design/modules/memory.md`](../../../../design/modules/memory.md).
@@ -8,12 +19,12 @@ with two facets — `runtime` and `documentation` — deployed independently.
 
 | File | Facet | Purpose |
 |------|-------|---------|
-| `01-runtime-tables.sql` | runtime | `agent_session`, `agent_interaction`, `learned_strategy`, `user_preference`, `discovered_pattern`. |
-| `02-runtime-views.sql` | runtime | Standard views over sessions and interactions (`AccessView`). |
-| `10-documentation-tables.sql` | documentation | The six design-memory tables (`Module_Registry`, `Design_Decision`, `Business_Glossary`, `Query_Cookbook`, `Implementation_Note`, `Change_Log`). |
-| `11-documentation-views.sql` | documentation | Standard views (`v_Current_Decisions`, `v_Cookbook_Active`, …). |
-| `12-capture-protocol.sql` | documentation | The `DocumentationCapture` binding — the `INSERT` templates every module uses to register and record its design memory, plus the standard ERD recipe. |
-| `validation.sql` | both | Runnable checks for the module's invariants. |
+| `01-runtime-tables.sql.j2` | runtime | `agent_session`, `agent_interaction`, `learned_strategy`, `user_preference`, `discovered_pattern`. |
+| `02-runtime-views.sql.j2` | runtime | Standard views over sessions and interactions (`AccessView`). |
+| `10-documentation-tables.sql.j2` | documentation | The six design-memory tables (`Module_Registry`, `Design_Decision`, `Business_Glossary`, `Query_Cookbook`, `Implementation_Note`, `Change_Log`). |
+| `11-documentation-views.sql.j2` | documentation | Standard views (`v_Current_Decisions`, `v_Cookbook_Active`, …). |
+| `12-capture-protocol.sql.j2` | documentation | The `DocumentationCapture` binding — the `INSERT` templates every module uses to register and record its design memory, plus the standard ERD recipe. |
+| `validation.sql.j2` | both | Runnable checks for the module's invariants. |
 
 A **Data Asset** deploys `10`–`12` only (documentation facet). An **AI-Native** product deploys all.
 Replace `{{ product }}` with the data product name; all tables live in `{{ product }}_Memory`.
@@ -22,7 +33,7 @@ Replace `{{ product }}` with the data product name; all tables live in `{{ produ
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
-| `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql`; version chain via `is_current` + `valid_from`/`valid_to`. |
+| `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql.j2`; version chain via `is_current` + `valid_from`/`valid_to`. |
 | Agent continuity / learning | The five runtime tables + views. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
 | `SemanticRegistration` *(soft)* | When Semantic is present: register Memory's entities in `{{ product }}_Semantic`. |
@@ -48,9 +59,9 @@ Replace `{{ product }}` with the data product name; all tables live in `{{ produ
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-MEMORY-001` (table-level refs) | `validation.sql` §1 — no instance-key columns on runtime tables. |
+| `INV-MEMORY-001` (table-level refs) | `validation.sql.j2` §1 — no instance-key columns on runtime tables. |
 | `INV-MEMORY-002` (metadata not results) | Enforced by schema: no result-set columns; reviewed at design time. |
-| `INV-MEMORY-003` (privacy scope) | `validation.sql` §2 — every runtime table has `scope_level` + `scope_identifier`. |
+| `INV-MEMORY-003` (privacy scope) | `validation.sql.j2` §2 — every runtime table has `scope_level` + `scope_identifier`. |
 | `INV-MEMORY-004` (no Semantic dup) | Reviewed at design time; documentation holds rationale, not join paths. |
-| `INV-MEMORY-005` (versioned docs) | `validation.sql` §3 — documentation tables carry `is_current`/`valid_from`/`valid_to`. |
-| `INV-MEMORY-006` (capture protocol) | `validation.sql` §4 — minimum documentation records present per deployed module. |
+| `INV-MEMORY-005` (versioned docs) | `validation.sql.j2` §3 — documentation tables carry `is_current`/`valid_from`/`valid_to`. |
+| `INV-MEMORY-006` (capture protocol) | `validation.sql.j2` §4 — minimum documentation records present per deployed module. |

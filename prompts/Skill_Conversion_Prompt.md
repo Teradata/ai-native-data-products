@@ -36,8 +36,8 @@ Read the repository before writing anything. Each skill draws from a specific sl
 |-------|-----------|
 | `design` | `design/core/` (all), `design/modules/*.md`, `design/patterns/*.md` |
 | `build` | `implementation/{platform}/` (all), plus each design doc's §"Implementation" and capability tables for the design→binding mapping |
-| `review` | Every `INV-*` invariant and every conformance-rule table (`TLM-*`, `VAL-*`, object-placement/physical-storage conformance checklists), `design/patterns/validation.md`, `tooling/validation/design_lint.py`, and each implementation's `validation.sql` |
-| `access` | `design/modules/semantic.md` (§4 orientation, §5–6 discovery), `design/patterns/validation.md` (§8 the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql` |
+| `review` | Every `INV-*` invariant and every conformance-rule table (`TLM-*`, `VAL-*`, object-placement/physical-storage conformance checklists), `design/patterns/validation.md`, `tooling/validation/design_lint.py`, and each implementation's `validation.sql.j2` |
+| `access` | `design/modules/semantic.md` (§4 orientation, §5–6 discovery), `design/patterns/validation.md` (§8 the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql.j2` |
 
 `{platform}` defaults to `teradata` (the current reference). To target another platform, point `build`
 and `access` at that platform's `implementation/` tree once it exists.
@@ -167,7 +167,7 @@ checks exist and ran), **status** (pass / fail / not-yet-validated / no-evidence
 `checks/{module|pattern}.md`: the full `INV-*` list for that area (from the design doc's Invariants
 section) and its conformance-rule table where one exists (`TLM-*` for temporal, `VAL-*` for validation,
 the object-placement/physical-storage conformance checklists), each paired with its runnable check (the
-implementation's `validation.sql`, or the `design_lint.py` rule) and its **severity** — so a failure
+implementation's `validation.sql.j2`, or the `design_lint.py` rule) and its **severity** — so a failure
 lowers that area's confidence on the map rather than flipping a single global switch.
 
 **Output of a reviewer using this skill:** a **trust map** — per module / entity / pattern: what is

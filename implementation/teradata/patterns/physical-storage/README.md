@@ -1,3 +1,14 @@
+---
+title: Teradata — Physical Storage Pattern Implementation
+anchor: physical-storage
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: physical-storage
+platform: teradata
+---
+
 # Teradata — Physical Storage (conforming reference implementation)
 
 A conforming implementation of the

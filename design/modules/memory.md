@@ -1,3 +1,46 @@
+---
+title: Memory Module
+anchor: memory
+type: module
+status: standard
+version: 2.0
+normative: true
+provides:
+  - DocumentationCapture
+requires:
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+  - capability: DocumentationCapture
+    strength: soft
+    provider: self
+  - capability: SemanticRegistration
+    strength: soft
+    provider: module:semantic
+  - capability: EntityJoinBack
+    strength: soft
+    provider: module:domain
+  - capability: QualityScore
+    strength: soft
+    provider: module:observability
+  - capability: NearestNeighbors
+    strength: soft
+    provider: module:search
+patterns:
+  - temporal-lifecycle-metadata
+  - object-placement
+  - access-layer
+  - validation
+decisions:
+  - id: DEC-TEMPORAL-PATTERN
+    choice: scd2
+    because: design memory is superseded by a later version rather than corrected retrospectively, so there is no transaction-time question to answer
+  - id: DEC-DELETE-STRATEGY
+    choice: soft-delete
+  - id: DEC-TIMESTAMP-ZONE
+    choice: zone-aware
+---
+
 # Memory Module — Design Standard
 
 ## AI-Native Data Product Architecture

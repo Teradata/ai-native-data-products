@@ -1,3 +1,14 @@
+---
+title: Teradata — Object Placement Pattern Implementation
+anchor: object-placement
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: object-placement
+platform: teradata
+---
+
 # Teradata — Object Placement (conforming reference implementation)
 
 A conforming Teradata implementation of the

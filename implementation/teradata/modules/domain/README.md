@@ -1,3 +1,14 @@
+---
+title: Teradata — Domain Module Implementation
+anchor: domain
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: domain
+platform: teradata
+---
+
 # Teradata — Domain Module Implementation
 
 Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/modules/domain.md).
@@ -13,7 +24,7 @@ design document first — this directory only adds platform specifics.
 | `03-reference.sql.j2` | Reference data table (controlled vocabularies). |
 | `04-relationship.sql.j2` | Associative relationship table. |
 | `05-views.sql.j2` | Standard `_Current` / `_Enriched` views (`AccessView` binding). |
-| `validation.sql` | Runnable checks for the module's invariants (`MetadataCoverageCheck` and others). |
+| `validation.sql.j2` | Runnable checks for the module's invariants (`MetadataCoverageCheck` and others). |
 
 The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`. Each declares its
 template variables in a header comment.
@@ -31,7 +42,7 @@ Every capability required by the design document is bound here:
 | `EntityJoinBack` | `INNER JOIN Domain.{Entity}_H ON {entity}_id`, current-filtered. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN` for every object and column. |
 | `AccessView` | `{Entity}_Current` and `{Entity}_Enriched` views with explicit column lists. |
-| `MetadataCoverageCheck` | Catalogue query over `DBC.ColumnsV` (see `validation.sql`). |
+| `MetadataCoverageCheck` | Catalogue query over `DBC.ColumnsV` (see `validation.sql.j2`). |
 | `SemanticRegistration` *(soft)* | When the composition includes Semantic: on deploy, `INSERT` entity/column/relationship rows into `{product}_Semantic`. Skipped if Semantic is absent. |
 | `DocumentationCapture` *(soft)* | When the composition includes Memory's documentation facet: on deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory`. Skipped if absent. |
 
@@ -53,10 +64,10 @@ Every capability required by the design document is bound here:
 
 | Invariant | Check |
 |-----------|-------|
-| `INV-DOMAIN-001` (every attribute has metadata) | `validation.sql` §1 — zero uncommented columns. |
+| `INV-DOMAIN-001` (every attribute has metadata) | `validation.sql.j2` §1 — zero uncommented columns. |
 | `INV-DOMAIN-002` (current filter) | `_Current` views exist and apply the flag filter. |
 | `INV-DOMAIN-003` (stable surrogate) | Keymap allocation; `{entity}_id` not `GENERATED` on `_H`. |
-| `INV-DOMAIN-004` (identity shape) | `validation.sql` §2 — every `_H` table has `{entity}_id` + `{entity}_key`. |
+| `INV-DOMAIN-004` (identity shape) | `validation.sql.j2` §2 — every `_H` table has `{entity}_id` + `{entity}_key`. |
 | `INV-DOMAIN-005` (no duplicated content) | Reviewed at design time; other modules store `{entity}_id` only. |
 | `INV-DOMAIN-006` (point-in-time) | Bi-temporal columns present on `_H` tables. |
 | `INV-DOMAIN-007` (named references) | Reference columns named `{target}_id`, not `fk1`/`fk2`. |

@@ -1,3 +1,24 @@
+---
+title: Temporal Lifecycle Metadata Pattern
+anchor: temporal-lifecycle-metadata
+type: pattern
+status: standard
+version: 2.0
+normative: true
+provides:
+  - CurrentStateFilter
+  - PointInTimeReconstruction
+  - SoftDelete
+requires:
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+patterns:
+  - object-placement
+  - access-layer
+  - validation
+---
+
 # Temporal & Lifecycle Metadata — Pattern
 
 ## AI-Native Data Product Architecture
@@ -250,6 +271,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 | TLM-15 | Every temporal/lifecycle column carries a column comment (`RichMetadata`). |
 | TLM-16 | No inclusive-end idioms (current-date-minus-one, second-subtraction) in maintenance code or surfaces. |
 | TLM-17 | Sentinels appear only on validity bounds; event timestamps use `null` for "not yet occurred". |
+| TLM-18 **[B]** | Every temporal column is zone-aware, per the advocated option of `DEC-TIMESTAMP-ZONE`. A table declaring the `zone-naive` option instead satisfies this rule only when its assumed zone is recorded in the Semantic entity metadata. |
 
 ---
 

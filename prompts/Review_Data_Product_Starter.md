@@ -34,7 +34,7 @@ analysis, or discovery is needed. Be specific — cite the invariant or rule id 
    material; a platform-SQL leak is a low-trust entry on the map.
 2. **Gather evidence per area.** For each module and pattern in scope, walk its `INV-*` invariants and
    conformance rules (`TLM-*` temporal, `VAL-*` validation, the object-placement/physical-storage
-   checklists). For a build, run its `validation.sql`. Record each result with its **severity**.
+   checklists). For a build, run its `validation.sql.j2`. Record each result with its **severity**.
 3. **Composition coverage.** Confirm every `[hard]` capability requirement is satisfied; note any unmet
    `[soft]` capability and the feature it disables — absence is a *coverage gap* on the map, not a
    failure.

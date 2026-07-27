@@ -1,3 +1,12 @@
+---
+title: Object Placement Pattern
+anchor: object-placement
+type: pattern
+status: standard
+version: 2.0
+normative: true
+---
+
 # Object Placement — Pattern
 
 ## AI-Native Data Product Architecture

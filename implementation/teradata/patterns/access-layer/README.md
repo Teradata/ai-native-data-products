@@ -1,3 +1,14 @@
+---
+title: Teradata — Access Layer Pattern Implementation
+anchor: access-layer
+type: implementation
+status: standard
+version: 2.0
+normative: true
+implements: access-layer
+platform: teradata
+---
+
 # Teradata — Access Layer Implementation
 
 Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patterns/access-layer.md).

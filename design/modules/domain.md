@@ -1,3 +1,52 @@
+---
+title: Domain Module
+anchor: domain
+type: module
+status: standard
+version: 2.0
+normative: true
+provides:
+  - EntityJoinBack
+  - CurrentStateFilter
+  - PointInTimeReconstruction
+  - NaturalKeyLookup
+  - AccessView
+  - SoftDelete
+requires:
+  - capability: SurrogateKeyAllocation
+    strength: hard
+    provider: self
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+  - capability: MetadataCoverageCheck
+    strength: hard
+    provider: self
+  - capability: SemanticRegistration
+    strength: soft
+    provider: module:semantic
+  - capability: DocumentationCapture
+    strength: soft
+    provider: module:memory
+patterns:
+  - temporal-lifecycle-metadata
+  - object-placement
+  - physical-storage
+  - access-layer
+  - validation
+decisions:
+  - id: DEC-TEMPORAL-PATTERN
+    choice: bi-temporal
+  - id: DEC-COLUMN-STRATEGY
+    choice: offload
+  - id: DEC-SURROGATE-ALLOCATION
+    choice: keymap
+  - id: DEC-DELETE-STRATEGY
+    choice: soft-delete
+  - id: DEC-TIMESTAMP-ZONE
+    choice: zone-aware
+---
+
 # Domain Module — Design Standard
 
 ## AI-Native Data Product Architecture
@@ -194,6 +243,7 @@ Domain is the **composition root**: it has no hard dependency on any other modul
 | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `EntityJoinBack`                                                                    | Any module referencing a Domain entity obtains its content by joining back on `<entity>_id`. This is the capability Search and Prediction hard-depend on. |
 | `CurrentStateFilter`, `PointInTimeReconstruction`, `NaturalKeyLookup`, `AccessView` | Agents and consumers, over Domain entities.                                                                                                               |
+| `SoftDelete`                                                                        | Consumers and agents, per the advocated option of `DEC-DELETE-STRATEGY`: a deleted instance leaves the current set but stays reachable historically.      |
 
 **Requires:**
 
@@ -265,8 +315,15 @@ This standard defines **structure and patterns, not a specific implementation**.
 | **Storage optimisation**    | Normalisation vs denormalisation, partitioning, indexing.                    | A platform concern — lives entirely in `implementation/` and must not change the logical contract.             |
 
 **Rule:** whatever is chosen must support the AI-native characteristics (Section 1) and
-satisfy every invariant (Section 8). The choice for each flexible dimension is **recorded as
-a design decision** (Section 11) so it is traceable rather than implicit.
+satisfy every invariant (Section 8).
+
+The first four dimensions are not free-form: each corresponds to a catalogued **decision**
+(`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`,
+`DEC-DELETE-STRATEGY`), and this module's choices are declared in its frontmatter — the
+advocated option in every case. A product that departs from one records its reason there,
+so the choice is traceable rather than implicit, and the linter enforces that it is made at
+all. Storage optimisation carries no decision because it is a platform concern that never
+reaches the logical contract.
 
 ---
 

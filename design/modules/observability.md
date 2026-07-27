@@ -1,3 +1,41 @@
+---
+title: Observability Module
+anchor: observability
+type: module
+status: standard
+version: 2.0
+normative: true
+provides:
+  - ChangeEventCapture
+  - LineageCapture
+  - QualityScore
+requires:
+  - capability: RichMetadata
+    strength: hard
+    provider: self
+  - capability: SemanticRegistration
+    strength: soft
+    provider: module:semantic
+  - capability: DocumentationCapture
+    strength: soft
+    provider: module:memory
+  - capability: EntityJoinBack
+    strength: soft
+    provider: module:domain
+patterns:
+  - temporal-lifecycle-metadata
+  - object-placement
+  - access-layer
+  - validation
+decisions:
+  - id: DEC-QUALITY-STORAGE
+    choice: observability
+  - id: DEC-AUDIT-RETENTION
+    choice: regulatory
+  - id: DEC-TIMESTAMP-ZONE
+    choice: zone-aware
+---
+
 # Observability Module — Design Standard
 
 ## AI-Native Data Product Architecture
@@ -194,9 +232,11 @@ AI-native product, absent in a minimal Data Asset.
 
 | Capability | Made available to |
 |------------|-------------------|
-| Outcome & quality evidence (learning inputs) | Memory, for closed-loop learning. |
+| `ChangeEventCapture` | Any module recording who changed an entity instance, when, and why — the audit trail that `DEC-COLUMN-STRATEGY` offloads here. |
+| `LineageCapture` | Any module recording the origin of an instance: source system, source record, and producing run. |
+| `QualityScore` | Agents judging fitness before use, and Memory as a learning input. Held as a time series per `DEC-QUALITY-STORAGE`. |
 | Validation results home | The validation pattern, as the container for `validation_run`. |
-| Lineage (definitional + operational) | Agents and dashboards, via the Semantic exposure. |
+| Lineage exposure (definitional + operational) | Agents and dashboards, via the Semantic exposure. |
 
 **Requires:**
 
