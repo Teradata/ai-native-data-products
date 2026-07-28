@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """build_catalogue: derive corpus navigation from frontmatter.
 
-Every design document declares its own identity in frontmatter (Design Language
-Section 3.1). This script reads those declarations and writes the navigation
+Every design document declares its own identity in frontmatter (see the Design
+Language). This script reads those declarations and writes the navigation
 tables into the hierarchy READMEs, between marker comments:
 
     <!-- catalogue:start -->
@@ -52,7 +52,7 @@ def collect(roots: List[Path]) -> List[Tuple[Path, dict]]:
     """Every design document under `roots`, with its identity and its capability graph.
 
     Identity comes from frontmatter; the graph is read from the body tables, which are
-    where it is stated (Design Language Section 3.2). Collecting it here is the point of
+    where it is stated (Design Language: What frontmatter is not for). Collecting it here is the point of
     the catalogue: an agent gets the whole graph in one file instead of opening fifteen.
     """
     found = []

@@ -215,10 +215,10 @@ Product-level rules every conforming composition satisfies. Several are **condit
 
 - `INV-MASTER-001`: no module duplicates content owned by another; cross-module references are by `Identifier` with join-back.
 - `INV-MASTER-002`: *when a Semantic module is present*, every other deployed module registers its entities, columns, and relationships in it; *when Memory's documentation facet is present*, every module records its documentation there.
-- `INV-MASTER-003`: a product is self-contained: whatever discovery and documentation stores it includes live within the product; there is no shared cross-product database.
+- `INV-MASTER-003`: a product is self-contained. Whatever discovery and documentation stores it includes live within the product, and there is no shared cross-product database.
 - `INV-MASTER-004`: a composition deployed for consumption includes an Access Layer (the three roles); without it the product is operationally invisible.
 - `INV-MASTER-005`: structural standards are platform-neutral; every platform specific lives in `implementation/{platform}/` and changes no design document.
-- `INV-MASTER-006`: object names are environment-agnostic: promotion substitutes the container, never renames the object.
+- `INV-MASTER-006`: object names are environment-agnostic; promotion substitutes the container and never renames the object.
 - `INV-MASTER-007`: a composition is valid only if every `[hard]` capability requirement is satisfied within it (or by the platform); unmet `[soft]` requirements disable dependent features but do not invalidate the composition.
 
 ---

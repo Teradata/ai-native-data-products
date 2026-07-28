@@ -1,6 +1,6 @@
 # Observability: OpenLineage Alignment (Teradata)
 
-Binding of [`design/modules/observability.md`](../../../../design/modules/observability.md) §6. The lineage tables align with [OpenLineage](https://openlineage.io/): the definition/execution split mirrors OpenLineage's `Job` (declared flow) vs `Run` (execution).
+Binding of [`design/modules/observability.md`](../../../../design/modules/observability.md), Open Standards Alignment. The lineage tables align with [OpenLineage](https://openlineage.io/): the definition/execution split mirrors OpenLineage's `Job` (declared flow) vs `Run` (execution).
 
 ## Entity mapping
 

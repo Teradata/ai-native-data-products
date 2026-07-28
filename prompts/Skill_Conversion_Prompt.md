@@ -30,9 +30,9 @@ Read the repository before writing anything. Each skill draws from a specific sl
 | Skill | Reads from |
 |-------|-----------|
 | `design` | `design/core/` (all, including the decision catalogue), `design/modules/*.md`, `design/patterns/*.md` |
-| `build` | `implementation/{platform}/` (all), plus each design doc's §"Implementation" and capability tables for the design→binding mapping |
+| `build` | `implementation/{platform}/` (all), plus each design doc's Implementation section and capability tables for the design→binding mapping |
 | `review` | Every `INV-*` invariant and every conformance-rule table (`TLM-*`, `VAL-*`, object-placement/physical-storage conformance checklists), `design/patterns/validation.md`, `tooling/validation/design_lint.py`, and each implementation's `validation.sql.j2` |
-| `access` | `design/modules/semantic.md` (§4 orientation, §5-6 discovery), `design/patterns/validation.md` (§8 the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql.j2` |
+| `access` | `design/modules/semantic.md` (orientation and discovery), `design/patterns/validation.md` (the stop/go gate), `implementation/{platform}/modules/semantic/06-orientation.md` and `04-path-discovery.sql.j2` |
 
 `{platform}` defaults to `teradata` (the current reference). To target another platform, point `build` and `access` at that platform's `implementation/` tree once it exists.
 
@@ -82,9 +82,9 @@ Every generated `SKILL.md` carries a short handover note to this effect for its 
 
 ### 1. `design`: the designer skill
 
-`SKILL.md` (from `design/core/`): the composition method (modules provide/require capabilities; `[hard]`/`[soft]`; a composition is valid iff every hard requirement is met. Design Language §6.2); the named compositions (Master §4); the logical-type vocabulary and entity notation (Design Language §4-5); the capability catalogue (§6.1); the invariant convention (§7); **the decision construct and the decision catalogue** (§8 and `design/core/ADVOCATED_STANDARDS.md`); and the deployment order (Master §10). Routing: "read `SKILL.md`, then `modules/{module}.md` for the module you are designing and `patterns/{pattern}.md` for each pattern it applies."
+`SKILL.md` (from `design/core/`): the composition method (modules provide/require capabilities; `[hard]`/`[soft]`; a composition is valid when every hard requirement is met, per the Design Language); the named compositions (Master Design: Compositions); the logical-type vocabulary and entity notation; the capability catalogue; the invariant convention; **the decision construct and the decision catalogue** (see `design/core/ADVOCATED_STANDARDS.md`); and the deployment order (Master Design: Deployment Sequence). Routing: "read `SKILL.md`, then `modules/{module}.md` for the module you are designing and `patterns/{pattern}.md` for each pattern it applies."
 
-`decisions.md` (from `design/core/ADVOCATED_STANDARDS.md`): every catalogued decision, its options, which is advocated, and the criteria that make another sound. This is a reference the skill consults while working through §1.1 below: carry the options and the selection criteria, compress the rationale.
+`decisions.md` (from `design/core/ADVOCATED_STANDARDS.md`): every catalogued decision, its options, which is advocated, and the criteria that make another sound. This is a reference the skill consults while working through the decision conversation below: carry the options and the selection criteria, compress the rationale.
 
 `modules/{module}.md` (from `design/modules/`): the logical entity model in the entity notation, the Provides/Requires capabilities with strengths, applied patterns, the invariants to satisfy, and designer responsibilities **including the module's Decisions-to-settle table, carried verbatim**. **Platform-agnostic: no platform types, no DDL.** This is the design document, compressed.
 
@@ -115,7 +115,7 @@ The brief is platform-agnostic (lint-clean) and medium-agnostic. It is the one t
 
 ### 2. `build`: the builder skill
 
-`SKILL.md`: the design/implementation split; that a design is realised by binding each capability and generating the concrete artefacts; the deployment order for the chosen composition (Master §10); and the **object-placement protocol**: *before generating any object, locate the conforming object-placement implementation and derive the container; if object storage is in use, also locate the physical-storage implementation; never invent a container or path.*
+`SKILL.md`: the design/implementation split; that a design is realised by binding each capability and generating the concrete artefacts; the deployment order for the chosen composition (Master Design: Deployment Sequence); and the **object-placement protocol**: *before generating any object, locate the conforming object-placement implementation and derive the container; if object storage is in use, also locate the physical-storage implementation; never invent a container or path.*
 
 `platform-profile.md` (from `implementation/{platform}/PLATFORM_PROFILE.md`): physical-design guidance (keys, partitioning, indexing, compression, statistics).
 
@@ -137,7 +137,7 @@ The reviewer's job is to build a **trust map** of the data product: not to open 
 
 ### 4. `access`: the consumer skill
 
-`SKILL.md`: **product-first discovery**: orient to the product before touching modules or data (Semantic §4); the discovery order (product → module → entity → relationship); and the **pre-use trust gate**: read the gate-authoritative validation result before analytical use; stop on `UNTRUSTED`, stale, or missing evidence (validation §8, §10).
+`SKILL.md`: **product-first discovery**: orient to the product before touching modules or data; the discovery order (product → module → entity → relationship); and the **pre-use trust gate**: read the gate-authoritative validation result before analytical use; stop on `UNTRUSTED`, stale, or missing evidence (validation: the stop/go gate and schema versioning).
 
 `discovery.md`: the orientation manifest and MCP resource/tool shapes; the module/entity/relationship discovery sequence; multi-hop path discovery; primary-object entrypoints (use the stored `container.object` verbatim, never derive names).
 

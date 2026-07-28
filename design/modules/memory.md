@@ -292,7 +292,7 @@ Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-de
 - `INV-MEMORY-002`: Memory stores process metadata (query text, patterns, outcomes, counts), never result data or business content; content is obtained by join-back to Domain.
 - `INV-MEMORY-003`: every runtime record carries a privacy scope (`scope_level` and `scope_identifier`).
 - `INV-MEMORY-004`: documentation records *why/how/what-changed*; they never duplicate Semantic's *what-exists/how-connects* metadata.
-- `INV-MEMORY-005`: documentation records are temporally versioned: corrections supersede prior versions rather than overwriting them.
+- `INV-MEMORY-005`: documentation records are temporally versioned; corrections supersede prior versions rather than overwriting them.
 - `INV-MEMORY-006`: *when the documentation facet is present*, every deployed module records its documentation here per the Capture protocol section capture protocol (the provider side of `INV-MASTER-002`).
 
 ---

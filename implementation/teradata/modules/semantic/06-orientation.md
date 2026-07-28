@@ -1,6 +1,6 @@
 # Semantic: Data Product Orientation Layer (Teradata / MCP)
 
-Binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md) §4. Product-first discovery: a client orients to the product before touching module maps or data. Backed by `governance.data_product_registry` (`03-registry.sql`); the manifest is stored in `manifest_json`.
+Binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md), Data Product Orientation Layer. Product-first discovery: a client orients to the product before touching module maps or data. Backed by `governance.data_product_registry` (`03-registry.sql`); the manifest is stored in `manifest_json`.
 
 ## MCP resource / tool shapes
 

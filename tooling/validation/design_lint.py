@@ -3,11 +3,11 @@
 
 Three families of rule:
 
-  * **No platform SQL** (Design Language Section 9): applies to `design/` only,
+  * **No platform SQL** (the No-Platform-SQL Rule): applies to `design/` only,
     since concrete SQL is exactly what `implementation/` exists to hold.
-  * **Frontmatter** (Section 3.1): every design document declares a valid,
+  * **Frontmatter** (the Frontmatter section): every design document declares a valid,
     correctly anchored machine-readable identity.
-  * **Corpus** (Sections 6.1 and 8): every capability and decision a document
+  * **Corpus** (the capability catalogue and Decisions): every capability and decision a document
     names *in its body* resolves against the catalogues, and a standard that
     recommends other than the advocated option says why.
 
@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 # --------------------------------------------------------------------------- #
-# Rule vocabulary (authoritative companion to Design Language Section 9)
+# Rule vocabulary (authoritative companion to the No-Platform-SQL Rule)
 # --------------------------------------------------------------------------- #
 
 # SQL-dialect fence tags that are prohibited outright in design/.
@@ -76,7 +76,7 @@ VENDOR_TOKEN_PATTERNS = [
     (re.compile(r"\bTD_[A-Za-z_]\w*"), "TD_* function"),
 ]
 
-# Known logical types (Design Language Section 4). Used by the entity-notation check.
+# Known logical types (the Logical Type Vocabulary). Used by the entity-notation check.
 LOGICAL_TYPES = {
     "Identifier", "NaturalKey", "Reference", "Code", "ShortText", "Text",
     "LongText", "Json", "Enum", "Integer", "Decimal", "Timestamp", "Date", "Flag", "Vector",
@@ -88,9 +88,9 @@ RESERVED_ENTITY_LABELS = {
     "Applies patterns", "Requires capabilities", "Invariants",
 }
 
-# Frontmatter vocabulary (authoritative companion to Design Language Section 3.1).
+# Frontmatter vocabulary (authoritative companion to the Frontmatter section).
 REQUIRED_FM_KEYS = {"title", "anchor", "type", "status", "version", "normative"}
-# Frontmatter is identity only (Section 3.2). A document's substance: what it provides,
+# Frontmatter is identity only (What frontmatter is not for). A document's substance: what it provides,
 # requires, applies, and asks a designer to settle: is read from the body, where it can
 # carry its reasoning. Keys outside this set are rejected rather than silently tolerated,
 # so substance cannot drift back into the header.
@@ -165,13 +165,13 @@ def _is_ignored(text: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Frontmatter (Design Language Section 3.1)
+# Frontmatter (Design Language: Frontmatter)
 # --------------------------------------------------------------------------- #
 
 def parse_frontmatter(text: str):
     """Parse the leading YAML frontmatter block.
 
-    Deliberately handles only the subset Section 3.1 defines: scalars, lists of
+    Deliberately handles only the subset the Frontmatter section defines: scalars, lists of
     scalars, and lists of flat mappings: so the linter stays stdlib-only. Returns
     ``(mapping, line_count)``; ``(None, 0)`` when the document has no frontmatter.
     """
@@ -233,12 +233,12 @@ def expected_anchor(path: Path) -> str:
 
 
 def find_frontmatter_violations(path: Path, text: str) -> List[Finding]:
-    """Section 3.1: frontmatter present, complete, well-typed, and anchored to its filename."""
+    """Frontmatter present, complete, well-typed, and anchored to its filename."""
     p = str(path)
     fm, _ = parse_frontmatter(text)
     if fm is None:
         return [Finding(p, 1, "frontmatter-missing",
-                        "design document has no frontmatter block (Design Language S3.1)")]
+                        "design document has no frontmatter block (Design Language: Frontmatter)")]
 
     findings: List[Finding] = []
     for missing in sorted(REQUIRED_FM_KEYS - set(fm)):
@@ -277,7 +277,7 @@ def find_frontmatter_violations(path: Path, text: str) -> List[Finding]:
 
 
 def find_sql_violations(text: str, path: str = "<text>") -> List[Finding]:
-    """Rules 1-3 of Section 9: no SQL fences, no SQL statements, no vendor tokens."""
+    """The No-Platform-SQL Rule: no SQL fences, no SQL statements, no vendor tokens."""
     findings: List[Finding] = []
     in_fence = False
     fence_lang = ""
@@ -317,7 +317,7 @@ def find_sql_violations(text: str, path: str = "<text>") -> List[Finding]:
             if pattern.search(raw):
                 findings.append(Finding(
                     path, lineno, "vendor-token",
-                    f"platform SQL token '{label}': use a logical type instead (Design Language S4)",
+                    f"platform SQL token '{label}': use a logical type instead (Design Language: Logical Type Vocabulary)",
                 ))
 
         # Structural: unknown logical type inside an Entity pseudo-block.
@@ -351,7 +351,7 @@ def _check_entity_attribute(raw: str, lineno: int, path: str) -> List[Finding]:
 
 
 def find_invariant_violations(text: str, path: str = "<text>") -> List[Finding]:
-    """Invariant ids must follow INV-<MODULE>-<NNN> (Design Language Section 7)."""
+    """Invariant ids must follow INV-<MODULE>-<NNN> (Design Language: Invariants)."""
     findings: List[Finding] = []
     for lineno, raw in enumerate(text.splitlines(), start=1):
         for tok in INVARIANT_CANDIDATE_RE.findall(raw):
@@ -364,11 +364,11 @@ def find_invariant_violations(text: str, path: str = "<text>") -> List[Finding]:
 
 
 # --------------------------------------------------------------------------- #
-# Corpus checks: cross-document references (Design Language S3.1, S6.1, S8)
+# Corpus checks: cross-document references (Frontmatter, capability catalogue, Decisions)
 # --------------------------------------------------------------------------- #
 
 def load_capability_catalogue(text: str) -> set:
-    """Capability names from the Section 6.1 table of the design-language document."""
+    """Capability names from the capability catalogue in the design-language document."""
     names, in_section = set(), False
     for line in text.splitlines():
         if line.startswith("### 6.1"):
@@ -437,7 +437,7 @@ def find_glossary_violations(text: str, path: str) -> List[Finding]:
 def read_document_capabilities(text: str) -> dict:
     """Capabilities a document names, as ``{"provides": [...], "requires": [...]}``.
 
-    Read from the body rather than frontmatter (Section 3.2): the tables carry a *why*
+    Read from the body rather than frontmatter (What frontmatter is not for): the tables carry a *why*
     column and can say a provider is `self` *or* `platform`, nuance a header list drops.
     """
     found = {"provides": [], "requires": []}
@@ -518,7 +518,7 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
                 if cap not in capabilities:
                     findings.append(Finding(p, 1, "unknown-capability",
                                             f"'{cap}' is not in the capability catalogue "
-                                            f"(Design Language S6.1)"))
+                                            f"(Design Language: capability catalogue)"))
 
         implements = fm.get("implements")
         if implements and implements not in anchors:
@@ -547,7 +547,7 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
                 elif options and not options[recommended] and "because" not in rationale.lower():
                     findings.append(Finding(p, 1, "unjustified-choice",
                                             f"{did} recommends '{recommended}' over the advocated "
-                                            f"option without saying why (Design Language S8.2)"))
+                                            f"option without saying why (Design Language: Decisions)"))
 
         if fm.get("anchor") == "glossary":
             findings.extend(find_glossary_violations(text, p))
@@ -560,8 +560,8 @@ def find_corpus_violations(docs: dict) -> List[Finding]:
                 if required not in listed:
                     findings.append(Finding(p, 1, "undeclared-decision",
                                             f"module describes a History entity but does not ask "
-                                            f"the designer to settle {required} (Design Language "
-                                            f"S8.4)"))
+                                            f"the designer to settle {required} (Design Language: "
+                                            f"Decisions)"))
     return findings
 
 

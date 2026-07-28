@@ -35,7 +35,7 @@ Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../
 
 `TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant (TLM-05): it makes the UTC persistence rule unverifiable and the sentinel ambiguous under session-zone changes. Single-character `'Y'/'N'` encodings and nullable flags are non-conformant (TLM-06).
 
-## Surface bindings (pattern §8)
+## Surface bindings (pattern: Access Exposure Policy)
 
 | Object | Pattern surface | Responsibility |
 |--------|-----------------|----------------|

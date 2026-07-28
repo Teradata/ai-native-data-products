@@ -2,7 +2,7 @@
 
 # tooling/validation: design linter
 
-`design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md) across both hierarchies. It is the executable form of the **No-Platform-SQL Rule** (Section 9), the **frontmatter schema** (Section 3.1), and the **decision rules** (Section 8). Stdlib-only, Python 3.8+.
+`design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md) across both hierarchies. It is the executable form of the **No-Platform-SQL Rule**, the **frontmatter schema**, and the **decision rules**. Stdlib-only, Python 3.8+.
 
 ## Run it
 
@@ -38,23 +38,23 @@ assert lint_text("design/modules/domain.md", text) == []
 | `sql-fence` | a code block is tagged ` ```sql ` (or `tsql`, `plsql`, `psql`, `mysql`, `sqlite`). |
 | `sql-statement` | a line inside any code block starts with `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, or `WITH`. |
 | `vendor-token` | a platform data type or vendor token appears anywhere: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `TINYINT`, `DECIMAL(…)`, `NUMERIC(…)`, `FLOAT32`, `TIMESTAMP(…)`, `PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT <value>`, `COMMENT ON`, `::VECTOR`, any `TD_*` function. |
-| `unknown-type` | an attribute inside an `Entity:` pseudo-block uses a type not in the logical vocabulary (Design Language Section 4). |
-| `invariant-id` | an invariant id does not match `INV-<MODULE>-<NNN>` (Design Language Section 7). |
+| `unknown-type` | an attribute inside an `Entity:` pseudo-block uses a type not in the logical vocabulary (the Design Language's Logical Type Vocabulary). |
+| `invariant-id` | an invariant id does not match `INV-<MODULE>-<NNN>` (the Design Language's Invariants section). |
 
 ### Frontmatter and corpus rules
 
 | Rule | Fails when… |
 |------|-------------|
 | `frontmatter-missing` | a design document has no frontmatter block. |
-| `frontmatter-key` | a required key is absent, an unrecognised key is present (substance belongs in the body, Section 3.2), or an implementation omits `implements` / `platform`. |
+| `frontmatter-key` | a required key is absent, an unrecognised key is present (substance belongs in the body), or an implementation omits `implements` / `platform`. |
 | `frontmatter-enum` | `type`, `status`, or `normative` carries a value outside its vocabulary. |
 | `anchor-mismatch` | `anchor` disagrees with the document's location. |
-| `unknown-capability` | a capability named in a body Provides / Requires table is not in the catalogue (Section 6.1). |
+| `unknown-capability` | a capability named in a body Provides / Requires table is not in the catalogue. |
 | `unknown-anchor` | an `implements` or `supersedes` anchor resolves to no document. |
 | `unknown-decision` | a decision named in a Decisions-to-settle table is not in the catalogue. |
 | `invalid-choice` | a recommended option is not one of that decision's options. |
-| `unjustified-choice` | a standard recommends other than the advocated option without saying why (Section 8.2). |
-| `undeclared-decision` | a module describes a `History` entity without asking the designer to settle how it versions and deletes (Section 8.4). |
+| `unjustified-choice` | a standard recommends other than the advocated option without saying why. |
+| `undeclared-decision` | a module describes a `History` entity without asking the designer to settle how it versions and deletes. |
 | `module-spine` | a `type: module` document is missing one of the canonical spine sections. Presence and naming are checked, never order or numbering, and a module may add its own sections anywhere; a subtitle after an em dash still matches (`Entity Model. Runtime Facet`). |
 | `glossary-order` | a glossary entry is out of alphabetical order. |
 | `glossary-entry` | a bold run opens a glossary line without the `, ` separator, almost always a cross-reference that wrapped onto the left margin, where it reads as a phantom definition. |

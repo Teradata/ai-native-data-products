@@ -161,7 +161,7 @@ Prediction is an **enhancement** module: it hard-depends on Domain (features ref
 ## 8. Invariants
 
 - `INV-PRED-001`: the feature store holds engineered features (transformed / normalised / aggregated), never raw copies of Domain columns.
-- `INV-PRED-002`: features are point-in-time reconstructable: feature observation and validity align with Domain temporal tracking, so training uses features as they existed (no leakage).
+- `INV-PRED-002`: features are point-in-time reconstructable. Feature observation and validity align with Domain temporal tracking, so training uses features as they existed, without leakage.
 - `INV-PRED-003`: features reference Domain entities by `Identifier` and obtain raw context by join-back; no Domain content is duplicated, except documented low-latency exceptions recorded as design decisions.
 - `INV-PRED-004`: feature definitions and computation metadata live in Semantic; feature values live here.
 - `INV-PRED-005`: feature monitoring, drift, and model-performance metrics live in Observability, not here.

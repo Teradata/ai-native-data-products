@@ -254,7 +254,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-001`: Semantic stores schema metadata only: entities, attributes, relationships, orientation; never instance data or business content.
 - `INV-SEMANTIC-002`: the catalogue registers objects (entity = table, attribute = column, relationship = join), never rows.
 - `INV-SEMANTIC-003`: every deployed module and its primary objects are registered; agents obtain objects by the stored fully-qualified identity, never by deriving names from conventions.
-- `INV-SEMANTIC-004`: discovery is product-first: clients read the product registry/manifest before module maps or data (the orientation contract).
+- `INV-SEMANTIC-004`: discovery is product-first; clients read the product registry or manifest before module maps or data, per the orientation contract.
 - `INV-SEMANTIC-005`: `TableRelationship` registers every relationship an agent is expected to traverse; an unrelated entity is a documented standalone or an omission.
 - `INV-SEMANTIC-006`: every entity declares its temporal profile in `EntityMetadata.temporal_pattern`, so validators resolve temporal behaviour from metadata (temporal pattern).
 - `INV-SEMANTIC-007`: primary-object roles come from the controlled vocabulary; at most one primary exposure per base table.

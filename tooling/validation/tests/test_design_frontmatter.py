@@ -1,4 +1,4 @@
-"""Unit tests for the frontmatter, corpus, and decision rules (Design Language S3.1, S3.2, S8).
+"""Unit tests for the frontmatter, corpus, and decision rules.
 
 Frontmatter carries identity only; a document's substance: capabilities and the decisions
 it asks a designer to settle: is read from the body. These tests hold that line.
@@ -159,7 +159,7 @@ class FrontmatterRules(unittest.TestCase):
         self.assertIn("frontmatter-key", [f.rule for f in self.violations(text)])
 
     def test_substance_keys_are_rejected(self):
-        """The S3.2 boundary: substance must not drift back into the header."""
+        """Frontmatter is identity only: substance must not drift back into the header."""
         text = MODULE_DOC.replace("normative: true", "normative: true\nprovides:\n  - Whatever")
         self.assertTrue(any("provides" in f.message for f in self.violations(text)))
 

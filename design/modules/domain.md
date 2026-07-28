@@ -240,7 +240,7 @@ Every conforming implementation must satisfy these. Each has a corresponding che
 
 - `INV-DOMAIN-001`: every attribute of every entity carries descriptive metadata.
 - `INV-DOMAIN-002`: current, non-deleted records are retrievable by a single predictable filter over the current-flag and deleted-flag.
-- `INV-DOMAIN-003`: a surrogate `Identifier` is stable across all versions of the same real-world entity: it never changes as the entity versions.
+- `INV-DOMAIN-003`: a surrogate `Identifier` is stable across all versions of the same real-world entity; it never changes as the entity versions.
 - `INV-DOMAIN-004`: every entity exposes the same identity shape: one surrogate `Identifier` and one `NaturalKey`.
 - `INV-DOMAIN-005`: other modules reference Domain entities by `Identifier` only and obtain content by join-back; no Domain-owned attribute is duplicated outside Domain.
 - `INV-DOMAIN-006`: the state of any entity is reconstructable as at any past `Timestamp`.
