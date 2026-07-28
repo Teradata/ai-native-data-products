@@ -25,7 +25,8 @@ ai-native-data-products/
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter
-│   └── evals/                  validates a product design against the standards
+│   ├── evals/                  validates a product design against the standards
+│   └── compiler/               verifies a compiled skill package
 ├── prompts/                    how to use the standards
 └── skills/                     generated agent skills (gitignored)
 ```
