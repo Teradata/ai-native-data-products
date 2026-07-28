@@ -31,9 +31,10 @@ We are producing a **platform-agnostic design**: entities in logical types, the 
 ### How to proceed
 
 1. **Confirm the composition.** From the use cases, choose the modules; check that every `[hard]` dependency is satisfied (Search/Prediction require Domain). State what each `[soft]` gap disables.
-2. **Design module by module**, in dependency order. For each: read the module's design file, model its entities in the logical-type notation, list the capabilities it requires and the patterns it applies, and state the invariants it must satisfy.
-3. **Record design decisions** as you go (the flexible-dimension choices, any deviations), ready for the Memory documentation facet.
-4. **Hand off:** produce the design as the input for the **Build** starter (and the **Review** starter).
+2. **Design module by module, Domain first.** Design order is not deployment order: Domain comes first because every other module references its entities, while at deploy time Memory and Semantic go first so the rest have somewhere to register. For each module: read its design file, model its entities in the logical-type notation, list the capabilities it requires and the patterns it applies, and state the invariants it must satisfy.
+3. **Settle the decisions.** Each module lists, under Designer Responsibilities, the catalogued decisions its design must settle, with the option the standard recommends and the question that shifts the answer. Work through them with me one at a time rather than choosing for me. Record every answer, including the ones that take the recommendation, and where we depart from it record why. Leave a decision open only if we say so explicitly.
+4. **Record any other deviations** as design decisions, ready for the Memory documentation facet.
+5. **Hand off:** produce the design as the input for the **Build** starter (and the **Review** starter).
 
 Ask me for anything you need. Drive one module at a time; don't dump the whole design at once.
 

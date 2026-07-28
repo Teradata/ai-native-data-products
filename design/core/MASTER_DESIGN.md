@@ -167,6 +167,8 @@ The roles are product artefacts owned by the product team; assigning users is an
 
 Modules deploy in dependency order: but only those the composition includes. When Memory and Semantic are present they come first, because every other module writes documentation and discovery metadata into them as it deploys.
 
+**Deploy order is not design order.** They run opposite ways, and reading one as the other is the easiest mistake to make here. A design starts with Domain, because every other module models references to its entities and cannot be specified until they exist. A deployment starts with Memory and Semantic, because every other module needs somewhere to register as it lands. Design Domain first; deploy it third.
+
 | Phase | Deploy (if in composition) | Why |
 | -------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | **1. Infrastructure** | Memory, then Semantic | Memory hosts documentation; Semantic hosts the discovery map. Both, when present, precede other modules. |

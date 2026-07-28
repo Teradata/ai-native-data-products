@@ -96,8 +96,9 @@ class DecisionRules(unittest.TestCase):
         self.assertIn("invalid-choice", rules_for(text))
 
     def test_departing_without_a_reason_flagged(self):
-        text = re.sub(r"    because: this is a reference fixture[^\n]*\n", "",
-                      brief_text(), count=1)
+        """Strip whatever reason the fixture carries, not one particular wording."""
+        text = re.sub(r"^\s+because:[^\n]*\n", "", brief_text(), count=1, flags=re.M)
+        self.assertNotEqual(text, brief_text(), "fixture should carry a 'because' to strip")
         self.assertIn("unjustified-choice", rules_for(text))
 
 
