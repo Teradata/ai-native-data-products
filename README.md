@@ -24,7 +24,8 @@ ai-native-data-products/
 │   └── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
-│   └── catalogue/              generates corpus navigation from frontmatter
+│   ├── catalogue/              generates corpus navigation from frontmatter
+│   └── evals/                  validates a product design against the standards
 ├── prompts/                    how to use the standards
 └── skills/                     generated agent skills (gitignored)
 ```
