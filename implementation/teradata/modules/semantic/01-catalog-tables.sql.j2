@@ -1,4 +1,4 @@
--- Semantic module: catalogue tables (Teradata). Binding of design/modules/semantic.md §3.1.
+-- Semantic module: catalogue tables (Teradata). Binding of design/modules/semantic.md.
 -- Schema metadata only (hundreds of rows), never instance data. Replace {{ product }}.
 
 -- entity_metadata: the entity (table) catalogue -------------------------------
@@ -32,7 +32,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.table_name IS 'Physical
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.view_name IS 'Standard current view name - Party_Current.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.surrogate_key_column IS 'Surrogate key column - party_id.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.natural_key_column IS 'Natural key column - party_key.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.temporal_pattern IS 'Temporal-lifecycle profile the entity declares (temporal pattern S6).';
+COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.temporal_pattern IS 'Temporal-lifecycle profile the entity declares (the temporal-lifecycle-metadata pattern).';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.current_flag_column IS 'Name of the current-version flag - typically is_current.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.deleted_flag_column IS 'Name of the soft-delete flag - typically is_deleted.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.industry_standard IS 'Industry model used - FIBO, HL7, CUSTOM.';
@@ -122,7 +122,7 @@ CREATE TABLE {{ product }}_Semantic.table_relationship (
 PRIMARY INDEX (relationship_id);
 
 COMMENT ON TABLE {{ product }}_Semantic.table_relationship IS
-'Table-level relationship metadata - how tables join, for correct agent SQL generation. Must be complete (design S5).';
+'Table-level relationship metadata - how tables join, for correct agent SQL generation. Must be complete (INV-SEMANTIC-005).';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_name IS 'Descriptive relationship name.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.source_table IS 'Table holding the referencing (foreign) key.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.source_column IS 'The referencing key column.';

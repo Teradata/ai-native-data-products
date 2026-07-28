@@ -1,5 +1,5 @@
 -- Temporal & Lifecycle Metadata: access views (Teradata).
--- Binding of design/patterns/temporal-lifecycle-metadata.md §8. Default current
+-- Binding of the access exposure policy in design/patterns/temporal-lifecycle-metadata.md. Default current
 -- surface selects from the governed view, never the base table (TLM-14).
 
 -- Default current access view: authoritative sentinel predicate PLUS the
@@ -12,7 +12,7 @@ SELECT
       a.agreement_bk
     , a.agreement_status
     , a.premium_amount
-    , a.valid_from_dts AS effective_since   -- optional exposure (pattern §8)
+    , a.valid_from_dts AS effective_since   -- optional exposure (access exposure policy)
 FROM {db}.v_agreement AS a
 WHERE a.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
   AND a.is_current = 1

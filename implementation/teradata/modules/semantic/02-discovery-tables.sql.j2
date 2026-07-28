@@ -1,4 +1,4 @@
--- Semantic module: discovery tables (Teradata). Binding of design/modules/semantic.md §3.2.
+-- Semantic module: discovery tables (Teradata). Binding of design/modules/semantic.md.
 -- Module map, primary objects, and view catalogue. Replace {{ product }}.
 
 -- data_product_map: which modules are deployed, and where --------------------
@@ -42,7 +42,7 @@ CREATE TABLE {{ product }}_Semantic.data_product_map_primary_objects (
     database_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
     object_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
     object_type VARCHAR(50) NOT NULL,       -- TABLE, VIEW, PROCEDURE, FUNCTION
-    object_role VARCHAR(50) NOT NULL,       -- controlled vocabulary (design S3.2)
+    object_role VARCHAR(50) NOT NULL,       -- controlled vocabulary (INV-SEMANTIC-007)
     usage_guidance VARCHAR(500) CHARACTER SET UNICODE,
     table_kind CHAR(1),                     -- DBC.TablesV.TableKind (optional)
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),

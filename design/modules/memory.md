@@ -293,7 +293,7 @@ Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-de
 - `INV-MEMORY-003`: every runtime record carries a privacy scope (`scope_level` and `scope_identifier`).
 - `INV-MEMORY-004`: documentation records *why/how/what-changed*; they never duplicate Semantic's *what-exists/how-connects* metadata.
 - `INV-MEMORY-005`: documentation records are temporally versioned; corrections supersede prior versions rather than overwriting them.
-- `INV-MEMORY-006`: *when the documentation facet is present*, every deployed module records its documentation here per the Capture protocol section capture protocol (the provider side of `INV-MASTER-002`).
+- `INV-MEMORY-006`: *when the documentation facet is present*, every deployed module records its documentation here per the capture protocol (the provider side of `INV-MASTER-002`).
 
 ---
 
@@ -318,7 +318,7 @@ Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-de
 - [ ] Documentation records do not duplicate Semantic metadata (`INV-MEMORY-004`).
 - [ ] Documentation is temporally versioned; corrections supersede, never overwrite (`INV-MEMORY-005`).
 - [ ] Retention policies documented per runtime entity.
-- [ ] The capture protocol (see Capture protocol) is available to every module when the documentation facet is present.
+- [ ] The capture protocol is available to every module when the documentation facet is present.
 - [ ] Memory's own entities registered in the Semantic map when Semantic is present (`SemanticRegistration`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] This document passes the design linter with no ignore directive.

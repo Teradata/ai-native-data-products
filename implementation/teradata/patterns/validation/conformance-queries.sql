@@ -1,4 +1,4 @@
--- Validation: conformance queries (Teradata). Backs the VAL rules (design §13).
+-- Validation: conformance queries (Teradata). Backs the VAL conformance rules.
 -- Each query must return ZERO rows for a conforming deployment.
 -- {db} is a generic tag, e.g. {Product}_Observability.
 

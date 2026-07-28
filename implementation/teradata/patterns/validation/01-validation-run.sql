@@ -1,4 +1,4 @@
--- Validation: results table (Teradata). Binding of design/patterns/validation.md §2.
+-- Validation: results table (Teradata). Binding of the validation result contract in design/patterns/validation.md.
 -- Operational evidence in the Observability module; append-only (EVENT_APPEND_ONLY).
 -- {db} is a generic tag bound by object-placement, e.g. {Product}_Observability.
 

@@ -240,7 +240,7 @@ The result is mappable from/to established open formats; `source_format` records
 | Rule | Check |
 |------|-------|
 | VAL-01 | `trust_status` is exactly one of the three vocabulary values. |
-| VAL-02 | `agent_use_allowed` agrees with `trust_status` per. |
+| VAL-02 | `agent_use_allowed` agrees with `trust_status` per the status vocabulary and decision semantics. |
 | VAL-03 | The default decision profile is never loosened. |
 | VAL-04 | `total_checks = passed_count + failed_count + error_count`. |
 | VAL-05 | Gate counts are consistent with the severity model. |

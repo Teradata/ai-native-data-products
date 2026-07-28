@@ -1,5 +1,5 @@
 -- Temporal & Lifecycle Metadata: primary index and statistics (Teradata).
--- Binding of design/patterns/temporal-lifecycle-metadata.md §5 invariants 3-4.
+-- Binding of design/patterns/temporal-lifecycle-metadata.md, required invariants 3-4.
 
 -- Primary index: NUPI on the natural key for co-located joins across versions.
 -- Where in-schema uniqueness enforcement is preferred:

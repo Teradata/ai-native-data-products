@@ -1,5 +1,5 @@
 -- Temporal & Lifecycle Metadata. DML maintenance patterns (Teradata).
--- Binding of design/patterns/temporal-lifecycle-metadata.md §5.2 invariants.
+-- Binding of the required invariants in design/patterns/temporal-lifecycle-metadata.md.
 -- {db}, {entity}, {natural_key} are generic tags; :params are runtime values.
 
 -- 6.1 Standard version change (close + insert, one transaction).

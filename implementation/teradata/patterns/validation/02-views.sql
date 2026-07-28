@@ -1,4 +1,4 @@
--- Validation: latest-run / gate view (Teradata). Binding of design/patterns/validation.md §8.
+-- Validation: latest-run / gate view (Teradata). Binding of the consumption contract and gate authority in design/patterns/validation.md.
 -- Latest-per-(product, producer) projection. The deterministic tie-break
 -- (completed_dts DESC, run_id DESC) is part of the contract (VAL-09).
 -- {db} is a generic tag, e.g. {Product}_Observability.

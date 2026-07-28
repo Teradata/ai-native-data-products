@@ -60,7 +60,7 @@ Three roles are created per product, named `{ProductName}_ROLE_{TIER}`:
 | `{ProductName}_ROLE_AGENT` | AI agents, automated tools | Read on the module access containers, plus **write-back** (append) to Memory and Observability. |
 | `{ProductName}_ROLE_ADMIN` | Product owner, data steward | Read on all containers, including any separate base-table containers. |
 
-### 2.1 Why `ROLE_AGENT` is separate from `ROLE_READ`
+### 3.1 Why `ROLE_AGENT` is separate from `ROLE_READ`
 
 They grant the same read scope by default but are kept distinct for:
 
