@@ -140,6 +140,42 @@ class VerifierCatchesLoss(unittest.TestCase):
                           encoding="utf-8")
         self.assertIn("missing-conformance-rule", self.pkg.rules())
 
+    def _state(self, ident, statement):
+        """Restate a rule in the review skill, declaration-shaped."""
+        e = self.pkg.expected
+        (self.pkg.skills / "review" / "checks" / "all.md").write_text(
+            "# checks\n\n" + "\n".join(sorted(e.invariants | e.conformance))
+            + f"\n\n| Rule | Statement | Check |\n|---|---|---|\n"
+            + f"| `{ident}` | {statement} | some runnable check |\n",
+            encoding="utf-8")
+
+    def test_paraphrased_statement_flagged(self):
+        """Carrying the id is not carrying the rule: a summary reads as authoritative."""
+        ident = sorted(self.pkg.expected.statements)[0]
+        self._state(ident, "a shorter way of putting roughly the same thing.")
+        self.assertIn("paraphrased-statement", self.pkg.rules())
+
+    def test_verbatim_statement_accepted(self):
+        ident, statement = sorted(self.pkg.expected.statements.items())[0]
+        self._state(ident, statement)
+        self.assertNotIn("paraphrased-statement", self.pkg.rules())
+
+    def test_rewrapped_statement_accepted(self):
+        """Reflowing to fit a table is presentation, not compression."""
+        ident, statement = sorted(self.pkg.expected.statements.items())[0]
+        self._state(ident, statement.replace(" ", "\n  ", 1))
+        self.assertNotIn("paraphrased-statement", self.pkg.rules())
+
+    def test_cited_statement_not_required(self):
+        """An id mid-sentence points at wording carried elsewhere; it is not a restatement."""
+        e = self.pkg.expected
+        ident = sorted(e.statements)[0]
+        (self.pkg.skills / "review" / "checks" / "all.md").write_text(
+            "# checks\n\n" + "\n".join(sorted(e.invariants | e.conformance))
+            + f"\n\nWhere `{ident}` fails, the areas depending on it inherit the doubt.\n",
+            encoding="utf-8")
+        self.assertNotIn("paraphrased-statement", self.pkg.rules())
+
     def test_paraphrased_platform_sql_flagged(self):
         """The point of the fingerprint: rewritten SQL is not preserved SQL."""
         (self.pkg.skills / "build" / "sql.md").write_text(
@@ -183,6 +219,14 @@ class ExpectationsComeFromTheCorpus(unittest.TestCase):
         e = Expected(REPO_ROOT, "teradata")
         self.assertTrue({i for i in e.invariants if i.startswith("INV-MASTER-")},
                         "framework invariants belong in the review skill too")
+
+    def test_every_declared_rule_has_its_wording(self):
+        """The wording check is only as good as its reading of the corpus."""
+        e = Expected(REPO_ROOT, "teradata")
+        self.assertEqual(set(e.statements), e.invariants | e.conformance,
+                         "every declared invariant and conformance rule should have been "
+                         "read with its statement, or the wording check silently skips it")
+        self.assertTrue(all(v.strip() for v in e.statements.values()))
 
     def test_missing_platform_tree_is_not_an_error(self):
         e = Expected(REPO_ROOT, "no-such-platform")

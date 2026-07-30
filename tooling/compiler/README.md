@@ -28,6 +28,7 @@ python tooling/compiler/verify_skills.py --skills /path/to/skills --platform ter
 | `missing-decision` | a decision a module raises appears nowhere in the design skill, so it can never be put to a designer. |
 | `missing-invariant` | an invariant a module or the master design declares is absent from the review skill. |
 | `missing-conformance-rule` | a `TLM-*` or `VAL-*` rule a pattern defines is absent from the review skill. |
+| `paraphrased-statement` | a skill states an invariant or conformance rule in its own words rather than the corpus's. |
 | `paraphrased-platform-sql` | no distinctive line of an implementation artifact survives verbatim in the build skill. |
 | `access-discovery`, `access-trust-gate` | the access skill does not lead with product-first discovery, or does not mention the pre-use gate. |
 | *(all `design_lint` rules)* | platform SQL leaked into the design skill. |
@@ -39,6 +40,14 @@ python tooling/compiler/verify_skills.py --skills /path/to/skills --platform ter
 The prompt says platform SQL must be preserved exactly, never compressed. Checking that by object name does not work: the names are themselves templated, so `CREATE TABLE {{ database }}.{{ entity }}_H` yields nothing to match on.
 
 Instead each artifact is fingerprinted on its longest un-templated lines, and at least one must survive verbatim into the build skill. A compiler that rewrote the SQL in its own words fails; one that carried it across passes.
+
+## How wording is checked
+
+Carrying an id proves a rule was not dropped. It says nothing about whether the sentence beside it still means what the corpus means, and a compressed invariant reads exactly as authoritative as the real one: an agent enforces the summary, and the original quietly said more.
+
+So where a skill **states** a rule, the statement must be the corpus's. A statement is recognised structurally, the same way it is found in `design/`: opening a bullet, or the first cell of a table row. An id cited mid-sentence refers to wording carried elsewhere and is left alone, so no skill is pushed into restating a rule it only points at. Whitespace is flattened before comparing, because rewrapping a long statement to fit a table is presentation rather than compression.
+
+The check covers the `design` and `review` skills. The build skill maps ids to their platform bindings and the access skill cites none, so an id appearing there is a cross-reference, not a declaration.
 
 ## What it cannot check
 

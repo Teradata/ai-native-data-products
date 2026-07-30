@@ -43,6 +43,17 @@ MAX_SKILL_LINES = 150
 DECISION_RE = re.compile(r"\b(DEC-[A-Z0-9-]+)\b")
 INVARIANT_RE = re.compile(r"\b(INV-[A-Z]+-\d{3})\b")
 CONFORMANCE_RE = re.compile(r"\b((?:TLM|VAL)-\d{2})\b")
+# Where a rule is *declared*, so its wording can be compared against what the skills carry.
+# An invariant is declared as a bullet in an Invariants section; a conformance rule as a
+# two-cell table row in its pattern. Citations elsewhere match neither, which is the point:
+# the declaration is what the wording is checked against.
+INVARIANT_DECL_RE = re.compile(r"^- `(INV-[A-Z][A-Z0-9]*-\d{3})`:\s*(.+?)\s*$", re.M)
+CONFORMANCE_DECL_RE = re.compile(
+    r"^\|\s*((?:TLM|VAL)-\d{2})\s*(?:\*\*\[B\]\*\*)?\s*\|\s*(.+?)\s*\|\s*$", re.M)
+# Roles that *declare* a statement rather than referring to one. The build skill maps ids
+# to their platform bindings and the access skill cites none, so an id appearing there is a
+# cross-reference to wording carried elsewhere, not a restatement of it.
+STATEMENT_ROLES = ("design", "review")
 # Object names in the templates are themselves templated (`{{ database }}.{{ entity }}_H`),
 # so matching them verifies nothing. Verbatim preservation is checked instead by
 # fingerprinting each artifact on its most distinctive un-templated lines.
@@ -70,24 +81,37 @@ class Expected:
         self.modules = sorted(p.stem for p in (design / "modules").glob("*.md"))
         self.patterns = sorted(p.stem for p in (design / "patterns").glob("*.md"))
 
+        # `{id: statement}`, worded as the corpus words it. Invariant and conformance-rule
+        # wording is preserved exactly, never compressed, so the wording is expected too.
+        self.statements: Dict[str, str] = {}
+
         self.decisions: Set[str] = set()
         self.invariants: Set[str] = set()
         for anchor in self.modules:
             text = (design / "modules" / f"{anchor}.md").read_text(encoding="utf-8")
             self.decisions |= set(DECISION_RE.findall(_settle_table(text)))
             self.invariants |= _own_invariants(text)
+            self.statements.update(
+                INVARIANT_DECL_RE.findall(_named_section(text, "Invariants")))
         # Framework invariants are declared by the master design, not by any module.
         # Taken deliberately rather than picked up from whichever module happens to
         # cite one in its own Invariants section.
         master = design / "core" / "MASTER_DESIGN.md"
         if master.is_file():
-            self.invariants |= set(INVARIANT_RE.findall(
-                _named_section(master.read_text(encoding="utf-8"), "Framework Invariants")))
+            framework = _named_section(master.read_text(encoding="utf-8"),
+                                       "Framework Invariants")
+            self.invariants |= set(INVARIANT_RE.findall(framework))
+            self.statements.update(INVARIANT_DECL_RE.findall(framework))
 
         self.conformance: Set[str] = set()
         for anchor in self.patterns:
             text = (design / "patterns" / f"{anchor}.md").read_text(encoding="utf-8")
             self.conformance |= set(CONFORMANCE_RE.findall(text))
+            self.statements.update(CONFORMANCE_DECL_RE.findall(text))
+
+        # A citation is not a declaration: keep only ids the corpus actually declares.
+        declared = self.invariants | self.conformance
+        self.statements = {k: v for k, v in self.statements.items() if k in declared}
 
         # `{artifact name: [distinctive lines]}`. If none of an artifact's anchors
         # survives into the build skill, its SQL was not preserved verbatim.
@@ -283,6 +307,64 @@ def check_review_carries_checks(skills: Path, expected: Expected) -> List[Findin
     return findings
 
 
+def check_statements_are_verbatim(skills: Path, expected: Expected) -> List[Finding]:
+    """Wording is carried, not paraphrased.
+
+    Carrying the id proves the rule was not dropped; it says nothing about whether the
+    sentence beside it still means what the corpus means. A compressed invariant reads
+    exactly as authoritative as the real one, which is what makes the loss expensive: an
+    agent enforces the summary and no one notices the original said more.
+
+    Only ids the skill *declares* are judged, found the same structural way they are found
+    in the corpus: opening a bullet or a table row. An id cited mid-sentence points at
+    wording carried elsewhere and is left alone, so a skill is never pushed into restating
+    a rule it only refers to.
+
+    Checked per role rather than per file, so a rule may be stated once and referred to
+    elsewhere in the same skill. Whitespace is flattened first: rewrapping a long
+    statement to fit a table is presentation, not compression.
+    """
+    findings = []
+    for role in STATEMENT_ROLES:
+        files = role_files(skills, role)
+        if not files:
+            continue
+        whole = role_text(files)
+        declared = _declared_ids(whole)
+        carried = _flatten(whole)
+        for ident, statement in sorted(expected.statements.items()):
+            # Presence is another rule's job; this one only judges what is here.
+            if ident not in declared:
+                continue
+            if _flatten(statement).rstrip(".") not in carried:
+                findings.append(Finding(
+                    str(skills / role), 1, "paraphrased-statement",
+                    f"{ident} is carried but its wording differs from the corpus; "
+                    f"invariant and conformance-rule wording is preserved exactly"))
+    return findings
+
+
+def _flatten(text: str) -> str:
+    return re.sub(r"\s+", " ", text)
+
+
+def _declared_ids(text: str) -> Set[str]:
+    """Ids a skill states, as against ones it cites.
+
+    A statement opens its line: a bullet (`- \\`INV-X-001\\`: ...`) or the first cell of a
+    table row. An id anywhere else in the line is a cross-reference.
+    """
+    ids = set()
+    for raw in text.splitlines():
+        line = raw.strip()
+        for pattern in (r"^[-*]\s*`?(%s)`?\s*[:|]", r"^\|\s*`?(%s)`?\s*(?:\*\*\[B\]\*\*)?\s*\|"):
+            m = re.match(pattern % r"INV-[A-Z][A-Z0-9]*-\d{3}|(?:TLM|VAL)-\d{2}", line)
+            if m:
+                ids.add(m.group(1))
+                break
+    return ids
+
+
 def check_build_preserves_platform_sql(skills: Path, expected: Expected) -> List[Finding]:
     """Platform SQL is preserved verbatim, not paraphrased.
 
@@ -325,6 +407,7 @@ def verify(skills: Path, repo: Path = REPO_ROOT, platform: str = "teradata") -> 
     findings += check_design_is_platform_neutral(skills)
     findings += check_design_carries_decisions(skills, expected)
     findings += check_review_carries_checks(skills, expected)
+    findings += check_statements_are_verbatim(skills, expected)
     findings += check_build_preserves_platform_sql(skills, expected)
     findings += check_access_leads_with_discovery(skills)
     return sorted(findings, key=lambda f: (f.path, f.rule, f.message))
