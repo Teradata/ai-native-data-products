@@ -34,8 +34,9 @@ CREATE TABLE {{ database }}.entity_embedding (
     -- Temporal tracking (embedding versioning)
     generated_dts       TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                            DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    -- The open-end sentinel is set at INSERT time, never in a DEFAULT clause
+    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     is_current          BYTEINT NOT NULL DEFAULT 1
 )
 PRIMARY INDEX (embedding_id);
@@ -70,6 +71,6 @@ COMMENT ON COLUMN {{ database }}.entity_embedding.generated_dts IS
 COMMENT ON COLUMN {{ database }}.entity_embedding.valid_from_dts IS
 'When this embedding version became valid - supports embedding versioning.';
 COMMENT ON COLUMN {{ database }}.entity_embedding.valid_to_dts IS
-'When this embedding was superseded - default 9999-12-31 for the current embedding.';
+'When this embedding was superseded - sentinel 9999-12-31 for the current embedding, set by the load.';
 COMMENT ON COLUMN {{ database }}.entity_embedding.is_current IS
 'Current embedding indicator - 1 = current, 0 = historical (previous model or content version).';

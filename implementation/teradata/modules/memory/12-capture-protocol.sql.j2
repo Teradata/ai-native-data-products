@@ -3,6 +3,16 @@
 -- (the capture protocol in design/modules/memory.md). Replace {{ product }}, {MODULE}, {NNN}, and
 -- {...} placeholders. Temporal field standards: valid_from = CURRENT_DATE,
 -- valid_to = DATE '9999-12-31', is_current/is_active = 1, decision_status = 'ACCEPTED'.
+--
+-- source_module must be one of the module names registered in Module_Registry for
+-- this product. A value naming no registered module (e.g. 'ACCESS') falls through
+-- the INV-MEMORY-006 join and counts toward nothing, silently.
+--
+-- A stored sql_template uses <param_name> placeholders, never :param_name: the
+-- driver's SQLAlchemy layer reads :word as a bind parameter and strips it before
+-- the INSERT reaches the database (see PLATFORM_PROFILE, SQL idioms and driver
+-- constraints). This is the opposite of the maintenance DML, where :param is a
+-- real runtime bind and correct.
 
 -- 1. Register the module (one row per module CONSIDERED, with deployment_status)
 INSERT INTO {{ product }}_Memory.Module_Registry
@@ -63,7 +73,7 @@ INSERT INTO {{ product }}_Memory.Query_Cookbook
  created_timestamp, updated_timestamp)
 VALUES
 ('QC-{MODULE}-{NNN}', '{title}', '{description}', '{use_case}', '{target_module}',
- '{sql_with_:parameters}', '{param_desc}', '{perf_notes}', '{complexity}', {is_batch},
+ '{sql_with_<angle_bracket>_parameters}', '{param_desc}', '{perf_notes}', '{complexity}', {is_batch},
  '{MODULE_NAME}', '{version}', 1, CURRENT_DATE, DATE '9999-12-31',
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 

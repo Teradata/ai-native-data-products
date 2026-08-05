@@ -9,6 +9,9 @@
     rel.entity1 : { name, lower }   first entity
     rel.entity2 : { name, lower }   second entity
     rel.attributes : optional list of { name, type, nullable, comment }
+
+  The open-end sentinel on valid_to_dts is set at INSERT time by the load, never in
+  a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and driver constraints).
 #}
 CREATE TABLE {{ database }}.{{ rel.name }}_H (
     {{ rel.lower }}_id   BIGINT NOT NULL,
@@ -16,8 +19,7 @@ CREATE TABLE {{ database }}.{{ rel.name }}_H (
     {{ rel.entity2.lower }}_id     BIGINT NOT NULL,
 
     valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                            DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     is_current          BYTEINT NOT NULL DEFAULT 1,
     is_deleted          BYTEINT NOT NULL DEFAULT 0{% for a in rel.attributes | default([]) %},
     {{ a.name }}        {{ a.type }}{% if not a.nullable %} NOT NULL{% endif %}{% endfor %}

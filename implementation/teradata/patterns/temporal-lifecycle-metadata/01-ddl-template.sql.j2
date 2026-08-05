@@ -4,6 +4,13 @@
   representation, open-end sentinel, and column comments (TLM-05,06,07,15).
 
   Template variables:
+    The open-end sentinel is set at INSERT time, never in a DEFAULT clause: the
+  driver hangs parsing a zone-qualified TIMESTAMP literal in a DEFAULT clause
+  during CREATE TABLE (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+  A DEFAULT on a mandatory validity bound also reads as though the value were
+  optional, which it is not.
+
+  Template variables:
     db            : container tag (bound by object-placement), e.g. "{{ product }}_Domain"
     entity        : lower_snake entity name, e.g. "agreement"
     natural_key   : natural/business key column, e.g. "agreement_bk"
@@ -21,7 +28,6 @@ CREATE TABLE {{ db }}.{{ entity }}
     -- Business validity: half-open [valid_from_dts, valid_to_dts)
     , valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL
     , valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                              DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
     , is_current          BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1))
 {%- if supports_deletion %}
     -- Logical deletion

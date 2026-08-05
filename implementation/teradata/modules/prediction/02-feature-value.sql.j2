@@ -14,8 +14,9 @@ CREATE TABLE {{ product }}_Prediction.feature_value (
     value_type        VARCHAR(20),            -- NUMERIC, TEXT, JSON, BOOLEAN
     observation_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     valid_from_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                          DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    -- Sentinel set at INSERT time, never in a DEFAULT clause
+    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     is_current        BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
     feature_version   VARCHAR(20),
     computation_dts   TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),

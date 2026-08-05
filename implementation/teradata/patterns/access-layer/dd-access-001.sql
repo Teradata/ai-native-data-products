@@ -33,6 +33,10 @@ VALUES
      broadening analyst access. Domain and Semantic remain read-only for agents
      because business data and metadata are governed through controlled design and
      pipeline processes.',
-    'ACCEPTED', 'SECURITY', 'ACCESS', '1.0',
+    -- source_module is MEMORY, not 'ACCESS': the Access Layer is a pattern, not a
+    -- module, and source_module must name a module registered in Module_Registry or
+    -- the INV-MEMORY-006 join drops the row without reporting anything. Memory is
+    -- the module whose grant boundary this decision defines.
+    'ACCEPTED', 'SECURITY', 'MEMORY', '1.0',
     CURRENT_DATE, CURRENT_DATE, DATE '9999-12-31', 1
 );

@@ -1,6 +1,9 @@
 -- Temporal & Lifecycle Metadata. DML maintenance patterns (Teradata).
 -- Binding of the required invariants in design/patterns/temporal-lifecycle-metadata.md.
 -- {db}, {entity}, {natural_key} are generic tags; :params are runtime values.
+-- The open-end sentinel is written here, at INSERT time: it is deliberately not a
+-- DEFAULT on the column (see PLATFORM_PROFILE, SQL idioms and driver constraints),
+-- so every INSERT that opens a version states the sentinel explicitly.
 
 -- 6.1 Standard version change (close + insert, one transaction).
 -- Both statements commit or roll back together (invariant 7). The successor's
@@ -17,8 +20,10 @@ WHERE agreement_bk = :agreement_bk
   AND (agreement_status <> :new_status OR premium_amount <> :new_premium);
 
 INSERT INTO {db}.agreement
-      (agreement_sk, agreement_bk, agreement_status, premium_amount, valid_from_dts)
-SELECT :new_sk, :agreement_bk, :new_status, :new_premium, :event_dts
+      (agreement_sk, agreement_bk, agreement_status, premium_amount
+     , valid_from_dts, valid_to_dts)
+SELECT :new_sk, :agreement_bk, :new_status, :new_premium
+     , :event_dts, TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
 WHERE NOT EXISTS (
     SELECT 1 FROM {db}.agreement AS a
     WHERE a.agreement_bk = :agreement_bk
@@ -37,9 +42,10 @@ WHERE agreement_bk = :agreement_bk
 
 INSERT INTO {db}.agreement
       (agreement_sk, agreement_bk, agreement_status, premium_amount
-     , valid_from_dts, is_deleted, deleted_dts)
+     , valid_from_dts, valid_to_dts, is_deleted, deleted_dts)
 VALUES (:new_sk, :agreement_bk, :last_status, :last_premium
-     , :deletion_dts, 1, :deletion_dts);
+     , :deletion_dts, TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
+     , 1, :deletion_dts);
 
 ET;
 -- Restoration inserts a further successor with is_deleted = 0.

@@ -14,8 +14,9 @@ CREATE TABLE {{ product }}_Prediction.model_prediction (
     prediction_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     feature_observation_dts TIMESTAMP(6) WITH TIME ZONE,  -- links to the feature timestamp used
     valid_from_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                          DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    -- Sentinel set at INSERT time, never in a DEFAULT clause
+    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     is_current        BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
     created_by         VARCHAR(100),
     created_at         TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)

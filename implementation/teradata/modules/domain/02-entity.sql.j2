@@ -16,6 +16,10 @@
 
   {entity}_id is sourced from {entity}_Keymap on load. NOT generated here: so the
   surrogate is stable across all SCD versions (INV-DOMAIN-003).
+
+  The open-end sentinel on valid_to_dts / transaction_to_dts is set at INSERT time
+  by the load, never in a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and
+  driver constraints).
 #}
 CREATE TABLE {{ database }}.{{ entity.name }}_H (
     -- Identity
@@ -24,11 +28,9 @@ CREATE TABLE {{ database }}.{{ entity.name }}_H (
 
     -- Bi-temporal validity (point-in-time reconstruction)
     valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                            DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     transaction_from_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    transaction_to_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL
-                            DEFAULT TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
+    transaction_to_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL,
 
     -- State indicators
     is_current          BYTEINT NOT NULL DEFAULT 1,
@@ -53,7 +55,7 @@ COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ entity.lower }}_key IS
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.valid_from_dts IS
 'When this version became true in the real world.';
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.valid_to_dts IS
-'When this version stopped being true in the real world; default 9999-12-31 for the current version.';
+'When this version stopped being true in the real world; sentinel 9999-12-31 for the current version, set by the load.';
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.transaction_from_dts IS
 'When this version was inserted into the database.';
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.transaction_to_dts IS

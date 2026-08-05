@@ -17,7 +17,7 @@ Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../
 
 | File | Purpose |
 |------|---------|
-| `01-ddl-template.sql.j2` | SCD2 history table (`SCD2_HISTORY`) with the canonical columns, flags, sentinel default, and column comments; plus the 1:1 governed locking view. |
+| `01-ddl-template.sql.j2` | SCD2 history table (`SCD2_HISTORY`) with the canonical columns, flags, and column comments; plus the 1:1 governed locking view. |
 | `02-dml-maintenance.sql` | Version change (close + insert, one transaction), logical deletion, late-arriving change. |
 | `03-access-views.sql` | Default current access view and point-in-time (as-of) predicate. |
 | `04-statistics.sql` | Primary-index and `COLLECT STATISTICS` guidance. |
@@ -30,8 +30,10 @@ Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../
 | All `*_dts` columns | `TIMESTAMP(6) WITH TIME ZONE`, persisted normalised to UTC (`+00:00`). |
 | Day-grain event (`*_date`) | `DATE`: never for validity bounds or audit. |
 | Flags (`is_current`, `is_deleted`, `is_active`) | `BYTEINT NOT NULL` with `CHECK (col IN (0,1))`. |
-| Open-end sentinel | `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'` (always with `+00:00`). |
+| Open-end sentinel | `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'` (always with `+00:00`), written at INSERT time. |
 | Row audit defaults | `NOT NULL DEFAULT CURRENT_TIMESTAMP(6)`. |
+
+**The sentinel is an INSERT-time value, never a `DEFAULT` clause.** The driver hangs parsing a zone-qualified timestamp literal inside a `DEFAULT` clause during `CREATE TABLE`: a silent timeout rather than an error, so the failure surfaces minutes later with nothing to read (see [PLATFORM_PROFILE](../../PLATFORM_PROFILE.md), SQL idioms and driver constraints). Independently of the driver, a `DEFAULT` on a mandatory validity bound reads as though the value were optional, which it is not: every statement that opens a version states the sentinel, as `02-dml-maintenance.sql` does.
 
 `TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant (TLM-05): it makes the UTC persistence rule unverifiable and the sentinel ambiguous under session-zone changes. Single-character `'Y'/'N'` encodings and nullable flags are non-conformant (TLM-06).
 
