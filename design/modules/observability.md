@@ -137,7 +137,7 @@ Entity: AgentOutcome              [kind: Record]
   records_processed: Integer [optional]  // aggregate count
 ```
 
-**Validation results.** The [validation pattern](../patterns/validation.md)'s result record is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container.
+**Validation results.** The [validation pattern](../patterns/validation.md)'s result record, the `ValidationRun` entity, is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container. The entity name is fixed by that contract: conformance queries resolve it by name and report clean against anything else.
 
 ---
 
@@ -145,7 +145,7 @@ Entity: AgentOutcome              [kind: Record]
 
 Two views are deployed **into the Semantic container** so agents discover lineage from the same place they discover everything else (Semantic):
 
-- **`lineage_graph`**: a graph-ready edge list built from `DataLineage`, with jobs surfaced as first-class nodes (source → job, job → target). Reads **active definitions only**: no duplicate edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`).
+- **`lineage_graph`**: a graph-ready edge list built from `DataLineage`, with jobs surfaced as first-class nodes (source → job, job → target). Its definition **filters to active lineage definitions**, and does so in the view body rather than leaving it to the caller: no duplicate edges from repeated executions, so the graph is stable and deduplicated (`INV-OBS-006`). Omitting the filter is not a cosmetic lapse. Retired flows stay in the graph and there is nothing in the result to mark them as retired, so an agent navigating lineage is led to a flow that no longer runs and cannot tell.
 - **`lineage_run_latest`**: each active flow joined to its most recent execution, for dashboards showing last-run status against the blueprint.
 
 ---

@@ -304,6 +304,11 @@ Decision: DEC-AUDIT-RETENTION
                   indefinitely.
     Implies:      capability ChangeEventCapture; INV-OBS-004
     Acceptable when: always.
+    Note:         whichever option is taken, this decision governs execution
+                  records only. Definitional lineage is retained for the life
+                  of the product under INV-OBS-004 and is not in scope of the
+                  window chosen here. Applying one window to both is the
+                  common misreading.
 
   Option: bounded
     Summary:      A single uniform retention window for all audit data.

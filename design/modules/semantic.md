@@ -188,6 +188,8 @@ Where the product is reached over MCP, the orientation layer is exposed as **res
 
 An entity that appears in `EntityMetadata` but in no `TableRelationship` is either a *documented* standalone (recorded as a design decision) or an omission that will cause agent navigation failures.
 
+**Derived relationships are registered without exception.** Some relationships in the table above are chosen; others follow mechanically from a modelling decision already taken, and those are the ones that go missing. Where `DEC-SURROGATE-ALLOCATION` is settled as `keymap`, every entity allocated that way has an entity-to-keymap relationship, for every such entity, not for the first one. The characteristic failure is registering one instance of a derived shape and treating the rest as covered: three entities share the pattern, one gets a row, and the other two appear as isolated entities that no agent can traverse to. Anything derivable this way is generated from the model rather than enumerated by hand, because a list maintained by hand is a list that ends after the first entry.
+
 ---
 
 ## 6. Agent Discovery

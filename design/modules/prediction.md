@@ -57,6 +57,14 @@ Prediction stores **engineered features** for ML training and serving with **poi
 
 **Engineering requirement (`INV-PRED-001`).** The feature store holds *engineered* values, normalised, transformed, aggregated, **not** raw copies of Domain columns. A feature that is just a domain column with no transformation must not be duplicated here; it is obtained by join-back. `recency_score = 1 − days_since_last / 365` belongs here; `legal_name`, `birth_date`, raw `credit_limit` do not. Selective duplication is acceptable **only** for documented low-latency scoring exceptions.
 
+**Where a passthrough is legitimate.** The exception above is real and needs a boundary, or every untransformed column arrives claiming it. Not all Domain attributes are business observations: some are configuration the business set, which a model consumes as a constant rather than as something measured. A passthrough is acceptable when all three hold:
+
+1. The attribute is a **contractual or configuration constant**, not an observed business value.
+2. It does **not vary over the entity's history** in a way that would leak future information into a past training row.
+3. The reason is recorded as a design decision, naming which of the two categories it falls in.
+
+A contracted `sla_hours` is the canonical yes: the business set it, the model treats it as a bound, and transforming it would only obscure what it is. A `priority_label` or a `subject_text` is the canonical no: both are observations, both vary, and copying them here duplicates Domain content and calls it a feature. The distinction is what the value *is*, not whether arithmetic was applied to it.
+
 ---
 
 ## 3. Entity Model
@@ -175,7 +183,7 @@ Prediction is an **enhancement** module: it hard-depends on Domain (features ref
 **Design review checklist:**
 
 - [ ] Every attribute uses a logical type; no platform types leak into this document.
-- [ ] Features are engineered, not raw copies of Domain columns (`INV-PRED-001`); any low-latency duplication is documented.
+- [ ] Features are engineered, not raw copies of Domain columns (`INV-PRED-001`); every passthrough meets the three conditions and carries its decision.
 - [ ] Reference to Domain uses the generic-reference pattern and obtains raw context by join-back (`INV-PRED-003`).
 - [ ] Temporal columns support point-in-time reconstruction aligned with Domain (`INV-PRED-002`).
 - [ ] Feature definitions registered in Semantic; values in Prediction (`INV-PRED-004`).
