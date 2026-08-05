@@ -109,6 +109,8 @@ Permissions per role, for whichever modules the composition includes:
 
 Deploying the Access Layer must produce a design-decision record `DD-ACCESS-001` in the product's Memory documentation facet (the `DocumentationCapture` capture protocol, [memory](../modules/memory.md)). This captures the accepted role model, permission boundary, and rationale **inside the product**, so agents can read the access contract at runtime: not only in this document. The record's category is `SECURITY`; its alternatives (single consumer role; per-user grants) and rationale (independent lifecycle + write-back boundary) are recorded per the capture contract.
 
+The record's `source_module` is `MEMORY`. The Access Layer is a pattern rather than a module, so there is no `ACCESS` entry in `ModuleRegistry` for it to name, and a record naming one counts toward no module at all: it is dropped by the join that checks the per-module minimum, without reporting anything. Memory is the module whose grant boundary this decision defines.
+
 ---
 
 ## 7. Relationship to Other Standards

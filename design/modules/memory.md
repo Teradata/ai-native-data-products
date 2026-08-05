@@ -227,7 +227,7 @@ Entity: ChangeLog                 [kind: History]
   related_decision_id: NaturalKey [optional] [-> DesignDecision]
 ```
 
-Use `source_module` on every documentation entity except `ModuleRegistry` (which uses `module_name` to identify the registered module). Never add `module_name` to the other entities.
+Use `source_module` on every documentation entity except `ModuleRegistry` (which uses `module_name` to identify the registered module). Never add `module_name` to the other entities. `source_module` holds one registered module name; the capture protocol below states why that matters and what to do with a decision that spans several.
 
 ### 5.2 Capture protocol (the `DocumentationCapture` contract)
 
@@ -243,6 +243,18 @@ When any module is designed for the product, it records its documentation here. 
 | Implementation note | as needed | `IN-{MODULE}-{NNN}` |
 
 `{MODULE}` is the short module name (`DOMAIN`, `SEARCH`, …). Additional required records: a design decision for every *deferred or deprecated* module; a design decision for **every deviation** from a design standard (category `ARCHITECTURE`); and the ERD recipe `QC-SEMANTIC-002` when Semantic is present. This protocol is the provider side of `INV-MASTER-002`: it is what Domain's the Designer Responsibilities section and Search's the Implementation section point at.
+
+**What counts toward the three, and what `source_module` may hold.** Two different things are both called decisions, and reading one as the other is how a module ends up appearing under its minimum, or above it, without anyone being wrong:
+
+- A **catalogued decision** (`DEC-TEMPORAL-PATTERN`, `DEC-DELETE-STRATEGY`, …) is a *question* a module obliges a designer to settle, listed under Designer Responsibilities. It is part of this standard.
+- A **design decision** (`DD-{MODULE}-{NNN}`) is a *record* written here. It is part of the product.
+
+The three-per-module minimum counts records, not questions. Settling a catalogued decision does not by itself satisfy anything: the answer is recorded as a `DD-` record naming the `DEC-` id it settles, and it is that record which counts. A module that settles three catalogued decisions therefore meets its minimum, but by writing three records rather than by pointing at three rows of a table it did not write.
+
+Two rules follow, and both are checkable:
+
+1. **`source_module` names a module registered in `ModuleRegistry` for this product.** A value naming anything else, a pattern, a layer, a concern, resolves to no module, so the record counts toward nothing and the shortfall is reported against a module that looks compliant. Access-layer and other pattern decisions are recorded against the module whose behaviour they govern.
+2. **A decision affecting several modules is recorded once per module**, each with the rationale that applies to *that* module. A single blended record under one `source_module` under-counts every other module it governs, and loses the per-module reasoning that made it worth recording. Where the reasoning is genuinely identical, say so; where it differs, as the temporal choice does between design memory and a feature store, the difference is the substance.
 
 ---
 
@@ -329,8 +341,9 @@ Memory is **cross-cutting and soft**: nothing hard-depends on it, and it hard-de
 - [ ] Table references are table-level only; no instance keys stored (`INV-MEMORY-001`, `INV-MEMORY-002`).
 - [ ] Documentation records do not duplicate Semantic metadata (`INV-MEMORY-004`).
 - [ ] Documentation is temporally versioned; corrections supersede, never overwrite (`INV-MEMORY-005`).
-- [ ] Retention policies documented per runtime entity.
+- [ ] Retention policies documented per runtime entity, and recorded as a design decision for every entity holding user-scoped data: session TTL, inactivity expiry, and the physical retention window. Retention of user data is a governance choice with compliance consequences, not an operational detail, so it belongs where a reviewer can find the reasoning.
 - [ ] The capture protocol is available to every module when the documentation facet is present.
+- [ ] Every module's `DD-` records reach the three-per-module minimum, and every `source_module` resolves to a registered module (the capture protocol).
 - [ ] Memory's own entities registered in the Semantic map when Semantic is present (`SemanticRegistration`).
 - [ ] Every invariant has a check in the implementation.
 - [ ] This document passes the design linter with no ignore directive.
