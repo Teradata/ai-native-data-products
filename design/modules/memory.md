@@ -262,6 +262,8 @@ Two rules follow, and both are checkable:
 
 Every **runtime** record carries a privacy scope, both a `scope_level` (`USER`/`TEAM`/`ORGANIZATION`/`AGENT`) and a `scope_identifier`, with no exceptions (`INV-MEMORY-003`). Retrieval always filters on scope, so a user sees only their own records, a team its shared records, and so on.
 
+**The filter lives in the access surface, not in the consumer.** Carrying a scope and enforcing one are different things, and a scope enforced only by whatever queries the table is not enforced. The consumer grant reaches a view that applies the scope predicate; the runtime base tables are not part of the consumer surface. This matters most where both facets share a container, because the grant that makes documentation readable is the grant that reaches session records: see the [access-layer pattern](../patterns/access-layer.md).
+
 **Data minimisation.** Store the `user_key` (an identifier), never names, emails, or demographics: those are obtained by join-back to Domain when genuinely needed.
 
 ---

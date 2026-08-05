@@ -172,7 +172,8 @@ Modules deploy in dependency order: but only those the composition includes. Whe
 | Phase | Deploy (if in composition) | Why |
 | -------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | **1. Infrastructure** | Memory, then Semantic | Memory hosts documentation; Semantic hosts the discovery map. Both, when present, precede other modules. |
-| **1.5. Access (initial)** | Create the three roles; grant read on the deployed infrastructure stores | Minimum grant for agents and tools to discover and read. |
+| **1.5a. Implied grants** | The cross-container rights the access layer needs to compile views | A build dependency, not an operational one: it needs only ownership of the containers, and everything downstream fails without it. |
+| **1.5b. Access (initial)** | Create the three roles; grant read on the deployed infrastructure stores | Minimum grant for agents and tools to discover and read. Usually needs elevated privilege, so it is kept separable. |
 | **2. Foundation** | Domain, then Observability | Domain is the entity foundation; Observability begins monitoring immediately. |
 | **2.5. Access (extend)** | Extend grants to Domain + Observability | Consumers can now reach the foundation. |
 | **3. Enhancement** | Search, Prediction | Both hard-require Domain to embed / featurise; grants extended as each deploys. |

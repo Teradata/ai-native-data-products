@@ -75,12 +75,17 @@ They grant the same read scope by default but are kept distinct for:
 
 The Access Layer deploys in two phases interleaved with the module sequence ([Master](../core/MASTER_DESIGN.md)):
 
-| Phase | Timing | Action |
-|-------|--------|--------|
-| **1.5** | After Phase 1 (Memory + Semantic) | Create the roles; grant read on the Semantic and Memory access containers; grant Memory write-back to `ROLE_AGENT`. |
-| **2.5** | After Phase 2 (Domain + Observability), then as further modules deploy | Extend read to Domain and Observability; grant Observability write-back to `ROLE_AGENT`; extend to Search and Prediction as each deploys. |
+| Phase | Timing | Action | Privilege |
+|-------|--------|--------|-----------|
+| **1.5a** | As soon as the containers exist, at the end of Phase 1 | Provision the **implied grants** the container structure requires: the cross-container rights that let the access layer compile views over module containers. | Ownership of both containers. |
+| **1.5b** | After Phase 1 (Memory + Semantic) | Create the roles; grant read on the Semantic and Memory access containers; grant Memory write-back to `ROLE_AGENT`. | **Elevated (role creation).** |
+| **2.5** | After Phase 2 (Domain + Observability), then as further modules deploy | Extend read to Domain and Observability; grant Observability write-back to `ROLE_AGENT`; extend to Search and Prediction as each deploys. | Elevated. |
 
-**Phase 1.5 is the minimum viable grant.** Once Semantic and Memory are readable, agents can discover the product's structure, read the glossary, and use the query cookbook. Delaying all grants until every module is deployed is an anti-pattern: consumers cannot validate the product during incremental deployment. A composition deploys only the phases for the modules it includes (a Data Asset runs Phase 1.5 for Memory and Phase 2.5 for Domain, with no Semantic/Observability grants).
+**Why 1.5 splits.** The two halves look like one step and are not. Implied grants are a **build dependency**: without them a view in a separate access container cannot compile, so every consumer view downstream fails. Role creation is an **operational** one, and on most enterprise platforms it needs a privilege the deploying account does not hold.
+
+Treating them as a single phase makes the first hostage to the second. When role creation is refused, the whole block is skipped, and the failure surfaces two phases later as a view that will not compile against a table it is entitled to read: an error a long way from its cause. Provision the implied grants as soon as the containers exist, and generate the role statements as a separately identified artefact marked as requiring elevated privilege, so a deployment without that privilege continues cleanly and the outstanding step is visible rather than lost.
+
+**Phase 1.5b is the minimum viable grant.** Once Semantic and Memory are readable, agents can discover the product's structure, read the glossary, and use the query cookbook. Delaying all grants until every module is deployed is an anti-pattern: consumers cannot validate the product during incremental deployment. A composition deploys only the phases for the modules it includes (a Data Asset runs Phase 1.5 for Memory and Phase 2.5 for Domain, with no Semantic/Observability grants).
 
 ---
 
@@ -88,11 +93,13 @@ The Access Layer deploys in two phases interleaved with the module sequence ([Ma
 
 Permissions per role, for whichever modules the composition includes:
 
+**This matrix is the authoritative statement of the consumer role model.** It is reproduced in several places, and those reproductions drift: a product's design brief restates it, a deployment sequence restates the phase grants inline, and a placement implementation declares an access model of its own. Where any of them disagrees with this table, this table is correct. A placement implementation declares the *implied* grants its container structure requires ([object-placement](object-placement.md) Section 7) and the principal types the platform offers; it does not redefine who may read what.
+
 | Module | `ROLE_READ` | `ROLE_AGENT` | `ROLE_ADMIN` |
 |--------|-------------|--------------|--------------|
-| Semantic: read | Phase 1.5 | Phase 1.5 | Phase 1.5 |
-| Memory: read | Phase 1.5 | Phase 1.5 | Phase 1.5 |
-| Memory: write-back | - | Phase 1.5 | Phase 1.5 |
+| Semantic: read | Phase 1.5b | Phase 1.5b | Phase 1.5b |
+| Memory: read | Phase 1.5b | Phase 1.5b | Phase 1.5b |
+| Memory: write-back | - | Phase 1.5b | Phase 1.5b |
 | Domain: read | Phase 2.5 | Phase 2.5 | Phase 2.5 |
 | Observability: read | Phase 2.5 | Phase 2.5 | Phase 2.5 |
 | Observability: write-back | - | Phase 2.5 | Phase 2.5 |
@@ -102,6 +109,16 @@ Permissions per role, for whichever modules the composition includes:
 | Base-table containers (if separate) | - |: | ✔ |
 
 **Why agents do not write to Domain or Semantic.** Domain data originates from authoritative source systems via governed pipelines: agent write-back would bypass data governance. Semantic metadata is maintained by product designers; agents read the schema but do not define it.
+
+### 5.1 Reading Memory is not reading agent state
+
+Granting read on the Memory access container to all three roles is required: the documentation facet is how a consumer learns what the product means, and withholding it makes the product unreadable for exactly the audience it is built for.
+
+But Memory has two facets, and where the composition deploys both, the runtime facet sits behind the same grant. `ROLE_READ` then reaches session and interaction records for every user, not only its own. `INV-MEMORY-003` requires every runtime record to *carry* a privacy scope; carrying one is not enforcing one, and nothing above closes that gap.
+
+The scope columns are therefore enforced at the access surface. Runtime entities are consumed through a view that filters on the requesting identity's scope, and that view, not the base table, is what the consumer grant reaches. Where the platform cannot express the filter, the runtime facet is separated into its own container so the documentation grant does not carry it, and the residual exposure is recorded as a design decision rather than left implicit.
+
+The documentation facet needs no such filter: design decisions, glossary, and cookbook are product-wide by intent.
 
 ---
 
@@ -124,13 +141,17 @@ The record's `source_module` is `MEMORY`. The Access Layer is a pattern rather t
 
 ## 8. Conformance Checklist
 
+- [ ] Phase 1.5a implied grants provisioned as soon as the containers exist, before any view that depends on them is compiled.
+- [ ] Role statements identified as requiring elevated privilege, and generated so a deployment without it continues and the outstanding step stays visible.
 - [ ] The three roles created, each with a descriptive comment.
-- [ ] Phase 1.5 read grants applied (Semantic, Memory) immediately after Phase 1.
-- [ ] Phase 1.5 Memory write-back granted to `ROLE_AGENT`.
+- [ ] Phase 1.5b read grants applied (Semantic, Memory) immediately after Phase 1.
+- [ ] Phase 1.5b Memory write-back granted to `ROLE_AGENT`.
 - [ ] Phase 2.5 read grants applied (Domain, Observability) immediately after Phase 2.
 - [ ] Phase 2.5 Observability write-back granted to `ROLE_AGENT`.
 - [ ] Search and Prediction grants applied as each deploys.
 - [ ] Consumers granted the view-layer container only, never base tables.
+- [ ] Runtime memory reached through a scope-enforcing view, not through the documentation grant.
+- [ ] The grant matrix agrees with the deployment phases and with the placement implementation's access section; where they disagree, the grant matrix is corrected into them, not the reverse.
 - [ ] `DD-ACCESS-001` recorded in the product's Memory documentation facet.
 
 ---

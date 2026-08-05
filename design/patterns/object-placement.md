@@ -103,6 +103,8 @@ derive_container(
 
 **Section 7. Access Model.** How access is granted (role/user/policy-based); container-level vs object-level and which is preferred; standard principal types; naming; prohibitions; how the separation policy interacts with access; and any **implied grants** the architecture requires: declared explicitly, with when they must be provisioned, in the standard sequence.
 
+This section declares what the *container structure* makes necessary. The consumer role model, which role reads which module and when, belongs to the [access-layer pattern](access-layer.md) and is not restated here: a placement implementation that reproduces it creates a second copy to keep in step, and the two will diverge. Where they already have, the access-layer grant matrix is authoritative.
+
 **Section 8. Validation Procedure.** An agent-executable procedure confirming: objects are in their intended containers; not in containers for a different type; not in parent/structural containers; end-user principals granted at the correct level; all implied grants present. States passing/failing output and requires halt-and-report on failure: never silent auto-correct.
 
 ---
