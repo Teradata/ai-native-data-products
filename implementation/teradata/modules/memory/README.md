@@ -26,13 +26,34 @@ Concrete Teradata binding of [`design/modules/memory.md`](../../../../design/mod
 
 A **Data Asset** deploys `10`-`12` only (documentation facet). An **AI-Native** product deploys all. Replace `{{ product }}` with the data product name; all tables live in `{{ product }}_Memory`.
 
+## Applying column comments
+
+`RichMetadata` is a hard requirement of every module, and column comments are how it is satisfied. They are also the step most easily lost, because they trail the `CREATE TABLE` in the same file.
+
+The failure has a shape worth naming: **any step bundled behind a step that can require intervention is a step that can be skipped.** When a table creation stalls and needs investigating, attention goes to the table; the session fixes it, moves on, and the comment block below it is never submitted. The comments are then present in the artefact and absent from the database, which no reading of the file will reveal.
+
+So treat comments as their own deployment unit, not as lines appended to a table:
+
+1. Apply `CREATE TABLE` and `COMMENT ON TABLE`.
+2. Apply the `COMMENT ON COLUMN` statements.
+3. **Verify before moving on**, and expect zero rows:
+
+```sql
+SELECT DatabaseName, TableName, ColumnName
+FROM DBC.ColumnsV
+WHERE DatabaseName = '{{ product }}_Memory'
+  AND (CommentString IS NULL OR TRIM(CommentString) = '');
+```
+
+The same sequence applies to every module: the gate is what makes the step recoverable, because a skipped comment block is otherwise discovered by a conformance run days later, against a whole module at once.
+
 ## Capability bindings
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
 | `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql.j2`; version chain via `is_current` + `valid_from`/`valid_to`. |
 | Agent continuity / learning | The five runtime tables + views. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
+| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`, applied and verified as their own step (below). |
 | `SemanticRegistration` *(soft)* | When Semantic is present: register Memory's entities in `{{ product }}_Semantic`. |
 | `EntityJoinBack` *(soft → Domain)* | Resolve a table reference to Domain content by join when needed. |
 
@@ -42,10 +63,10 @@ A **Data Asset** deploys `10`-`12` only (documentation facet). An **AI-Native** 
 |-----------------------|---------------|
 | `Identifier` | `INTEGER` / `BIGINT` `GENERATED ALWAYS AS IDENTITY` |
 | `NaturalKey` | `VARCHAR(n)` |
-| `ShortText` / `Text` | `VARCHAR(n)` |
-| `LongText` | `CLOB` |
+| `ShortText` / `Text` | `VARCHAR(n) CHARACTER SET UNICODE` |
+| `LongText` | `CLOB CHARACTER SET UNICODE` |
 | `Json` | `JSON` |
-| `Enum{…}` | `VARCHAR(n)` with a documented value set |
+| `Enum{…}` | `VARCHAR(n) CHARACTER SET UNICODE` with a documented value set |
 | `Integer` | `INTEGER` |
 | `Decimal(p,s)` | `DECIMAL(p,s)` |
 | `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |

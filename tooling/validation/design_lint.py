@@ -153,15 +153,24 @@ class Finding:
         return f"{self.path}:{self.line}: [{self.rule}] {self.message}"
 
 
+def _has_legacy_directive(text: str) -> bool:
+    """The legacy HTML directive, which a document without frontmatter uses to opt out.
+
+    Kept separate from `_is_ignored` because the two escape hatches waive different
+    things. The frontmatter key waives the content rules of a document that has, by
+    definition, declared an identity. The HTML directive exists for a document that
+    declares none, so waiving the content rules and then failing it for the missing
+    frontmatter leaves it with no way to opt out at all.
+    """
+    return any(IGNORE_FILE_RE.search(line) for line in text.splitlines()[:5])
+
+
 def _is_ignored(text: str) -> bool:
     """A file opts out entirely, via frontmatter `lint: ignore-file` or a legacy HTML directive."""
     fm, _ = parse_frontmatter(text)
     if fm and fm.get("lint") == "ignore-file":
         return True
-    for line in text.splitlines()[:5]:
-        if IGNORE_FILE_RE.search(line):
-            return True
-    return False
+    return _has_legacy_directive(text)
 
 
 # --------------------------------------------------------------------------- #
@@ -612,11 +621,16 @@ def lint_paths(paths: List[str]) -> List[Finding]:
                 findings += lint_file(md)
             if not is_design_document(md):
                 continue
-            # An ignore directive waives the content rules, not the document's identity:
-            # it must still declare valid frontmatter and still contributes its anchor
-            # and catalogues to the corpus.
             text = md.read_text(encoding="utf-8")
-            findings += find_frontmatter_violations(md, text)
+            # The frontmatter key `lint: ignore-file` waives the content rules, not the
+            # document's identity: it is declared *in* frontmatter, so the document has
+            # one and still has to get it right. The legacy HTML directive is the opt-out
+            # for a document carrying no frontmatter at all, and waives the identity rules
+            # too: holding it to a block it opted out of declaring leaves it no way out.
+            # Either way, a document that does have frontmatter still contributes its
+            # anchor and catalogues to the corpus.
+            if not _has_legacy_directive(text):
+                findings += find_frontmatter_violations(md, text)
             fm, offset = parse_frontmatter(text)
             if fm is not None:
                 docs[md] = (fm, text, offset)

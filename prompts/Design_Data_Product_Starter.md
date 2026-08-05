@@ -41,3 +41,11 @@ Ask me for anything you need. Drive one module at a time; don't dump the whole d
 ### Handover
 
 The **intake above is your input**; your **output is the design brief** (contents per the `design` skill): platform-agnostic, the single thing the Build starter needs. Agree with me where it goes, a file, this conversation, my repo, or an MCP resource, based on what you can access; don't assume you can write files. It's the transient bridge to Build; once the product is built, its decisions live in Memory.
+
+**Validate before handing over.** Run `brief_lint` against the brief and give me the output with it:
+
+```bash
+python tooling/evals/brief_lint.py path/to/design_brief.md
+```
+
+It reports unsettled decisions, hard requirements no module in the composition satisfies, invariants the brief never acknowledges, and platform SQL that should not be there yet. A clean run is the precondition for requesting review; without it a reviewer has to do mechanically what a script does in milliseconds, and reports weak confidence on the parts they could only check by eye. Use `brief_lint` and not `design_lint`: the latter checks that the *standards* are well formed, and reports nothing useful about a product.

@@ -99,11 +99,19 @@ Modules deploy in dependency order: only those the composition includes:
 python tooling/validation/design_lint.py design implementation
 ```
 
+`tooling/evals/brief_lint.py` is the other half, and the one a **designer** uses: `design_lint` checks that the standards are well formed, `brief_lint` checks that a product design written against them is complete and conformant. Run it on a design brief before handing it to review:
+
+```bash
+python tooling/evals/brief_lint.py path/to/design_brief.md
+```
+
 `tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy READMEs from document frontmatter: run it after adding or renaming a document:
 
 ```bash
 python tooling/catalogue/build_catalogue.py
 ```
+
+`tooling/compiler/verify_skills.py` checks that a compiled skill package kept everything the [Skill Conversion Prompt](prompts/Skill_Conversion_Prompt.md) required it to keep.
 
 ```bash
 python -m unittest discover -s tooling/validation/tests

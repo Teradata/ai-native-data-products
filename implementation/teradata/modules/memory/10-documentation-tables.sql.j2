@@ -1,23 +1,31 @@
 -- Memory module: documentation facet tables (Teradata).
 -- Binding of design/modules/memory.md. These six tables ARE the design memory.
 -- Temporally versioned (INV-MEMORY-005). Replace {{ product }} with the product name.
+--
+-- Every text column declares CHARACTER SET UNICODE. Teradata defaults to LATIN,
+-- which cannot store an em dash or a curly quote, and these tables hold prose:
+-- rationale, consequences, definitions, usage guidance. Prose written by anyone
+-- (or anything) using ordinary typography then fails the INSERT with
+-- [6706] The string contains an untranslatable character, on exactly the content
+-- the capture protocol asks for. Declaring UNICODE removes the failure rather
+-- than mitigating it; sanitising the text on the way in only hides it.
 
 -- ---------------------------------------------------------------------------
 -- Module_Registry: every module considered during design (deployed or not)
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Module_Registry (
     module_registry_key  BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    module_name          VARCHAR(50) NOT NULL,       -- DOMAIN, SEARCH, PREDICTION, OBSERVABILITY, SEMANTIC, MEMORY
-    database_name        VARCHAR(128) NOT NULL,
-    deployment_status    VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED',  -- DEPLOYED, PLANNED, DEPRECATED
-    module_version       VARCHAR(20) NOT NULL,
-    module_purpose       CLOB NOT NULL,
-    module_scope         CLOB,
-    key_entities         VARCHAR(500),
-    dependencies         VARCHAR(500),
-    dependents           VARCHAR(500),
-    data_owner           VARCHAR(100),
-    technical_owner      VARCHAR(100),
+    module_name          VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- DOMAIN, SEARCH, PREDICTION, OBSERVABILITY, SEMANTIC, MEMORY
+    database_name        VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    deployment_status    VARCHAR(20) CHARACTER SET UNICODE NOT NULL DEFAULT 'DEPLOYED',  -- DEPLOYED, PLANNED, DEPRECATED
+    module_version       VARCHAR(20) CHARACTER SET UNICODE NOT NULL,
+    module_purpose       CLOB CHARACTER SET UNICODE NOT NULL,
+    module_scope         CLOB CHARACTER SET UNICODE,
+    key_entities         VARCHAR(500) CHARACTER SET UNICODE,
+    dependencies         VARCHAR(500) CHARACTER SET UNICODE,
+    dependents           VARCHAR(500) CHARACTER SET UNICODE,
+    data_owner           VARCHAR(100) CHARACTER SET UNICODE,
+    technical_owner      VARCHAR(100) CHARACTER SET UNICODE,
     version_date         DATE NOT NULL,
     is_current           BYTEINT NOT NULL DEFAULT 1,
     valid_from           DATE NOT NULL,
@@ -52,22 +60,22 @@ COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.updated_timestamp IS 'Whe
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Design_Decision (
     decision_key            BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    decision_id             VARCHAR(50) NOT NULL,       -- DD-{MODULE}-{NNN}
+    decision_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- DD-{MODULE}-{NNN}
     decision_version        INTEGER NOT NULL DEFAULT 1,
-    decision_title          VARCHAR(200) NOT NULL,
-    decision_description    CLOB,
-    context                 CLOB,
-    alternatives_considered CLOB,
-    rationale               CLOB,
-    consequences            CLOB,
-    decision_status         VARCHAR(20) NOT NULL,       -- PROPOSED, ACCEPTED, SUPERSEDED, DEPRECATED
-    decision_category       VARCHAR(50) NOT NULL,       -- ARCHITECTURE, SCHEMA, NAMING, PERFORMANCE, SECURITY, INTEGRATION, OPERATIONAL
-    source_module           VARCHAR(50) NOT NULL,
-    module_version          VARCHAR(20),
-    affects_table           VARCHAR(200),
-    decided_by              VARCHAR(100),
+    decision_title          VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    decision_description    CLOB CHARACTER SET UNICODE,
+    context                 CLOB CHARACTER SET UNICODE,
+    alternatives_considered CLOB CHARACTER SET UNICODE,
+    rationale               CLOB CHARACTER SET UNICODE,
+    consequences            CLOB CHARACTER SET UNICODE,
+    decision_status         VARCHAR(20) CHARACTER SET UNICODE NOT NULL,       -- PROPOSED, ACCEPTED, SUPERSEDED, DEPRECATED
+    decision_category       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- ARCHITECTURE, SCHEMA, NAMING, PERFORMANCE, SECURITY, INTEGRATION, OPERATIONAL
+    source_module           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
+    module_version          VARCHAR(20) CHARACTER SET UNICODE,
+    affects_table           VARCHAR(200) CHARACTER SET UNICODE,
+    decided_by              VARCHAR(100) CHARACTER SET UNICODE,
     decided_date            DATE,
-    superseded_by           VARCHAR(50),
+    superseded_by           VARCHAR(50) CHARACTER SET UNICODE,
     valid_from              DATE NOT NULL,
     valid_to                DATE DEFAULT DATE '9999-12-31',
     is_current              BYTEINT NOT NULL DEFAULT 1,
@@ -105,16 +113,16 @@ COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.updated_timestamp IS 'Whe
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Business_Glossary (
     glossary_key        BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    term                VARCHAR(200) NOT NULL,
-    term_category       VARCHAR(50) NOT NULL,          -- ENTITY, ATTRIBUTE, METRIC, BUSINESS_RULE, CLASSIFICATION, REFERENCE_CODE
-    definition          CLOB NOT NULL,
-    business_context    CLOB,
-    synonyms            VARCHAR(500),
-    related_terms       VARCHAR(500),
-    related_table       VARCHAR(200),
-    related_column      VARCHAR(200),
-    source_module       VARCHAR(50) NOT NULL,
-    module_version      VARCHAR(20),
+    term                VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    term_category       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- ENTITY, ATTRIBUTE, METRIC, BUSINESS_RULE, CLASSIFICATION, REFERENCE_CODE
+    definition          CLOB CHARACTER SET UNICODE NOT NULL,
+    business_context    CLOB CHARACTER SET UNICODE,
+    synonyms            VARCHAR(500) CHARACTER SET UNICODE,
+    related_terms       VARCHAR(500) CHARACTER SET UNICODE,
+    related_table       VARCHAR(200) CHARACTER SET UNICODE,
+    related_column      VARCHAR(200) CHARACTER SET UNICODE,
+    source_module       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
+    module_version      VARCHAR(20) CHARACTER SET UNICODE,
     is_active           BYTEINT NOT NULL DEFAULT 1,
     valid_from          DATE NOT NULL,
     valid_to            DATE DEFAULT DATE '9999-12-31',
@@ -146,18 +154,18 @@ COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.updated_timestamp IS 'W
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Query_Cookbook (
     recipe_key              BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    recipe_id               VARCHAR(50) NOT NULL,       -- QC-{MODULE}-{NNN}
-    recipe_title            VARCHAR(200) NOT NULL,
-    recipe_description      CLOB NOT NULL,
-    use_case                VARCHAR(200) NOT NULL,
-    target_module           VARCHAR(50) NOT NULL,       -- DOMAIN, SEARCH, PREDICTION, OBSERVABILITY, SEMANTIC, MEMORY, CROSS
-    sql_template            CLOB NOT NULL,
-    parameter_descriptions  CLOB,
-    performance_notes       CLOB,
-    complexity              VARCHAR(20) NOT NULL,       -- SIMPLE, MODERATE, COMPLEX, ADVANCED
+    recipe_id               VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- QC-{MODULE}-{NNN}
+    recipe_title            VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    recipe_description      CLOB CHARACTER SET UNICODE NOT NULL,
+    use_case                VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    target_module           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- DOMAIN, SEARCH, PREDICTION, OBSERVABILITY, SEMANTIC, MEMORY, CROSS
+    sql_template            CLOB CHARACTER SET UNICODE NOT NULL,
+    parameter_descriptions  CLOB CHARACTER SET UNICODE,
+    performance_notes       CLOB CHARACTER SET UNICODE,
+    complexity              VARCHAR(20) CHARACTER SET UNICODE NOT NULL,       -- SIMPLE, MODERATE, COMPLEX, ADVANCED
     is_batch                BYTEINT NOT NULL DEFAULT 1, -- 1 = batch only, 0 = interactive-safe
-    source_module           VARCHAR(50) NOT NULL,
-    module_version          VARCHAR(20),
+    source_module           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
+    module_version          VARCHAR(20) CHARACTER SET UNICODE,
     is_active               BYTEINT NOT NULL DEFAULT 1,
     valid_from              DATE NOT NULL,
     valid_to                DATE DEFAULT DATE '9999-12-31',
@@ -191,16 +199,16 @@ COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.updated_timestamp IS 'When
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Implementation_Note (
     note_key            BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    note_id             VARCHAR(50) NOT NULL,          -- IN-{MODULE}-{NNN}
-    note_title          VARCHAR(200) NOT NULL,
-    note_content        CLOB NOT NULL,
-    note_category       VARCHAR(50) NOT NULL,          -- DEPLOYMENT, WORKAROUND, KNOWN_ISSUE, PERFORMANCE_TIP, OPERATIONAL, SECURITY
-    severity            VARCHAR(20),                   -- LOW, MEDIUM, HIGH, CRITICAL
-    affects_table       VARCHAR(200),
-    resolution_status   VARCHAR(20),                   -- OPEN, IN_PROGRESS, RESOLVED, WONT_FIX
-    resolution_notes    CLOB,
-    source_module       VARCHAR(50) NOT NULL,
-    module_version      VARCHAR(20),
+    note_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- IN-{MODULE}-{NNN}
+    note_title          VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    note_content        CLOB CHARACTER SET UNICODE NOT NULL,
+    note_category       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- DEPLOYMENT, WORKAROUND, KNOWN_ISSUE, PERFORMANCE_TIP, OPERATIONAL, SECURITY
+    severity            VARCHAR(20) CHARACTER SET UNICODE,                   -- LOW, MEDIUM, HIGH, CRITICAL
+    affects_table       VARCHAR(200) CHARACTER SET UNICODE,
+    resolution_status   VARCHAR(20) CHARACTER SET UNICODE,                   -- OPEN, IN_PROGRESS, RESOLVED, WONT_FIX
+    resolution_notes    CLOB CHARACTER SET UNICODE,
+    source_module       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
+    module_version      VARCHAR(20) CHARACTER SET UNICODE,
     is_active           BYTEINT NOT NULL DEFAULT 1,
     valid_from          DATE NOT NULL,
     valid_to            DATE DEFAULT DATE '9999-12-31',
@@ -232,20 +240,20 @@ COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.updated_timestamp IS 
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Change_Log (
     change_key          BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    change_id           VARCHAR(50) NOT NULL,          -- CL-{MODULE}-{NNN}
-    version_number      VARCHAR(20) NOT NULL,
-    change_title        VARCHAR(200) NOT NULL,
-    change_description  CLOB NOT NULL,
-    change_type         VARCHAR(30) NOT NULL,          -- INITIAL_RELEASE, SCHEMA_CHANGE, FEATURE_ADDITION, BUG_FIX, PERFORMANCE, DEPRECATION
-    change_category     VARCHAR(50) NOT NULL,          -- BREAKING, NON_BREAKING, ADDITIVE, DEPRECATION
-    source_module       VARCHAR(50) NOT NULL,
-    affects_table       VARCHAR(200),
-    migration_steps     CLOB,
-    rollback_steps      CLOB,
-    related_decision_id VARCHAR(50),                   -- FK to Design_Decision.decision_id
+    change_id           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- CL-{MODULE}-{NNN}
+    version_number      VARCHAR(20) CHARACTER SET UNICODE NOT NULL,
+    change_title        VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
+    change_description  CLOB CHARACTER SET UNICODE NOT NULL,
+    change_type         VARCHAR(30) CHARACTER SET UNICODE NOT NULL,          -- INITIAL_RELEASE, SCHEMA_CHANGE, FEATURE_ADDITION, BUG_FIX, PERFORMANCE, DEPRECATION
+    change_category     VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- BREAKING, NON_BREAKING, ADDITIVE, DEPRECATION
+    source_module       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
+    affects_table       VARCHAR(200) CHARACTER SET UNICODE,
+    migration_steps     CLOB CHARACTER SET UNICODE,
+    rollback_steps      CLOB CHARACTER SET UNICODE,
+    related_decision_id VARCHAR(50) CHARACTER SET UNICODE,                   -- FK to Design_Decision.decision_id
     deployed_date       DATE,
-    deployed_by         VARCHAR(100),
-    deployment_status   VARCHAR(20) NOT NULL,          -- PLANNED, DEPLOYED, ROLLED_BACK
+    deployed_by         VARCHAR(100) CHARACTER SET UNICODE,
+    deployment_status   VARCHAR(20) CHARACTER SET UNICODE NOT NULL,          -- PLANNED, DEPLOYED, ROLLED_BACK
     created_timestamp   TIMESTAMP(6) WITH TIME ZONE
 )
 PRIMARY INDEX (change_key);

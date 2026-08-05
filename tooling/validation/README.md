@@ -4,6 +4,8 @@
 
 `design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md) across both hierarchies. It is the executable form of the **No-Platform-SQL Rule**, the **frontmatter schema**, and the **decision rules**. Stdlib-only, Python 3.8+.
 
+> **This checks the standards, not a product.** Its rules are corpus rules: module spines, the capability and decision catalogues, frontmatter identity. Pointing it at a product's design brief reports things that are true of a standards document and meaningless for a product artefact. The linter for a product design written *against* these standards is [`brief_lint`](../evals/), and it checks what a designer actually needs checked: unsettled decisions, unmet hard requirements, unacknowledged invariants, and platform SQL in a brief.
+
 ## Run it
 
 Lint both hierarchies:
@@ -72,15 +74,19 @@ lint: ignore-file
 lint_reason: why this document must name SQL
 ```
 
-A document without frontmatter uses the legacy directive on its first line:
+That waiver covers the **content** rules only. The document has frontmatter (it declared the waiver there), so it is still held to it, and still contributes its anchor and catalogues to the corpus.
+
+A document with **no** frontmatter at all uses the legacy directive on its first line:
 
 ```
 <!-- design-lint: ignore-file (reason) -->
 ```
 
-The waiver covers the **content** rules only. An opted-out document still has to declare valid frontmatter, and still contributes its anchor and catalogues to the corpus.
+This one is a full opt-out, identity rules included. It has to be: the directive must open the file, which is exactly where a frontmatter block would have to start, so a document cannot carry both. Waiving only the content rules would leave it failing `frontmatter-missing` with no way to opt out of it.
 
-Module and pattern documents must never use it: they are exactly the content the rule keeps clean.
+Pick by whether the document has an identity to declare. A supporting note or a scratch file takes the directive; anything that belongs to the corpus takes the frontmatter key.
+
+Module and pattern documents must never use either: they are exactly the content the rule keeps clean.
 
 ## Tests
 

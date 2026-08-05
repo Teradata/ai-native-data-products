@@ -338,3 +338,51 @@ class ModuleSpine(unittest.TestCase):
         from design_lint import find_spine_violations
         self.assertEqual(find_spine_violations(SPINE_DOC, "m.md"), [],
                          "a module may add its own sections anywhere in the spine")
+
+
+class EscapeHatches(unittest.TestCase):
+    """The two opt-outs waive different things, and the difference is the point.
+
+    `lint: ignore-file` is declared *in* frontmatter, so the document has one and is
+    still held to it. The HTML directive is for a document that declares none, so
+    holding it to the block it opted out of writing would leave it no way out.
+    """
+
+    def lint(self, files):
+        import tempfile
+        from design_lint import lint_paths
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "design"
+            root.mkdir()
+            for name, text in files.items():
+                (root / name).write_text(text, encoding="utf-8")
+            return lint_paths([str(root)])
+
+    def test_html_directive_waives_the_missing_frontmatter(self):
+        findings = self.lint({"notes.md": "<!-- design-lint: ignore-file (scratch) -->\n\n# Notes\n"})
+        self.assertEqual([f.rule for f in findings], [])
+
+    def test_frontmatter_opt_out_still_declares_a_correct_identity(self):
+        text = MODULE_DOC.replace("normative: true", "normative: true\nlint: ignore-file")
+        findings = self.lint({"prediction.md": text})
+        self.assertIn("anchor-mismatch", [f.rule for f in findings],
+                      "a document that has frontmatter is still held to it")
+
+    def test_an_opted_out_document_still_contributes_its_anchor(self):
+        opted_out = MODULE_DOC.replace("normative: true", "normative: true\nlint: ignore-file")
+        citing = MODULE_DOC.replace("anchor: search", "anchor: cites").replace(
+            "normative: true", "normative: true\nimplements: search")
+        findings = self.lint({"search.md": opted_out, "cites.md": citing})
+        self.assertNotIn("unknown-anchor", [f.rule for f in findings],
+                         "waiving the content rules does not remove a document from the corpus")
+
+    def test_the_two_hatches_cannot_be_combined(self):
+        """The directive has to open the file, which is where frontmatter has to start.
+
+        So a document uses one hatch or the other, never both, and the frontmatter key
+        is the only one available to a document that carries an identity. Asserted
+        rather than left implicit, because it is what makes the split above coherent.
+        """
+        from design_lint import parse_frontmatter
+        both = "<!-- design-lint: ignore-file (reason) -->\n" + MODULE_DOC
+        self.assertIsNone(parse_frontmatter(both)[0])
