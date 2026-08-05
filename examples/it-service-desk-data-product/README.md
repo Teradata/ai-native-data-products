@@ -98,7 +98,7 @@ Open [`prompts/Build_Data_Product_Starter.md`](../../prompts/Build_Data_Product_
 
 Apply the physical design in section 4b: primary indexes, partitioning, temporal conventions, statistics. Generate `build/00_databases_and_roles.sql` through `build/08_prediction.sql`, plus `deploy.sh` and `teardown.sh`.
 
-Commit the SQL before executing any of it (`build: generate DDL — ITServiceDesk`). Then check it, because two classes of defect are cheap to catch here and expensive to catch on the platform:
+Commit the SQL before executing any of it (`build: generate DDL for ITServiceDesk`). Then check it, because two classes of defect are cheap to catch here and expensive to catch on the platform:
 
 ```bash
 python tooling/validation/design_lint.py design implementation itsd-data-product

@@ -1,4 +1,4 @@
-# Object Placement Standard — ITServiceDesk (Teradata)
+# Object Placement Standard: ITServiceDesk (Teradata)
 
 **Standard version:** 1.0  
 **Product:** ITServiceDesk (`ITSD`)  
@@ -16,7 +16,7 @@ sections before generating any object, and MUST derive every container from Sect
 **Platform and version:** Teradata Vantage 17.20  
 **Container term:** DATABASE (Teradata `DATABASE` is the container; there is no `SCHEMA` concept above it)  
 **Access principal term:** ROLE  
-**Namespace structure:** Flat — databases are directly accessible by name; no hierarchical
+**Namespace structure:** Flat. Databases are directly accessible by name; no hierarchical
 catalog; no `catalog.schema.table` syntax (Teradata uses `database.table` only)  
 **Maximum container name length:** 30 characters  
 **Reserved characters:** space, dot (`.`), slash (`/`), hyphen (`-`)  
@@ -28,7 +28,7 @@ catalog; no `catalog.schema.table` syntax (Teradata uses `database.table` only)
 
 ## Section 2. Container Model
 
-**Structure:** child containers only — no structural or parent containers in Teradata.
+**Structure:** child containers only. Teradata has no structural or parent containers.
 Each database is a peer-level child container holding objects for exactly one module.
 
 **Containers for this product:**
@@ -41,7 +41,7 @@ Each database is a peer-level child container holding objects for exactly one mo
 | `ITSD_OBS` | Observability | Tables: ChangeEvent, DataQualityMetric, DataLineage, LineageRun, ModelPerformance, AgentOutcome |
 | `ITSD_SCH` | Search | Tables: EntityEmbedding |
 | `ITSD_PRD` | Prediction | Tables: TicketFeatureSet (a FeatureGroup), ModelPrediction |
-| `ITSD_ACC` | Access Layer | Views only — all consumer-facing views |
+| `ITSD_ACC` | Access Layer | Views only: all consumer-facing views |
 
 **Rules:**
 - Each module has exactly one database.
@@ -67,7 +67,7 @@ Each database is a peer-level child container holding objects for exactly one mo
 | Segment | Position | Values | Mandatory | Separator |
 |---|---|---|---|---|
 | `ProductCode` | 1 | `ITSD` (fixed) | Yes | `_` |
-| `ModuleAbbrev` | 2 | `MEM`, `SEM`, `DOM`, `OBS`, `SCH`, `PRD`, `ACC` | Yes | — |
+| `ModuleAbbrev` | 2 | `MEM`, `SEM`, `DOM`, `OBS`, `SCH`, `PRD`, `ACC` | Yes | none (final segment) |
 
 **Module abbreviations:**
 
@@ -83,7 +83,7 @@ Each database is a peer-level child container holding objects for exactly one mo
 
 **Object naming within containers:**
 
-Rule A — container-discriminated (`STRICT_SEPARATION`): the container is the sole type
+Rule A, container-discriminated (`STRICT_SEPARATION`): the container is the sole type
 discriminator. Object names are identical across container types. Type markers on object
 names are prohibited.
 
@@ -132,7 +132,7 @@ container names on a given system do not carry environment markers. An object na
 | Temporary / derived tables (loading) | Spool or `ITSD_DOM` work tables | Cleared after each load |
 
 **Prohibited:**
-- Tables in `ITSD_ACC` — this database holds views only
+- Tables in `ITSD_ACC`, which holds views only
 - Consumer-facing views in any module database (ITSD_DOM, ITSD_OBS, etc.)
 - Any object in a system database (DBC, SYSLIB, etc.)
 

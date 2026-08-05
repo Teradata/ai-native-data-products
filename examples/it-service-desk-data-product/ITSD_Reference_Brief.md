@@ -1,4 +1,4 @@
-# IT Service Desk — AI-Native Data Product: Reference Brief
+# IT Service Desk AI-Native Data Product: Reference Brief
 
 **Product code:** `ITSD`  
 **Full name:** `ITServiceDesk`
@@ -21,7 +21,7 @@ advocated option, the reason is already recorded here and carries through to Mem
 | Event | Commit message |
 |---|---|
 | Design phase complete | `design: ITServiceDesk design brief and decisions log` |
-| Build DDL generated (before execution) | `build: generate DDL — ITServiceDesk` |
+| Build DDL generated (before execution) | `build: generate DDL for ITServiceDesk` |
 | Phase 1+1.5 deployed (Memory, Semantic, roles, grants) | `build: Memory and Semantic deployed` |
 | Phase 2+2.5 deployed (Domain, Observability, grants) | `build: Domain and Observability deployed` |
 | Phase 3 deployed + validation run | `build: Search and Prediction deployed; validation passed` |
@@ -30,7 +30,7 @@ advocated option, the reason is already recorded here and carries through to Mem
 ### Teradata MCP Server
 - Available throughout Build and Review conversations.
 - Use for: DDL execution, SQL syntax testing, validation query runs, row counts.
-- Do not use for file operations — those go to GitHub.
+- Do not use for file operations. Those go to GitHub.
 - Before executing any CREATE, test the statement with a `SHOW TABLE` dry-run or `EXPLAIN`
   to catch syntax errors; commit SQL to the repository before executing.
 
@@ -144,15 +144,15 @@ analytical review (manager and analyst-driven).
 - Downstream ML pipelines: feature store consumption
 
 **Top use cases:**
-1. Predict SLA breach risk for an open ticket — given priority, customer tier, category,
-   time-in-queue — so agents can proactively escalate before breach occurs
+1. Predict SLA breach risk for an open ticket (given priority, customer tier, category,
+   time-in-queue) so agents can proactively escalate before breach occurs
 2. Find semantically similar past tickets and retrieve their resolution approaches
 3. Monitor ticket data quality (completeness, referential integrity, satisfaction coverage)
    so the operations team has confidence in SLA reporting figures
 4. Track agent and team SLA performance over time for manager review and coaching
 5. Maintain AI agent session continuity across a multi-step ticket investigation
 
-**Composition:** Full AI-Native Data Product — all six modules; Memory with both facets
+**Composition:** Full AI-Native Data Product: all six modules; Memory with both facets
 (documentation + runtime).
 
 **Data sources:** Four CSV files (categories, agents, customers, tickets). Batch ingestion
@@ -168,9 +168,9 @@ from file on initial load. No streaming source in this cycle.
 | Category | 15 | 0 | ~15 |
 
 **Sensitivity:**
-- `agents.email` — `[pii]`
-- `customers.contact_name` — `[pii]`
-- `customers.contact_email` — `[pii]`
+- `agents.email` is `[pii]`
+- `customers.contact_name` is `[pii]`
+- `customers.contact_email` is `[pii]`
 - Ticket `description` and `resolution_notes` may contain incidental PII in free text.
   Flag as a risk in Memory. No runtime masking in this build; noted for future production
   hardening.
@@ -193,21 +193,21 @@ below; do not re-open. Every answer is recorded in `design/decisions_log.md`.
 | DEC-TIMESTAMP-ZONE | Zone handling for all Timestamp attributes | `zone-aware`: store normalised to UTC; presentation conversion is a consumer concern | Yes | Source data is UTC; no single-zone assumption; ordering correctness required |
 | DEC-TEMPORAL-PATTERN | History representation for versioned entities | `bi-temporal`: valid time + transaction time independently | Yes | Prediction module requires point-in-time correctness; ticket reclassifications and priority corrections occur and must not leak into training features |
 | DEC-COLUMN-STRATEGY | Where audit, lineage, and quality attributes live | `offload`: none on the entity; all in Observability, presented via AccessView | Yes | Ticket history accumulates many changes per entity; quality trend matters for SLA reporting trust |
-| DEC-SURROGATE-ALLOCATION | How entity Identifiers are kept stable | `keymap` for all History entities; `inline` for Category (Reference) | Partially: Category departs | Ticket, Agent, Customer are each referenced by other modules — stability is required; Category is a Reference entity that does not version, so the keymap machinery is unnecessary |
+| DEC-SURROGATE-ALLOCATION | How entity Identifiers are kept stable | `keymap` for all History entities; `inline` for Category (Reference) | Partially: Category departs | Ticket, Agent, Customer are each referenced by other modules, so stability is required; Category is a Reference entity that does not version, so the keymap machinery is unnecessary |
 | DEC-DELETE-STRATEGY | What happens when an entity instance is deleted | `soft-delete`: `is_deleted` set with `deleted_dts` recorded, as a new current version; the predecessor's `valid_to_dts` and `transaction_to_dts` close at that instant | Yes | SLA reporting and audit require deletion history; agent departures and customer offboarding are analytically significant events |
 | DEC-QUALITY-STORAGE | Where quality assessments are held | `observability`: scores and per-rule results as a time series in Observability | Yes | Quality trend is how the team identifies deteriorating data before it affects SLA reporting |
-| DEC-AUDIT-RETENTION | How long change events and deletion records are retained | `bounded`: 3-year uniform retention window | **No — departure** | IT service desk ticket data carries no statutory retention obligation in this deployment context; 3-year window covers operational investigation needs and pattern analysis depth; revisit if compliance scope changes |
+| DEC-AUDIT-RETENTION | How long change events and deletion records are retained | `bounded`: 3-year uniform retention window | **No, a departure** | IT service desk ticket data carries no statutory retention obligation in this deployment context; 3-year window covers operational investigation needs and pattern analysis depth; revisit if compliance scope changes |
 
 #### Module-specific decisions
 
-**Domain — entity model**
+**Domain: entity model**
 
 | Entity | Kind | Declared temporal profile | Surrogate allocation | Keymap needed |
 |---|---|---|---|---|
-| Ticket | History | `SCD2_BITEMPORAL` | keymap | Yes — referenced by Search, Prediction, Observability |
-| Agent | History | `SCD2_BITEMPORAL` | keymap | Yes — referenced by Ticket |
-| Customer | History | `SCD2_BITEMPORAL` | keymap | Yes — referenced by Ticket |
-| Category | Reference | `CURRENT_STATE` | inline | No — holds present values only; see below |
+| Ticket | History | `SCD2_BITEMPORAL` | keymap | Yes, referenced by Search, Prediction, Observability |
+| Agent | History | `SCD2_BITEMPORAL` | keymap | Yes, referenced by Ticket |
+| Customer | History | `SCD2_BITEMPORAL` | keymap | Yes, referenced by Ticket |
+| Category | Reference | `CURRENT_STATE` | inline | No, it holds present values only; see below |
 
 Every keymap is `CURRENT_STATE`: one row per natural key, allocated once, never versioned.
 
@@ -215,20 +215,20 @@ Every keymap is `CURRENT_STATE`: one row per natural key, allocated once, never 
 
 **Category departs from the `Reference` default.** The default profile for a `Reference` entity is `SCD2_HISTORY`, because a code's label can be reworded and a past record should still decode against what its code meant then. Category takes `CURRENT_STATE` instead: this is a small internal taxonomy whose labels are not reworded in service, and no ticket needs to resolve a category name as at its creation date. Recorded as a design decision.
 
-That profile declaration is what licenses `effective_date` / `expiration_date` on this entity for the period a category is available for assignment. TLM-04 permits those two names on a `CURRENT_STATE` entity and prohibits them everywhere else, and the permission turns on the *declared* profile, so the declaration must reach the Semantic entity metadata — an entity registered with no profile cannot claim the exception. They are a day-grain business lifecycle date here, not a validity pair.
+That profile declaration is what licenses `effective_date` / `expiration_date` on this entity for the period a category is available for assignment. TLM-04 permits those two names on a `CURRENT_STATE` entity and prohibits them everywhere else, and the permission turns on the *declared* profile, so the declaration must reach the Semantic entity metadata. An entity registered with no profile cannot claim the exception. They are a day-grain business lifecycle date here, not a validity pair.
 
 Relationship entities:
 - No explicit Relationship entity needed at this stage. The Ticket entity carries
   `assigned_agent_id`, `customer_id`, and `category_id` as direct references. These are
   point-in-time attributes of the ticket, not standalone associations.
 
-**Search — entity model**
+**Search: entity model**
 
 One entity, `EntityEmbedding`, as the Search module defines it. The two embeddings are **rows** discriminated by `source_attribute`, not two tables: the module models an embedding per (entity, source attribute, model), and splitting it per source would fork the similarity query and the currency flag along with it.
 
 | `source_attribute` | Embedding source | Dimensions | Coverage |
 |---|---|---|---|
-| `subject_description` | `subject \|\| ' ' \|\| description` | 384 | Every ticket — both attributes are mandatory |
+| `subject_description` | `subject \|\| ' ' \|\| description` | 384 | Every ticket, since both attributes are mandatory |
 | `resolution_notes` | `resolution_notes` | 384 | Resolved and closed tickets only; no row where `resolution_notes` is NULL |
 
 `entity_kind` is `TICKET` for both. Absence is represented by the absence of a row, not by a row with a null vector: `embedding` is required, and a null vector is not a fact about an unresolved ticket.
@@ -238,9 +238,9 @@ One entity, `EntityEmbedding`, as the Search module defines it. The two embeddin
   in Memory for production scaling
 - Similarity threshold for "similar ticket" queries: cosine ≥ 0.75 (conservative; tunable)
 
-**Prediction — entity model**
+**Prediction: entity model**
 
-Prediction target: `sla_breach_risk_score DECIMAL(5,4)` — probability 0.0000–1.0000 that
+Prediction target: `sla_breach_risk_score DECIMAL(5,4)`, a probability 0.0000–1.0000 that
 the ticket will breach SLA before resolution. Binary classification model output stored as
 continuous score for downstream agent decision-making.
 
@@ -250,7 +250,7 @@ Feature register:
 |---|---|---|---|
 | f_priority_int | ticket.priority | P1=1, P2=2, P3=3, P4=4 | Yes |
 | f_sla_hours | ticket.sla_hours | Direct | Yes |
-| f_customer_tier_int | customer.tier (at ticket creation time) | Platinum=1, Gold=2, Silver=3, Bronze=4 | Yes — join at valid_time |
+| f_customer_tier_int | customer.tier (at ticket creation time) | Platinum=1, Gold=2, Silver=3, Bronze=4 | Yes, join at valid_time |
 | f_agent_team_int | agent.team (at assignment time) | Infrastructure=1, Applications=2, Service Desk=3; NULL if unassigned | Yes |
 | f_category_leaf_int | ticket.category_id | CAT-006=1 through CAT-015=10 | Yes |
 | f_created_hour | `tickets.csv:created_at` | Hour of day 0–23 | Yes |
@@ -268,7 +268,7 @@ join-back to recover attribute values as at the ticket's creation instant. Field
 unavailable at prediction time (resolution time, closure time, satisfaction score) are
 excluded from the feature set.
 
-Feature group entity: `TicketFeatureSet` — a wide-format `FeatureGroup` carrying the `f_*`
+Feature group entity: `TicketFeatureSet`, a wide-format `FeatureGroup` carrying the `f_*`
 columns above, one per ticket, on the `SCD2_HISTORY` profile with `observation_dts` as the
 point-in-time anchor.
 
@@ -280,14 +280,14 @@ per scoring event. There is no separate `SLABreachScore` table: a product-named 
 one model's output is a private spelling of the module's own entity, and the agent-facing
 query then differs per product for no gain.
 
-**Observability — quality dimensions and weights**
+**Observability: quality dimensions and weights**
 
 | Dimension | Weight | Assesses |
 |---|---|---|
 | Completeness | 35% | Required attributes populated |
 | Validity | 25% | Values in expected format/range |
 | Consistency | 20% | Related attributes agree (e.g. resolution time is not before creation time) |
-| Accuracy | 10% | Values match source (reduced weight — single source of truth) |
+| Accuracy | 10% | Values match source (reduced weight, since there is a single source of truth) |
 | Timeliness | 10% | Freshness of latest data |
 
 Thresholds (per entity per dimension):
@@ -301,7 +301,7 @@ Validation frequency: on each batch data load; on-demand via `validation/validat
 Lineage scope this cycle: source file → Domain ingest only. Search and Prediction lineage
 noted as derived from Domain; full pipeline lineage at production maturity.
 
-**Memory — documentation facet**
+**Memory: documentation facet**
 
 All six documentation entities deploy, as the Memory module defines them: `ModuleRegistry`,
 `DesignDecision`, `BusinessGlossary`, `QueryCookbook`, `ImplementationNote`, `ChangeLog`.
@@ -312,18 +312,18 @@ reason verbatim in `rationale`, and the alternatives considered in
 `alternatives_considered`; that is what makes the departure auditable inside the product
 rather than only in this file.
 
-`INV-MEMORY-006` sets the floor per deployed module — at least three design decisions,
-three glossary terms, and one query recipe — so the capture protocol runs for every module
+`INV-MEMORY-006` sets the floor per deployed module (at least three design decisions,
+three glossary terms, and one query recipe) so the capture protocol runs for every module
 in the composition, not only the ones with something interesting to say.
 
-**Memory — runtime facet**
+**Memory: runtime facet**
 
 All five runtime entities deploy: `AgentSession`, `AgentInteraction`, `LearnedStrategy`,
 `UserPreference`, `DiscoveredPattern`. Their columns come from the module.
 
 Ticket investigation state maps onto them rather than onto a bespoke session table.
 `AgentSession` carries the session's own lifecycle (`session_start_dts`,
-`session_end_dts`, goal, status) and `session_context_json` holds the working state — the
+`session_end_dts`, goal, status) and `session_context_json` holds the working state: the
 ticket under investigation, the analysis step reached, the last search issued. The tickets
 retrieved by a search are recorded on `AgentInteraction` as a **count**
 (`query_result_count`) and a table-level reference, never as a list of ticket ids:
@@ -335,7 +335,7 @@ Session TTL: 24 hours of inactivity, computed from `session_start_dts` and the l
 setting `session_end_dts` and `session_status = 'ABANDONED'`; rows are retained for 7 days
 then purged.
 
-**Semantic — registration scope**
+**Semantic: registration scope**
 
 The catalogue entities are the module's own: `EntityMetadata`, `ColumnMetadata`,
 `NamingStandard`, `TableRelationship`, `DataProductMap`, `PrimaryObject`. The product-level
@@ -343,13 +343,13 @@ The catalogue entities are the module's own: `EntityMetadata`, `ColumnMetadata`,
 since its purpose is cross-product discovery.
 
 Every entity across every module registers at deploy time, and each registration states its
-`temporal_pattern` — the profile declaration is what lets a validator resolve an entity's
+`temporal_pattern`. The profile declaration is what lets a validator resolve an entity's
 temporal behaviour from metadata instead of guessing from its name, and it is what licenses
 Category's `effective_date` / `expiration_date`. The relationship catalogue covers all FK
 relationships in Domain. Entity and column metadata are sourced from `COMMENT ON
 TABLE/COLUMN` values via `DBC.TablesV` and `DBC.ColumnsV`.
 
-**Access layer — role definitions**
+**Access layer: role definitions**
 
 The three roles the access-layer pattern defines, no more:
 
@@ -386,7 +386,7 @@ Paste this block into the Build Starter prompt's **Intake** section.
 **Target platform:** Teradata Vantage 17.20  
 **Product name:** `ITServiceDesk`  
 **Design input:** `design/design_brief.md` in the repository  
-**Object Placement Standard:** `standards/object_placement.md` in this repository — read
+**Object Placement Standard:** `standards/object_placement.md` in this repository. Read
 it in full before generating any object  
 **Object storage in use?** No
 
@@ -438,7 +438,7 @@ a ticket carries two embeddings, so the entity id alone is not unique.
 - Flags: `BYTEINT NOT NULL DEFAULT 0 CHECK (col IN (0, 1))`
 - Consumer views: `LOCKING ROW FOR ACCESS` on all views
 
-**Statistics — minimum collection set**
+**Statistics: minimum collection set**
 
 Collect after initial data load, before first query.
 
@@ -500,7 +500,7 @@ product accessible via the Teradata MCP Server
 **Trust map format:**
 
 ```markdown
-## Trust Map — ITServiceDesk
+## Trust Map: ITServiceDesk
 
 Reviewed: [date]  
 Reviewer: [identity]  
