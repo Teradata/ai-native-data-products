@@ -105,27 +105,38 @@ The `Identifier` / `NaturalKey` split is deliberate: `<entity>_id` is the intern
 
 ### 3.2 Reference data (Reference)
 
-Controlled vocabularies and lookups, with temporal validity but simpler than a full history entity.
+Controlled vocabularies and lookups: simpler than a full history entity, but versioned on the same contract.
 
 ```
 Entity: <ReferenceName>           [kind: Reference]
   <reference>_id: Identifier  // surrogate key for the entry
-  <reference>_code: Code [required] [unique]  // code used by entities; unique within its effective period
+  <reference>_code: Code [required] [unique]  // code used by entities; the natural key
   short_description: ShortText [required]  // brief label for UI and reports
   long_description: Text [optional]  // full definition and usage guidance
-  effective_date: Date [required]  // when the value becomes valid
-  expiration_date: Date [optional]  // when the value expires
-  is_current: Flag [current-flag]  // currently valid indicator
+  is_current: Flag [current-flag]  // marks the current version of the code
   parent_<reference>_id: Reference [optional] [-> <ReferenceName>]  // optional hierarchy parent
   sort_order: Integer [optional]  // optional display sequence
 
+  Keys:
+    surrogate: <reference>_id
+    natural:   <reference>_code
+
   Applies patterns:
+    - temporal-lifecycle-metadata
     - object-placement
     - access-layer
 
   Requires capabilities:
+    - CurrentStateFilter
+    - PointInTimeReconstruction
     - RichMetadata
 ```
+
+**What "simpler" means.** Fewer attributes, and usually direct surrogate allocation rather than a keymap (see Surrogate-key allocation). It does **not** mean a different temporal contract. A code's label and definition change over time, and a ticket raised in 2024 must still decode against what its category meant in 2024, so the default profile is `SCD2_HISTORY` and the validity columns come from the [temporal pattern](../patterns/temporal-lifecycle-metadata.md), exactly as they do for a History entity: which is why they are not restated in the block above.
+
+A reference set that genuinely carries no history declares `CURRENT_STATE` instead, and records the choice. That is a real case, and the profile declaration is what tells a validator, and an agent, which one it is looking at.
+
+**Where a code's in-force period belongs.** *When a version of this row was true* and *when the business permits this code to be assigned* are two different facts, and a single date pair cannot carry both (the [temporal pattern](../patterns/temporal-lifecycle-metadata.md) treats conflating two concepts in one column as a conformance failure). The first is the validity pair the pattern supplies. The second, where a product needs it, is a day-grain business attribute of its own, named for the event it records.
 
 ### 3.3 Relationship
 
@@ -158,11 +169,18 @@ Entity: <EntityName>Keymap        [kind: Keymap]
   <entity>_id: Identifier  // allocated once per natural key; never reused or recycled
   <entity>_key: NaturalKey [required] [unique]  // natural key from source system
   source_system: ShortText [optional]  // system that first introduced this natural key
-  created_at: Timestamp [required]  // allocation time; immutable once set
+  created_dts: Timestamp [required]  // allocation time; immutable once set
+
+  Applies patterns:
+    - temporal-lifecycle-metadata
+    - object-placement
 
   Requires capabilities:
     - SurrogateKeyAllocation
+    - RichMetadata
 ```
+
+A keymap holds one row per natural key and never versions, so it declares the `CURRENT_STATE` profile. It applies the temporal pattern all the same: `created_dts` is a canonical audit column, and a table that stands outside the pattern is a table whose column names drift away from it.
 
 Reference entities and detail entities that are never reference targets may allocate their surrogate directly and omit the keymap. This decision, keymap vs direct allocation, is a per-entity designer choice recorded in the design decisions.
 

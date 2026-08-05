@@ -51,7 +51,7 @@ Database/layer naming is owned by the [object-placement](../object-placement/) i
 
 | Rule | Check |
 |------|-------|
-| TLM-04 (prohibited names) | `conformance-queries.sql` §1: catalogue scan for banned column names; §1b resolves `effective_date` / `expiration_date` against the declared temporal profile, since they are permitted on `CURRENT_STATE` entities and on reference data. |
+| TLM-04 (prohibited names) | `conformance-queries.sql` §1: catalogue scan for banned column names; §1b resolves `effective_date` / `expiration_date` against the declared temporal profile, since they are permitted on `CURRENT_STATE` and prohibited elsewhere. |
 | TLM-05 (type/precision) | `conformance-queries.sql` §2: `*_dts` columns not `TIMESTAMP(6) WITH TIME ZONE`. |
 | TLM-06 (flag representation) | `conformance-queries.sql` §3: `is_*` columns not `BYTEINT NOT NULL`. |
 | TLM-08/09/10/11 (data invariants) | `conformance-queries.sql` §4: overlap, multiple current, flag disagreement, deletion without time. |

@@ -103,15 +103,15 @@ Prohibited in new designs; each has exactly one canonical replacement:
 | `updated_at`, `updated_timestamp` | `updated_dts` | All profiles |
 | `valid_from`, `effective_from`, `start_timestamp` | `valid_from_dts` | All profiles |
 | `valid_to`, `effective_to`, `end_timestamp` | `valid_to_dts` | All profiles |
-| `effective_date` | `valid_from_dts` | Versioned and event profiles only (see below) |
-| `expiration_date` | `valid_to_dts` | Versioned and event profiles only (see below) |
+| `effective_date` | `valid_from_dts` | Prohibited except on `CURRENT_STATE` (see below) |
+| `expiration_date` | `valid_to_dts` | Prohibited except on `CURRENT_STATE` (see below) |
 | `deleted_flag`, `active_ind`, `*_yn`, single-character / Y-N flag encodings | `is_deleted` / `is_active` (a `Flag`) | All profiles |
 
 Event-specific names remain valid where they describe distinct events rather than audit or SCD2 metadata: `run_dts`, `measured_dts`, `observation_dts`, `generated_dts`, `discovered_dts`, `change_dts`, `deployed_dts`, `registered_dts`, `retired_dts`, and similar.
 
-**`effective_date` and `expiration_date` on reference data.** These two names are prohibited on `SCD2_HISTORY`, `SCD2_BITEMPORAL`, and `EVENT_APPEND_ONLY`, where they compete with the validity pair and reintroduce exactly the ambiguity this pattern exists to remove. They are permitted on a `CURRENT_STATE` entity and on a controlled vocabulary or lookup (the `Reference` entity kind), where they are **day-grain business lifecycle dates**: the period a code, rate, or classification is in force, which §4.1 already admits as event columns. There is no validity pair there for them to be mistaken for.
+**`effective_date` and `expiration_date` on a `CURRENT_STATE` entity.** These two names are prohibited wherever a validity pair exists for them to compete with, which is every versioned and event profile: there they reintroduce exactly the ambiguity this pattern exists to remove. On a `CURRENT_STATE` entity they are permitted, because the entity holds no history and there is no pair to confuse them with. What they carry there is a **day-grain business lifecycle date**, the period a code, rate, or classification is in force, which the canonical column contract already admits as an event column.
 
-This is a scoped exception, not a second meaning. The concept the names carry is the same in both cases; what differs is whether the entity already owns a column for it. Required and prohibited columns are declared per profile throughout this pattern, so resolving a name against the entity's declared profile is the reading that was always required.
+This turns on the *declared profile*, not on what kind of thing the table holds. A controlled vocabulary that versions declares `SCD2_HISTORY` and uses the canonical names like anything else; one that genuinely holds only present values declares `CURRENT_STATE` and may use these. Reading the name against the profile is what resolves it, which is the reading this pattern has always required: required and prohibited columns are declared per profile throughout.
 
 `valid_from` and `valid_to` stay prohibited everywhere. Those are the SCD2 columns with the suffix removed, and there is no entity where that is what was meant.
 
@@ -181,7 +181,19 @@ Every persisted table **declares exactly one profile**. The declaration lives in
 | Operational log / audit | `OPERATIONAL_LOG` | audit + event timestamps | lifecycle / SCD2 columns unless the logged object is versioned |
 | SCD2 bitemporal | `SCD2_BITEMPORAL` | SCD2 required columns + transaction-time pair | - |
 
-Missing required columns, or prohibited columns present, are conformance failures for the declared profile. (The `[kind: History]` entities in the module docs are the `SCD2_HISTORY` profile; `[kind: Record]` entities are typically `EVENT_APPEND_ONLY` or `CURRENT_STATE`.)
+Missing required columns, or prohibited columns present, are conformance failures for the declared profile.
+
+**Entity kinds and their default profiles.** Every kind in the [entity notation](../core/DESIGN_LANGUAGE.md) resolves to a profile, so no persisted table falls outside this pattern:
+
+| Kind | Default profile | Note |
+|------|-----------------|------|
+| `History` | `SCD2_HISTORY` (or `SCD2_BITEMPORAL` per `DEC-TEMPORAL-PATTERN`) | The versioned business entity. |
+| `Relationship` | As the entities it associates: `ASSOCIATION_SCD2` or `ASSOCIATION_CURRENT` | |
+| `Reference` | `SCD2_HISTORY` | A code's label and definition change; a past record must still decode against what its code meant then. A set that genuinely carries no history declares `CURRENT_STATE` and records the choice. |
+| `Keymap` | `CURRENT_STATE` | One row per natural key, allocated once, never versioned. |
+| `Record` | `EVENT_APPEND_ONLY` or `CURRENT_STATE` | Per what the record is. |
+
+A kind that names no profile is a kind whose temporal columns are unowned, and unowned columns drift: that is how a validity pair acquires a second spelling.
 
 ---
 
@@ -214,7 +226,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 | TLM-01 **[B]** | Every persisted table declares exactly one profile (see Table Metadata Profiles) in the Semantic entity metadata. |
 | TLM-02 **[B]** | All required columns for the declared profile exist. |
 | TLM-03 | No prohibited columns for the declared profile exist. |
-| TLM-04 | No prohibited generic names exist, resolved against the entity: `effective_date` / `expiration_date` are permitted on `CURRENT_STATE` entities and reference data, and prohibited elsewhere. |
+| TLM-04 | No prohibited generic names exist, resolved against the declared profile: `effective_date` / `expiration_date` are permitted on `CURRENT_STATE` and prohibited elsewhere. |
 | TLM-05 | Physical type, precision, time-zone handling, and flag representation match the implementation. |
 | TLM-06 **[B]** | Flags are non-null and restricted to the two values. |
 | TLM-07 **[B]** | Validity bounds are non-null and `valid_from_dts < valid_to_dts`. |
@@ -234,7 +246,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 
 ## 11. Migration and Compatibility
 
-**Legacy-to-canonical mapping** (forms found in existing products and their replacements): DATE-grain `valid_from`/`valid_to`, and `effective_date`/`expiration_date` **where they are serving as validity bounds on a versioned entity**, → `valid_from_dts`/`valid_to_dts` (grain widens day → timestamp); the same two names carrying day-grain lifecycle dates on reference data are already canonical and are not migrated; `created_at`/`created_dt`/`created_timestamp`/`created_date` → `created_dts`; `updated_at`/`updated_timestamp` → `updated_dts`; `is_active`-as-currency → `is_current` (retain `is_active` only for a distinct documented approval state); audit-only dialects (`rec_load_dts`/`rec_updt_dts`) → canonical audit columns; transaction-time-as-mandatory → optional `SCD2_BITEMPORAL` variant.
+**Legacy-to-canonical mapping** (forms found in existing products and their replacements): DATE-grain `valid_from`/`valid_to` and `effective_date`/`expiration_date` → `valid_from_dts`/`valid_to_dts` (grain widens day → timestamp), wherever they serve as validity bounds: reference data included, since a versioned code list is a versioned entity; `created_at`/`created_dt`/`created_timestamp`/`created_date` → `created_dts`; `updated_at`/`updated_timestamp` → `updated_dts`; `is_active`-as-currency → `is_current` (retain `is_active` only for a distinct documented approval state); audit-only dialects (`rec_load_dts`/`rec_updt_dts`) → canonical audit columns; transaction-time-as-mandatory → optional `SCD2_BITEMPORAL` variant.
 
 **Migration rules:** new products apply the canonical contract immediately; deployed products migrate through **versioned compatibility projections** (a compatibility surface presenting canonical names over legacy columns until base tables are regenerated, consumers never parse dialects); widening alone cannot recover semantics (DATE→timestamp migrations document that intra-day ordering is unavailable for historical rows); validators flag non-canonical names on new objects while allowing registered legacy aliases with an expiry.
 

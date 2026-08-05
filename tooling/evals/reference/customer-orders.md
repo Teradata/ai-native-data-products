@@ -173,31 +173,46 @@ Entity: OrderLine                 [kind: Relationship]
 ```
 Entity: OrderStatus               [kind: Reference]
   order_status_id  : Identifier                        // surrogate for the entry
-  order_status_code: Code [required] [unique]          // status code used by Order
+  order_status_code: Code [required] [unique]          // status code used by Order; natural key
   short_description: ShortText [required]              // label for reports
   long_description : Text [optional]                   // definition and usage guidance
-  effective_date   : Date [required]                   // when the value becomes valid
-  expiration_date  : Date [optional]                   // when the value expires
-  is_current       : Flag [current-flag]               // currently valid indicator
+  is_current       : Flag [current-flag]               // marks the current version of the code
   sort_order       : Integer [optional]                // display sequence
 
+  Keys:
+    surrogate: order_status_id
+    natural:   order_status_code
+
   Applies patterns:
+    - temporal-lifecycle-metadata
     - object-placement
     - access-layer
 
   Requires capabilities:
+    - CurrentStateFilter
+    - PointInTimeReconstruction
     - RichMetadata
 ```
+
+`OrderStatus` versions on the default `SCD2_HISTORY` profile: a status label can be
+reworded, and an order placed last year should still read back with the wording that
+was current when it was placed. The validity pair comes from the temporal pattern and
+is not restated here, exactly as for `Customer` above.
 
 ```
 Entity: CustomerKeymap            [kind: Keymap]
   customer_id      : Identifier                        // allocated once per natural key
   customer_key     : NaturalKey [required] [unique]    // natural key from source
   source_system    : ShortText [optional]              // system that introduced the key
-  created_at       : Timestamp [required]              // allocation time; immutable
+  created_dts      : Timestamp [required]              // allocation time; immutable
+
+  Applies patterns:
+    - temporal-lifecycle-metadata
+    - object-placement
 
   Requires capabilities:
     - SurrogateKeyAllocation
+    - RichMetadata
 ```
 
 `Product` and `Order` take the same keymap shape, since both are reference targets.

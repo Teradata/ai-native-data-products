@@ -19,7 +19,7 @@ Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/mod
 |------|---------|
 | `01-keymap.sql.j2` | Surrogate-key allocation table (`SurrogateKeyAllocation` binding). |
 | `02-entity.sql.j2` | Core History entity table: bi-temporal columns, current/deleted flags, full column metadata. |
-| `03-reference.sql.j2` | Reference data table (controlled vocabularies). |
+| `03-reference.sql.j2` | Reference data table (controlled vocabularies), versioned on the canonical validity pair; `reference.versioned = false` emits the `CURRENT_STATE` variant. |
 | `04-relationship.sql.j2` | Associative relationship table. |
 | `05-views.sql.j2` | Standard `_Current` / `_Enriched` views (`AccessView` binding). |
 | `validation.sql.j2` | Runnable checks for the module's invariants (`MetadataCoverageCheck` and others). |

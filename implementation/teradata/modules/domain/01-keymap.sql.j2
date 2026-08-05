@@ -10,12 +10,16 @@
 
   Emit one keymap per FK-target entity. Reference/detail entities that are never
   FK targets may allocate surrogates directly and skip this template.
+
+  Temporal profile CURRENT_STATE: one row per natural key, allocated once, never
+  versioned. created_dts is the canonical audit column (TLM-04); created_dt and
+  created_at are prohibited spellings of it.
 #}
 CREATE TABLE {{ database }}.{{ entity.name }}_Keymap (
     {{ entity.lower }}_id     BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     {{ entity.lower }}_key    VARCHAR({{ entity.natural_key_len | default(100) }}) NOT NULL,
     source_system   VARCHAR(50),
-    created_dt      TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+    created_dts     TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 )
 UNIQUE PRIMARY INDEX ({{ entity.lower }}_key);
 
@@ -31,5 +35,5 @@ COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_key
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.source_system IS
 'Source system that first introduced this natural key.';
 
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.created_dt IS
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.created_dts IS
 'Timestamp when this surrogate key was first allocated. Immutable once set.';

@@ -14,14 +14,14 @@ WHERE c.DatabaseName LIKE :product_db_pattern
        'valid_from','valid_to','effective_from','effective_to',
        'start_timestamp','end_timestamp','deleted_flag','active_ind');
 
--- §1b TLM-04: effective_date / expiration_date. On a CURRENT_STATE entity or on
--- reference data these are day-grain business lifecycle dates with no validity
--- pair to be confused with, and are permitted; anywhere else they compete with
--- the SCD2 pair and are prohibited. The declared profile is read from the
--- Semantic entity metadata (INV-SEMANTIC-006), which is where temporal behaviour
--- is resolved from rather than inferred. Reference tables carry the _R suffix
--- under the domain binding; adjust the predicate to the product's placement rule
--- if it differs.
+-- §1b TLM-04: effective_date / expiration_date, resolved against the declared
+-- profile. On a CURRENT_STATE entity these are day-grain business lifecycle dates
+-- with no validity pair to be confused with, and are permitted. On any versioned
+-- or event profile they compete with valid_from_dts / valid_to_dts and are
+-- prohibited, reference tables included: a versioned code list is a versioned
+-- entity. The profile is read from the Semantic entity metadata
+-- (INV-SEMANTIC-006), which is where temporal behaviour is resolved from rather
+-- than inferred from a table name.
 SELECT c.DatabaseName, c.TableName, c.ColumnName, e.temporal_pattern
 FROM DBC.ColumnsV AS c
 LEFT JOIN {semantic_db}.entity_metadata AS e
@@ -29,8 +29,7 @@ LEFT JOIN {semantic_db}.entity_metadata AS e
       AND UPPER(TRIM(e.table_name))    = UPPER(TRIM(c.TableName))
 WHERE c.DatabaseName LIKE :product_db_pattern
   AND LOWER(TRIM(c.ColumnName)) IN ('effective_date','expiration_date')
-  AND UPPER(TRIM(COALESCE(e.temporal_pattern,''))) <> 'CURRENT_STATE'
-  AND UPPER(TRIM(c.TableName)) NOT LIKE '%!_R' ESCAPE '!';
+  AND UPPER(TRIM(COALESCE(e.temporal_pattern,''))) <> 'CURRENT_STATE';
 -- An entity registered with no profile is a TLM-01 finding in its own right and
 -- surfaces here as well: an unregistered entity cannot claim the exception.
 
