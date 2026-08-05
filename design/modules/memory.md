@@ -92,8 +92,8 @@ Entity: AgentSession              [kind: Record]
   session_key: NaturalKey [required]  // business session identifier
   agent_key: ShortText [required]  // which agent instance
   user_key: ShortText [optional]  // which user
-  session_start: Timestamp [required]
-  session_end: Timestamp [optional]  // null while active
+  session_start_dts: Timestamp [required]
+  session_end_dts: Timestamp [optional]  // null while active
   session_status: Enum{ACTIVE|COMPLETED|ABANDONED}
   session_goal: Text [optional]
   session_context: Json [optional]  // flexible context, processed by the consumer
@@ -105,7 +105,7 @@ Entity: AgentInteraction          [kind: Record]
   session_id: Reference [required] [-> AgentSession]
   interaction_seq: Integer [required]  // order within the session
   interaction_type: Enum{QUERY|ACTION|DECISION|EXPLANATION}
-  interaction_at: Timestamp [required]
+  interaction_dts: Timestamp [required]
   user_input: Text [optional]
   agent_response: Text [optional]
   action_taken: Text [optional]

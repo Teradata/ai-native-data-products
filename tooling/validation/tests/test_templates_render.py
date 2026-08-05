@@ -27,6 +27,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from design_lint import (  # noqa: E402
+    COMMENT_LIMIT,
+    find_comment_length_violations,
     find_prohibited_name_violations,
     load_prohibited_names,
     mask_sql_noise,
@@ -92,6 +94,12 @@ CASES = {
 # macro call, which no other assertion here would notice.
 REQUIRED_IN_EVERY_RENDER = ("created_dts", "updated_dts")
 
+# Comment length is only decidable after rendering: the product name is substituted in,
+# and a Jinja conditional contributes one branch rather than all of them. `design_lint`
+# checks what it can statically; this is the exact check. The long name is deliberate,
+# since the product name is the part that varies between deployments.
+LONG_PRODUCT = "GlobalRetailCustomerAnalytics"
+
 
 @unittest.skipIf(Environment is None, "jinja2 not installed")
 class TemplatesRender(unittest.TestCase):
@@ -128,6 +136,30 @@ class TemplatesRender(unittest.TestCase):
                     "{{", out,
                     f"{template} left a Jinja placeholder unrendered: a macro argument "
                     f"quoted as a string does not interpolate")
+
+    def test_no_comment_exceeds_the_limit_under_a_long_product_name(self):
+        """Teradata [5550]: a comment over 255 characters is rejected.
+
+        Checked at the widest realistic substitution, because the product name is what
+        varies and a comment that fits for 'Demo' can fail for a real one.
+        """
+        for template, context in CASES.items():
+            with self.subTest(template=template):
+                widened = dict(context)
+                for key in ("product",):
+                    if key in widened:
+                        widened[key] = LONG_PRODUCT
+                for key in ("db", "database"):
+                    if isinstance(widened.get(key), str):
+                        suffix = widened[key].split("_", 1)[-1]
+                        widened[key] = f"{LONG_PRODUCT}_{suffix}"
+
+                out = self.env.get_template(template).render(**widened)
+                findings = find_comment_length_violations(out, template)
+                self.assertEqual(
+                    findings, [],
+                    f"comment over the {COMMENT_LIMIT}-character limit:\n"
+                    + "\n".join(str(f) for f in findings))
 
 
 if __name__ == "__main__":

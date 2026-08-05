@@ -27,6 +27,7 @@ ai-native-data-products/
 │   ├── catalogue/              generates corpus navigation from frontmatter
 │   ├── evals/                  validates a product design against the standards
 │   └── compiler/               verifies a compiled skill package
+├── examples/                   worked products: fixed inputs for an end-to-end run
 ├── prompts/                    how to use the standards
 └── skills/                     generated agent skills (gitignored)
 ```

@@ -164,7 +164,29 @@ PLAIN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 # Artifacts a column name is spelled in. Markdown is excluded on purpose: a README or a
 # pattern document is where these names are legitimately discussed, quoted, and given
 # their replacements, and flagging that would make the rule unstatable.
-SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2")
+#
+# `.dcl` is here because a deployed product's access layer ships as
+# `00-access/{ProductName}_access_layer.dcl` (see the access-layer binding). Point this
+# linter at a generated product tree as well as at the corpus:
+#     python tooling/validation/design_lint.py design implementation path/to/product
+# The design tree has to be among the paths either way, since the prohibited-name table
+# is read from the pattern document rather than copied here.
+SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2", ".dcl", ".dcl.j2")
+
+# Comment length. Teradata rejects a COMMENT ON longer than 255 characters with
+# [5550] Comment string is longer than permitted, and the failure is quiet in the way
+# that matters: CREATE runs first, so the object exists and is left undescribed.
+# The limit is characters rather than bytes (DBC stores comments as VARCHAR(510)
+# CHARACTER SET UNICODE), so prose carrying an em dash is not penalised for it and a
+# plain len() is the right measure.
+#
+# A literal containing Jinja control flow is skipped: its static length is the sum of
+# every branch, not what any deployment sees. Those are measured after rendering, by
+# tooling/validation/tests/test_templates_render.py, which is also where a simple
+# {{ placeholder }} gets its real width.
+COMMENT_LIMIT = 255
+COMMENT_RE = re.compile(r"COMMENT ON [A-Z]+ ([^\n]+?) IS\s*'(.*?)';", re.S)
+JINJA_CONTROL_RE = re.compile(r"\{%")
 
 
 @dataclass(frozen=True)
@@ -523,6 +545,26 @@ def find_prohibited_name_violations(text: str, path: str, names: dict) -> List[F
     return findings
 
 
+def find_comment_length_violations(text: str, path: str,
+                                   limit: int = COMMENT_LIMIT) -> List[Finding]:
+    """No COMMENT ON longer than the platform's limit (Teradata [5550])."""
+    findings: List[Finding] = []
+    for m in COMMENT_RE.finditer(text):
+        target, body = m.group(1), m.group(2)
+        if JINJA_CONTROL_RE.search(body):
+            continue
+        if len(body) <= limit:
+            continue
+        line = text.count("\n", 0, m.start()) + 1
+        findings.append(Finding(
+            path, line, "comment-length",
+            f"comment on {target.strip()} is {len(body)} characters, over the {limit} "
+            f"limit: the object is created and left undescribed when the comment is "
+            f"rejected",
+        ))
+    return findings
+
+
 def find_glossary_violations(text: str, path: str) -> List[Finding]:
     """A glossary stays alphabetical, and every left-margin bold run is a real entry.
 
@@ -770,8 +812,9 @@ def lint_paths(paths: List[str]) -> List[Finding]:
         if fm.get("anchor") == TEMPORAL_PATTERN_ANCHOR and fm.get("type") == "pattern":
             prohibited = load_prohibited_names(text)
     for sql in sql_artifacts:
-        findings += find_prohibited_name_violations(
-            sql.read_text(encoding="utf-8"), str(sql), prohibited)
+        sql_text = sql.read_text(encoding="utf-8")
+        findings += find_prohibited_name_violations(sql_text, str(sql), prohibited)
+        findings += find_comment_length_violations(sql_text, str(sql))
     return sorted(findings, key=lambda f: (f.path, f.line, f.rule))
 
 

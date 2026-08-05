@@ -67,7 +67,7 @@ Entity: ChangeEvent               [kind: Record]
   container_name: ShortText [optional]
   table_name: ShortText [required]  // TABLE-LEVEL, not individual records
   change_type: Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE} [required]
-  change_at: Timestamp [required]
+  change_dts: Timestamp [required]
   changed_by: ShortText [required]
   change_source: Enum{ETL|API|MANUAL|AGENT} [optional]
   records_affected: Integer [optional]  // aggregate count, never the keys
@@ -81,7 +81,7 @@ Entity: DataQualityMetric         [kind: Record]
   column_name: ShortText [optional]  // null for table-level metrics
   metric_name: Enum{COMPLETENESS|VALIDITY|UNIQUENESS|TIMELINESS|CONSISTENCY|ACCURACY} [required]
   metric_value: Decimal(10,4) [optional]
-  measured_at: Timestamp [required]
+  measured_dts: Timestamp [required]
   quality_threshold: Decimal(5,4) [optional]
   is_threshold_met: Flag
   sample_size: Integer [optional]
@@ -99,13 +99,13 @@ Entity: DataLineage               [kind: Record]  // definitional; one row per f
   openlineage_job_name: ShortText [optional]
   openlineage_namespace: ShortText [optional]
   is_active: Flag
-  registered_at: Timestamp [optional]
-  retired_at: Timestamp [optional]
+  registered_dts: Timestamp [optional]
+  retired_dts: Timestamp [optional]
 
 Entity: LineageRun                [kind: Record]  // operational; one row per execution
   lineage_run_id: Identifier
   lineage_id: Reference [required] [-> DataLineage]
-  run_at: Timestamp [required]
+  run_dts: Timestamp [required]
   run_status: Enum{SUCCESS|FAILED|PARTIAL|RUNNING} [required]
   run_duration_ms: Integer [optional]
   records_read: Integer [optional]
@@ -121,7 +121,7 @@ Entity: ModelPerformance          [kind: Record]
   model_version: ShortText [required]
   metric_name: Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE} [required]
   metric_value: Decimal(10,6) [optional]
-  evaluated_at: Timestamp [required]
+  evaluation_dts: Timestamp [required]
   sample_size: Integer [optional]
   is_sla_met: Flag
 
@@ -130,7 +130,7 @@ Entity: AgentOutcome              [kind: Record]
   agent_key: ShortText [required]
   session_key: ShortText [optional]
   action_type: Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION} [required]
-  action_at: Timestamp [required]
+  action_dts: Timestamp [required]
   tables_accessed: Text [optional]  // TABLE-LEVEL, comma-separated
   outcome_status: Enum{SUCCESS|PARTIAL|FAILED} [required]
   user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION} [optional]

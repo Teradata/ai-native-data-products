@@ -1,0 +1,16 @@
+category_id,name,parent_category_id,description,default_sla_hours
+CAT-001,Infrastructure,,Physical and virtual infrastructure management,
+CAT-002,Software & Applications,,Business application and software support,
+CAT-003,Identity & Access,,"User access, permissions, and identity management",
+CAT-004,Communication,,"Email, messaging, and collaboration tools",
+CAT-005,HR & Administration,,"Onboarding, offboarding, and administrative requests",
+CAT-006,Hardware,CAT-001,"Physical hardware failures, requests, and replacements",48
+CAT-007,Network & Connectivity,CAT-001,"Network outages, VPN issues, and connectivity problems",4
+CAT-008,Performance,CAT-002,"Slow system, application, or database performance",8
+CAT-009,Application Error,CAT-002,"Crashes, error codes, and unexpected application behaviour",8
+CAT-010,Data & Reporting,CAT-002,"Report failures, data discrepancies, and BI tool issues",24
+CAT-011,Access Management,CAT-003,"Role assignments, permission changes, and access approvals",24
+CAT-012,Password & Authentication,CAT-003,"Password resets, MFA issues, and login failures",2
+CAT-013,Email & Messaging,CAT-004,"Email delivery failures, mailbox issues, and Teams problems",4
+CAT-014,Onboarding,CAT-005,"New starter equipment, accounts, and system access setup",48
+CAT-015,General Inquiry,CAT-005,General questions and non-urgent requests,72

@@ -77,7 +77,7 @@ Entity: FeatureGroup              [kind: History]  // WIDE format
   entity_id: Reference [required]  // Domain entity (id only)
   entity_kind: Enum{PARTY|PRODUCT|DOCUMENT}  // generic-reference discriminator
   <feature>: Decimal(5,4) [optional]  // ENGINEERED, normalised 0-1; designer-supplied
-  observation_at: Timestamp [required]  // when observed/computed (point-in-time)
+  observation_dts: Timestamp [required]  // when observed/computed (point-in-time)
   is_current: Flag [current-flag]
   feature_group_name: ShortText [required]
   feature_group_version: ShortText [optional]  // feature-engineering logic version
@@ -92,7 +92,7 @@ Entity: FeatureValue              [kind: History]  // TALL format
   value_text: Text [optional]
   value_json: Json [optional]
   value_type: Enum{NUMERIC|TEXT|JSON|BOOLEAN} [required]
-  observation_at: Timestamp [required]
+  observation_dts: Timestamp [required]
   is_current: Flag [current-flag]
   feature_version: ShortText [optional]
 
@@ -106,8 +106,8 @@ Entity: ModelPrediction           [kind: History]
   prediction_class: ShortText [optional]  // classification label
   prediction_json: Json [optional]  // multi-class or structured output
   confidence_score: Decimal(5,4) [optional]  // 0-1
-  predicted_at: Timestamp [required]
-  feature_observation_at: Timestamp [optional]  // links the prediction to its feature timestamp (reproducibility)
+  prediction_dts: Timestamp [required]
+  feature_observation_dts: Timestamp [optional]  // links the prediction to its feature timestamp (reproducibility)
   is_current: Flag [current-flag]
 ```
 
@@ -117,7 +117,7 @@ Entity: ModelPrediction           [kind: History]
 
 ## 4. Point-in-Time Correctness
 
-Using current features to train on a historical label causes **data leakage**. Prediction guarantees features are reconstructable as they existed at any past instant (`INV-PRED-002`), by applying the `temporal-lifecycle-metadata` pattern: each feature carries `observation_at` plus the pattern's validity period, aligned with the Domain entity's temporal tracking. Training as-of a date selects the feature version valid at that date and joins to the Domain entity state valid at the same date. This is the `PointInTimeReconstruction` capability, shared with Domain.
+Using current features to train on a historical label causes **data leakage**. Prediction guarantees features are reconstructable as they existed at any past instant (`INV-PRED-002`), by applying the `temporal-lifecycle-metadata` pattern: each feature carries `observation_dts` plus the pattern's validity period, aligned with the Domain entity's temporal tracking. Training as-of a date selects the feature version valid at that date and joins to the Domain entity state valid at the same date. This is the `PointInTimeReconstruction` capability, shared with Domain.
 
 ---
 

@@ -90,7 +90,7 @@ Entity: EntityEmbedding           [kind: History]
   embedding_dimensions: Integer [required]  // dimensionality recorded for reproducibility
   embedding_model: ShortText [required]  // model that produced the vector
   embedding_model_version: ShortText [optional]  // model version, for reproducibility
-  generated_at: Timestamp [required]  // when the embedding was generated
+  generated_dts: Timestamp [required]  // when the embedding was generated
   is_current: Flag [current-flag]  // current embedding for this entity + model
   computation_method: Enum{IN_DATABASE|EXTERNAL_API}  // how the vector was produced
 
