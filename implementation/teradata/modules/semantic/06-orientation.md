@@ -62,4 +62,4 @@ The manifest tells the agent what the product is, what it means, what it trusts,
 
 ## Required documentation record
 
-When the orientation layer is deployed, generate `DD-DISCOVERY-001` in the product's Memory documentation facet (recording why agents read the manifest before metadata maps or data): per the Memory capture protocol.
+When the orientation layer is deployed, generate `DD-DISCOVERY-001` in the product's Memory documentation facet, per the Memory capture protocol. It settles how an agent knowing only the product name reaches data it may use: which manifest fields are populated and why, the approved entrypoint and access mode, and the recommended navigation. The [Semantic module standard](../../../../design/modules/semantic.md) defines the decision; `source_module` is `SEMANTIC`.

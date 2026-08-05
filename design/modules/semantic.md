@@ -170,6 +170,10 @@ Discovery is **product-first, not tables-first** (`INV-SEMANTIC-004`). A client 
 
 Where the product is reached over MCP, the orientation layer is exposed as **resources first** (the product list, per-product manifest, contract, semantic model, policy, quality, lineage, physical map) and **tools second** (search products, describe a product, get the recommended entrypoint, query approved data, explain an access path). The registry also designates the **gate-authoritative producer** the [validation pattern](../patterns/validation.md) reads, and its `manifest` records the entrypoints and recommended navigation.
 
+**`DD-DISCOVERY-001`.** Deploying the orientation layer settles one decision and records it: *how does an agent that knows only the product's name reach data it is allowed to use?* The record names which manifest fields are populated and why, the approved entrypoint and access mode, and the navigation the manifest recommends. What makes it worth recording rather than inferring is that the answer is a set of choices the deployed metadata cannot explain about itself: an agent can read that an entrypoint is approved, not why that surface was chosen as the approved one, nor what an agent arriving without a product name is expected to do.
+
+This decision is bounded by the product. Discovery *across* products depends on an organisational registry outside any one product's control, and `INV-MASTER-003` keeps a product self-contained; where such a registry exists, registering into it is an operational step, not a property of the product's design.
+
 ---
 
 ## 5. Multi-Hop Path Discovery
@@ -276,7 +280,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] The manifest names the `gate_authoritative_producer`, settled as a design decision per the [validation pattern](../patterns/validation.md). One producer still needs naming.
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
-- [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed, and the ERD recipe `QC-SEMANTIC-002`.
+- [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles), and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
 
 ---

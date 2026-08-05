@@ -4,14 +4,35 @@
 -- Each catalogue/data query must return ZERO rows for a conforming deployment.
 -- :product_db_pattern e.g. '{Product}\_%' ; parameterise data checks per SCD2 table.
 
--- §1  TLM-04: prohibited generic names on product objects
+-- §1  TLM-04: prohibited generic names on product objects.
+-- Prohibited on every profile.
 SELECT c.DatabaseName, c.TableName, c.ColumnName
 FROM DBC.ColumnsV AS c
 WHERE c.DatabaseName LIKE :product_db_pattern
   AND LOWER(TRIM(c.ColumnName)) IN
       ('created_at','created_timestamp','created_dt','updated_at','updated_timestamp',
-       'valid_from','valid_to','effective_from','effective_to','effective_date',
-       'expiration_date','start_timestamp','end_timestamp','deleted_flag','active_ind');
+       'valid_from','valid_to','effective_from','effective_to',
+       'start_timestamp','end_timestamp','deleted_flag','active_ind');
+
+-- §1b TLM-04: effective_date / expiration_date. On a CURRENT_STATE entity or on
+-- reference data these are day-grain business lifecycle dates with no validity
+-- pair to be confused with, and are permitted; anywhere else they compete with
+-- the SCD2 pair and are prohibited. The declared profile is read from the
+-- Semantic entity metadata (INV-SEMANTIC-006), which is where temporal behaviour
+-- is resolved from rather than inferred. Reference tables carry the _R suffix
+-- under the domain binding; adjust the predicate to the product's placement rule
+-- if it differs.
+SELECT c.DatabaseName, c.TableName, c.ColumnName, e.temporal_pattern
+FROM DBC.ColumnsV AS c
+LEFT JOIN {semantic_db}.entity_metadata AS e
+       ON UPPER(TRIM(e.database_name)) = UPPER(TRIM(c.DatabaseName))
+      AND UPPER(TRIM(e.table_name))    = UPPER(TRIM(c.TableName))
+WHERE c.DatabaseName LIKE :product_db_pattern
+  AND LOWER(TRIM(c.ColumnName)) IN ('effective_date','expiration_date')
+  AND UPPER(TRIM(COALESCE(e.temporal_pattern,''))) <> 'CURRENT_STATE'
+  AND UPPER(TRIM(c.TableName)) NOT LIKE '%!_R' ESCAPE '!';
+-- An entity registered with no profile is a TLM-01 finding in its own right and
+-- surfaces here as well: an unregistered entity cannot claim the exception.
 
 -- §2  TLM-05: temporal columns missing WITH TIME ZONE or microsecond precision
 SELECT c.DatabaseName, c.TableName, c.ColumnName, c.ColumnType
