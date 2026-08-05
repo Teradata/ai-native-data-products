@@ -191,6 +191,12 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 
 **Gate authority.** Multiple producers may publish for one product; the decision stays singular. Each product **designates exactly one gate-authoritative producer** in its orientation metadata. The product-level gate is that producer's latest `agent_use_allowed` / `trust_status`. Other producers' results are **evidence**: surfaced (especially disagreements) but not gate-moving. Absent a designation, consumers apply the conservative composite: blocked if **any** producer's latest blocks.
 
+**The designation is made at design time.** Everything above is written from the consumer's side, and a consumer can only read a designation that already exists. VAL-13 is checked at runtime; the fact it checks has to be established while the product is being designed, because by deploy time the manifest is already written. So it is a designer's obligation, stated here rather than left to be inferred from the consumer rule:
+
+> Name the producer whose `agent_use_allowed` verdict is the product's formal gate. Record it as a design decision, and carry it into the orientation manifest as `gate_authoritative_producer` (the [Semantic module](../modules/semantic.md) owns the field). Where the product has exactly one producer it is gate-authoritative by definition, and must still be named: an implicit designation is not readable.
+
+A product that reaches deployment with a results table, a validator, and no designation has no gate. It has opinions, and the conservative composite applies to them, which is rarely what the designer intended and never what they wrote down.
+
 **Consumer rules.** Read the gate **before** analytical use (discovering its location and the designated producer through product orientation); `agent_use_allowed = stop` (or `UNTRUSTED`) is a stop signal for autonomous use with no silent override; `DEGRADED` permits use but the degradation is surfaced; never re-derive verdicts or recount capped blobs; treat unknown JSON keys as additive extension (ignore, don't fail); apply the staleness rules.
 
 ---

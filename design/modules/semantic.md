@@ -263,7 +263,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest; the temporal profile per entity.
+**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the gate-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity.
 
 **Design review checklist:**
 
@@ -271,6 +271,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] Entities, columns, relationships, and primary objects registered for every deployed module (`SemanticRegistration`).
 - [ ] Each entity declares its temporal profile (`INV-SEMANTIC-006`).
 - [ ] The product registry and manifest are populated; discovery is product-first (`INV-SEMANTIC-004`).
+- [ ] The manifest names the `gate_authoritative_producer`, settled as a design decision per the [validation pattern](../patterns/validation.md). One producer still needs naming.
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
 - [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed, and the ERD recipe `QC-SEMANTIC-002`.

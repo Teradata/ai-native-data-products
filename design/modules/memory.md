@@ -68,6 +68,18 @@ Two principles govern what Memory stores:
 
 **Out of scope:** business domain data (→ Domain), query results (→ Domain or temporary tables), individual record keys/ids, and detailed personal profiles (→ Domain, referenced by key).
 
+### 3.1 Process context against result data
+
+`INV-MEMORY-001` is the invariant designs violate most often, and they violate it in good faith. Session continuity naturally suggests storing what the agent last found, and the line between *what the agent is doing* and *what a query returned* is genuinely not obvious from the prohibition alone. It is worth stating from the compliant side.
+
+**Process context (store it).** A record of what the agent is doing. "The agent is investigating agreement `AGR-00042`" is process context: store `current_entity_key`. So is "the last similarity search asked for overdue renewals and matched 37 rows": store the query text and the count.
+
+**Result data (do not store it).** A record of what a query returned. "The last search matched `AGR-00001`, `AGR-00042`, `AGR-00099`" is result data, whatever it is called. Storing that key list makes Memory a result cache, and a stale one, since nothing invalidates it when the underlying rows change. If the agent needs those keys again it re-executes the search, which is cheap and always correct.
+
+The test is not what the attribute is named but what it holds: an attribute holding one key the agent chose to work on is context; an attribute holding the set a query produced is a cached result. `retrieved_*_keys`, `*_key_list`, and `result_*` are the shapes this failure takes.
+
+The same distinction governs counts: `query_result_count` is an aggregate about the process and belongs here; the ids it counted do not.
+
 ---
 
 ## 4. Entity Model: Runtime Facet
