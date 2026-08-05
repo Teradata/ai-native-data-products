@@ -18,6 +18,24 @@ Each pattern or module gets **its own directory** (e.g. `modules/domain/`) rathe
 
 Adding a platform means creating a same-shaped sibling of this directory (`implementation/postgres/`, say), not inventing a new layout.
 
+## Rendering the templates
+
+**The `.sql.j2` templates are rendered, not pasted.** They import shared macros from each other, so a Jinja environment whose loader is rooted at *this directory* is what makes an import path resolve:
+
+```python
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+env = Environment(loader=FileSystemLoader("implementation/teradata"),
+                  undefined=StrictUndefined)
+sql = env.get_template("modules/domain/02-entity.sql.j2").render(**context)
+```
+
+Import paths are written relative to that root (`patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2`), which is why a template opened on its own and search-replaced no longer produces deployable SQL: the macro call renders as nothing.
+
+`StrictUndefined` is worth keeping. Without it a variable the template expects and the caller forgets renders as an empty string, and a `CREATE TABLE` missing a column name fails at the database with an error that points nowhere near the cause.
+
+What this buys is that the cross-cutting columns are defined once. A table's temporal and lifecycle block comes from the [temporal pattern's macros](patterns/temporal-lifecycle-metadata/), the same way a design document references a pattern rather than restating it. Every template that renders is exercised by `tooling/validation/tests/test_templates_render.py`.
+
 ## Catalogue
 
 Generated from document frontmatter by [`tooling/catalogue`](../../tooling/catalogue): do not edit by hand.

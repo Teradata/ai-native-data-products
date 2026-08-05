@@ -24,11 +24,28 @@ Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patte
 
 | Pattern element | Teradata binding |
 |-----------------|------------------|
-| Role | `CREATE ROLE {ProductName}_ROLE_{TIER}` with a `COMMENT`. |
+| Role | `CREATE ROLE {ProductName}_ROLE_{TIER}` plus a `COMMENT ON ROLE` of **one short sentence naming the role's consumers**. Never the containers it reaches or the rights it holds (see below). |
 | Read | `GRANT SELECT ON {container} TO {role}`. |
 | Write-back (append) | `GRANT INSERT ON {container} TO {role}` (Memory, Observability; `ROLE_AGENT` only). |
 | Module access container | `{ProductName}_{Module}` (standard placement) or the `_V` view container under `STRICT_SEPARATION` (see [object-placement](../object-placement/)). |
 | Implied grant (Phase 1.5a) | `GRANT SELECT ON {module_container} TO {access_container} WITH GRANT OPTION`. |
+
+## What a role comment says
+
+One sentence, naming who the role is for:
+
+```sql
+COMMENT ON ROLE {ProductName}_ROLE_AGENT IS
+    '{ProductName} data product - AI agent and automated tool role.';
+```
+
+Not what it can reach. The comment previously ran to three lines listing the containers, the write-back rights, and the reason `ROLE_AGENT` is separate, and it failed two ways at once.
+
+It was **rejected on deployment** for exceeding the dictionary's comment length, and because `CREATE ROLE` runs first in the same block, the roles were created and left undescribed. A deployment that does not read the failure looks like it worked.
+
+More importantly it **published the permission boundary**. `DBC` role comments are readable by principals who cannot read the grants themselves, so enumerating the grant model in one hands out a map of the access design to anyone who can query the catalogue. The grant matrix in the [pattern](../../../../design/patterns/access-layer.md) is the authoritative statement of who reaches what, and `DD-ACCESS-001` already records why the boundary sits where it does, inside the product. The comment was a third copy of both, and the only one exposed this widely.
+
+The product name is the sole variable part, so the rendered length is predictable: keep the descriptor to a handful of words and a long product name still fits.
 
 ## Privilege split
 

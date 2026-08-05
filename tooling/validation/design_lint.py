@@ -10,6 +10,8 @@ Three families of rule:
   * **Corpus** (the capability catalogue and Decisions): every capability and decision a document
     names *in its body* resolves against the catalogues, and a standard that
     recommends other than the advocated option says why.
+  * **TLM-04** (prohibited generic names): applies to `implementation/` only, over SQL
+    and template artifacts, since that is where a column name is actually spelled.
 
 Used two ways:
 
@@ -26,7 +28,9 @@ The vocabularies below are the authoritative companion to those sections; the
 sections are the human-readable statement, this file is what actually runs. The
 capability and decision catalogues are the exception: they are read from the
 documents that define them, so adding a capability or a decision needs no code
-change here.
+change here. The prohibited-name table is read the same way, from the temporal
+pattern that declares it: the pattern stays the one place a temporal column is
+named, and this file only enforces what it says.
 
 Stdlib only: runs anywhere Python 3.8+ runs (Teradata, Postgres, DuckDB shops alike).
 """
@@ -140,6 +144,27 @@ INVARIANT_CANDIDATE_RE = re.compile(r"\bINV-[A-Za-z0-9]+-[A-Za-z0-9]+\b")
 INVARIANT_STRICT_RE = re.compile(r"^INV-[A-Z][A-Z0-9]*-\d{3}$")
 ATTRIBUTE_LINE_RE = re.compile(r"^\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s*:\s*(\S.*)$")
 FENCE_RE = re.compile(r"^\s*```(\S*)")
+
+
+# TLM-04: the prohibited-name table lives in the temporal pattern, section 4.2, and is
+# read from there rather than copied here. A row contributes only when its Scope cell
+# says the name is prohibited on every profile: `effective_date` / `expiration_date`
+# are permitted on a `CURRENT_STATE` entity, and which profile an entity declares is in
+# the Semantic entity metadata, not in the file being linted. A name carrying a
+# parenthetical qualifier is skipped for the same reason: `created_date` is prohibited
+# *as audit* and legal as a day-grain event column, and nothing in a `CREATE TABLE`
+# says which it is. Both are left to the catalogue check that can resolve them
+# (`conformance-queries.sql` §1b), which is why this set matches that file's §1 exactly.
+TEMPORAL_PATTERN_ANCHOR = "temporal-lifecycle-metadata"
+PROHIBITED_ROW_RE = re.compile(r"^\|(.+?)\|(.+?)\|(.+?)\|\s*$")
+ALL_PROFILES_SCOPE = "all profiles"
+BACKTICKED_RE = re.compile(r"`([^`]+)`")
+PLAIN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+# Artifacts a column name is spelled in. Markdown is excluded on purpose: a README or a
+# pattern document is where these names are legitimately discussed, quoted, and given
+# their replacements, and flagging that would make the rule unstatable.
+SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2")
 
 
 @dataclass(frozen=True)
@@ -407,6 +432,97 @@ def load_decision_catalogue(text: str) -> dict:
     return decisions
 
 
+def load_prohibited_names(text: str) -> dict:
+    """Prohibited temporal column names to their canonical replacement (TLM-04).
+
+    Read from the prohibited-generic-names table in the temporal pattern, so the pattern
+    remains the single place a temporal column is named and this linter needs no edit
+    when the table changes. Only rows scoped to every profile contribute; see the note
+    on ``TEMPORAL_PATTERN_ANCHOR`` for what is deliberately left out and why.
+    """
+    names = {}
+    for line in text.splitlines():
+        m = PROHIBITED_ROW_RE.match(line.strip())
+        if not m:
+            continue
+        prohibited_cell, canonical_cell, scope_cell = m.groups()
+        if scope_cell.strip().lower() != ALL_PROFILES_SCOPE:
+            continue
+        # Parentheticals are annotation on both sides of the row ("(a `Flag`)"), never
+        # part of the name being named.
+        canonical = BACKTICKED_RE.findall(re.sub(r"\([^)]*\)", "", canonical_cell))
+        if not canonical:
+            continue
+        replacement = " / ".join(canonical)
+        for part in prohibited_cell.split(","):
+            if "(" in part:  # a qualified entry: not decidable from the file alone
+                continue
+            for token in BACKTICKED_RE.findall(part):
+                if PLAIN_IDENTIFIER_RE.match(token):
+                    names[token] = replacement
+    return names
+
+
+def mask_sql_noise(text: str) -> str:
+    """Blank out everything in a SQL artifact that is not an identifier.
+
+    Comments and string literals are replaced with spaces, newlines preserved, so line
+    numbers still point at the source. This is what lets the rule be stated without
+    exceptions: `conformance-queries.sql` scans *for* the prohibited names and
+    `10-documentation-tables.sql.j2` explains in its header which spellings it replaced,
+    and neither is a column named that way. A prohibited name inside SQL embedded in a
+    string literal (a stored `Query_Cookbook` recipe) is invisible here, which is the
+    accepted cost of not needing an allowlist.
+    """
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if ch == "-" and nxt == "-":                     # -- line comment
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+        elif ch == "/" and nxt == "*":                   # /* block comment */
+            j = text.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+        elif ch == "{" and nxt == "#":                   # {# jinja comment #}
+            j = text.find("#}", i + 2)
+            j = n if j == -1 else j + 2
+        elif ch == "'":                                  # 'string literal', '' escapes
+            j = i + 1
+            while j < n:
+                if text[j] == "'":
+                    if j + 1 < n and text[j + 1] == "'":
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+        else:
+            out.append(ch)
+            i += 1
+            continue
+        out.append("".join(c if c == "\n" else " " for c in text[i:j]))
+        i = j
+    return "".join(out)
+
+
+def find_prohibited_name_violations(text: str, path: str, names: dict) -> List[Finding]:
+    """TLM-04: no prohibited generic temporal names in a SQL artifact."""
+    if not names:
+        return []
+    findings: List[Finding] = []
+    pattern = re.compile(r"\b(" + "|".join(sorted(names, key=len, reverse=True)) + r")\b")
+    for lineno, raw in enumerate(mask_sql_noise(text).splitlines(), start=1):
+        for tok in pattern.findall(raw):
+            findings.append(Finding(
+                path, lineno, "tlm-04",
+                f"prohibited temporal column name '{tok}': use '{names[tok]}' "
+                f"(temporal-lifecycle-metadata, prohibited generic names)",
+            ))
+    return findings
+
+
 def find_glossary_violations(text: str, path: str) -> List[Finding]:
     """A glossary stays alphabetical, and every left-margin bold run is a real entry.
 
@@ -602,15 +718,24 @@ def is_design_document(path: Path) -> bool:
     return ("modules" in parts or "patterns" in parts) and "implementation" in parts
 
 
+def is_sql_artifact(path: Path) -> bool:
+    """A file whose content spells column names: `.sql` or a `.sql.j2` template."""
+    return path.name.endswith(SQL_ARTIFACT_SUFFIXES)
+
+
 def lint_paths(paths: List[str]) -> List[Finding]:
     findings: List[Finding] = []
     docs = {}
+    sql_artifacts: List[Path] = []
     for p in paths:
         target = Path(p)
         if target.is_dir():
             files = sorted(target.rglob("*.md"))
+            sql_artifacts += [q for q in sorted(target.rglob("*")) if is_sql_artifact(q)]
         elif target.is_file():
-            files = [target]
+            files = [target] if target.suffix == ".md" else []
+            if is_sql_artifact(target):
+                sql_artifacts.append(target)
         else:
             print(f"warning: path not found: {p}", file=sys.stderr)
             continue
@@ -635,6 +760,18 @@ def lint_paths(paths: List[str]) -> List[Finding]:
             if fm is not None:
                 docs[md] = (fm, text, offset)
     findings += find_corpus_violations(docs)
+
+    # TLM-04 runs last: the prohibited names come from the temporal pattern, which has
+    # to be loaded before any artifact can be checked against it. Lint a tree with no
+    # pattern document in it and the check is silently inert, which is correct: there is
+    # nothing to enforce, as opposed to nothing prohibited.
+    prohibited = {}
+    for fm, text, _ in docs.values():
+        if fm.get("anchor") == TEMPORAL_PATTERN_ANCHOR and fm.get("type") == "pattern":
+            prohibited = load_prohibited_names(text)
+    for sql in sql_artifacts:
+        findings += find_prohibited_name_violations(
+            sql.read_text(encoding="utf-8"), str(sql), prohibited)
     return sorted(findings, key=lambda f: (f.path, f.line, f.rule))
 
 

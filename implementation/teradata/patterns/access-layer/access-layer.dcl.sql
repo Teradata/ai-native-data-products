@@ -44,19 +44,33 @@ GRANT SELECT ON {ProductName}_Observability TO {ProductName}_Access WITH GRANT O
 -- =============================================================================
 
 -- Create roles -----------------------------------------------------------------
+--
+-- A role comment names WHO the role is for, in one short sentence. It does not
+-- describe what the role can reach.
+--
+-- Two reasons, and the second is the one that matters. A comment that enumerates
+-- the grant boundary publishes it: role comments are readable from the dictionary
+-- by a far wider audience than the people who can read the grants themselves, so
+-- the comment hands out a map of the permission model to anyone who can run a
+-- SELECT against DBC. The authoritative statement of who can reach what is the
+-- grant matrix in the pattern, and the rationale for the boundary is recorded
+-- inside the product in DD-ACCESS-001. A comment restating either is a third copy,
+-- and it was the copy that leaked.
+--
+-- The length follows from that. These comments previously ran to a paragraph and
+-- were rejected on deployment for exceeding the dictionary limit; one sentence
+-- naming the consumer is both the safe form and the useful one.
 CREATE ROLE {ProductName}_ROLE_READ;
 COMMENT ON ROLE {ProductName}_ROLE_READ IS
-    '{ProductName} data product - read-only access for analysts and BI tools.';
+    '{ProductName} data product - analyst and BI consumer role.';
 
 CREATE ROLE {ProductName}_ROLE_AGENT;
 COMMENT ON ROLE {ProductName}_ROLE_AGENT IS
-    '{ProductName} data product - AI agent and automated tool access. Read on module
-     access containers plus write-back to Memory and Observability. Kept separate
-     from ROLE_READ for independent lifecycle and the write-back boundary.';
+    '{ProductName} data product - AI agent and automated tool role.';
 
 CREATE ROLE {ProductName}_ROLE_ADMIN;
 COMMENT ON ROLE {ProductName}_ROLE_ADMIN IS
-    '{ProductName} data product - owner and data steward access. Read on all containers.';
+    '{ProductName} data product - owner and data steward role.';
 
 -- Phase 1.5b: after Memory + Semantic -----------------------------------------
 GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_READ;

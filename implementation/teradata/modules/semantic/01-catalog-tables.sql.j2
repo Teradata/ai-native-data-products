@@ -1,5 +1,6 @@
 -- Semantic module: catalogue tables (Teradata). Binding of design/modules/semantic.md.
 -- Schema metadata only (hundreds of rows), never instance data. Replace {{ product }}.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 
 -- entity_metadata: the entity (table) catalogue -------------------------------
 CREATE TABLE {{ product }}_Semantic.entity_metadata (
@@ -17,8 +18,7 @@ CREATE TABLE {{ product }}_Semantic.entity_metadata (
     deleted_flag_column VARCHAR(128),
     industry_standard VARCHAR(50),
     is_active BYTEINT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (entity_metadata_id);
 
@@ -37,8 +37,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.current_flag_column IS 
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.deleted_flag_column IS 'Name of the soft-delete flag - typically is_deleted.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.industry_standard IS 'Industry model used - FIBO, HL7, CUSTOM.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.is_active IS '1 = active, 0 = deprecated.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.created_at IS 'When this metadata row was created.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.updated_at IS 'When this metadata row was last updated.';
+{{ tlm.comments(product ~ '_Semantic.entity_metadata', 'CURRENT_STATE') }}
 
 -- column_metadata: the column (attribute) catalogue --------------------------
 CREATE TABLE {{ product }}_Semantic.column_metadata (
@@ -54,8 +53,7 @@ CREATE TABLE {{ product }}_Semantic.column_metadata (
     data_type VARCHAR(100),                 -- declared type, as a friendly string
     allowed_values_json JSON,
     is_active BYTEINT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (column_metadata_id);
 
@@ -72,8 +70,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.is_required IS '1 = req
 COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.data_type IS 'Declared data type as a friendly string.';
 COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.allowed_values_json IS 'Permitted-value domain for constrained columns.';
 COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.is_active IS '1 = active, 0 = deprecated.';
-COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.created_at IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Semantic.column_metadata.updated_at IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Semantic.column_metadata', 'CURRENT_STATE') }}
 
 -- naming_standard: documented naming conventions -----------------------------
 CREATE TABLE {{ product }}_Semantic.naming_standard (
@@ -85,7 +82,7 @@ CREATE TABLE {{ product }}_Semantic.naming_standard (
     applies_to VARCHAR(50),                 -- TABLE, COLUMN, VIEW, ALL
     examples VARCHAR(1000),
     is_active BYTEINT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (naming_standard_id);
 
@@ -98,7 +95,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.naming_standard.usage_guidance IS 'How 
 COMMENT ON COLUMN {{ product }}_Semantic.naming_standard.applies_to IS 'TABLE, COLUMN, VIEW, ALL.';
 COMMENT ON COLUMN {{ product }}_Semantic.naming_standard.examples IS 'Example usage.';
 COMMENT ON COLUMN {{ product }}_Semantic.naming_standard.is_active IS '1 = current, 0 = deprecated.';
-COMMENT ON COLUMN {{ product }}_Semantic.naming_standard.created_at IS 'When documented.';
+{{ tlm.comments(product ~ '_Semantic.naming_standard', 'CURRENT_STATE') }}
 
 -- table_relationship: how tables join ----------------------------------------
 CREATE TABLE {{ product }}_Semantic.table_relationship (
@@ -116,8 +113,7 @@ CREATE TABLE {{ product }}_Semantic.table_relationship (
     relationship_meaning VARCHAR(500),
     is_mandatory BYTEINT NOT NULL DEFAULT 0,
     is_active BYTEINT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (relationship_id);
 
@@ -132,3 +128,4 @@ COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_type IS
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.cardinality IS 'ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.is_mandatory IS '1 = referencing key is required, 0 = optional.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.is_active IS '1 = valid, 0 = deprecated.';
+{{ tlm.comments(product ~ '_Semantic.table_relationship', 'CURRENT_STATE') }}

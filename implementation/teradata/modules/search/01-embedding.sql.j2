@@ -9,7 +9,12 @@
 
   CRITICAL: no content columns (name, description, text, ...). Store keys only;
   join to Domain for content (INV-SEARCH-001).
+
+  Temporal profile SCD2_HISTORY: an embedding is superseded when the model or the
+  content behind it changes. The validity pair, is_current and the audit columns come
+  from the pattern's macros; generated_dts is this table's own event time and stays.
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 CREATE TABLE {{ database }}.entity_embedding (
     embedding_id        INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
 
@@ -31,13 +36,9 @@ CREATE TABLE {{ database }}.entity_embedding (
     embedding_model_version VARCHAR(20),
     computation_method  VARCHAR(50),            -- IN_DATABASE (ONNX) | EXTERNAL_API
 
-    -- Temporal tracking (embedding versioning)
+    -- Embedding event time; the validity pair and audit come from the pattern.
     generated_dts       TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    -- The open-end sentinel is set at INSERT time, never in a DEFAULT clause
-    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    is_current          BYTEINT NOT NULL DEFAULT 1
+{{ tlm.columns('SCD2_HISTORY', pad=20) }}
 )
 PRIMARY INDEX (embedding_id);
 
@@ -68,9 +69,4 @@ COMMENT ON COLUMN {{ database }}.entity_embedding.computation_method IS
 'How the vector was produced - IN_DATABASE (ONNX) or EXTERNAL_API.';
 COMMENT ON COLUMN {{ database }}.entity_embedding.generated_dts IS
 'Timestamp when the embedding was generated - tracks freshness.';
-COMMENT ON COLUMN {{ database }}.entity_embedding.valid_from_dts IS
-'When this embedding version became valid - supports embedding versioning.';
-COMMENT ON COLUMN {{ database }}.entity_embedding.valid_to_dts IS
-'When this embedding was superseded - sentinel 9999-12-31 for the current embedding, set by the load.';
-COMMENT ON COLUMN {{ database }}.entity_embedding.is_current IS
-'Current embedding indicator - 1 = current, 0 = historical (previous model or content version).';
+{{ tlm.comments(database ~ '.entity_embedding', 'SCD2_HISTORY') }}

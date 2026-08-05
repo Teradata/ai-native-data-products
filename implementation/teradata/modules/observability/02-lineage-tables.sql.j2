@@ -1,6 +1,7 @@
 -- Observability module: lineage tables (Teradata). Binding of design/modules/observability.md.
 -- Definition/execution split: data_lineage (one row per flow) + lineage_run (one row per execution).
 -- Replace {{ product }}.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 
 -- data_lineage: DEFINITIONAL: one row per source -> job -> target -----------
 CREATE TABLE {{ product }}_Observability.data_lineage (
@@ -18,7 +19,7 @@ CREATE TABLE {{ product }}_Observability.data_lineage (
     is_active             BYTEINT NOT NULL DEFAULT 1,   -- 1 = live flow, 0 = retired
     registered_dts        TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
     retired_dts           TIMESTAMP(6) WITH TIME ZONE, -- set when is_active -> 0
-    created_at            TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('EVENT_APPEND_ONLY', pad=22) }}
 )
 PRIMARY INDEX (lineage_id);
 
@@ -37,7 +38,7 @@ COMMENT ON COLUMN {{ product }}_Observability.data_lineage.openlineage_namespace
 COMMENT ON COLUMN {{ product }}_Observability.data_lineage.is_active IS '1 = live flow, 0 = retired (preserved for history).';
 COMMENT ON COLUMN {{ product }}_Observability.data_lineage.registered_dts IS 'When the flow was first registered.';
 COMMENT ON COLUMN {{ product }}_Observability.data_lineage.retired_dts IS 'When retired - NULL while active.';
-COMMENT ON COLUMN {{ product }}_Observability.data_lineage.created_at IS 'When this definition row was created.';
+{{ tlm.comments(product ~ '_Observability.data_lineage', 'EVENT_APPEND_ONLY') }}
 
 -- lineage_run: OPERATIONAL: one row per execution --------------------------
 CREATE TABLE {{ product }}_Observability.lineage_run (
@@ -53,7 +54,7 @@ CREATE TABLE {{ product }}_Observability.lineage_run (
     job_name           VARCHAR(200),             -- denormalised for fast querying
     openlineage_run_id VARCHAR(200),             -- per-execution UUID
     error_message      VARCHAR(2000),
-    created_at         TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('EVENT_APPEND_ONLY', pad=22) }}
 )
 PRIMARY INDEX (lineage_run_id);
 
@@ -70,6 +71,6 @@ COMMENT ON COLUMN {{ product }}_Observability.lineage_run.batch_key IS 'Links to
 COMMENT ON COLUMN {{ product }}_Observability.lineage_run.job_name IS 'Denormalised job name for fast filtering.';
 COMMENT ON COLUMN {{ product }}_Observability.lineage_run.openlineage_run_id IS 'OpenLineage run UUID.';
 COMMENT ON COLUMN {{ product }}_Observability.lineage_run.error_message IS 'Error captured on FAILED/PARTIAL runs.';
-COMMENT ON COLUMN {{ product }}_Observability.lineage_run.created_at IS 'When this run row was created.';
+{{ tlm.comments(product ~ '_Observability.lineage_run', 'EVENT_APPEND_ONLY') }}
 
 -- Retention: data_lineage = life of product; lineage_run = configurable (90-365 days).

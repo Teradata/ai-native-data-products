@@ -36,7 +36,10 @@ HAVING has_scope_level = 0 OR has_scope_identifier = 0;
 
 -- ---------------------------------------------------------------------------
 -- INV-MEMORY-005 : documentation tables are temporally versioned.
--- Any versioned documentation table missing valid_from/valid_to is a violation.
+-- Any versioned documentation table missing valid_from_dts/valid_to_dts is a
+-- violation. The canonical names are the only ones tested: a table still
+-- carrying the legacy valid_from fails this check and TLM-04 together, which is
+-- the intended reading, not a double report.
 -- ---------------------------------------------------------------------------
 SELECT t.TableName
 FROM DBC.TablesV t
@@ -46,7 +49,7 @@ WHERE t.DatabaseName = '{{ product }}_Memory'
   AND NOT EXISTS (
         SELECT 1 FROM DBC.ColumnsV c
         WHERE c.DatabaseName = t.DatabaseName AND c.TableName = t.TableName
-          AND c.ColumnName = 'valid_from')
+          AND c.ColumnName = 'valid_from_dts')
   AND t.TableName <> 'Change_Log';   -- Change_Log is an event log, not version-chained
 
 -- ---------------------------------------------------------------------------

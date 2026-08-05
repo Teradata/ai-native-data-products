@@ -2,6 +2,7 @@
 -- Binding of design/modules/memory.md. Every runtime record carries a privacy
 -- scope (INV-MEMORY-003); references are table-level only (INV-MEMORY-001).
 -- Replace {{ product }} with the data product name.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 
 -- ---------------------------------------------------------------------------
 -- Agent session
@@ -18,7 +19,7 @@ CREATE TABLE {{ product }}_Memory.agent_session (
     session_context_json JSON,
     scope_level          VARCHAR(20) NOT NULL, -- USER, TEAM, ORGANIZATION, AGENT
     scope_identifier     VARCHAR(100) NOT NULL,
-    created_at           TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=23) }}
 )
 PRIMARY INDEX (session_id);
 
@@ -35,7 +36,7 @@ COMMENT ON COLUMN {{ product }}_Memory.agent_session.session_goal IS 'What the u
 COMMENT ON COLUMN {{ product }}_Memory.agent_session.session_context_json IS 'Flexible session context - retrieved and processed by the consumer.';
 COMMENT ON COLUMN {{ product }}_Memory.agent_session.scope_level IS 'Privacy scope - USER, TEAM, ORGANIZATION, AGENT.';
 COMMENT ON COLUMN {{ product }}_Memory.agent_session.scope_identifier IS 'Scope identifier matching scope_level - enforces privacy boundaries.';
-COMMENT ON COLUMN {{ product }}_Memory.agent_session.created_at IS 'When this session record was created.';
+{{ tlm.comments(product ~ '_Memory.agent_session', 'CURRENT_STATE') }}
 
 -- ---------------------------------------------------------------------------
 -- Agent interaction (table-level references only; counts, not result data)
@@ -57,7 +58,7 @@ CREATE TABLE {{ product }}_Memory.agent_interaction (
     user_feedback        VARCHAR(20),          -- POSITIVE, NEUTRAL, NEGATIVE, NULL
     scope_level          VARCHAR(20) NOT NULL,
     scope_identifier     VARCHAR(100) NOT NULL,
-    created_at           TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=23) }}
 )
 PRIMARY INDEX (interaction_id);
 
@@ -79,7 +80,7 @@ COMMENT ON COLUMN {{ product }}_Memory.agent_interaction.outcome_status IS 'SUCC
 COMMENT ON COLUMN {{ product }}_Memory.agent_interaction.user_feedback IS 'POSITIVE, NEUTRAL, NEGATIVE, NULL - used for learning.';
 COMMENT ON COLUMN {{ product }}_Memory.agent_interaction.scope_level IS 'Privacy scope - USER, TEAM, ORGANIZATION, AGENT.';
 COMMENT ON COLUMN {{ product }}_Memory.agent_interaction.scope_identifier IS 'Scope identifier matching scope_level.';
-COMMENT ON COLUMN {{ product }}_Memory.agent_interaction.created_at IS 'When this interaction record was created.';
+{{ tlm.comments(product ~ '_Memory.agent_interaction', 'CURRENT_STATE') }}
 
 -- ---------------------------------------------------------------------------
 -- Learned strategy
@@ -100,8 +101,7 @@ CREATE TABLE {{ product }}_Memory.learned_strategy (
     scope_identifier       VARCHAR(100) NOT NULL,
     is_active              BYTEINT NOT NULL DEFAULT 1,
     is_validated           BYTEINT NOT NULL DEFAULT 0,
-    created_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=23) }}
 )
 PRIMARY INDEX (strategy_id);
 
@@ -122,8 +122,7 @@ COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.scope_level IS 'Privacy 
 COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.scope_identifier IS 'Scope identifier matching scope_level.';
 COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.is_active IS '1 = active, 0 = deprecated.';
 COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.is_validated IS '1 = validated by human or testing, 0 = not yet.';
-COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.created_at IS 'When this strategy record was created.';
-COMMENT ON COLUMN {{ product }}_Memory.learned_strategy.updated_at IS 'When this strategy was last refined.';
+{{ tlm.comments(product ~ '_Memory.learned_strategy', 'CURRENT_STATE') }}
 
 -- ---------------------------------------------------------------------------
 -- User preference
@@ -142,8 +141,7 @@ CREATE TABLE {{ product }}_Memory.user_preference (
     scope_level            VARCHAR(20) NOT NULL DEFAULT 'USER',
     scope_identifier       VARCHAR(100) NOT NULL,
     is_active              BYTEINT NOT NULL DEFAULT 1,
-    created_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=23) }}
 )
 PRIMARY INDEX (preference_id);
 
@@ -162,8 +160,7 @@ COMMENT ON COLUMN {{ product }}_Memory.user_preference.last_used_dts IS 'When th
 COMMENT ON COLUMN {{ product }}_Memory.user_preference.scope_level IS 'Privacy scope - USER (default), TEAM, ORGANIZATION.';
 COMMENT ON COLUMN {{ product }}_Memory.user_preference.scope_identifier IS 'Scope identifier matching scope_level.';
 COMMENT ON COLUMN {{ product }}_Memory.user_preference.is_active IS '1 = active, 0 = deprecated.';
-COMMENT ON COLUMN {{ product }}_Memory.user_preference.created_at IS 'When first learned.';
-COMMENT ON COLUMN {{ product }}_Memory.user_preference.updated_at IS 'When last reinforced.';
+{{ tlm.comments(product ~ '_Memory.user_preference', 'CURRENT_STATE') }}
 
 -- ---------------------------------------------------------------------------
 -- Discovered pattern (summary statistics; TABLE-LEVEL references)
@@ -185,7 +182,7 @@ CREATE TABLE {{ product }}_Memory.discovered_pattern (
     scope_level             VARCHAR(20) NOT NULL,
     scope_identifier        VARCHAR(100) NOT NULL,
     is_active               BYTEINT NOT NULL DEFAULT 1,
-    created_at              TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=23) }}
 )
 PRIMARY INDEX (pattern_id);
 
@@ -207,4 +204,4 @@ COMMENT ON COLUMN {{ product }}_Memory.discovered_pattern.is_validated IS '1 = v
 COMMENT ON COLUMN {{ product }}_Memory.discovered_pattern.scope_level IS 'Privacy scope - USER, TEAM, ORGANIZATION, AGENT.';
 COMMENT ON COLUMN {{ product }}_Memory.discovered_pattern.scope_identifier IS 'Scope identifier matching scope_level.';
 COMMENT ON COLUMN {{ product }}_Memory.discovered_pattern.is_active IS '1 = active, 0 = invalidated.';
-COMMENT ON COLUMN {{ product }}_Memory.discovered_pattern.created_at IS 'When this pattern record was created.';
+{{ tlm.comments(product ~ '_Memory.discovered_pattern', 'CURRENT_STATE') }}

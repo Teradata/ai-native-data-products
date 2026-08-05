@@ -25,8 +25,8 @@ CREATE MULTISET TABLE governance.data_product_registry
    ,approved_access_mode   VARCHAR(32)               -- VIEW, MCP_TOOL, SEMANTIC_QUERY
    ,is_active              BYTEINT NOT NULL
    ,is_deleted             BYTEINT NOT NULL
-   ,created_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
-   ,updated_at             TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+   ,created_dts            TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+   ,updated_dts            TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
 )
 PRIMARY INDEX (product_id);
 
@@ -53,8 +53,8 @@ COMMENT ON COLUMN governance.data_product_registry.approved_entrypoint IS 'Appro
 COMMENT ON COLUMN governance.data_product_registry.approved_access_mode IS 'VIEW, MCP_TOOL, SEMANTIC_QUERY, or site-defined.';
 COMMENT ON COLUMN governance.data_product_registry.is_active IS '1 = current and discoverable, 0 = inactive.';
 COMMENT ON COLUMN governance.data_product_registry.is_deleted IS '1 = logically deleted and hidden, 0 = discoverable when active.';
-COMMENT ON COLUMN governance.data_product_registry.created_at IS 'When this row was created.';
-COMMENT ON COLUMN governance.data_product_registry.updated_at IS 'When this row was last updated.';
+COMMENT ON COLUMN governance.data_product_registry.created_dts IS 'When this row was created.';
+COMMENT ON COLUMN governance.data_product_registry.updated_dts IS 'When this row was last updated.';
 
 -- MCP catalogue query: discover all current, discoverable products.
 -- SELECT product_id, product_name, product_version, semantic_database,

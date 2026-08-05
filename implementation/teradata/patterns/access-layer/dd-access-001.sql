@@ -8,7 +8,7 @@ INSERT INTO {ProductName}_Memory.Design_Decision
     decision_id, decision_version, decision_title, decision_description,
     context, alternatives_considered, rationale,
     decision_status, decision_category, source_module, module_version,
-    decided_date, valid_from, valid_to, is_current
+    decided_date, valid_from_dts, valid_to_dts, is_current
 )
 VALUES
 (
@@ -38,5 +38,9 @@ VALUES
     -- the INV-MEMORY-006 join drops the row without reporting anything. Memory is
     -- the module whose grant boundary this decision defines.
     'ACCEPTED', 'SECURITY', 'MEMORY', '1.0',
-    CURRENT_DATE, CURRENT_DATE, DATE '9999-12-31', 1
+    -- decided_date is a day-grain business fact and stays DATE; the validity pair
+    -- is the canonical timestamp pair, with the open-end sentinel written here
+    -- rather than defaulted (see 12-capture-protocol.sql.j2).
+    CURRENT_DATE,
+    CURRENT_TIMESTAMP(6), TIMESTAMP '9999-12-31 23:59:59.999999+00:00', 1
 );

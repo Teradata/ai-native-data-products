@@ -15,7 +15,22 @@ from design_lint import (  # noqa: E402
     lint_text,
     find_sql_violations,
     find_invariant_violations,
+    find_prohibited_name_violations,
+    load_prohibited_names,
+    mask_sql_noise,
 )
+
+# The shape of the prohibited-name table in the temporal pattern, section 4.2. The last
+# two rows are the ones that must NOT contribute: a name permitted on some profile, and
+# a name prohibited only in one of its two readings.
+PROHIBITED_TABLE = """
+| Prohibited | Canonical | Scope |
+|------------|-----------|-------|
+| `created_at`, `created_timestamp`, `created_dt`, `created_date` (as audit) | `created_dts` | All profiles |
+| `valid_from`, `effective_from`, `start_timestamp` | `valid_from_dts` | All profiles |
+| `deleted_flag`, `active_ind`, `*_yn`, single-character encodings | `is_deleted` / `is_active` (a `Flag`) | All profiles |
+| `effective_date` | `valid_from_dts` | Prohibited except on `CURRENT_STATE` |
+"""
 
 CLEAN_ENTITY_DOC = """# Domain
 
@@ -128,6 +143,81 @@ class EntityNotationRule(unittest.TestCase):
         )
         findings = [f for f in find_sql_violations(doc, "x.md") if f.rule == "unknown-type"]
         self.assertEqual(findings, [])
+
+
+class ProhibitedTemporalNames(unittest.TestCase):
+    """TLM-04, read from the pattern that declares it rather than hard-coded here."""
+
+    def setUp(self):
+        self.names = load_prohibited_names(PROHIBITED_TABLE)
+
+    def test_all_profiles_rows_contribute_every_plain_name(self):
+        for name in ("created_at", "created_timestamp", "created_dt",
+                     "valid_from", "effective_from", "start_timestamp",
+                     "deleted_flag", "active_ind"):
+            with self.subTest(name=name):
+                self.assertIn(name, self.names)
+
+    def test_canonical_replacement_is_carried(self):
+        self.assertEqual(self.names["created_at"], "created_dts")
+        self.assertEqual(self.names["start_timestamp"], "valid_from_dts")
+
+    def test_replacement_drops_parenthetical_annotation(self):
+        # "(a `Flag`)" annotates the replacement; it is not one of the names.
+        self.assertEqual(self.names["deleted_flag"], "is_deleted / is_active")
+
+    def test_profile_scoped_row_does_not_contribute(self):
+        # effective_date is permitted on CURRENT_STATE, and which profile an entity
+        # declares is not knowable from the file being linted.
+        self.assertNotIn("effective_date", self.names)
+
+    def test_qualified_name_does_not_contribute(self):
+        # created_date is prohibited *as audit* and legal as a day-grain event column.
+        self.assertNotIn("created_date", self.names)
+
+    def test_glob_and_prose_do_not_contribute(self):
+        self.assertNotIn("*_yn", self.names)
+        for key in self.names:
+            self.assertNotIn(" ", key)
+
+    def test_column_definition_flagged(self):
+        ddl = "CREATE TABLE x (\n    created_at TIMESTAMP(6)\n);\n"
+        findings = find_prohibited_name_violations(ddl, "x.sql", self.names)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "tlm-04")
+        self.assertEqual(findings[0].line, 2)
+        self.assertIn("created_dts", findings[0].message)
+
+    def test_canonical_names_pass(self):
+        ddl = ("CREATE TABLE x (\n"
+               "    created_dts TIMESTAMP(6),\n"
+               "    valid_from_dts TIMESTAMP(6)\n);\n")
+        self.assertEqual(find_prohibited_name_violations(ddl, "x.sql", self.names), [])
+
+    def test_prose_in_comments_not_flagged(self):
+        # How a template explains which spelling it replaced, and how a keymap header
+        # names the prohibited form. Neither is a column.
+        art = ("-- created_at is a prohibited spelling of created_dts.\n"
+               "{# valid_from and valid_to are prohibited everywhere. #}\n"
+               "/* was: created_timestamp */\n"
+               "CREATE TABLE x (created_dts TIMESTAMP(6));\n")
+        self.assertEqual(find_prohibited_name_violations(art, "x.sql.j2", self.names), [])
+
+    def test_string_literal_not_flagged(self):
+        # The catalogue conformance query scans *for* these names.
+        art = "SELECT c.ColumnName FROM DBC.ColumnsV\nWHERE c.ColumnName IN ('created_at','valid_from');\n"
+        self.assertEqual(find_prohibited_name_violations(art, "q.sql", self.names), [])
+
+    def test_masking_preserves_line_numbers(self):
+        art = "-- comment\n\n'literal'\ncreated_at\n"
+        masked = mask_sql_noise(art)
+        self.assertEqual(len(masked.splitlines()), len(art.splitlines()))
+        self.assertEqual(masked.splitlines()[3], "created_at")
+
+    def test_empty_name_table_is_inert(self):
+        # Linting a tree with no temporal pattern in it enforces nothing, rather than
+        # falling back to a stale copy of the list.
+        self.assertEqual(find_prohibited_name_violations("created_at\n", "x.sql", {}), [])
 
 
 if __name__ == "__main__":

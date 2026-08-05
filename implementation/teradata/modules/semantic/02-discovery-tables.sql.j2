@@ -1,5 +1,6 @@
 -- Semantic module: discovery tables (Teradata). Binding of design/modules/semantic.md.
 -- Module map, primary objects, and view catalogue. Replace {{ product }}.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 
 -- data_product_map: which modules are deployed, and where --------------------
 CREATE TABLE {{ product }}_Semantic.data_product_map (
@@ -14,8 +15,7 @@ CREATE TABLE {{ product }}_Semantic.data_product_map (
     deployment_status VARCHAR(20),          -- DEPLOYED, PLANNED, DEPRECATED
     deployed_dts TIMESTAMP(6) WITH TIME ZONE,
     is_active BYTEINT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (module_id);
 
@@ -31,8 +31,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.module_version IS 'Mod
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.deployment_status IS 'DEPLOYED, PLANNED, DEPRECATED.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.deployed_dts IS 'When the module was deployed.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.is_active IS '1 = active, 0 = deprecated.';
-COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.created_at IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.updated_at IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Semantic.data_product_map', 'CURRENT_STATE') }}
 
 -- data_product_map_primary_objects: one row per agent-facing object ----------
 -- Authoritative fully qualified identity; no CSV, no name derivation.
@@ -46,8 +45,7 @@ CREATE TABLE {{ product }}_Semantic.data_product_map_primary_objects (
     usage_guidance VARCHAR(500) CHARACTER SET UNICODE,
     table_kind CHAR(1),                     -- DBC.TablesV.TableKind (optional)
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (module_id);
 
@@ -61,8 +59,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.object
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.usage_guidance IS 'Object-specific instructions or constraints.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.table_kind IS 'DBC.TablesV.TableKind code - enables catalogue-kind mismatch validation.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.is_active IS '1 = live and discoverable, 0 = retired; independent of physical existence.';
-COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.created_dts IS 'Physical row creation time (UTC).';
-COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.updated_dts IS 'Physical row last-change time (UTC).';
+{{ tlm.comments(product ~ '_Semantic.data_product_map_primary_objects', 'CURRENT_STATE') }}
 
 -- Object role vocabulary: AGENT_ENTRYPOINT, ANALYTICAL_QUERY, REFERENCE_LOOKUP,
 -- RELATIONSHIP_BRIDGE, LINEAGE_EVIDENCE, OPERATIONAL_METRIC, WRITE_TARGET, INTERNAL_SUPPORT.
@@ -78,8 +75,7 @@ CREATE TABLE {{ product }}_Semantic.view_metadata (
     view_purpose VARCHAR(500),
     is_primary BYTEINT NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (base_table);
 
@@ -93,8 +89,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.view_type IS 'LOCKING (1:
 COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.view_purpose IS 'What this exposure is for and any consumer constraints.';
 COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.is_primary IS '1 = primary consumer exposure; at most one active primary per base table.';
 COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.is_active IS '1 = live, 0 = retired.';
-COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.created_dts IS 'Physical row creation time (UTC).';
-COMMENT ON COLUMN {{ product }}_Semantic.view_metadata.updated_dts IS 'Physical row last-change time (UTC).';
+{{ tlm.comments(product ~ '_Semantic.view_metadata', 'CURRENT_STATE') }}
 
 -- view_column_type: curated types for view columns (dictionary cannot report) -
 CREATE TABLE {{ product }}_Semantic.view_column_type (
@@ -104,8 +99,7 @@ CREATE TABLE {{ product }}_Semantic.view_column_type (
     column_name VARCHAR(128) NOT NULL,
     data_type VARCHAR(100) NOT NULL,        -- full friendly string, generated at view-deploy time
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-    created_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
 )
 PRIMARY INDEX (view_name);
 

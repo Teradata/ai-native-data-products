@@ -12,14 +12,21 @@
   FK targets may allocate surrogates directly and skip this template.
 
   Temporal profile CURRENT_STATE: one row per natural key, allocated once, never
-  versioned. created_dts is the canonical audit column (TLM-04); created_dt and
-  created_at are prohibited spellings of it.
+  versioned. The audit columns come from the pattern's macros, so the canonical
+  spellings arrive by inheritance rather than by being retyped correctly here.
+
+  updated_dts is present because the profile requires the audit pair (TLM-02), and on
+  this table it will equal created_dts for the life of the row. That is the honest
+  reading: the column records when the row last changed, and the answer for a keymap
+  is "when it was allocated". A table that drops it because the value looks redundant
+  is a table stating a private variant of the profile.
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 CREATE TABLE {{ database }}.{{ entity.name }}_Keymap (
     {{ entity.lower }}_id     BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     {{ entity.lower }}_key    VARCHAR({{ entity.natural_key_len | default(100) }}) NOT NULL,
     source_system   VARCHAR(50),
-    created_dts     TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+{{ tlm.columns('CURRENT_STATE', pad=16) }}
 )
 UNIQUE PRIMARY INDEX ({{ entity.lower }}_key);
 
@@ -35,5 +42,4 @@ COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_key
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.source_system IS
 'Source system that first introduced this natural key.';
 
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.created_dts IS
-'Timestamp when this surrogate key was first allocated. Immutable once set.';
+{{ tlm.comments(database ~ '.' ~ entity.name ~ '_Keymap', 'CURRENT_STATE') }}

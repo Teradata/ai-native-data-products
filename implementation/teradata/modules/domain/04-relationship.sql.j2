@@ -12,17 +12,21 @@
 
   The open-end sentinel on valid_to_dts is set at INSERT time by the load, never in
   a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+
+  Temporal profile ASSOCIATION_SCD2: an association versions as the entities it
+  associates do. The columns come from the pattern's macros rather than a copy here.
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 CREATE TABLE {{ database }}.{{ rel.name }}_H (
     {{ rel.lower }}_id   BIGINT NOT NULL,
     {{ rel.entity1.lower }}_id     BIGINT NOT NULL,
     {{ rel.entity2.lower }}_id     BIGINT NOT NULL,
 
-    valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    is_current          BYTEINT NOT NULL DEFAULT 1,
-    is_deleted          BYTEINT NOT NULL DEFAULT 0{% for a in rel.attributes | default([]) %},
-    {{ a.name }}        {{ a.type }}{% if not a.nullable %} NOT NULL{% endif %}{% endfor %}
+{{ tlm.columns('ASSOCIATION_SCD2', pad=20, supports_deletion=true,
+               terminal=not (rel.attributes | default([]))) }}
+{%- for a in rel.attributes | default([]) %}
+    {{ a.name }}        {{ a.type }}{% if not a.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
 )
 PRIMARY INDEX ({{ rel.entity1.lower }}_id);  -- co-locate with first entity
 
@@ -35,10 +39,7 @@ COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ rel.entity1.lower }}_id IS
 'Foreign key to {{ rel.entity1.name }}_H.{{ rel.entity1.lower }}_id - first entity in the relationship.';
 COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ rel.entity2.lower }}_id IS
 'Foreign key to {{ rel.entity2.name }}_H.{{ rel.entity2.lower }}_id - second entity in the relationship.';
-COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.is_current IS
-'Current version indicator - 1 = current active relationship, 0 = historical.';
-COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.is_deleted IS
-'Soft delete indicator - 1 = relationship terminated but retained for audit, 0 = active.';
+{{ tlm.comments(database ~ '.' ~ rel.name ~ '_H', 'ASSOCIATION_SCD2', supports_deletion=true) }}
 {%- for a in rel.attributes | default([]) %}
 COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ a.name }} IS
 '{{ a.comment }}';

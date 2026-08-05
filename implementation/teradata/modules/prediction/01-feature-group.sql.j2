@@ -10,6 +10,7 @@
     group.entity_kinds : documented value set, e.g. "PARTY"
     group.features : list of { name, comment } engineered feature columns (all DECIMAL(5,4))
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 CREATE TABLE {{ db }}.{{ group.name }} (
     feature_group_id  INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
 
@@ -24,11 +25,7 @@ CREATE TABLE {{ db }}.{{ group.name }} (
 
     -- Temporal (point-in-time; temporal-lifecycle SCD2_HISTORY)
     observation_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_from_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    -- Sentinel set at INSERT time, never in a DEFAULT clause
-    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
-    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    is_current        BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
+{{ tlm.columns('SCD2_HISTORY', pad=18, terminal=false) }}
 
     -- Feature metadata
     feature_group_name    VARCHAR(128) NOT NULL DEFAULT '{{ group.label }}',
@@ -48,9 +45,7 @@ COMMENT ON COLUMN {{ db }}.{{ group.name }}.entity_type IS 'Entity kind - {{ gro
 COMMENT ON COLUMN {{ db }}.{{ group.name }}.{{ f.name }} IS 'ENGINEERED: {{ f.comment }}';
 {%- endfor %}
 COMMENT ON COLUMN {{ db }}.{{ group.name }}.observation_dts IS 'When features were observed/computed - point-in-time anchor for ML training.';
-COMMENT ON COLUMN {{ db }}.{{ group.name }}.valid_from_dts IS 'When this feature version became valid.';
-COMMENT ON COLUMN {{ db }}.{{ group.name }}.valid_to_dts IS 'When superseded - sentinel 9999-12-31 for current.';
-COMMENT ON COLUMN {{ db }}.{{ group.name }}.is_current IS '1 = current feature values, 0 = historical.';
+{{ tlm.comments(db ~ '.' ~ group.name, 'SCD2_HISTORY') }}
 COMMENT ON COLUMN {{ db }}.{{ group.name }}.feature_group_name IS 'Feature group identifier.';
 COMMENT ON COLUMN {{ db }}.{{ group.name }}.feature_group_version IS 'Feature-engineering logic version (A/B testing).';
 COMMENT ON COLUMN {{ db }}.{{ group.name }}.computation_dts IS 'When computed and inserted.';

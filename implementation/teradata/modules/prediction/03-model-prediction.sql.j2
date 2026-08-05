@@ -1,5 +1,6 @@
 -- Prediction module: model prediction outputs (Teradata).
 -- Binding of design/modules/prediction.md. SCD2 with reproducibility linkage. Replace {{ product }}.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 
 CREATE TABLE {{ product }}_Prediction.model_prediction (
     prediction_id     INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
@@ -13,13 +14,8 @@ CREATE TABLE {{ product }}_Prediction.model_prediction (
     confidence_score  DECIMAL(5,4),           -- 0-1
     prediction_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     feature_observation_dts TIMESTAMP(6) WITH TIME ZONE,  -- links to the feature timestamp used
-    valid_from_dts    TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    -- Sentinel set at INSERT time, never in a DEFAULT clause
-    -- (see PLATFORM_PROFILE, SQL idioms and driver constraints).
-    valid_to_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    is_current        BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
-    created_by         VARCHAR(100),
-    created_at         TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
+    created_by        VARCHAR(100),
+{{ tlm.columns('SCD2_HISTORY', pad=18) }}
 )
 PRIMARY INDEX (entity_id);
 
@@ -36,8 +32,6 @@ COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.prediction_json IS '
 COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.confidence_score IS 'Model confidence, 0-1.';
 COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.prediction_dts IS 'When the prediction was generated.';
 COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.feature_observation_dts IS 'When the input features were observed - reproducibility linkage.';
-COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.valid_from_dts IS 'When this prediction version became valid.';
-COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.valid_to_dts IS 'When superseded - sentinel 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.is_current IS '1 = latest prediction, 0 = historical.';
+{{ tlm.comments(product ~ '_Prediction.model_prediction', 'SCD2_HISTORY') }}
 COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.created_by IS 'Serving API / batch scoring job.';
-COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.created_at IS 'When inserted.';
+COMMENT ON COLUMN {{ product }}_Prediction.model_prediction.created_dts IS 'When inserted.';

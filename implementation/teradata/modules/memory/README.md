@@ -51,7 +51,7 @@ The same sequence applies to every module: the gate is what makes the step recov
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
-| `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql.j2`; version chain via `is_current` + `valid_from`/`valid_to`. |
+| `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql.j2`; version chain via `is_current` + `valid_from_dts`/`valid_to_dts`. |
 | Agent continuity / learning | The five runtime tables + views. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`, applied and verified as their own step (below). |
 | `SemanticRegistration` *(soft)* | When Semantic is present: register Memory's entities in `{{ product }}_Semantic`. |
@@ -73,6 +73,35 @@ The same sequence applies to every module: the gate is what makes the step recov
 | `Date` | `DATE` |
 | `Flag` | `BYTEINT` |
 
+## Migrating a deployed documentation facet
+
+The documentation tables previously carried `created_timestamp`/`updated_timestamp` and a DATE-grain `valid_from`/`valid_to` pair. All four are prohibited generic names (TLM-04) with exactly one canonical replacement each, and the validity pair widens to `TIMESTAMP(6) WITH TIME ZONE` because validity bounds are always timestamps (pattern section 4.1). A new product deploys `10-documentation-tables.sql.j2` as it stands and needs nothing here.
+
+A deployed product migrates on the path the pattern already prescribes (section 11), not a local one:
+
+**1. Project the canonical names first.** Consumers move to the canonical names before the base tables are regenerated, so nothing downstream ever has to read both dialects:
+
+```sql
+REPLACE VIEW {{ product }}_Memory.v1_Design_Decision
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      decision_id, decision_version, decision_title, decision_status
+    , decision_category, source_module, rationale, decided_by, decided_date
+    , CAST(valid_from AS TIMESTAMP(6) WITH TIME ZONE) AS valid_from_dts
+    , CAST(valid_to   AS TIMESTAMP(6) WITH TIME ZONE) AS valid_to_dts
+    , is_current
+    , created_timestamp AS created_dts
+    , updated_timestamp AS updated_dts
+FROM {{ product }}_Memory.Design_Decision;
+```
+
+The projection is versioned (`v1_`) because it is a stated compatibility surface with an end, not a permanent alias. Retire it once the base tables are regenerated and consumers read them directly.
+
+**2. Regenerate the base tables**, then repoint the projection at the canonical columns or drop it.
+
+**What the widening cannot recover.** Migrated historical rows were captured at DATE grain, so every version boundary for them lands at midnight. **Intra-day ordering is unavailable for historical rows**: two versions of the same `decision_id` superseded on the same day are indistinguishable in time order after migration, and `decision_version` is the only thing that separates them. Widening the type does not recover a precision that was never recorded. Rows captured after migration carry the real instant, since `12-capture-protocol.sql.j2` closes a version at `CURRENT_TIMESTAMP(6)`.
+
 ## Invariants → checks
 
 | Invariant | Check |
@@ -81,5 +110,5 @@ The same sequence applies to every module: the gate is what makes the step recov
 | `INV-MEMORY-002` (metadata not results) | Enforced by schema: no result-set columns; reviewed at design time. |
 | `INV-MEMORY-003` (privacy scope) | `validation.sql.j2` §2: every runtime table has `scope_level` + `scope_identifier`. |
 | `INV-MEMORY-004` (no Semantic dup) | Reviewed at design time; documentation holds rationale, not join paths. |
-| `INV-MEMORY-005` (versioned docs) | `validation.sql.j2` §3: documentation tables carry `is_current`/`valid_from`/`valid_to`. |
+| `INV-MEMORY-005` (versioned docs) | `validation.sql.j2` §3: documentation tables carry `is_current`/`valid_from_dts`/`valid_to_dts`. |
 | `INV-MEMORY-006` (capture protocol) | `validation.sql.j2` §4: minimum documentation records present per deployed module. |

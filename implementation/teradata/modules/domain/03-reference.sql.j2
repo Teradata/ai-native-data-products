@@ -25,26 +25,23 @@
 
   The open-end sentinel is set at INSERT time, never in a DEFAULT clause
   (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+
+  The temporal columns come from the pattern's macros. The profile is the only thing
+  this template decides; what each profile contains is the pattern's to say.
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+{%- set profile = 'SCD2_HISTORY' if reference.versioned | default(true) else 'CURRENT_STATE' -%}
 CREATE TABLE {{ database }}.{{ reference.name }}_R (
     {{ reference.lower }}_id      BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     {{ reference.lower }}_code    VARCHAR(20) NOT NULL,
     -- UNICODE on the prose columns: descriptions carry typography, codes do not.
     short_description   VARCHAR(100) CHARACTER SET UNICODE NOT NULL,
     long_description    VARCHAR(500) CHARACTER SET UNICODE,
-{%- if reference.versioned | default(true) %}
-
-    -- Business validity: half-open [valid_from_dts, valid_to_dts)
-    valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    is_current          BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1)),
-{%- endif %}
-
-    -- Row audit
-    created_dts         TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_dts         TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6){% if reference.hierarchical %},
+{{ tlm.columns(profile, pad=20, terminal=not reference.hierarchical) }}
+{%- if reference.hierarchical %}
     parent_{{ reference.lower }}_id BIGINT,
-    sort_order          INTEGER{% endif %}
+    sort_order          INTEGER
+{%- endif %}
 )
 {%- if reference.versioned | default(true) %}
 UNIQUE PRIMARY INDEX ({{ reference.lower }}_code, valid_from_dts);
@@ -63,18 +60,7 @@ COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.short_description IS
 'Brief description of reference value - displayed in UI dropdowns and reports.';
 COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.long_description IS
 'Detailed description of reference value - complete definition and usage guidance.';
-{%- if reference.versioned | default(true) %}
-COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.valid_from_dts IS
-'Inclusive start of business validity (UTC). Half-open period.';
-COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.valid_to_dts IS
-'Exclusive end of business validity (UTC); sentinel 9999-12-31 = current, set by the load.';
-COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.is_current IS
-'Convenience currency flag; must agree with the valid_to_dts sentinel.';
-{%- endif %}
-COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.created_dts IS
-'Physical row-version creation time (UTC).';
-COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.updated_dts IS
-'Physical row last-change time (UTC).';
+{{ tlm.comments(database ~ '.' ~ reference.name ~ '_R', profile) }}
 {%- if reference.hierarchical %}
 COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.parent_{{ reference.lower }}_id IS
 'Optional parent reference for hierarchical taxonomies - references {{ reference.lower }}_id.';

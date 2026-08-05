@@ -60,6 +60,12 @@ Three roles are created per product, named `{ProductName}_ROLE_{TIER}`:
 | `{ProductName}_ROLE_AGENT` | AI agents, automated tools | Read on the module access containers, plus **write-back** (append) to Memory and Observability. |
 | `{ProductName}_ROLE_ADMIN` | Product owner, data steward | Read on all containers, including any separate base-table containers. |
 
+**What a role's description says.** Each role carries a description, and it names **who the role is for** in one short sentence. It must not enumerate what the role can reach.
+
+The Scope column above is the authoritative statement of that, and the reasoning behind the boundary is recorded inside the product in `DD-ACCESS-001`. A description that restates either is a third copy of the grant model, kept in the one place with the widest read audience: platform catalogues expose object descriptions to far more principals than can read the grants themselves, so a description listing containers and write-back rights publishes the permission model to anyone able to query the catalogue. Descriptions are also length-limited on real platforms, and a paragraph-length one fails at deployment.
+
+Both failures have the same fix, which is why this is one rule: say who the role is for, and let the grant matrix say what it reaches.
+
 ### 3.1 Why `ROLE_AGENT` is separate from `ROLE_READ`
 
 They grant the same read scope by default but are kept distinct for:
@@ -143,7 +149,7 @@ The record's `source_module` is `MEMORY`. The Access Layer is a pattern rather t
 
 - [ ] Phase 1.5a implied grants provisioned as soon as the containers exist, before any view that depends on them is compiled.
 - [ ] Role statements identified as requiring elevated privilege, and generated so a deployment without it continues and the outstanding step stays visible.
-- [ ] The three roles created, each with a descriptive comment.
+- [ ] The three roles created, each described by one short sentence naming its consumers, and none describing what it can reach.
 - [ ] Phase 1.5b read grants applied (Semantic, Memory) immediately after Phase 1.
 - [ ] Phase 1.5b Memory write-back granted to `ROLE_AGENT`.
 - [ ] Phase 2.5 read grants applied (Domain, Observability) immediately after Phase 2.

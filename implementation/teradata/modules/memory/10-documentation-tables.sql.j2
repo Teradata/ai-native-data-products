@@ -9,7 +9,28 @@
 -- [6706] The string contains an untranslatable character, on exactly the content
 -- the capture protocol asks for. Declaring UNICODE removes the failure rather
 -- than mitigating it; sanitising the text on the way in only hides it.
+--
+-- Temporal columns are the canonical ones (TLM-04): valid_from_dts/valid_to_dts
+-- and created_dts/updated_dts. The validity pair was a DATE pair named valid_from
+-- and valid_to; both spellings are prohibited on every profile, and the pattern's
+-- canonical column contract makes validity bounds timestamps regardless of what
+-- the versioned content is (section 4.1), so the rename widens the grain with it.
+-- Nothing else about the versioning changes: same half-open period, same
+-- is_current, same version chain.
+--
+-- The open-end sentinel leaves the DEFAULT clause as part of that widening. A
+-- zone-qualified TIMESTAMP literal in a CREATE TABLE DEFAULT hangs the driver in
+-- its parse phase (PLATFORM_PROFILE, SQL idioms and driver constraints), so the
+-- sentinel is written at INSERT time by 12-capture-protocol.sql.j2, and the bound
+-- is NOT NULL because a mandatory validity bound with a DEFAULT reads as optional.
+--
+-- Migrating a deployed documentation facet: pattern section 11. Present the
+-- canonical names through a versioned compatibility projection over the legacy
+-- columns until the base tables are regenerated, so consumers never parse both
+-- dialects; see the migration section in this module's README for the projection
+-- shape and for what the DATE-to-timestamp widening cannot recover.
 
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 -- ---------------------------------------------------------------------------
 -- Module_Registry: every module considered during design (deployed or not)
 -- ---------------------------------------------------------------------------
@@ -27,11 +48,7 @@ CREATE TABLE {{ product }}_Memory.Module_Registry (
     data_owner           VARCHAR(100) CHARACTER SET UNICODE,
     technical_owner      VARCHAR(100) CHARACTER SET UNICODE,
     version_date         DATE NOT NULL,
-    is_current           BYTEINT NOT NULL DEFAULT 1,
-    valid_from           DATE NOT NULL,
-    valid_to             DATE DEFAULT DATE '9999-12-31',
-    created_timestamp    TIMESTAMP(6) WITH TIME ZONE,
-    updated_timestamp    TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('SCD2_HISTORY', pad=21) }}
 )
 PRIMARY INDEX (module_registry_key);
 
@@ -49,11 +66,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.dependents IS 'Downstream
 COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.data_owner IS 'Business owner.';
 COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.technical_owner IS 'Technical contact.';
 COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.version_date IS 'When this version became active.';
-COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.is_current IS '1 = current version, 0 = historical.';
-COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.valid_from IS 'Temporal validity start.';
-COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.valid_to IS 'Temporal validity end - 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.created_timestamp IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.updated_timestamp IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Memory.Module_Registry', 'SCD2_HISTORY') }}
 
 -- ---------------------------------------------------------------------------
 -- Design_Decision. Architecture Decision Records with version chain
@@ -76,11 +89,7 @@ CREATE TABLE {{ product }}_Memory.Design_Decision (
     decided_by              VARCHAR(100) CHARACTER SET UNICODE,
     decided_date            DATE,
     superseded_by           VARCHAR(50) CHARACTER SET UNICODE,
-    valid_from              DATE NOT NULL,
-    valid_to                DATE DEFAULT DATE '9999-12-31',
-    is_current              BYTEINT NOT NULL DEFAULT 1,
-    created_timestamp       TIMESTAMP(6) WITH TIME ZONE,
-    updated_timestamp       TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('SCD2_HISTORY', pad=24) }}
 )
 PRIMARY INDEX (decision_key);
 
@@ -102,11 +111,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.affects_table IS 'Tables 
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decided_by IS 'Author of the decision.';
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decided_date IS 'When the decision was made.';
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.superseded_by IS 'decision_id of the replacement when SUPERSEDED.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.valid_from IS 'Temporal validity start.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.valid_to IS 'Temporal validity end - 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.is_current IS '1 = current version, 0 = historical.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.created_timestamp IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.updated_timestamp IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Memory.Design_Decision', 'SCD2_HISTORY') }}
 
 -- ---------------------------------------------------------------------------
 -- Business_Glossary
@@ -124,10 +129,7 @@ CREATE TABLE {{ product }}_Memory.Business_Glossary (
     source_module       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
     module_version      VARCHAR(20) CHARACTER SET UNICODE,
     is_active           BYTEINT NOT NULL DEFAULT 1,
-    valid_from          DATE NOT NULL,
-    valid_to            DATE DEFAULT DATE '9999-12-31',
-    created_timestamp   TIMESTAMP(6) WITH TIME ZONE,
-    updated_timestamp   TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('SCD2_HISTORY', pad=20) }}
 )
 PRIMARY INDEX (glossary_key);
 
@@ -144,10 +146,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.related_column IS 'Colu
 COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.source_module IS 'Module that introduced the term.';
 COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.module_version IS 'Module version at capture time.';
 COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.is_active IS '1 = active, 0 = retired.';
-COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.valid_from IS 'Temporal validity start.';
-COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.valid_to IS 'Temporal validity end - 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.created_timestamp IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.updated_timestamp IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Memory.Business_Glossary', 'SCD2_HISTORY') }}
 
 -- ---------------------------------------------------------------------------
 -- Query_Cookbook
@@ -167,10 +166,7 @@ CREATE TABLE {{ product }}_Memory.Query_Cookbook (
     source_module           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
     module_version          VARCHAR(20) CHARACTER SET UNICODE,
     is_active               BYTEINT NOT NULL DEFAULT 1,
-    valid_from              DATE NOT NULL,
-    valid_to                DATE DEFAULT DATE '9999-12-31',
-    created_timestamp       TIMESTAMP(6) WITH TIME ZONE,
-    updated_timestamp       TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('SCD2_HISTORY', pad=24) }}
 )
 PRIMARY INDEX (recipe_key);
 
@@ -189,10 +185,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.is_batch IS '1 = batch onl
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.source_module IS 'Module that contributed the recipe.';
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.module_version IS 'Module version at capture time.';
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.is_active IS '1 = active, 0 = retired/superseded.';
-COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.valid_from IS 'Temporal validity start.';
-COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.valid_to IS 'Temporal validity end - 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.created_timestamp IS 'When this recipe version was created.';
-COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.updated_timestamp IS 'When this recipe version was last maintained.';
+{{ tlm.comments(product ~ '_Memory.Query_Cookbook', 'SCD2_HISTORY') }}
 
 -- ---------------------------------------------------------------------------
 -- Implementation_Note
@@ -210,10 +203,7 @@ CREATE TABLE {{ product }}_Memory.Implementation_Note (
     source_module       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,
     module_version      VARCHAR(20) CHARACTER SET UNICODE,
     is_active           BYTEINT NOT NULL DEFAULT 1,
-    valid_from          DATE NOT NULL,
-    valid_to            DATE DEFAULT DATE '9999-12-31',
-    created_timestamp   TIMESTAMP(6) WITH TIME ZONE,
-    updated_timestamp   TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('SCD2_HISTORY', pad=20) }}
 )
 PRIMARY INDEX (note_key);
 
@@ -230,10 +220,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.resolution_notes IS '
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.source_module IS 'Module that contributed the note.';
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.module_version IS 'Module version at capture time.';
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.is_active IS '1 = active, 0 = retired.';
-COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.valid_from IS 'Temporal validity start.';
-COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.valid_to IS 'Temporal validity end - 9999-12-31 for current.';
-COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.created_timestamp IS 'When this row was created.';
-COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.updated_timestamp IS 'When this row was last updated.';
+{{ tlm.comments(product ~ '_Memory.Implementation_Note', 'SCD2_HISTORY') }}
 
 -- ---------------------------------------------------------------------------
 -- Change_Log
@@ -254,7 +241,7 @@ CREATE TABLE {{ product }}_Memory.Change_Log (
     deployed_date       DATE,
     deployed_by         VARCHAR(100) CHARACTER SET UNICODE,
     deployment_status   VARCHAR(20) CHARACTER SET UNICODE NOT NULL,          -- PLANNED, DEPLOYED, ROLLED_BACK
-    created_timestamp   TIMESTAMP(6) WITH TIME ZONE
+{{ tlm.columns('EVENT_APPEND_ONLY', pad=20) }}
 )
 PRIMARY INDEX (change_key);
 
@@ -274,4 +261,4 @@ COMMENT ON COLUMN {{ product }}_Memory.Change_Log.related_decision_id IS 'Links 
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.deployed_date IS 'When deployed.';
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.deployed_by IS 'Who deployed it.';
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.deployment_status IS 'PLANNED, DEPLOYED, ROLLED_BACK.';
-COMMENT ON COLUMN {{ product }}_Memory.Change_Log.created_timestamp IS 'When this row was created.';
+{{ tlm.comments(product ~ '_Memory.Change_Log', 'EVENT_APPEND_ONLY') }}

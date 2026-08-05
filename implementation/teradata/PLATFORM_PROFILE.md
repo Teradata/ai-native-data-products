@@ -149,6 +149,7 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 | Construct | What happens | Use instead |
 |---|---|---|
 | Zone-qualified `TIMESTAMP` literal in a `CREATE TABLE` `DEFAULT` clause | No error. The driver hangs in its parse phase and the session times out after minutes. | Set the value at INSERT time. This is why the open-end sentinel is never a `DEFAULT` (see the [temporal-lifecycle binding](patterns/temporal-lifecycle-metadata/)). |
+| Paragraph-length `COMMENT ON ROLE` text | The statement is rejected for exceeding the dictionary's comment length. The roles are created, since `CREATE ROLE` ran first, so the deployment leaves roles present and undescribed unless the failure is read. | One short sentence naming who the role is for. The [access-layer pattern](../../design/patterns/access-layer.md) requires that anyway: a role description must not enumerate what the role can reach. |
 | `CREATE INDEX name ON table (cols)` | `[3706] Must specify index field(s) for CREATE INDEX` | `CREATE INDEX name (cols) ON table` |
 | `WHERE` predicate on `CREATE INDEX` | Syntax error: Teradata has no filtered/partial indexes | Index all rows; filter at query time |
 | `ORDER BY` inside a view body | `[3706] ORDER BY clause not permitted in this context` | Ordering is a consumer concern; apply it at query time. Use `QUALIFY ROW_NUMBER() OVER (... ORDER BY ...)` where the view needs a latest-row projection. |

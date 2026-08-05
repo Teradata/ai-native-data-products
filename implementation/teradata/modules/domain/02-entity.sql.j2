@@ -20,21 +20,18 @@
   The open-end sentinel on valid_to_dts / transaction_to_dts is set at INSERT time
   by the load, never in a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and
   driver constraints).
+
+  Temporal profile SCD2_BITEMPORAL. The temporal and lifecycle columns come from the
+  pattern's macros, not from a copy kept here: the pattern names those columns once
+  and every table that applies it inherits the names, the types and the comments.
 #}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
 CREATE TABLE {{ database }}.{{ entity.name }}_H (
     -- Identity
     {{ entity.lower }}_id        BIGINT NOT NULL,
     {{ entity.lower }}_key       VARCHAR({{ entity.natural_key_len | default(50) }}) NOT NULL,
 
-    -- Bi-temporal validity (point-in-time reconstruction)
-    valid_from_dts      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    valid_to_dts        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-    transaction_from_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    transaction_to_dts   TIMESTAMP(6) WITH TIME ZONE NOT NULL,
-
-    -- State indicators
-    is_current          BYTEINT NOT NULL DEFAULT 1,
-    is_deleted          BYTEINT NOT NULL DEFAULT 0,
+{{ tlm.columns('SCD2_BITEMPORAL', pad=20, supports_deletion=true, terminal=false) }}
 
     -- Business attributes (designer supplied)
 {%- for a in entity.attributes %}
@@ -52,18 +49,7 @@ COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ entity.lower }}_id IS
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ entity.lower }}_key IS
 'Natural business identifier from source system - used for user queries, reports, and external system integration.';
 
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.valid_from_dts IS
-'When this version became true in the real world.';
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.valid_to_dts IS
-'When this version stopped being true in the real world; sentinel 9999-12-31 for the current version, set by the load.';
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.transaction_from_dts IS
-'When this version was inserted into the database.';
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.transaction_to_dts IS
-'When this version was superseded in the database.';
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.is_current IS
-'Current version indicator - 1 = current active version, 0 = historical superseded version.';
-COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.is_deleted IS
-'Soft delete indicator - 1 = logically deleted but retained for audit, 0 = active record.';
+{{ tlm.comments(database ~ '.' ~ entity.name ~ '_H', 'SCD2_BITEMPORAL', supports_deletion=true) }}
 
 {%- for a in entity.attributes %}
 COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ a.name }} IS

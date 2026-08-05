@@ -15,6 +15,7 @@ from design_lint import lint_paths  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DESIGN_DIR = REPO_ROOT / "design"
+IMPLEMENTATION_DIR = REPO_ROOT / "implementation"
 
 
 class DesignTreeIsClean(unittest.TestCase):
@@ -23,6 +24,21 @@ class DesignTreeIsClean(unittest.TestCase):
         self.assertEqual(
             findings, [],
             "design/ must be free of platform SQL:\n"
+            + "\n".join(str(f) for f in findings),
+        )
+
+    def test_implementation_tree_uses_canonical_temporal_names(self):
+        """TLM-04 over the whole corpus.
+
+        Both trees are linted together on purpose: the prohibited names are read from
+        the temporal pattern in `design/`, so linting `implementation/` alone would
+        enforce nothing and pass for the wrong reason.
+        """
+        findings = [f for f in lint_paths([str(DESIGN_DIR), str(IMPLEMENTATION_DIR)])
+                    if f.rule == "tlm-04"]
+        self.assertEqual(
+            findings, [],
+            "implementation/ must use the canonical temporal column names:\n"
             + "\n".join(str(f) for f in findings),
         )
 
