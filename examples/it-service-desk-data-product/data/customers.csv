@@ -1,0 +1,21 @@
+customer_id,company_name,contact_name,contact_email,tier,region,contract_start_date
+CUST-001,Meridian Financial Group,Alex Thompson,a.thompson@meridianfg.com,Platinum,ANZ,2019-01-01
+CUST-002,Pacific Logistics Co,Brenda Yuen,b.yuen@paclogistics.com,Platinum,ANZ,2020-03-15
+CUST-003,Nexus Healthcare,Carlos Rivera,c.rivera@nexushealth.com,Platinum,APAC,2018-07-01
+CUST-004,Summit Energy,Diane Walsh,d.walsh@summitenergy.com,Platinum,ANZ,2021-06-01
+CUST-005,Vantage Retail Group,Edward Kim,e.kim@vantageretail.com,Platinum,APAC,2020-11-01
+CUST-006,BlueStar Manufacturing,Fiona McCallum,f.mccallum@bluestar.com,Gold,ANZ,2021-01-15
+CUST-007,Clearwater Consulting,George Nguyen,g.nguyen@clearwater.com,Gold,APAC,2022-03-01
+CUST-008,Ironbridge Engineering,Hannah Scott,h.scott@ironbridge.com,Gold,ANZ,2021-08-20
+CUST-009,TrueNorth Analytics,Ivan Petrov,i.petrov@truenorth.com,Gold,ANZ,2022-07-01
+CUST-010,Keystone Property Group,Julia Chen,j.chen@keystone.com,Gold,APAC,2020-09-15
+CUST-011,Redwood Insurance,Kevin Obi,k.obi@redwoodins.com,Gold,ANZ,2023-01-01
+CUST-012,Optima Pharmaceuticals,Laura Brennan,l.brennan@optimapharma.com,Gold,APAC,2021-05-10
+CUST-013,Coastal Media Group,Mike Tanaka,m.tanaka@coastalmedia.com,Silver,ANZ,2022-02-01
+CUST-014,Pioneer Tech Solutions,Nancy Williams,n.williams@pioneertech.com,Silver,APAC,2023-03-15
+CUST-015,Harborview Hotels,Oliver Grant,o.grant@harborview.com,Silver,ANZ,2022-08-01
+CUST-016,Delta Freight Services,Paula Moreno,p.moreno@deltafreight.com,Silver,ANZ,2021-11-01
+CUST-017,Sterling Accounting,Quinn O'Brien,q.obrien@sterlingacc.com,Silver,APAC,2023-06-01
+CUST-018,Apex Recruitment,Rachel Fox,r.fox@apexrecruit.com,Bronze,ANZ,2023-04-01
+CUST-019,Milestone Construction,Steve Lim,s.lim@milestone.com,Bronze,ANZ,2023-07-01
+CUST-020,Greenfield Agri,Tina Russo,t.russo@greenfield.com,Bronze,APAC,2023-09-01

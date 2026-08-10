@@ -1,0 +1,13 @@
+agent_id,first_name,last_name,email,team,level,hire_date,is_active
+AGT-001,Sarah,Mitchell,s.mitchell@helpdesk.internal,Service Desk,L1,2021-03-15,True
+AGT-002,James,Okafor,j.okafor@helpdesk.internal,Service Desk,L1,2022-07-01,True
+AGT-003,Priya,Sharma,p.sharma@helpdesk.internal,Service Desk,L1,2023-01-10,True
+AGT-004,Tom,Henderson,t.henderson@helpdesk.internal,Service Desk,L1,2022-11-20,True
+AGT-005,Liu,Wei,l.wei@helpdesk.internal,Applications,L2,2020-06-08,True
+AGT-006,Aisha,Kamara,a.kamara@helpdesk.internal,Applications,L2,2021-09-14,True
+AGT-007,Marcus,Delgado,m.delgado@helpdesk.internal,Applications,L2,2023-04-03,True
+AGT-008,Nina,Petrov,n.petrov@helpdesk.internal,Applications,L2,2022-02-28,True
+AGT-009,Chris,Walters,c.walters@helpdesk.internal,Infrastructure,L2,2019-08-19,True
+AGT-010,Fatima,Al-Hassan,f.alhassan@helpdesk.internal,Infrastructure,L2,2020-12-01,True
+AGT-011,Daniel,Park,d.park@helpdesk.internal,Infrastructure,L3,2018-04-22,True
+AGT-012,Rachel,Torres,r.torres@helpdesk.internal,Infrastructure,L1,2023-09-05,False

@@ -1,0 +1,57 @@
+{#
+  Core History entity. Teradata binding of design/modules/domain.md.
+  Realises the temporal-lifecycle-metadata pattern with a bi-temporal strategy.
+  Capabilities: CurrentStateFilter, PointInTimeReconstruction, NaturalKeyLookup,
+                RichMetadata. Invariant support: INV-DOMAIN-001,002,004,006,007.
+
+  Template variables:
+    database    : Domain database name, e.g. "{{ product }}_Domain"
+    entity.name : PascalCase entity name, e.g. "Party"
+    entity.lower: lower_snake entity name, e.g. "party"
+    entity.natural_key_len : VARCHAR length for the natural key
+    entity.table_comment   : business description of the entity
+    entity.attributes      : list of business attributes, each:
+        { name, type, nullable(bool), comment,
+          ref(optional target entity for FK columns) }
+
+  {entity}_id is sourced from {entity}_Keymap on load. NOT generated here: so the
+  surrogate is stable across all SCD versions (INV-DOMAIN-003).
+
+  The open-end sentinel on valid_to_dts / transaction_to_dts is set at INSERT time
+  by the load, never in a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and
+  driver constraints).
+
+  Temporal profile SCD2_BITEMPORAL. The temporal and lifecycle columns come from the
+  pattern's macros, not from a copy kept here: the pattern names those columns once
+  and every table that applies it inherits the names, the types and the comments.
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+CREATE TABLE {{ database }}.{{ entity.name }}_H (
+    -- Identity
+    {{ entity.lower }}_id        BIGINT NOT NULL,
+    {{ entity.lower }}_key       VARCHAR({{ entity.natural_key_len | default(50) }}) NOT NULL,
+
+{{ tlm.columns('SCD2_BITEMPORAL', pad=20, supports_deletion=true, terminal=false) }}
+
+    -- Business attributes (designer supplied)
+{%- for a in entity.attributes %}
+    {{ a.name }}        {{ a.type }}{% if not a.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)
+PRIMARY INDEX ({{ entity.lower }}_id);
+
+COMMENT ON TABLE {{ database }}.{{ entity.name }}_H IS
+'{{ entity.table_comment | default(entity.name ~ " history table with temporal tracking - stores all versions of " ~ entity.lower ~ " over time for point-in-time reconstruction") }}';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ entity.lower }}_id IS
+'Surrogate key - stable across all versions for the same real-world entity. Sourced from {{ entity.name }}_Keymap; never generated on this table.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ entity.lower }}_key IS
+'Natural business identifier from source system - used for user queries, reports, and external system integration.';
+
+{{ tlm.comments(database ~ '.' ~ entity.name ~ '_H', 'SCD2_BITEMPORAL', supports_deletion=true) }}
+
+{%- for a in entity.attributes %}
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_H.{{ a.name }} IS
+'{{ a.comment }}';
+{%- endfor %}
