@@ -23,7 +23,9 @@ Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/se
 | `04-path-discovery.sql.j2` | `v_relationship_paths`: recursive multi-hop join-path discovery. |
 | `05-column-catalogue.sql.j2` | `column_catalogue`: live hybrid column catalogue with value provenance. |
 | `06-orientation.md` | MCP resource/tool shapes and the discovery manifest (orientation layer). |
-| `validation.sql.j2` | Primary-object, view, and relationship-completeness checks (canonical validator sources). |
+| `07-access-object.sql.j2` | `access_object`, `access_composition`: the access-object layer (which object a consumer queries, what composites encapsulate). |
+| `08-access-relationship-paths.sql.j2` | `v_access_relationship_paths`: relationship paths with endpoints rewritten to consumable objects. |
+| `validation.sql.j2` | Primary-object, view, relationship-completeness, and access-object checks (canonical validator sources). |
 
 ## Capability bindings
 
@@ -54,3 +56,6 @@ New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns
 | `INV-SEMANTIC-003` (registered primary objects, verbatim identity) | `validation.sql.j2`: orphan modules, missing/kind-mismatched objects, invalid roles, duplicates. |
 | `INV-SEMANTIC-005` (relationship completeness) | `validation.sql.j2`: isolated entities; path existence per expected pair. |
 | `INV-SEMANTIC-007` (one primary per base table) | `validation.sql.j2`: more than one active primary exposure per base table. |
+| `INV-SEMANTIC-008` (resolve through the registry) | `validation.sql.j2`: registered access object not deployed. |
+| `INV-SEMANTIC-009` (consumable objects resolve to a catalogued entity) | `validation.sql.j2`: non-composite with no entity; `represents_entity` / `member_entity` not catalogued. |
+| `INV-SEMANTIC-010` (composite structure recorded, one anchor) | `validation.sql.j2`: COMPOSITE without a composition; composition without exactly one `ANCHOR`. |

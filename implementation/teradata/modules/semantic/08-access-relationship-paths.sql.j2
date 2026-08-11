@@ -1,0 +1,35 @@
+-- Semantic module: access-resolved relationship paths (Teradata). Binding of design/modules/semantic.md §5.
+-- v_relationship_paths stays the logical, entity-level truth; its joins are written against base
+-- tables. This view rewrites each path endpoint to the entity's canonical consumable object (the
+-- agent-consumable access_object), so an agent receives paths written against objects it can query.
+-- A path whose endpoint entity has no consumable object is dropped, not emitted against a base table.
+-- Endpoint resolution shown here; the full per-hop join rewrite is a product/performance choice.
+-- Replace {{ product }}.
+
+REPLACE VIEW {{ product }}_Semantic.v_access_relationship_paths
+(
+      source_entity, source_object
+    , target_entity, target_object
+    , hop_count, path_description
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      p.source_table                                          AS source_entity
+    , sa.database_name || '.' || sa.object_name               AS source_object
+    , p.target_table                                          AS target_entity
+    , ta.database_name || '.' || ta.object_name               AS target_object
+    , p.hop_count
+    , p.path_description
+FROM {{ product }}_Semantic.v_relationship_paths AS p
+INNER JOIN {{ product }}_Semantic.access_object AS sa
+    ON  sa.represents_entity   = p.source_table
+    AND sa.is_agent_consumable = 1
+    AND sa.is_active           = 1
+INNER JOIN {{ product }}_Semantic.access_object AS ta
+    ON  ta.represents_entity   = p.target_table
+    AND ta.is_agent_consumable = 1
+    AND ta.is_active           = 1;
+
+COMMENT ON VIEW {{ product }}_Semantic.v_access_relationship_paths IS
+'Access-resolved relationship paths - endpoints rewritten to agent-consumable objects via access_object, so agents receive joins against objects they can query. Endpoints with no consumable object are omitted.';

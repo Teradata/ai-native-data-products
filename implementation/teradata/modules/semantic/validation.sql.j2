@@ -57,3 +57,52 @@ WHERE em.is_active = 1
       WHERE r.is_active = 1
         AND (r.source_table = em.table_name OR r.target_table = em.table_name));
 -- An isolated entity is either a documented standalone (record a Design_Decision) or an omission.
+
+-- INV-SEMANTIC-008: registered access object that is not actually deployed
+SELECT a.database_name, a.object_name
+FROM {{ product }}_Semantic.access_object AS a
+LEFT JOIN DBC.TablesV AS t
+    ON t.DatabaseName = a.database_name AND t.TableName = a.object_name
+WHERE a.is_active = 1 AND t.TableName IS NULL;
+
+-- INV-SEMANTIC-009: non-composite consumable object resolving to no entity
+SELECT a.access_object_id, a.database_name, a.object_name
+FROM {{ product }}_Semantic.access_object AS a
+WHERE a.is_active = 1
+  AND a.access_role <> 'COMPOSITE'
+  AND a.represents_entity IS NULL;
+
+-- INV-SEMANTIC-009: represents_entity that is not a catalogued entity
+SELECT a.access_object_id, a.represents_entity
+FROM {{ product }}_Semantic.access_object AS a
+WHERE a.is_active = 1
+  AND a.represents_entity IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
+      WHERE e.is_active = 1 AND e.entity_name = a.represents_entity);
+
+-- INV-SEMANTIC-009: composition member_entity that is not a catalogued entity
+SELECT c.access_composition_id, c.member_entity
+FROM {{ product }}_Semantic.access_composition AS c
+WHERE c.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
+      WHERE e.is_active = 1 AND e.entity_name = c.member_entity);
+
+-- INV-SEMANTIC-010: a COMPOSITE access object without a described composition
+SELECT a.database_name, a.object_name
+FROM {{ product }}_Semantic.access_object AS a
+WHERE a.is_active = 1 AND a.access_role = 'COMPOSITE'
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.access_composition AS c
+      WHERE c.is_active = 1
+        AND c.composite_database = a.database_name
+        AND c.composite_object   = a.object_name);
+
+-- INV-SEMANTIC-010: composition without exactly one ANCHOR member
+SELECT c.composite_database, c.composite_object,
+       SUM(CASE WHEN c.member_role = 'ANCHOR' THEN 1 ELSE 0 END) AS anchors
+FROM {{ product }}_Semantic.access_composition AS c
+WHERE c.is_active = 1
+GROUP BY c.composite_database, c.composite_object
+HAVING SUM(CASE WHEN c.member_role = 'ANCHOR' THEN 1 ELSE 0 END) <> 1;

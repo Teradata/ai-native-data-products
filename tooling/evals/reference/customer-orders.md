@@ -229,8 +229,15 @@ registers on deploy through `SemanticRegistration`. The relationship graph carri
 Customer to Order, and Order to Product through OrderLine. The orientation manifest is
 the product entry point, so agents orient before touching data.
 
+Consumers resolve the object to query through the access-object registry rather than
+object names: each current view is registered against the entity it represents, and the
+enriched Order-with-lines view is a `COMPOSITE` whose members (Order as anchor, OrderLine,
+Product) are recorded so an agent expands it from metadata. The registry is established
+once at deployment from verifiable structure.
+
 **Invariants:** `INV-SEMANTIC-001`, `INV-SEMANTIC-002`, `INV-SEMANTIC-003`,
-`INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`.
+`INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`,
+`INV-SEMANTIC-008`, `INV-SEMANTIC-009`, `INV-SEMANTIC-010`.
 
 ---
 
