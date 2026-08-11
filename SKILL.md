@@ -1,6 +1,6 @@
 ---
 name: ai-native-data-product
-description: Design, build, review, or access an AI-Native Data Product - a self-describing data asset optimised for autonomous agent discovery. Load when modelling a data product's modules, entities, capabilities and design decisions; when generating deployable platform DDL from an approved design; when assessing how far a built product can be trusted (trust map, invariants, conformance rules, validation evidence); or when discovering and querying a product that is already deployed. Covers the module library (Domain, Search, Prediction, Observability, Semantic, Memory), composition rules, the logical design language, and the platform bindings that realise them.
+description: Work with an AI-Native Data Product, a self-describing data asset built for autonomous agent discovery. Use this for ANY question about a data product that exists on a platform, including simple ones - what is in it, what modules it holds, what it means, whether it can be trusted, how to access or query it. Also use when designing a new product, extending an existing design, building deployable DDL from an approved design, or reviewing a built product against the standards. If a request names a data product, or names a container that follows a product's module naming convention, this skill applies. Use it even when platform MCP tools are available: those tools execute the procedure, they do not replace it. Covers the module library (Domain, Search, Prediction, Observability, Semantic, Memory), composition rules, the logical design language, and the platform bindings that realise them.
 ---
 
 # AI-Native Data Product Standards
@@ -12,13 +12,22 @@ task in front of you needs.
 
 | You are asked to… | Read next |
 |---|---|
+| Answer *any* question about a product that already exists, without changing it - what it holds, what it means, whether it can be trusted. | `roles/access.md` |
+| Discover and query a product that already exists. | `roles/access.md` |
 | Design a product, or extend an existing design. No platform, no SQL. | `roles/design.md` |
 | Turn an approved design into deployable artefacts for a platform. | `roles/build.md` |
 | Assess how far a design or a built product can be trusted. | `roles/review.md` |
-| Discover and query a product that already exists. | `roles/access.md` |
 
-If the request is ambiguous, ask. The roles read different halves of the corpus, and
-guessing wrong wastes the user's time as well as yours.
+**A casual question is still an access task.** "What is in this product?" and "tell me about
+X" route to `roles/access.md` exactly like a query does. The procedure there is what makes a
+short answer correct rather than plausible, and it is cheap for a simple question.
+
+Questions about *the standards themselves* - what a module is for, how compositions work, how
+a worked example is put together - are answered from `design/core/`, `design/modules/`,
+`design/patterns/` and `examples/` directly. No role file needed.
+
+If the request is genuinely ambiguous, ask. The roles read different halves of the corpus,
+and guessing wrong wastes the user's time as well as yours.
 
 Each role file gives you the working procedure and tells you which corpus files to open.
 Do not read the whole corpus up front.

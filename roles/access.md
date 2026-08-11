@@ -4,6 +4,14 @@ You are given a product name, and sometimes not even that. Everything else you d
 
 Two rules govern the order, and both exist because guessing produces answers that look right.
 
+**A simple question is not an exemption.** "What is in this product?" and "tell me about X"
+follow the same order as a full analysis. Discovery is what makes a short answer true rather
+than plausible, and on a simple question it costs two or three reads before you can speak.
+
+**Platform tools do not replace the procedure.** Where a Teradata MCP server or similar is
+connected, it *executes* the steps below; it does not stand in for them. Listing databases
+because a tool makes that easy is the precise failure this role exists to prevent.
+
 ## Rule 1: product-first discovery
 
 **Never begin by listing databases or tables, and never derive a name from a convention.**
