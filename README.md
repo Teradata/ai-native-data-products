@@ -15,6 +15,8 @@ The boundary is enforced automatically by the linter in [`tooling/validation/`](
 
 ```
 ai-native-data-products/
+├── SKILL.md                    ← agent entry point: role routing (see "As an agent skill")
+├── roles/                      designer · builder · reviewer · consumer procedures
 ├── design/                     ← platform-agnostic standards (source of truth)
 │   ├── core/                   MASTER_DESIGN · DESIGN_LANGUAGE · ADVOCATED_STANDARDS · GLOSSARY
 │   ├── modules/                domain · search · prediction · observability · semantic · memory
@@ -26,13 +28,50 @@ ai-native-data-products/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter
 │   ├── evals/                  validates a product design against the standards
-│   └── compiler/               verifies a compiled skill package
+│   └── skill/                  verifies the skill package and its routing
 ├── examples/                   worked products: fixed inputs for an end-to-end run
-├── prompts/                    how to use the standards
-└── skills/                     generated agent skills (gitignored)
+└── prompts/                    intake templates for starting a conversation
 ```
 
 **Start here:** [`design/core/MASTER_DESIGN.md`](design/core/MASTER_DESIGN.md) (the blueprint), [`design/core/DESIGN_LANGUAGE.md`](design/core/DESIGN_LANGUAGE.md) (the notation everything is written in), and [`design/core/ADVOCATED_STANDARDS.md`](design/core/ADVOCATED_STANDARDS.md) (the decisions a design must settle, and the recommended answer for each).
+
+---
+
+## As an agent skill
+
+This repository **is** the skill. There is no build step and nothing to generate: an agent
+reads [`SKILL.md`](SKILL.md), routes itself to one of the four files in [`roles/`](roles/),
+and opens corpus files from there as the task needs them. Progressive disclosure means the
+rest costs nothing until it is read, so the whole standard can ship without loading it.
+
+Install it by placing the repository in your agent's skills directory:
+
+```bash
+git clone https://github.com/Teradata/ai-native-data-products.git ~/.claude/skills/ai-native-data-product
+```
+
+Downloading the ZIP works too, with one wrinkle: GitHub nests the archive under
+`ai-native-data-products-<branch>/`, so rename the extracted directory rather than leaving
+the branch name in place.
+
+| Role | Reads | Starter |
+|------|-------|---------|
+| Designer | `design/` only | [Design starter](prompts/Design_Data_Product_Starter.md) |
+| Builder | `implementation/{platform}/` + the design's capability tables | [Build starter](prompts/Build_Data_Product_Starter.md) |
+| Reviewer | invariants, conformance rules, and the runnable checks | [Review starter](prompts/Review_Data_Product_Starter.md) |
+| Consumer | the deployed product itself, plus the validation contract | [Access starter](prompts/Access_Data_Product_Starter.md) |
+
+The starters are intake templates for a human to fill in and paste. The procedure each agent
+follows lives in `roles/`, so it is stated once.
+
+Verify the package before relying on it, particularly after moving or renaming a document:
+
+```bash
+python tooling/skill/verify_skill.py
+```
+
+Because the corpus is read directly rather than compiled, a skill cannot drift from the
+standard: there is only one copy of every rule, and it is the one in `design/`.
 
 ---
 
@@ -112,7 +151,13 @@ python tooling/evals/brief_lint.py path/to/design_brief.md
 python tooling/catalogue/build_catalogue.py
 ```
 
-`tooling/compiler/verify_skills.py` checks that a compiled skill package kept everything the [Skill Conversion Prompt](prompts/Skill_Conversion_Prompt.md) required it to keep.
+`tooling/skill/verify_skill.py` checks that the repository is a well-formed agent skill: frontmatter, the `SKILL.md` and role-file line budgets, and that every path the routing names actually exists.
+
+```bash
+python tooling/skill/verify_skill.py
+```
+
+The whole suite:
 
 ```bash
 python -m unittest discover -s tooling/validation/tests

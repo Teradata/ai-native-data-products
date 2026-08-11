@@ -49,19 +49,22 @@ You will also need the Teradata MCP server connected, for DDL execution, validat
 
 One thing to settle first: the brief names Teradata Vantage 17.20, while the Teradata binding in this corpus targets v20.0. Reconcile those against the system you are deploying to before you start, and record the answer as a decision if it differs from the brief.
 
-## Step 0. Generate the skills
+## Step 0. Install the standards as a skill
 
-`skills/` is gitignored, so a fresh clone has none. All four starters need them.
-
-Run [`prompts/Skill_Conversion_Prompt.md`](../../prompts/Skill_Conversion_Prompt.md) in a conversation with access to this repository, then verify what it produced:
+There is nothing to generate. This repository *is* the skill: install it, and the agent reads
+[`SKILL.md`](../../SKILL.md) and routes itself to the right file in
+[`roles/`](../../roles/) for each phase.
 
 ```bash
-python tooling/compiler/verify_skills.py
+python tooling/skill/verify_skill.py
 ```
 
-It checks that the compression kept everything it was required to keep: every module, decision, invariant and conformance rule, with platform SQL preserved verbatim rather than paraphrased. Fix any problem it reports before running a phase. A skill missing a rule produces a product missing it too, and the run will look like a standards defect.
+That checks the package is well formed: `SKILL.md` within its line budget, valid frontmatter,
+and every file the routing names present on disk. Fix anything it reports before running a
+phase.
 
-Regenerate whenever `design/` or `implementation/` changes. On any conflict the repository wins, never the skill.
+Because the standards are read directly rather than compiled, there is no regeneration step
+and no possibility of a skill drifting from the corpus.
 
 ## Step 1. Set up the product repository
 
@@ -142,9 +145,9 @@ Both scripts are generated during Build and committed before any SQL executes, s
 
 The run is a test, so its output is not only the product. For each defect, decide which of three things it is, because the fix differs.
 
-A standards defect means the corpus permitted something it should not, or failed to say something a builder needed. Fix `design/` or `implementation/`, add a check under `tooling/validation/` where one could have caught it, and regenerate the skills.
+A standards defect means the corpus permitted something it should not, or failed to say something a builder needed. Fix `design/` or `implementation/`, and add a check under `tooling/validation/` where one could have caught it. The agent reads the corpus directly, so the fix takes effect immediately: there is nothing to regenerate.
 
-A skill defect means the corpus says it and the skill lost it in compression. `verify_skills.py` catches the mechanical cases. The rest show up as an agent that never applies a rule it was never given. Regenerate, and if it recurs, the conversion prompt needs the fix.
+A routing defect means the corpus says it and the agent never reached it: `SKILL.md` or a `roles/` file sent it somewhere else, or nowhere. `verify_skill.py` catches a route that points at a missing file; a route that points at the *wrong* file shows up only as an agent that never applies a rule it was never shown. Fix the role file.
 
 A fixture defect means the brief or the placement standard is wrong. Fix it between cycles, never mid-run, and note that the affected run is not comparable to the ones before it.
 

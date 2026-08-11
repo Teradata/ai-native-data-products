@@ -24,7 +24,7 @@ Concrete Teradata binding of [`design/modules/domain.md`](../../../../design/mod
 | `05-views.sql.j2` | Standard `_Current` / `_Enriched` views (`AccessView` binding). |
 | `validation.sql.j2` | Runnable checks for the module's invariants (`MetadataCoverageCheck` and others). |
 
-The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`. Each declares its template variables in a header comment.
+The `.sql.j2` files are Jinja2 templates, rendered by the builder with the product's names. Each declares its template variables in a header comment.
 
 ## Capability bindings
 
