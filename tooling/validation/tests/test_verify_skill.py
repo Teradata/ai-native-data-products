@@ -83,6 +83,38 @@ class VerifySkillTest(unittest.TestCase):
                                    .replace("access", "reach"))
         self.assertIn("skill-description", self.pkg.rules())
 
+    def test_wrapped_scalar_in_frontmatter_is_reported(self):
+        """The defect that shipped: a description reflowed onto an unindented line.
+
+        `design_lint.parse_frontmatter` is a lenient subset parser and accepts it, so the
+        package verified clean and then failed to install against a real YAML loader.
+        """
+        (self.pkg.root / "SKILL.md").write_text(
+            "---\nname: ai-native-data-product\n"
+            f"description: {DESCRIPTION[:80]}\n{DESCRIPTION[80:]}\n"
+            "---\n\n# Skill\n",
+            encoding="utf-8")
+        self.assertIn("skill-frontmatter", self.pkg.rules())
+
+    def test_indented_continuation_is_also_reported(self):
+        """Valid YAML, but `design_lint.parse_frontmatter` does not fold it.
+
+        SKILL.md's frontmatter is flat - two keys, one line each - so the rule is simply
+        that a value stays on its line. Allowing the indented form would pass here and
+        still mangle the description everywhere the corpus tooling reads it.
+        """
+        (self.pkg.root / "SKILL.md").write_text(
+            "---\nname: ai-native-data-product\n"
+            f"description: {DESCRIPTION[:80]}\n  {DESCRIPTION[80:]}\n"
+            "---\n\n# Skill\n",
+            encoding="utf-8")
+        self.assertIn("skill-frontmatter", self.pkg.rules())
+
+    def test_absent_frontmatter_block_is_reported(self):
+        (self.pkg.root / "SKILL.md").write_text("# Skill\n\nNo frontmatter.\n",
+                                                encoding="utf-8")
+        self.assertIn("skill-frontmatter", self.pkg.rules())
+
     def test_missing_role_file_is_reported(self):
         (self.pkg.root / "roles" / "build.md").unlink()
         self.assertIn("role-missing", self.pkg.rules())

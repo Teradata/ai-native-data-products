@@ -54,6 +54,12 @@ PATH_RE = re.compile(r"`([A-Za-z_][\w./{}-]*/[\w./{}-]*)`")
 SECTION_RE = re.compile(r"`([\w./{}-]+\.md)`[^`\n]{0,40}?§(\d+)")
 HEADING_RE = re.compile(r"^##\s+(\d+)\.", re.M)
 SKIP_PREFIXES = ("http://", "https://", "N/A")
+FRONTMATTER_BLOCK_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
+# A top-level frontmatter line is a `key:` or a `- ` list item. Anything else at column 0 is
+# a plain scalar that wrapped onto a new line without indentation, which silently truncates
+# the value it belongs to. `design_lint.parse_frontmatter` is a lenient subset parser and
+# accepts it; a real YAML loader - the one the skill installer uses - does not.
+YAML_KEY_RE = re.compile(r"^(?:[A-Za-z_][\w-]*\s*:|-\s)")
 
 
 class Finding(NamedTuple):
@@ -74,6 +80,33 @@ def expand(path: str) -> List[str]:
         if any(token in p for p in out):
             out = [p.replace(token, v) for p in out for v in values]
     return out
+
+
+def check_frontmatter_yaml(root: Path) -> List[Finding]:
+    """Reject frontmatter a real YAML loader would refuse.
+
+    The installer parses this with a proper loader, so leniency here buys a package that
+    verifies clean and then fails to install. The wrapped-scalar case is the one that bites:
+    a long `description:` reflowed onto an unindented second line parses as a new key.
+    """
+    text = (root / "SKILL.md").read_text(encoding="utf-8")
+    m = FRONTMATTER_BLOCK_RE.match(text)
+    if not m:
+        return [Finding("skill-frontmatter", "SKILL.md",
+                        "no YAML frontmatter block. It must open the file.")]
+    found = []
+    for offset, line in enumerate(m.group(1).splitlines(), start=2):
+        if not line.strip():
+            continue
+        if not YAML_KEY_RE.match(line):
+            found.append(Finding(
+                "skill-frontmatter", f"SKILL.md:{offset}",
+                f"{line.strip()[:48]!r}... is not a `key: value` at column 0. This "
+                f"frontmatter is flat - `name` and `description`, one line each. A value "
+                f"reflowed onto a second line breaks it: unindented it ends the scalar, and "
+                f"indented it is folded by real YAML but not by the corpus tooling. Keep "
+                f"each value on one line however long it gets."))
+    return found
 
 
 def check_frontmatter(root: Path) -> List[Finding]:
@@ -180,6 +213,7 @@ def check_sections(root: Path) -> List[Finding]:
 
 def verify(root: Path) -> List[Finding]:
     found = []
+    found += check_frontmatter_yaml(root)
     found += check_frontmatter(root)
     found += check_budgets(root)
     found += check_roles_present(root)

@@ -1,7 +1,6 @@
 ---
 name: ai-native-data-product
-description: Design, build, review, or query an AI-Native Data Product - a self-describing data asset optimised for autonomous agent discovery. Load when modelling a data product's modules, entities, capabilities and design decisions; when generating deployable platform DDL from an approved design; when assessing how far a built product can be trusted (trust map, invariants, conformance rules, validation evidence); or when accessing, discovering and querying a product that is already
-deployed. Covers the module library (Domain, Search, Prediction, Observability, Semantic, Memory), composition rules, the logical design language, and the platform bindings that realise them.
+description: Design, build, review, or access an AI-Native Data Product - a self-describing data asset optimised for autonomous agent discovery. Load when modelling a data product's modules, entities, capabilities and design decisions; when generating deployable platform DDL from an approved design; when assessing how far a built product can be trusted (trust map, invariants, conformance rules, validation evidence); or when discovering and querying a product that is already deployed. Covers the module library (Domain, Search, Prediction, Observability, Semantic, Memory), composition rules, the logical design language, and the platform bindings that realise them.
 ---
 
 # AI-Native Data Product Standards
