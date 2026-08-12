@@ -226,11 +226,16 @@ Entity: CustomerKeymap            [kind: Keymap]
 
 Every entity above, plus the Search, Prediction, Observability, and Memory entities,
 registers on deploy through `SemanticRegistration`. The relationship graph carries
-Customer to Order, and Order to Product through OrderLine. The orientation manifest is
-the product entry point, so agents orient before touching data.
+Customer to Order, and Order to Product through OrderLine.
+
+The orientation relation lists the product's resources in `discovery_order` with the
+trust gate ordered before every analytical resource, so agents orient and check trust
+before touching data. The manifest is a generated view over the registry and that
+orientation relation, so it cannot drift from the metadata it summarises.
 
 **Invariants:** `INV-SEMANTIC-001`, `INV-SEMANTIC-002`, `INV-SEMANTIC-003`,
-`INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`.
+`INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`,
+`INV-SEMANTIC-011`, `INV-SEMANTIC-012`.
 
 ---
 

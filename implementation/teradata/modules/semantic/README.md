@@ -23,7 +23,8 @@ Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/se
 | `04-path-discovery.sql.j2` | `v_relationship_paths`: recursive multi-hop join-path discovery. |
 | `05-column-catalogue.sql.j2` | `column_catalogue`: live hybrid column catalogue with value provenance. |
 | `06-orientation.md` | MCP resource/tool shapes and the discovery manifest (orientation layer). |
-| `validation.sql.j2` | Primary-object, view, and relationship-completeness checks (canonical validator sources). |
+| `09-orientation-manifest.sql.j2` | `data_product_orientation` (ordered resource relation) and `data_product_manifest` (generated view over registry + orientation). |
+| `validation.sql.j2` | Primary-object, view, relationship-completeness, and orientation checks (canonical validator sources). |
 
 ## Capability bindings
 
@@ -54,3 +55,5 @@ New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns
 | `INV-SEMANTIC-003` (registered primary objects, verbatim identity) | `validation.sql.j2`: orphan modules, missing/kind-mismatched objects, invalid roles, duplicates. |
 | `INV-SEMANTIC-005` (relationship completeness) | `validation.sql.j2`: isolated entities; path existence per expected pair. |
 | `INV-SEMANTIC-007` (one primary per base table) | `validation.sql.j2`: more than one active primary exposure per base table. |
+| `INV-SEMANTIC-011` (ordered orientation, trust gate first) | `validation.sql.j2`: missing required role, duplicate role, duplicate order, undeployed object, unordered trust gate. |
+| `INV-SEMANTIC-012` (manifest generated, cannot drift) | `validation.sql.j2`: a manifest entrypoint with no backing active orientation row. |
