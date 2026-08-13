@@ -22,7 +22,7 @@ Concrete Teradata binding of [`design/modules/search.md`](../../../../design/mod
 | `03-similarity.sql.j2` | Similarity search and RAG retrieval templates (`NearestNeighbors` binding). |
 | `validation.sql.j2` | Runnable checks for the module's invariants. |
 
-The `.sql.j2` files are Jinja2 templates rendered by `tooling/compiler`.
+The `.sql.j2` files are Jinja2 templates, rendered by the builder with the product's names.
 
 ## Capability bindings
 
