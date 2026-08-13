@@ -159,6 +159,46 @@ class VerifySkillTest(unittest.TestCase):
         self.pkg.write_role("access", "# Access\n\n" + "filler line\n" * 200)
         self.assertIn("too-long", self.pkg.rules())
 
+    def test_placeholder_route_resolves_for_a_discovered_platform(self):
+        """Platform and module names come from the checkout, not a hardcoded list.
+
+        `duckdb` and `graph` are in neither; a route resolving only under them must still
+        pass, or a new platform/module would fail the build the moment it is added.
+        """
+        impl = self.pkg.root / "implementation" / "duckdb" / "modules" / "graph"
+        impl.mkdir(parents=True)
+        (impl / "validation.sql.j2").write_text("SELECT 1;\n", encoding="utf-8")
+        self.pkg.write_role(
+            "build",
+            "# Build\n\nRun `implementation/{platform}/modules/{module}/validation.sql.j2`.\n")
+        self.assertNotIn("dangling-route", self.pkg.rules())
+
+    def test_wrapped_scalar_beginning_with_a_keyword_is_reported(self):
+        """The reflow that a colon-word continuation would otherwise hide.
+
+        A description wrapped onto an unindented line that opens `access:` parses as a
+        stray key, not a `key: value` the flat frontmatter declares, so it must be caught
+        exactly as the plainer wrap is.
+        """
+        (self.pkg.root / "SKILL.md").write_text(
+            "---\nname: ai-native-data-product\n"
+            f"description: {DESCRIPTION}\n"
+            "access: and querying one that already exists\n"
+            "---\n\n# Skill\n",
+            encoding="utf-8")
+        self.assertIn("skill-frontmatter", self.pkg.rules())
+
+    def test_missing_skill_md_is_reported_without_raising(self):
+        """verify() must be safe to call directly, not only behind main()'s guard."""
+        (self.pkg.root / "SKILL.md").unlink()
+        self.assertIn("skill-missing", self.pkg.rules())
+
+    def test_absent_frontmatter_reported_once(self):
+        """One defect, one finding: the block check owns absence, not both checks."""
+        (self.pkg.root / "SKILL.md").write_text("# Skill\n\nNo frontmatter.\n",
+                                                encoding="utf-8")
+        self.assertEqual(self.pkg.rules().count("skill-frontmatter"), 1)
+
 
 class RepositoryIsAConformingSkillTest(unittest.TestCase):
     """The repository itself must pass, so a corpus change cannot silently break routing."""

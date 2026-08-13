@@ -26,7 +26,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import List, NamedTuple
+from typing import Dict, List, NamedTuple, Set
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "validation"))
@@ -41,10 +41,8 @@ MAX_SKILL_LINES = 120
 MAX_ROLE_LINES = 150
 MIN_DESCRIPTION_CHARS = 120
 
-PLATFORMS = ("teradata",)
-MODULES = ("domain", "search", "prediction", "observability", "semantic", "memory")
-PATTERNS = ("access-layer", "object-placement", "physical-storage",
-            "temporal-lifecycle-metadata", "validation")
+# The frontmatter is flat by design: exactly these two keys, one line each.
+FRONTMATTER_KEYS = ("name", "description")
 
 # A routed path is a backticked token containing a slash: `design/core/MASTER_DESIGN.md`,
 # `implementation/{platform}/modules/{module}/`. Prose mentions of a directory without
@@ -55,11 +53,13 @@ SECTION_RE = re.compile(r"`([\w./{}-]+\.md)`[^`\n]{0,40}?§(\d+)")
 HEADING_RE = re.compile(r"^##\s+(\d+)\.", re.M)
 SKIP_PREFIXES = ("http://", "https://", "N/A")
 FRONTMATTER_BLOCK_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
-# A top-level frontmatter line is a `key:` or a `- ` list item. Anything else at column 0 is
-# a plain scalar that wrapped onto a new line without indentation, which silently truncates
-# the value it belongs to. `design_lint.parse_frontmatter` is a lenient subset parser and
-# accepts it; a real YAML loader - the one the skill installer uses - does not.
-YAML_KEY_RE = re.compile(r"^(?:[A-Za-z_][\w-]*\s*:|-\s)")
+# A top-level frontmatter line is a `key:` at column 0, and the key must be one the flat
+# frontmatter declares. Anything else is a plain scalar that wrapped onto a new line without
+# indentation, which silently truncates the value it belongs to - even when that wrapped
+# fragment happens to open `word:` and so looks like a key. `design_lint.parse_frontmatter`
+# is a lenient subset parser and accepts the wrap; a real YAML loader - the one the skill
+# installer uses - does not.
+YAML_KEY_RE = re.compile(r"^([A-Za-z_][\w-]*)\s*:")
 
 
 class Finding(NamedTuple):
@@ -71,12 +71,32 @@ class Finding(NamedTuple):
         return f"{self.where}: [{self.rule}] {self.message}"
 
 
-def expand(path: str) -> List[str]:
+def discover_placeholders(root: Path) -> Dict[str, List[str]]:
+    """Derive placeholder values from the checkout, never a hardcoded list.
+
+    A new platform, module or pattern added to the corpus must be picked up without
+    editing this file: a route that resolves only under the new value would otherwise be
+    reported as a false `dangling-route`, failing the build on a legitimate change. Values
+    are read from both the design tree (the source of truth) and the implementation tree,
+    because a route may name an area one carries and the other does not.
+    """
+    impl = root / "implementation"
+
+    def impl_children(kind: str) -> Set[str]:
+        return {d.name for d in impl.glob(f"*/{kind}/*") if d.is_dir()}
+
+    platforms = sorted(p.name for p in impl.glob("*") if p.is_dir())
+    modules = sorted({p.stem for p in (root / "design" / "modules").glob("*.md")}
+                     | impl_children("modules"))
+    patterns = sorted({p.stem for p in (root / "design" / "patterns").glob("*.md")}
+                      | impl_children("patterns"))
+    return {"{platform}": platforms, "{module}": modules, "{pattern}": patterns}
+
+
+def expand(path: str, tokens: Dict[str, List[str]]) -> List[str]:
     """Expand the corpus's placeholders into the concrete paths they stand for."""
     out = [path]
-    for token, values in (("{platform}", PLATFORMS),
-                          ("{module}", MODULES),
-                          ("{pattern}", PATTERNS)):
+    for token, values in tokens.items():
         if any(token in p for p in out):
             out = [p.replace(token, v) for p in out for v in values]
     return out
@@ -98,21 +118,27 @@ def check_frontmatter_yaml(root: Path) -> List[Finding]:
     for offset, line in enumerate(m.group(1).splitlines(), start=2):
         if not line.strip():
             continue
-        if not YAML_KEY_RE.match(line):
-            found.append(Finding(
-                "skill-frontmatter", f"SKILL.md:{offset}",
-                f"{line.strip()[:48]!r}... is not a `key: value` at column 0. This "
-                f"frontmatter is flat - `name` and `description`, one line each. A value "
-                f"reflowed onto a second line breaks it: unindented it ends the scalar, and "
-                f"indented it is folded by real YAML but not by the corpus tooling. Keep "
-                f"each value on one line however long it gets."))
+        key = YAML_KEY_RE.match(line)
+        # A wrapped continuation can itself begin `word:` and so parse as a key. Because the
+        # frontmatter is flat, only the known keys are legitimate at column 0; anything else
+        # is a stray line, whether it opens with a colon-word or not.
+        if key and key.group(1) in FRONTMATTER_KEYS:
+            continue
+        found.append(Finding(
+            "skill-frontmatter", f"SKILL.md:{offset}",
+            f"{line.strip()[:48]!r}... is not a `name:` or `description:` line at column 0. "
+            f"This frontmatter is flat - `name` and `description`, one line each. A value "
+            f"reflowed onto a second line breaks it: unindented it ends the scalar, and "
+            f"indented it is folded by real YAML but not by the corpus tooling. Keep "
+            f"each value on one line however long it gets."))
     return found
 
 
 def check_frontmatter(root: Path) -> List[Finding]:
     skill = root / "SKILL.md"
     fm, _ = parse_frontmatter(skill.read_text(encoding="utf-8"))
-    fm = fm or {}
+    if not isinstance(fm, dict):
+        return []  # an absent or unparseable block is already reported by check_frontmatter_yaml
     found = []
 
     def scalar(key: str) -> str:
@@ -175,7 +201,7 @@ def routing_files(root: Path) -> List[Path]:
     return [f for f in files if f.exists()]
 
 
-def check_routes(root: Path) -> List[Finding]:
+def check_routes(root: Path, tokens: Dict[str, List[str]]) -> List[Finding]:
     """Every path the routing names must exist. This is the check that earns its keep."""
     found = []
     for path in routing_files(root):
@@ -184,7 +210,7 @@ def check_routes(root: Path) -> List[Finding]:
         for raw in sorted(set(PATH_RE.findall(text))):
             if raw.startswith(SKIP_PREFIXES):
                 continue
-            candidates = expand(raw)
+            candidates = expand(raw, tokens)
             if not any((root / c.rstrip("/")).exists() for c in candidates):
                 shown = raw if len(candidates) == 1 else f"{raw} (no expansion exists)"
                 found.append(Finding("dangling-route", rel,
@@ -192,14 +218,14 @@ def check_routes(root: Path) -> List[Finding]:
     return found
 
 
-def check_sections(root: Path) -> List[Finding]:
+def check_sections(root: Path, tokens: Dict[str, List[str]]) -> List[Finding]:
     """A `file.md` §N reference must land on a real `## N.` heading in that file."""
     found = []
     for path in routing_files(root):
         rel = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
         for raw, number in sorted(set(SECTION_RE.findall(text))):
-            for candidate in expand(raw):
+            for candidate in expand(raw, tokens):
                 target = root / candidate
                 if not target.exists():
                     continue  # already reported by check_routes
@@ -212,13 +238,19 @@ def check_sections(root: Path) -> List[Finding]:
 
 
 def verify(root: Path) -> List[Finding]:
+    # The frontmatter checks read SKILL.md unconditionally; guard here so verify() is safe
+    # to call as a library, not only via main() (which returns exit 2 for the same case).
+    if not (root / "SKILL.md").exists():
+        return [Finding("skill-missing", "SKILL.md",
+                        "no SKILL.md at the root; there is nothing to route from.")]
+    tokens = discover_placeholders(root)
     found = []
     found += check_frontmatter_yaml(root)
     found += check_frontmatter(root)
     found += check_budgets(root)
     found += check_roles_present(root)
-    found += check_routes(root)
-    found += check_sections(root)
+    found += check_routes(root, tokens)
+    found += check_sections(root, tokens)
     return found
 
 
