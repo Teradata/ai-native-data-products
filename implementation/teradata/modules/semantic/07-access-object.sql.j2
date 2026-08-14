@@ -1,0 +1,65 @@
+-- Semantic module: access-object layer (Teradata). Binding of design/modules/semantic.md §3.3.
+-- Registers the objects a consumer actually queries (access_object) and what a COMPOSITE object
+-- encapsulates (access_composition), so a consumer resolves any queryable object to its logical
+-- meaning once, from metadata, instead of reverse-engineering it from names or definitions.
+-- Access-layer metadata (which objects represent what), distinct from the security access-layer
+-- pattern (who may read them). Replace {{ product }}.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+
+-- access_object: registry of consumable objects -------------------------------
+CREATE TABLE {{ product }}_Semantic.access_object (
+    access_object_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    database_name VARCHAR(128) NOT NULL,
+    object_name VARCHAR(128) NOT NULL,
+    access_role VARCHAR(40) NOT NULL,       -- BASE, PASSTHROUGH, COMPOSITE, or an extension value
+    represents_entity VARCHAR(128),         -- entity_metadata.entity_name; null for cross-entity composites
+    object_grain VARCHAR(200),
+    is_agent_consumable BYTEINT NOT NULL DEFAULT 1,
+    resolves_to_object VARCHAR(257),        -- container.object for 1:1 passthroughs
+    access_note VARCHAR(500),
+    is_active BYTEINT NOT NULL DEFAULT 1,
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (represents_entity);
+
+COMMENT ON TABLE {{ product }}_Semantic.access_object IS
+'Registry of consumable objects - which object a consumer queries, what it represents, its grain, and whether an agent should query it directly. Access-layer metadata, not security.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.database_name IS 'Container the object is deployed in.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.object_name IS 'The queryable object (table or view).';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.access_role IS 'Role in the access layer - open vocabulary; baseline BASE, PASSTHROUGH, COMPOSITE; extensions add.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.represents_entity IS 'Entity this object exposes (entity_metadata.entity_name); null for composites spanning entities.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.object_grain IS 'Plain-language grain - one row per call.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.is_agent_consumable IS '1 = agents/humans should query this object directly, 0 = internal.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.resolves_to_object IS 'For 1:1 passthroughs, the object this maps straight through to (collapse to the entity in one hop).';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.access_note IS 'Free-form guidance - locking, filtering.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.is_active IS '1 = active, 0 = deprecated.';
+{{ tlm.comments(product ~ '_Semantic.access_object', 'CURRENT_STATE') }}
+
+-- access_composition: what a COMPOSITE object encapsulates --------------------
+CREATE TABLE {{ product }}_Semantic.access_composition (
+    access_composition_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    composite_database VARCHAR(128) NOT NULL,
+    composite_object VARCHAR(128) NOT NULL,
+    member_seq SMALLINT NOT NULL,
+    member_entity VARCHAR(128) NOT NULL,    -- entity_metadata.entity_name
+    member_role VARCHAR(20) NOT NULL,       -- ANCHOR, INNER, LEFT, RIGHT, FULL
+    join_path VARCHAR(1000),
+    is_grain_contributor BYTEINT NOT NULL DEFAULT 0,
+    member_note VARCHAR(500),
+    is_active BYTEINT NOT NULL DEFAULT 1,
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (composite_object);
+
+COMMENT ON TABLE {{ product }}_Semantic.access_composition IS
+'Members of a COMPOSITE access object, one row per member, referenced as entities - so a consumer expands the composite from metadata, never from its definition.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.composite_database IS 'Container of the composite being described.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.composite_object IS 'The composite object being described.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.member_seq IS 'Ordering of the member within the composite.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.member_entity IS 'Entity the member represents (entity_metadata.entity_name).';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.member_role IS 'Join role - ANCHOR, INNER, LEFT, RIGHT, FULL.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.join_path IS 'Logical join condition, entity-level (same form as v_relationship_paths.path_joins).';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.is_grain_contributor IS '1 = this member changes the composite grain, 0 = does not.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.member_note IS 'Free-form guidance.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_composition.is_active IS '1 = active, 0 = deprecated.';
+{{ tlm.comments(product ~ '_Semantic.access_composition', 'CURRENT_STATE') }}

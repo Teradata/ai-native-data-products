@@ -167,6 +167,40 @@ Entity: DataProductOrientation    [kind: Record]  // one ordered row per product
 
 `ViewMetadata` (one row per base-table exposure, with a `view_type` and a single primary exposure per base table) and `ViewColumnType` (curated types for view columns) complete the catalogue; both are platform-detail-heavy and specified in the implementation.
 
+### 3.3 Access-object layer
+
+The catalogue above models entities and how they relate; it does not model the **access layer** — which objects a consumer actually queries. A platform security model may expose one entity through several objects (locking, business, current views), and a product may publish composite ("enriched") objects that join several entities into one unit. `AccessObject` registers those facts so a consumer resolves any queryable object to its logical meaning **once, from metadata**, rather than reverse-engineering it from names or definitions. This is *access-layer metadata* — which objects represent what — distinct from the security [access-layer pattern](../patterns/access-layer.md), which governs who may read them.
+
+```
+Entity: AccessObject              [kind: Record]  // one row per consumable object
+  access_object_id: Identifier
+  container_name: ShortText [required]  // where the object is deployed
+  object_name: ShortText [required]  // the queryable object
+  access_role: Enum{BASE|PASSTHROUGH|COMPOSITE} [required]  // open vocabulary; extensions add roles
+  represents_entity: ShortText [optional]  // entity this exposes (EntityMetadata.entity_name); null for cross-entity composites
+  object_grain: ShortText [optional]  // plain-language grain, e.g. one row per call
+  is_agent_consumable: Flag  // whether an agent should query this object directly
+  resolves_to_object: ShortText [optional]  // for 1:1 passthroughs, the object it maps straight through to
+  access_note: Text [optional]  // locking, filtering, or usage guidance
+  is_active: Flag
+
+Entity: AccessComposition         [kind: Record]  // one row per member of a COMPOSITE object
+  access_composition_id: Identifier
+  composite_container: ShortText [required]
+  composite_object: ShortText [required]  // the composite being described
+  member_seq: Integer [required]  // ordering of the member within the composite
+  member_entity: ShortText [required]  // entity the member represents (EntityMetadata.entity_name)
+  member_role: Enum{ANCHOR|INNER|LEFT|RIGHT|FULL} [required]  // join role within the composite
+  join_path: Text [optional]  // entity-level join condition, same form as the path-discovery joins
+  is_grain_contributor: Flag  // whether this member changes the composite's grain
+  member_note: Text [optional]
+  is_active: Flag
+```
+
+**Consumption contract (normative).** A consumer selecting data resolves through `AccessObject` — it chooses objects marked agent-consumable and reads `represents_entity` — rather than querying base tables directly. A `COMPOSITE` object is presented as a single unit; its internal structure is read from `AccessComposition`, never by parsing a definition or recomputing column lineage at consumption time. Emitted joins target consumable objects (access-resolved, §5), not base tables. **Object names are not a contract:** no consumer infers an object's role, layer, entity, or purpose from its name; the registry is the single source of truth (`INV-SEMANTIC-008`).
+
+**Establishment and ownership (normative).** This metadata is **established once at deployment** by a registration step, defined here by responsibility rather than by tool. The step classifies objects from **verifiable structure** — the dependency graph and object definitions — not from names, and asserts the result in the registry; consumers read it and never recompute it. The concrete role vocabulary beyond the small open baseline, the physical realisation, and the population step are platform concerns (implementation). `AccessObject` is authoritative for object multiplicity per entity; `EntityMetadata.view_name` is retained as the denormalised "canonical consumable object" pointer, and `BASE`/`PASSTHROUGH` rows may be backfilled from `ViewMetadata`.
+
 ---
 
 ## 4. Data Product Orientation Layer
@@ -212,6 +246,8 @@ An entity that appears in `EntityMetadata` but in no `TableRelationship` is eith
 
 **Derived relationships are registered without exception.** Some relationships in the table above are chosen; others follow mechanically from a modelling decision already taken, and those are the ones that go missing. Where `DEC-SURROGATE-ALLOCATION` is settled as `keymap`, every entity allocated that way has an entity-to-keymap relationship, for every such entity, not for the first one. The characteristic failure is registering one instance of a derived shape and treating the rest as covered: three entities share the pattern, one gets a row, and the other two appear as isolated entities that no agent can traverse to. Anything derivable this way is generated from the model rather than enumerated by hand, because a list maintained by hand is a list that ends after the first entry.
 
+**Access-resolved paths.** The path-discovery surface is the logical, entity-level truth, and its joins are expressed against base tables. Where a platform exposes a separate consumable layer (§3.3), those joins point at objects an agent may not query, or at the wrong grain. An **access-resolved** surface rewrites each path endpoint to the entity's canonical consumable object — the agent-consumable `AccessObject`, collapsing any `resolves_to_object` chain — so an agent receives joins written against objects it can actually query. What it contains is normative; whether it is persisted as a view or a refreshed table is a platform decision (implementation). A path whose endpoint entity has no consumable object is omitted, not emitted against a base table.
+
 ---
 
 ## 6. Agent Discovery
@@ -225,6 +261,8 @@ The discovery order realises [Master](../core/MASTER_DESIGN.md):
 5. **Relationship**: read the path-discovery surface to join.
 
 A live **column catalogue** joins the deployed structural facts to the curated `ColumnMetadata`, carrying the **provenance** of every resolved value (declared-type source, description source, documentation coverage) so consumers see a complete schema without the curated store copying structural facts. Its construction is platform-specific (implementation).
+
+Before emitting a query, an agent resolves the object to read through `AccessObject` (§3.3): it selects an agent-consumable object for the entity, expands any `COMPOSITE` from `AccessComposition`, and takes join targets from the access-resolved paths — so it queries the objects the product intends, at the right grain, without inferring anything from a name.
 
 ---
 
@@ -282,6 +320,9 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-005`: `TableRelationship` registers every relationship an agent is expected to traverse; an unrelated entity is a documented standalone or an omission.
 - `INV-SEMANTIC-006`: every entity declares its temporal profile in `EntityMetadata.temporal_pattern`, so validators resolve temporal behaviour from metadata (the `temporal-lifecycle-metadata` pattern).
 - `INV-SEMANTIC-007`: primary-object roles come from the controlled vocabulary; at most one primary exposure per base table.
+- `INV-SEMANTIC-008`: a consumer resolves the object to query through `AccessObject` (an agent-consumable object), never by inferring an object's role, layer, or entity from its name; the registry is the single source of truth and is established once at deployment from verifiable structure.
+- `INV-SEMANTIC-009`: every `AccessObject.represents_entity` and every `AccessComposition.member_entity` resolves to a catalogued `EntityMetadata` entity; a non-`COMPOSITE` consumable object names the entity it represents.
+- `INV-SEMANTIC-010`: a `COMPOSITE` object's structure is recorded in `AccessComposition` with exactly one `ANCHOR` member, and is expanded as a unit from that metadata, never by parsing the object's definition.
 - `INV-SEMANTIC-011`: the orientation relation lists the required baseline resources, one row per role, in ascending `discovery_order` with the trust gate ordered before every analytical resource; consumers use stored identities verbatim, and a missing required resource is a conformance failure.
 - `INV-SEMANTIC-012`: the machine-readable manifest is generated from the registry and orientation relation (a derived view), never hand-authored, so it cannot drift from its sources.
 
@@ -301,6 +342,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] The orientation relation publishes the required baseline resources in `discovery_order` with the trust gate first, and the manifest is a generated view over registry + orientation (`INV-SEMANTIC-011`, `INV-SEMANTIC-012`).
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
+- [ ] Consumable objects registered in `AccessObject` and composites recorded in `AccessComposition`; consumers resolve through the registry, not object names (`INV-SEMANTIC-008` to `INV-SEMANTIC-010`).
 - [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles), and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
 
