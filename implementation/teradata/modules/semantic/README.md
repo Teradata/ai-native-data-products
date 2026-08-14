@@ -61,5 +61,5 @@ New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns
 | `INV-SEMANTIC-008` (resolve through the registry) | `validation.sql.j2`: registered access object not deployed. |
 | `INV-SEMANTIC-009` (consumable objects resolve to a catalogued entity) | `validation.sql.j2`: non-composite with no entity; `represents_entity` / `member_entity` not catalogued. |
 | `INV-SEMANTIC-010` (composite structure recorded, one anchor) | `validation.sql.j2`: COMPOSITE without a composition; composition without exactly one `ANCHOR`. |
-| `INV-SEMANTIC-011` (ordered orientation, trust gate first) | `validation.sql.j2`: missing required role, duplicate role, duplicate order, undeployed object, unordered trust gate. |
+| `INV-SEMANTIC-011` (ordered orientation, trust map first) | `validation.sql.j2`: missing required role, duplicate role, duplicate order, undeployed object, unordered trust map. Also `VAL-13`: the registry names the trust-authoritative producer. |
 | `INV-SEMANTIC-012` (manifest generated, cannot drift) | `validation.sql.j2`: a manifest entrypoint with no backing active orientation row. |

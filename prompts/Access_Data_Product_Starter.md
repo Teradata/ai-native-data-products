@@ -29,6 +29,7 @@ You are a consumer agent accessing the `[PRODUCT_NAME]` data product. Follow
 - **Question(s) to answer:** [what you want from the product]
 - **Connection:** [how you reach the platform / MCP endpoint]
 
-Check the trust gate before analytical use and tell me what it said. If discovery blocks you,
-or the gate flags the area I need, say so: don't fall back to guessing structure or
-presenting untrusted data as reliable.
+Read the trust map before analytical use, and tell me the confidence for the areas your answer
+actually rests on, with any gaps and what would close them. A weak or unvalidated area is not a
+reason to stop: answer, and say so plainly. If discovery blocks you, say that too - don't fall
+back to guessing structure or presenting a low-confidence result as a sound one.

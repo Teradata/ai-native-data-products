@@ -229,8 +229,8 @@ registers on deploy through `SemanticRegistration`. The relationship graph carri
 Customer to Order, and Order to Product through OrderLine.
 
 The orientation relation lists the product's resources in `discovery_order` with the
-trust gate ordered before every analytical resource, so agents orient and check trust
-before touching data. The manifest is a generated view over the registry and that
+trust map ordered before every analytical resource, so agents orient and read how far each
+area can be trusted before touching data. The manifest is a generated view over the registry and that
 orientation relation, so it cannot drift from the metadata it summarises.
 
 Consumers resolve the object to query through the access-object registry rather than

@@ -23,6 +23,7 @@ CREATE MULTISET TABLE governance.data_product_registry
    ,query_cookbook_uri     VARCHAR(1000)
    ,approved_entrypoint    VARCHAR(1000)             -- approved first data-access surface
    ,approved_access_mode   VARCHAR(32)               -- VIEW, MCP_TOOL, SEMANTIC_QUERY
+   ,trust_authoritative_producer VARCHAR(64)         -- producer_id whose trust map is the product's authoritative one
    ,is_active              BYTEINT NOT NULL
    ,is_deleted             BYTEINT NOT NULL
    ,created_dts            TIMESTAMP(6) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP(6)
@@ -51,6 +52,7 @@ COMMENT ON COLUMN governance.data_product_registry.glossary_uri IS 'URI for busi
 COMMENT ON COLUMN governance.data_product_registry.query_cookbook_uri IS 'URI for validated query recipes (Memory).';
 COMMENT ON COLUMN governance.data_product_registry.approved_entrypoint IS 'Approved first data-access surface (access view, semantic view, MCP tool).';
 COMMENT ON COLUMN governance.data_product_registry.approved_access_mode IS 'VIEW, MCP_TOOL, SEMANTIC_QUERY, or site-defined.';
+COMMENT ON COLUMN governance.data_product_registry.trust_authoritative_producer IS 'producer_id whose validation trust map is this product''s authoritative one; other producers publish evidence. Named at design time - an implicit designation is not readable (validation pattern, VAL-13).';
 COMMENT ON COLUMN governance.data_product_registry.is_active IS '1 = current and discoverable, 0 = inactive.';
 COMMENT ON COLUMN governance.data_product_registry.is_deleted IS '1 = logically deleted and hidden, 0 = discoverable when active.';
 COMMENT ON COLUMN governance.data_product_registry.created_dts IS 'When this row was created.';

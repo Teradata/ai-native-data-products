@@ -5,6 +5,12 @@ validated, how strongly, and where the gaps are. The map is **knowledge for the 
 user**, not a barrier. Severe failures are surfaced prominently and their impact explained,
 but the decision to proceed stays with the user, informed by the map.
 
+The map is not a review artefact that stops with you. `design/patterns/validation.md` §3.2 and §4
+define the same map as a **published contract** - `scope_kind` / `scope_id`, coverage,
+`area_status`, `confidence`, `open_gaps`, `recommended_action` - which a validator writes into the
+product's Observability store for every consumer that follows you. Build yours in that vocabulary,
+so it can be published as-is rather than translated.
+
 Cite the invariant or rule id behind every entry.
 
 ## Read in this order
@@ -59,16 +65,22 @@ Cite the invariant or rule id behind every entry.
    weaker one. Then check the implementation honours what was recorded - a product that
    recorded `soft-delete` and bound a destructive delete is a failure checkable by the same
    machinery as the invariants.
-5. **Build the trust map.** Per module, entity and pattern record:
-   - **coverage** - which checks exist and which ran
-   - **status** - pass / fail / not-yet-validated / no-evidence
-   - **confidence** - strong / partial / weak / unknown
-   - **open gaps** - missing metadata, unregistered relationships, stale or missing
-     validation evidence, unvalidated areas, undocumented deviations
-6. **Recommend.** For each low-confidence or uncovered area, say what would raise trust:
-   more data, more analysis, more discovery, or a missing design decision.
+5. **Build the trust map.** One entry per area - a module, an entity, a pattern, a capability -
+   in the published vocabulary (`design/patterns/validation.md` §4):
+   - **coverage** - how many checks the area has (`checks_expected`) and how many ran
+     (`checks_ran`)
+   - **status** - `pass` / `fail` / `partial` / `not-validated` / `no-evidence`
+   - **confidence** - `strong` / `partial` / `weak` / `unknown`, by the §4.3 rules: nothing ran is
+     `unknown`; a CRITICAL/ERROR failure or coverage below half is `weak`; WARNING/INFO failures or
+     incomplete cover is `partial`; full coverage all passing is `strong`
+   - **open gaps** - missing metadata, unregistered relationships, stale or missing validation
+     evidence, unvalidated areas, undocumented deviations
+6. **Recommend.** Every entry below `strong` carries a recommended action: what would raise trust
+   here - a check to write, more data, more discovery, or a design decision to settle. This is the
+   half of the map a product owner acts on.
 7. **Report the map**: where the product is strong, where it is weak or unknown, and the
-   prioritised next steps.
+   prioritised next steps. An area at `weak` or `unknown` is not an area anyone is forbidden to
+   use; it is an area whose use comes with a stated caveat.
 
 Review one area at a time; the map grows as you go.
 
@@ -76,8 +88,9 @@ Review one area at a time; the map grows as you go.
 
 The severity vocabulary is normative and defined in `design/patterns/validation.md` §5:
 `INFO` | `WARNING` | `ERROR` | `CRITICAL`, on an axis independent of a check's status
-(`PASSED` / `FAILED` / `ERROR`). The gate consequences are defined there too: `CRITICAL` and
-`ERROR` failures drive `UNTRUSTED`; `WARNING` and `INFO` can only reach `DEGRADED`.
+(`PASSED` / `FAILED` / `ERROR`). Its consequences are defined there too, and they are now local to
+the area: `CRITICAL` and `ERROR` failures drive that area to `weak`; `WARNING` and `INFO` hold it
+at `partial`. Nothing withdraws the product.
 
 **Known gap** (tracked as issue #54). The corpus does not yet assign one of those severities
 to each individual `INV-*` and conformance rule, and there is no per-area index joining
@@ -97,6 +110,7 @@ checklist item and note the absence of an id.
 ## Handover
 
 Your inputs are the design brief and/or the built product; your output is the **trust map**.
-Once the product is deployed the map's durable home is **Observability**; before then it is a
-standalone report. Agree with the user where it goes based on what you can reach, and present
-it in the conversation either way.
+Once the product is deployed the map's durable home is **Observability**, as `validation_area`
+rows a validator publishes per run (`implementation/{platform}/patterns/validation/`); before then
+it is a standalone report. Agree with the user where it goes based on what you can reach, and
+present it in the conversation either way.

@@ -155,13 +155,13 @@ Entity: PrimaryObject             [kind: Record]  // one row per agent-facing ob
 Entity: DataProductOrientation    [kind: Record]  // one ordered row per product resource
   orientation_id: Identifier
   product_id: NaturalKey [required]  // the product this resource belongs to (DataProductRegistry.product_id)
-  resource_role: Enum{MANIFEST|TRUST_GATE|MODULE_MAP|OBJECT_CATALOGUE|ENTITY_CATALOGUE|COLUMN_CATALOGUE|RELATIONSHIP_CATALOGUE|RELATIONSHIP_PATHS|LINEAGE|QUERY_COOKBOOK|GLOSSARY|DESIGN_DECISIONS|POLICY|QUALITY} [required]  // open vocabulary; one role per row, never a list
+  resource_role: Enum{MANIFEST|TRUST_MAP|MODULE_MAP|OBJECT_CATALOGUE|ENTITY_CATALOGUE|COLUMN_CATALOGUE|RELATIONSHIP_CATALOGUE|RELATIONSHIP_PATHS|LINEAGE|QUERY_COOKBOOK|GLOSSARY|DESIGN_DECISIONS|POLICY|QUALITY} [required]  // open vocabulary; one role per row, never a list; TRUST_GATE is the legacy spelling of TRUST_MAP
   container_name: ShortText [optional]  // deployed container, for object-backed resources
   object_name: ShortText [optional]  // deployed object; used verbatim, never derived
   resource_uri: ShortText [optional]  // URI for an MCP or external resource, when not a database object
   usage_guidance: Text [optional]  // how a consumer should use this resource
   is_required: Flag  // a missing required resource is a conformance failure
-  discovery_order: Integer [required]  // ascending processing order; the trust gate precedes every analytical resource
+  discovery_order: Integer [required]  // ascending processing order; the trust map precedes every analytical resource
   is_active: Flag
 ```
 
@@ -214,11 +214,11 @@ Discovery is **product-first, not tables-first** (`INV-SEMANTIC-004`). A client 
 3. The manifest recommends navigation: contract → semantic model → policy → quality → lineage → approved data access.
 4. It queries data **only** through the approved entrypoint.
 
-Where the product is reached over MCP, the orientation layer is exposed as **resources first** (the product list, per-product manifest, contract, semantic model, policy, quality, lineage, physical map) and **tools second** (search products, describe a product, get the recommended entrypoint, query approved data, explain an access path). The registry also designates the **gate-authoritative producer** the [validation pattern](../patterns/validation.md) reads, and its `manifest` records the entrypoints and recommended navigation.
+Where the product is reached over MCP, the orientation layer is exposed as **resources first** (the product list, per-product manifest, contract, semantic model, policy, quality, lineage, physical map) and **tools second** (search products, describe a product, get the recommended entrypoint, query approved data, explain an access path). The registry also designates the **trust-authoritative producer** the [validation pattern](../patterns/validation.md) reads, and its `manifest` records the entrypoints and recommended navigation.
 
-**The orientation relation (normative).** The handshake above is backed by a queryable, ordered relation, `DataProductOrientation` — one row per product resource, its `resource_role`, where it lives, whether it is required, and the `discovery_order` to process it — so a consumer reads the sequence rather than knowing repository conventions or inventing one, and a validator can *check* it. The baseline required roles a conformant product publishes, in canonical order, are: `MANIFEST`, `TRUST_GATE`, `MODULE_MAP`, `OBJECT_CATALOGUE`, `ENTITY_CATALOGUE`, `COLUMN_CATALOGUE`, `RELATIONSHIP_CATALOGUE`; `RELATIONSHIP_PATHS`, `LINEAGE`, `QUERY_COOKBOOK`, `GLOSSARY`, `DESIGN_DECISIONS` are optional, and `POLICY` / `QUALITY` are published where they apply. The vocabulary is open: an extension may add roles.
+**The orientation relation (normative).** The handshake above is backed by a queryable, ordered relation, `DataProductOrientation` — one row per product resource, its `resource_role`, where it lives, whether it is required, and the `discovery_order` to process it — so a consumer reads the sequence rather than knowing repository conventions or inventing one, and a validator can *check* it. The baseline required roles a conformant product publishes, in canonical order, are: `MANIFEST`, `TRUST_MAP`, `MODULE_MAP`, `OBJECT_CATALOGUE`, `ENTITY_CATALOGUE`, `COLUMN_CATALOGUE`, `RELATIONSHIP_CATALOGUE`; `RELATIONSHIP_PATHS`, `LINEAGE`, `QUERY_COOKBOOK`, `GLOSSARY`, `DESIGN_DECISIONS` are optional, and `POLICY` / `QUALITY` are published where they apply. The vocabulary is open: an extension may add roles.
 
-**Consumption contract (normative).** A consumer processes resources in ascending `discovery_order`; evaluates the `TRUST_GATE` resource **before** any analytical resource, and a blocked gate stops autonomous use (the [validation pattern](../patterns/validation.md)); resolves every `is_required` resource, treating a missing one as a conformance failure; and uses the stored `container.object` (or `resource_uri`) **verbatim**, never deriving object names from conventions (`INV-SEMANTIC-011`).
+**Consumption contract (normative).** A consumer processes resources in ascending `discovery_order`; reads the `TRUST_MAP` resource **before** any analytical resource, and carries the confidence it found there into what it reports (the [validation pattern](../patterns/validation.md)); resolves every `is_required` resource, treating a missing one as a conformance failure; and uses the stored `container.object` (or `resource_uri`) **verbatim**, never deriving object names from conventions (`INV-SEMANTIC-011`).
 
 **The manifest is generated, not authored (normative).** The machine-readable manifest is a **view derived** from `DataProductRegistry` and `DataProductOrientation` — it pivots the ordered resources into named entrypoint columns — so it cannot drift from the metadata it summarises (`INV-SEMANTIC-012`). The registry's serialised `manifest` remains the whole-document form for clients that want it in one read, regenerated from the same authoritative metadata rather than hand-authored to diverge.
 
@@ -323,14 +323,14 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-008`: a consumer resolves the object to query through `AccessObject` (an agent-consumable object), never by inferring an object's role, layer, or entity from its name; the registry is the single source of truth and is established once at deployment from verifiable structure.
 - `INV-SEMANTIC-009`: every `AccessObject.represents_entity` and every `AccessComposition.member_entity` resolves to a catalogued `EntityMetadata` entity; a non-`COMPOSITE` consumable object names the entity it represents.
 - `INV-SEMANTIC-010`: a `COMPOSITE` object's structure is recorded in `AccessComposition` with exactly one `ANCHOR` member, and is expanded as a unit from that metadata, never by parsing the object's definition.
-- `INV-SEMANTIC-011`: the orientation relation lists the required baseline resources, one row per role, in ascending `discovery_order` with the trust gate ordered before every analytical resource; consumers use stored identities verbatim, and a missing required resource is a conformance failure.
+- `INV-SEMANTIC-011`: the orientation relation lists the required baseline resources, one row per role, in ascending `discovery_order` with the trust map ordered before every analytical resource; consumers use stored identities verbatim, and a missing required resource is a conformance failure.
 - `INV-SEMANTIC-012`: the machine-readable manifest is generated from the registry and orientation relation (a derived view), never hand-authored, so it cannot drift from its sources.
 
 ---
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the gate-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity.
+**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the trust-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity.
 
 **Design review checklist:**
 
@@ -338,8 +338,8 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] Entities, columns, relationships, and primary objects registered for every deployed module (`SemanticRegistration`).
 - [ ] Each entity declares its temporal profile (`INV-SEMANTIC-006`).
 - [ ] The product registry and manifest are populated; discovery is product-first (`INV-SEMANTIC-004`).
-- [ ] The manifest names the `gate_authoritative_producer`, settled as a design decision per the [validation pattern](../patterns/validation.md). One producer still needs naming.
-- [ ] The orientation relation publishes the required baseline resources in `discovery_order` with the trust gate first, and the manifest is a generated view over registry + orientation (`INV-SEMANTIC-011`, `INV-SEMANTIC-012`).
+- [ ] The manifest names the `trust_authoritative_producer`, settled as a design decision per the [validation pattern](../patterns/validation.md). One producer still needs naming.
+- [ ] The orientation relation publishes the required baseline resources in `discovery_order` with the trust map first, and the manifest is a generated view over registry + orientation (`INV-SEMANTIC-011`, `INV-SEMANTIC-012`).
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
 - [ ] Consumable objects registered in `AccessObject` and composites recorded in `AccessComposition`; consumers resolve through the registry, not object names (`INV-SEMANTIC-008` to `INV-SEMANTIC-010`).

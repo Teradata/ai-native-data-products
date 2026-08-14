@@ -58,7 +58,7 @@ recommended_navigation:
  - data_access
 ```
 
-The manifest tells the agent what the product is, what it means, what it trusts, what it may access, and how to proceed. The registry also names the **gate-authoritative producer** the [validation pattern](../../patterns/validation/) reads, so trust evaluation precedes analytical use.
+The manifest tells the agent what the product is, what it means, what it trusts, what it may access, and how to proceed. The registry also names the **trust-authoritative producer** (`trust_authoritative_producer`) whose per-area trust map the [validation pattern](../../patterns/validation/) reads, and the `TRUST_MAP` orientation role is ordered before every analytical resource, so an agent knows how far to trust an area before it queries it. `TRUST_GATE` is the legacy spelling of that role and readers honour both.
 
 ## Required documentation record
 

@@ -75,6 +75,15 @@ All paths below are under `implementation/{platform}/`.
 Where nothing ships, verify by hand against the design document's Invariants or Conformance
 section and tell the user that area has no automated check.
 
+**Deploy the trust map with the results table.** The validation pattern ships two relations:
+`validation_run` (the run summary) and `validation_area` (the per-area map a consumer reads), plus
+their views. Deploy them in file order into the Observability container. Each area you verify above
+is a map entry: an area whose check you ran, an area whose check does not exist
+(`checks_expected = 0`, which publishes as `no-evidence`), and an area you checked by hand. The map
+is what carries that distinction to every consumer that follows you, so record it as you go rather
+than reconstructing it at the end. Nothing you publish there blocks use of the product; an
+uncovered area is a coverage gap with a recommended action, not a failure.
+
 ## Handover
 
 Your input is the **design brief**; your output is the **deployable artefacts**, plus the

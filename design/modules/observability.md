@@ -163,7 +163,7 @@ The lineage entities align with **OpenLineage**: the definition/execution split 
 | `temporal-lifecycle-metadata` | Event entities declare the `EVENT_APPEND_ONLY` profile; `DataLineage` carries an `is_active` lifecycle. |
 | `object-placement` | Which container the tables and views live in, and who may reach them. |
 | `access-layer` | `ROLE_AGENT` write-back (append) to this module: agents record outcomes and quality signals (Phase 2.5). |
-| `validation` | Hosts the validation results; its own quality/lineage evidence is a validator source. |
+| `validation` | Hosts the validation results and the trust map; its own quality/lineage evidence is a validator source. |
 
 ---
 
@@ -178,7 +178,7 @@ Observability is **cross-cutting and soft**: nothing hard-depends on it, and it 
 | `ChangeEventCapture` | Any module recording who changed an entity instance, when, and why: the audit trail that `DEC-COLUMN-STRATEGY` offloads here. |
 | `LineageCapture` | Any module recording the origin of an instance: source system, source record, and producing run. |
 | `QualityScore` | Agents judging fitness before use, and Memory as a learning input. Held as a time series per `DEC-QUALITY-STORAGE`. |
-| Validation results home | The validation pattern, as the container for `validation_run`. |
+| Validation results home | The validation pattern, as the container for `validation_run` and the `validation_area` trust map. |
 | Lineage exposure (definitional + operational) | Agents and dashboards, via the Semantic exposure. |
 
 **Requires:**
@@ -206,7 +206,7 @@ Observability is **cross-cutting and soft**: nothing hard-depends on it, and it 
 - `INV-OBS-002`: change tracking is table-level with aggregate metrics (e.g. `records_affected`), never individual record keys, and **never** before/after business values: capturing changed column *values* (e.g. old/new `legal_name`, `email`) duplicates Domain content into Observability and is a PII / data-privacy defect. The audit trail records *what table changed, when, by whom, and how many rows*: not the data itself; the prior state is reconstructed from Domain's temporal history.
 - `INV-OBS-003`: lineage is split: `DataLineage` declares flows (one row per source → job → target), `LineageRun` records executions (one row per run).
 - `INV-OBS-004`: definitional lineage is retained for the life of the product; execution records follow independent event-retention windows.
-- `INV-OBS-005`: validation results are homed here as append-only evidence (`EVENT_APPEND_ONLY`).
+- `INV-OBS-005`: validation results are homed here as append-only evidence (`EVENT_APPEND_ONLY`), both the run record and the per-area trust map.
 - `INV-OBS-006`: the lineage graph/edge-list consumed by discovery reads active definitions only, so it is stable and deduplicated.
 
 ---
