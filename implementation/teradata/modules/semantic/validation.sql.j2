@@ -106,3 +106,56 @@ FROM {{ product }}_Semantic.access_composition AS c
 WHERE c.is_active = 1
 GROUP BY c.composite_database, c.composite_object
 HAVING SUM(CASE WHEN c.member_role = 'ANCHOR' THEN 1 ELSE 0 END) <> 1;
+-- INV-SEMANTIC-011: missing required baseline orientation role for a product
+SELECT r.product_id, req.resource_role
+FROM {{ product }}_Semantic.data_product_orientation AS r
+CROSS JOIN (SELECT 'MANIFEST' AS resource_role
+      UNION SELECT 'TRUST_GATE' UNION SELECT 'MODULE_MAP'
+      UNION SELECT 'OBJECT_CATALOGUE' UNION SELECT 'ENTITY_CATALOGUE'
+      UNION SELECT 'COLUMN_CATALOGUE' UNION SELECT 'RELATIONSHIP_CATALOGUE') AS req
+WHERE r.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.data_product_orientation AS o
+      WHERE o.product_id = r.product_id AND o.is_active = 1
+        AND o.resource_role = req.resource_role)
+GROUP BY r.product_id, req.resource_role;
+
+-- INV-SEMANTIC-011: duplicate active role for one product (each role is singular)
+SELECT product_id, resource_role, COUNT(*) AS n
+FROM {{ product }}_Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, resource_role
+HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-011: duplicate discovery_order for one product
+SELECT product_id, discovery_order, COUNT(*) AS n
+FROM {{ product }}_Semantic.data_product_orientation
+WHERE is_active = 1
+GROUP BY product_id, discovery_order
+HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-011: object-backed orientation resource that is not deployed
+SELECT o.product_id, o.resource_role, o.fully_qualified_object_name
+FROM {{ product }}_Semantic.data_product_orientation AS o
+LEFT JOIN DBC.TablesV AS t
+    ON t.DatabaseName = o.database_name AND t.TableName = o.object_name
+WHERE o.is_active = 1 AND o.object_name IS NOT NULL AND t.TableName IS NULL;
+
+-- INV-SEMANTIC-011: trust gate not ordered before every analytical resource
+SELECT o.product_id
+FROM {{ product }}_Semantic.data_product_orientation AS o
+WHERE o.is_active = 1
+  AND o.resource_role IN ('ENTITY_CATALOGUE', 'COLUMN_CATALOGUE', 'RELATIONSHIP_CATALOGUE',
+                          'RELATIONSHIP_PATHS', 'QUERY_COOKBOOK')
+  AND o.discovery_order < (
+      SELECT MIN(g.discovery_order)
+      FROM {{ product }}_Semantic.data_product_orientation AS g
+      WHERE g.product_id = o.product_id AND g.is_active = 1
+        AND g.resource_role = 'TRUST_GATE');
+
+-- INV-SEMANTIC-012: a manifest entrypoint with no backing active orientation row
+SELECT m.product_id
+FROM {{ product }}_Semantic.data_product_manifest AS m
+WHERE m.manifest_entrypoint IS NULL
+   OR m.trust_entrypoint IS NULL
+   OR m.entity_catalogue_entrypoint IS NULL;
