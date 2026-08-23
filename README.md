@@ -176,6 +176,20 @@ python -m unittest discover -s tooling/validation/tests
 
 ---
 
+## Learn More
+
+**Blogs:**
+- [Grounding your agents in your world](https://medium.com/teradata-labs/grounding-agents-in-your-world-cbf6e5ed22db)
+- [More than a map](https://medium.com/teradata-labs/more-than-a-map-9b30c33e2192)
+- [Governed by design](https://medium.com/teradata-labs/governed-by-design-2cf2338417ec)
+- [Design time memory](https://medium.com/teradata-labs/design-time-memory-storing-decisions-inside-data-products-da23e7e715df)
+- [You don't have to start over](https://medium.com/teradata-labs/you-dont-have-to-start-over-068685c30063)
+
+**Videos:**
+- Hands on loyalty data product build: [YouTube](https://www.youtube.com/watch?v=rjsxXmGrso0&t=1s)
+
+
+---
 ## License
 
 Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See [LICENSE.md](LICENSE.md) for full terms.

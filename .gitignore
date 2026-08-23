@@ -3,3 +3,14 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# Generated skills (see issue #44)
+/skills/
+
+# Local development files
+*.pptx
+loyalty/
+blogs/
+Loyalty_Analyst_Agent.md
+.mcp.json
+CLAUDE.md
