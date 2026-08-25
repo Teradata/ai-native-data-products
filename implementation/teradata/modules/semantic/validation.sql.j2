@@ -122,11 +122,19 @@ WHERE r.is_active = 1
              OR (req.resource_role = 'TRUST_MAP' AND o.resource_role = 'TRUST_GATE')))
 GROUP BY r.product_id, req.resource_role;
 
--- INV-SEMANTIC-011: duplicate active role for one product (each role is singular)
-SELECT product_id, resource_role, COUNT(*) AS n
-FROM {{ product }}_Semantic.data_product_orientation
-WHERE is_active = 1
-GROUP BY product_id, resource_role
+-- INV-SEMANTIC-011: duplicate active role for one product (each role is singular). TRUST_GATE and
+-- TRUST_MAP are the same role under two spellings (see the manifest's alias projection below), so
+-- they are canonicalised before grouping - otherwise a product publishing both passes this check.
+SELECT product_id, canonical_resource_role, COUNT(*) AS n
+FROM (
+    SELECT product_id
+         , CASE WHEN resource_role IN ('TRUST_MAP', 'TRUST_GATE') THEN 'TRUST_MAP'
+                ELSE resource_role
+           END AS canonical_resource_role
+    FROM {{ product }}_Semantic.data_product_orientation
+    WHERE is_active = 1
+) AS c
+GROUP BY product_id, canonical_resource_role
 HAVING COUNT(*) > 1;
 
 -- INV-SEMANTIC-011: duplicate discovery_order for one product

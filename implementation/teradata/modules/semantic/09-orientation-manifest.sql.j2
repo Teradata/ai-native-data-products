@@ -55,9 +55,14 @@ SELECT
       r.product_id, r.product_name, r.product_version, r.product_status, r.owner_team
     , r.approved_access_mode, r.approved_entrypoint
     , MAX(CASE WHEN o.resource_role = 'MANIFEST'               THEN o.fully_qualified_object_name END)
-      -- TRUST_GATE is the legacy spelling of TRUST_MAP; readers honour both.
-    , MAX(CASE WHEN o.resource_role IN ('TRUST_MAP', 'TRUST_GATE')
-                                                               THEN o.fully_qualified_object_name END)
+      -- TRUST_GATE is the legacy spelling of TRUST_MAP; readers honour both. A product publishing
+      -- both fails the singular-role conformance check (validation.sql.j2, INV-SEMANTIC-011), but
+      -- while it exists this deterministically prefers the canonical spelling over MAX(...) string
+      -- ordering, so an already-corrected product still reads its legacy-only predecessor.
+    , COALESCE(
+          MAX(CASE WHEN o.resource_role = 'TRUST_MAP' THEN o.fully_qualified_object_name END)
+        , MAX(CASE WHEN o.resource_role = 'TRUST_GATE' THEN o.fully_qualified_object_name END)
+      )
     , MAX(CASE WHEN o.resource_role = 'MODULE_MAP'             THEN o.fully_qualified_object_name END)
     , MAX(CASE WHEN o.resource_role = 'OBJECT_CATALOGUE'       THEN o.fully_qualified_object_name END)
     , MAX(CASE WHEN o.resource_role = 'ENTITY_CATALOGUE'       THEN o.fully_qualified_object_name END)

@@ -347,7 +347,7 @@ The result is mappable from/to established open formats; `source_format` records
 | VAL-11 | Producer and consumer build gates verify the shared golden fixture at the declared schema version. |
 | VAL-12 | Every record carries non-null `producer_id` and `payload_schema_version`. |
 | VAL-13 | The map is taken from the designated producer; absent designation, the most cautious entry per area applies and the consumer says so. |
-| VAL-14 | `scope_kind`, `area_status`, and `confidence` come from their vocabularies, and `scope_id` resolves to a real module, entity, pattern, capability, or the product. |
+| VAL-14 | `scope_kind`, `area_status`, and `confidence` come from their vocabularies, and `scope_id` resolves to a real module, entity, pattern, capability, or the product. Runtime-checkable for `PRODUCT`, `MODULE`, and `ENTITY` against deployed catalogue metadata; `PATTERN` and `CAPABILITY` have no deployed catalogue to resolve against, so the producer's build-time assertion against its own validator profile is the enforcement point. |
 | VAL-15 | Per area: `checks_ran = passed_count + failed_count + error_count`, and `checks_ran` never exceeds `checks_expected`. |
 | VAL-16 | `pass` and `strong` require checks that ran at full coverage; `no-evidence` and `not-validated` carry `confidence` = `unknown`. |
 | VAL-17 | Every entry below `strong` carries `open_gaps` and `recommended_action`. |
