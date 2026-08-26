@@ -80,6 +80,8 @@ CASES = {
     "modules/memory/10-documentation-tables.sql.j2": dict(product="Demo"),
     "modules/observability/01-event-tables.sql.j2": dict(product="Demo"),
     "modules/observability/02-lineage-tables.sql.j2": dict(product="Demo"),
+    "modules/data-product-lineage/01-graph-tables.sql.j2": dict(
+        product="Demo", graph_key="LIN_DEMO"),
     "modules/prediction/01-feature-group.sql.j2": dict(
         db="Demo_Prediction", group=FEATURE_GROUP),
     "modules/prediction/02-feature-value.sql.j2": dict(product="Demo"),

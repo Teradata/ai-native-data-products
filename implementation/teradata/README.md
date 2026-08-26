@@ -53,6 +53,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../../tooling/catal
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
 | [Teradata Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | standard | - | - | - |
+| [Teradata Data Product Lineage Module Implementation](modules/data-product-lineage/README.md) | `data-product-lineage` | standard | - | - | - |
 | [Teradata Domain Module Implementation](modules/domain/README.md) | `domain` | standard | - | - | - |
 | [Teradata Memory Module Implementation](modules/memory/README.md) | `memory` | standard | - | - | - |
 | [Teradata Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | standard | - | - | - |

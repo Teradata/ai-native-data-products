@@ -1,0 +1,99 @@
+{#
+  Data Product Lineage: shared graph-explorer catalogue seed (Teradata). Binding of
+  the external Teradata Graph Explorer data contract, sections 5 and 8.5.
+
+  Writes into the SHARED Graphs_CAT_STD_0_T catalogue, not this package's own data
+  plane - every graph in the estate registers here. Idempotent per the contract:
+  delete child rows, delete the registry row, then insert the registry row followed
+  by its children, so a re-run never leaves an orphaned or half-updated graph.
+
+  Template variables:
+    graph_key    : as in 01-graph-tables.sql.j2.
+    display_name : human picker label, e.g. "Demo Lineage" (<=128 chars).
+    description  : one-line domain description (<=512 chars).
+    sort_order   : stable graph-picker ordering (integer).
+#}
+DELETE FROM Graphs_CAT_STD_0_T.graph_trace_profile WHERE graph_key = '{{ graph_key }}';
+DELETE FROM Graphs_CAT_STD_0_T.graph_role          WHERE graph_key = '{{ graph_key }}';
+DELETE FROM Graphs_CAT_STD_0_T.graph_relationship  WHERE graph_key = '{{ graph_key }}';
+DELETE FROM Graphs_CAT_STD_0_T.graph_registry      WHERE graph_key = '{{ graph_key }}';
+
+-- Registry row -----------------------------------------------------------------
+INSERT INTO Graphs_CAT_STD_0_T.graph_registry (
+      graph_key, display_name, description
+    , nodes_view, edges_view, edges_view_undirected
+    , has_relationship, analysis_database
+    , is_directed, is_weighted, is_enabled, sort_order
+)
+VALUES (
+      '{{ graph_key }}', '{{ display_name }}', '{{ description }}'
+    , 'Graphs_{{ graph_key }}_ACL_0_V.graph_nodes'
+    , 'Graphs_{{ graph_key }}_ACL_0_V.graph_edges'
+    , 'Graphs_{{ graph_key }}_ACL_0_V.graph_edges_bi'
+    , 1, 'Graphs_ENG_STD_0_P'
+    , 1, 0, 1, {{ sort_order }}
+);
+
+-- Relationship vocabulary (graph-data-contract.md 5.2): every edge_type value this
+-- graph can emit, all ASYMMETRIC - see design/modules/data-product-lineage.md 4.3.
+INSERT INTO Graphs_CAT_STD_0_T.graph_relationship (graph_key, relationship, symmetry)
+VALUES ('{{ graph_key }}', 'produces',       'ASYMMETRIC');
+INSERT INTO Graphs_CAT_STD_0_T.graph_relationship (graph_key, relationship, symmetry)
+VALUES ('{{ graph_key }}', 'derives_column', 'ASYMMETRIC');
+INSERT INTO Graphs_CAT_STD_0_T.graph_relationship (graph_key, relationship, symmetry)
+VALUES ('{{ graph_key }}', 'accessed_by',    'ASYMMETRIC');
+INSERT INTO Graphs_CAT_STD_0_T.graph_relationship (graph_key, relationship, symmetry)
+VALUES ('{{ graph_key }}', 'queried_in',     'ASYMMETRIC');
+
+-- Role vocabulary (graph-data-contract.md 5.3): every (category, node_role) this
+-- graph's load path can emit - see design/modules/data-product-lineage.md 4.1.
+-- node_role stays NULL until an analysis run classifies it (01-graph-tables.sql.j2),
+-- so only the null-role combination is declared for each category today.
+INSERT INTO Graphs_CAT_STD_0_T.graph_role (graph_key, category, node_role)
+VALUES ('{{ graph_key }}', 'TABLE',         NULL);
+INSERT INTO Graphs_CAT_STD_0_T.graph_role (graph_key, category, node_role)
+VALUES ('{{ graph_key }}', 'COLUMN',        NULL);
+INSERT INTO Graphs_CAT_STD_0_T.graph_role (graph_key, category, node_role)
+VALUES ('{{ graph_key }}', 'JOB',           NULL);
+INSERT INTO Graphs_CAT_STD_0_T.graph_role (graph_key, category, node_role)
+VALUES ('{{ graph_key }}', 'AGENT',         NULL);
+INSERT INTO Graphs_CAT_STD_0_T.graph_role (graph_key, category, node_role)
+VALUES ('{{ graph_key }}', 'QUERY_SESSION', NULL);
+
+-- Trace profiles (graph-data-contract.md 5.4) - see
+-- design/modules/data-product-lineage.md 7.1.
+INSERT INTO Graphs_CAT_STD_0_T.graph_trace_profile (
+      graph_key, profile_id, caption, tooltip
+    , direction, relationship, stop_at_roles, max_depth
+    , empty_text, action, sort_order
+)
+VALUES (
+      '{{ graph_key }}', 'trace_to_source', 'Trace to source'
+    , 'Follow this node upstream to where its data originated.'
+    , 'upstream', 'produces,derives_column', NULL, NULL
+    , 'No upstream sources found for {name}.', NULL, 10
+);
+
+INSERT INTO Graphs_CAT_STD_0_T.graph_trace_profile (
+      graph_key, profile_id, caption, tooltip
+    , direction, relationship, stop_at_roles, max_depth
+    , empty_text, action, sort_order
+)
+VALUES (
+      '{{ graph_key }}', 'impact_analysis', 'Impact analysis'
+    , 'Follow this node downstream to everything that depends on it.'
+    , 'downstream', 'produces,derives_column', NULL, NULL
+    , 'No downstream dependants found for {name}.', NULL, 20
+);
+
+INSERT INTO Graphs_CAT_STD_0_T.graph_trace_profile (
+      graph_key, profile_id, caption, tooltip
+    , direction, relationship, stop_at_roles, max_depth
+    , empty_text, action, sort_order
+)
+VALUES (
+      '{{ graph_key }}', 'who_touched_this', 'Who touched this data'
+    , 'Follow this node downstream to the agents and sessions that accessed it.'
+    , 'downstream', 'accessed_by,queried_in', 'QUERY_SESSION', NULL
+    , 'No recorded access for {name}.', NULL, 30
+);

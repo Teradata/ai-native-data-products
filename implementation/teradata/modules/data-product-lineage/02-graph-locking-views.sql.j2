@@ -1,0 +1,32 @@
+{#
+  Data Product Lineage: governed locking views (Teradata). Binding of
+  design/modules/data-product-lineage.md section 7, applying object-placement's
+  two-tier view architecture: a governed view (1:1 over the base table, may reference
+  the base container) that the ACL adapter views build on.
+
+  Template variables:
+    graph_key : as in 01-graph-tables.sql.j2.
+#}
+REPLACE VIEW Graphs_{{ graph_key }}_STD_0_V.graph_nodes
+(
+      node_id, natural_key, node_label, category, community, importance, node_role
+    , created_dts, updated_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      node_id, natural_key, node_label, category, community, importance, node_role
+    , created_dts, updated_dts
+FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes;
+
+REPLACE VIEW Graphs_{{ graph_key }}_STD_0_V.graph_edges
+(
+      edge_id, source_node_id, target_node_id, edge_type, edge_weight, lineage_id
+    , created_dts, updated_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      edge_id, source_node_id, target_node_id, edge_type, edge_weight, lineage_id
+    , created_dts, updated_dts
+FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges;

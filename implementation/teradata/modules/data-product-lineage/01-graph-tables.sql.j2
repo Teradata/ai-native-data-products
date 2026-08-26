@@ -1,0 +1,107 @@
+{#
+  Data Product Lineage: graph base tables (Teradata). Binding of
+  design/modules/data-product-lineage.md, section 4 and 6.
+
+  Template variables:
+    graph_key : this product's graph key suffix, e.g. "LIN_DEMO" (rendered as
+                Graphs_LIN_DEMO_STD_0_T per the external graph-explorer placement rule
+                - see design/modules/data-product-lineage.md section 7). Unique across
+                the whole graph-explorer estate, per DEC-GRAPH-SCOPE: one graph per
+                data product, never shared across products.
+    product   : the source data product's name, e.g. "Demo" (its Observability
+                container is {{ product }}_Observability). Referenced only in a
+                column comment here; the load path in 05-load-lineage.sql.j2 is
+                where it is actually queried.
+
+  These are the Graph Product's OWN data plane (Graphs_<KEY>_STD_0_T), populated by
+  05-load-lineage.sql.j2 from this product's Observability tables. They are never
+  bound to directly by a consumer - see 03-graph-acl-views.sql.j2 for the contract
+  surface.
+
+  Temporal profile: CURRENT_STATE. A node/edge is allocated once per natural key and
+  never versioned (the graph-explorer contract requires a node identity to refer to
+  the same logical entity for the life of a published graph version); community,
+  importance, and node_role are engine-populated later by the shared analysis engine
+  and start NULL, matching the reference graph-obj adapter's own convention.
+
+  Naming collision, deliberate: the external contract's recommended column is
+  `created_dt` (singular), but this repository's own temporal-lifecycle-metadata
+  pattern prohibits that exact name and requires `created_dts` (TLM-04). The base
+  table here follows this repository's house convention; 03-graph-acl-views.sql.j2 is
+  the one place that renames created_dts -> created_dt, because that view is the
+  external contract surface and this table is not.
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+
+-- graph_nodes: one row per natural key (table, column, job, agent, or session) -----
+CREATE MULTISET TABLE Graphs_{{ graph_key }}_STD_0_T.graph_nodes, FALLBACK,
+     NO BEFORE JOURNAL,
+     NO AFTER JOURNAL,
+     CHECKSUM = DEFAULT,
+     DEFAULT MERGEBLOCKRATIO
+(
+    node_id        INTEGER GENERATED ALWAYS AS IDENTITY
+                   (START WITH 1 INCREMENT BY 1 MINVALUE 1 NO CYCLE)     NOT NULL,
+    natural_key    VARCHAR(300) CHARACTER SET UNICODE NOT CASESPECIFIC   NOT NULL,
+    node_label     VARCHAR(300) CHARACTER SET UNICODE NOT CASESPECIFIC   NOT NULL,
+    category       VARCHAR(30)  CHARACTER SET LATIN NOT CASESPECIFIC     NOT NULL,
+    community      VARCHAR(50)  CHARACTER SET LATIN NOT CASESPECIFIC,
+    importance     FLOAT,
+    node_role      VARCHAR(50)  CHARACTER SET LATIN NOT CASESPECIFIC,
+{{ tlm.columns('CURRENT_STATE', pad=14) }}
+)
+UNIQUE PRIMARY INDEX (node_id)
+UNIQUE INDEX (natural_key);
+
+COMMENT ON TABLE Graphs_{{ graph_key }}_STD_0_T.graph_nodes IS
+'Graph-explorer node adapter data plane. One row per natural key (table/column/job/agent/session); node_id is the dense surrogate identity, allocated once and never reused.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.node_id IS
+'Canonical surrogate vertex identity (graph-explorer: node). Allocated once per natural_key; never reused or renumbered.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.natural_key IS
+'Category-prefixed natural key, e.g. TABLE::db.table, JOB::job_name, AGENT::agent_key. Internal only; never exposed as node.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.node_label IS
+'Full human-readable label. Never truncated or ellipsised (graph-explorer contract 4.2).';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.category IS
+'TABLE, COLUMN, JOB, AGENT, or QUERY_SESSION. See design/modules/data-product-lineage.md 4.1.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.community IS
+'Analytical community label. Engine-populated (Louvain or similar); NULL until an analysis run sets it.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.importance IS
+'Normalised importance in [0,1]. Engine-populated (centrality); NULL until an analysis run sets it.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_nodes.node_role IS
+'Structural role (e.g. root/leaf/intermediate). Engine-populated from topology; NULL until classified. Not to be confused with category.';
+{{ tlm.comments('Graphs_' ~ graph_key ~ '_STD_0_T.graph_nodes', 'CURRENT_STATE') }}
+
+-- graph_edges: directed edges between graph_nodes.node_id --------------------------
+CREATE MULTISET TABLE Graphs_{{ graph_key }}_STD_0_T.graph_edges, FALLBACK,
+     NO BEFORE JOURNAL,
+     NO AFTER JOURNAL,
+     CHECKSUM = DEFAULT,
+     DEFAULT MERGEBLOCKRATIO
+(
+    edge_id          INTEGER GENERATED ALWAYS AS IDENTITY
+                     (START WITH 1 INCREMENT BY 1 MINVALUE 1 NO CYCLE)   NOT NULL,
+    source_node_id   INTEGER NOT NULL,                                  -- FK -> graph_nodes.node_id (upstream)
+    target_node_id   INTEGER NOT NULL,                                  -- FK -> graph_nodes.node_id (downstream)
+    edge_type        VARCHAR(64) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    edge_weight      FLOAT NOT NULL DEFAULT 1.0,                        -- unweighted graph: always 1.0
+    lineage_id       INTEGER,                                           -- FK -> {{ product }}_Observability.data_lineage.lineage_id; NULL for access edges
+{{ tlm.columns('CURRENT_STATE', pad=16) }}
+)
+PRIMARY INDEX (source_node_id, target_node_id)
+UNIQUE INDEX (source_node_id, target_node_id, edge_type);
+
+COMMENT ON TABLE Graphs_{{ graph_key }}_STD_0_T.graph_edges IS
+'Graph-explorer edge adapter data plane. Directed edges resolved to graph_nodes.node_id; duplicate policy is keyed on (source_node_id, target_node_id, edge_type).';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.edge_id IS
+'Stable source edge identity (graph-explorer: edge_id). Allocated once; never reused or renumbered.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.source_node_id IS
+'Upstream vertex (graph-explorer: node_i). Direction convention: upstream/source -> downstream/consumer.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.target_node_id IS
+'Downstream vertex (graph-explorer: node_j).';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.edge_type IS
+'produces, derives_column, accessed_by, or queried_in. Vocabulary-backed: see 04-catalogue-seed.sql.j2 graph_relationship rows.';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.edge_weight IS
+'Always 1.0: this graph is unweighted (is_weighted=0 in the catalogue registry).';
+COMMENT ON COLUMN Graphs_{{ graph_key }}_STD_0_T.graph_edges.lineage_id IS
+'Traces a produces/derives_column edge back to its defining Observability.data_lineage row. NULL for accessed_by/queried_in edges, which have no lineage definition.';
+{{ tlm.comments('Graphs_' ~ graph_key ~ '_STD_0_T.graph_edges', 'CURRENT_STATE') }}

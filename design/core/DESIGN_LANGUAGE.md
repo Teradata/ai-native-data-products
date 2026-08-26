@@ -252,6 +252,7 @@ A design document lists the capabilities it requires. Each platform implementati
 | `SoftDelete` | Mark an entity instance deleted without destroying its history: the instance stops satisfying `CurrentStateFilter`, remains reachable by `PointInTimeReconstruction`, and the deletion itself is an observable event. | deleted-flag predicate; the flag update as a versioning operation. |
 | `ChangeEventCapture` | Record who changed an entity instance, when, and why, as a queryable event separate from the instance itself. | insert into the Observability change-event entity. |
 | `LineageCapture` | Record the origin of an entity instance: source system, source record, and the run that produced it. | insert into the Observability lineage entities. |
+| `AgentOutcomeCapture` | Record which tables and agent touched, when, and with what outcome, as a queryable event separate from the tables themselves. | insert into the Observability `AgentOutcome` entity. |
 | `QualityScore` | Obtain a reliability score in `0.00`-`1.00` for an entity instance or set, decomposed into the rule categories that produced it, so an agent can judge fitness before use. | quality metric entity plus a scoring view. |
 | `MetadataCoverageCheck` | Confirm programmatically that every attribute carries metadata. | catalogue query returning uncommented columns. |
 | `SemanticRegistration` | Register the module's entities, columns, and relationships in the product's Semantic map so agents can discover them. | inserts into the Semantic discovery entities. |
@@ -260,6 +261,7 @@ A design document lists the capabilities it requires. Each platform implementati
 | `NearestNeighbors(query, candidates, metric, k)` | Return the `k` candidates most similar to `query` under a distance `metric`, as ranked `(id, distance)`. | vector-distance function; nearest-neighbour operator. |
 | `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerate `NearestNeighbors` with an approximate index of the named family. | IVF/KMEANS index; HNSW graph index. |
 | `Embed(text, model)` | Produce a `Vector[dim]` for `text` using the named embedding `model`. | in-database embedding; external embedding API. |
+| `GraphNativeLineageTraversal` | Traverse a product's lineage and access history as a graph: upstream/downstream trace, impact analysis, and access-path traversal over nodes and directed edges. | graph-explorer-conformant node/edge adapter views plus catalogue registration. |
 
 A capability marked *optional* (like `ApproxIndex`) may be unsatisfied on a given platform without breaking conformance: the design must not assume it is always present. This matters where platforms genuinely differ (e.g. in-database `Embed` exists on some platforms and is API-only on others): declare such capabilities optional or pluggable rather than assumed, so a "platform-agnostic" design does not quietly encode one platform's assumptions.
 

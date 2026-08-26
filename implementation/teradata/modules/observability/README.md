@@ -18,7 +18,7 @@ Teradata binding of [`design/modules/observability.md`](../../../../design/modul
 | File | Purpose |
 |------|---------|
 | `01-event-tables.sql.j2` | `change_event`, `data_quality_metric`, `model_performance`, `agent_outcome`. |
-| `02-lineage-tables.sql.j2` | `data_lineage` (definitional) and `lineage_run` (operational). |
+| `02-lineage-tables.sql.j2` | `data_lineage` (definitional) and `lineage_run` (operational). `data_lineage` carries optional `source_column`/`target_column` for column-level flows, consumed by the [Data Product Lineage module](../data-product-lineage/) if deployed. |
 | `03-lineage-views.sql.j2` | `lineage_graph` and `lineage_run_latest`: deployed into the Semantic container. |
 | `04-openlineage.md` | OpenLineage entity/column mapping and RunEvent construction. |
 

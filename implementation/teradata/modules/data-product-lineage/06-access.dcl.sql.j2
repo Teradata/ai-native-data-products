@@ -1,0 +1,45 @@
+{#
+  Data Product Lineage: access grants (Teradata). Binding of
+  design/modules/data-product-lineage.md section 7, following the same implied-grant
+  shape as design/patterns/access-layer.md and the external graph-explorer platform's
+  own reference DCL for its graph-obj package.
+
+  Three grant chains, in dependency order:
+    1. Implied grants (view-compiles-against-base-table) - no DBA privilege required.
+    2. The graph's own READ role, granted on the ACL adapter views only.
+    3. Registration into the shared graph-explorer application role, so this graph
+       appears in the picker for anyone who already holds R_Graphs_USR_APP.
+
+  This file does NOT grant SELECT on {{ product }}_Observability to the load path in
+  05-load-lineage.sql.j2: that grant already exists from this product's own
+  access-layer deployment (Phase 2.5, ROLE_ADMIN or the ETL service account) and is
+  not re-granted here.
+
+  Template variables:
+    graph_key : as in 01-graph-tables.sql.j2.
+#}
+-- 1. Implied grants: base table -> locking view -> ACL view -----------------------
+GRANT SELECT ON Graphs_{{ graph_key }}_STD_0_T
+    TO Graphs_{{ graph_key }}_STD_0_V
+    WITH GRANT OPTION;
+
+GRANT SELECT ON Graphs_{{ graph_key }}_STD_0_V
+    TO Graphs_{{ graph_key }}_ACL_0_V
+    WITH GRANT OPTION;
+
+-- The shared engine and quality procedures read the ACL surface like any consumer,
+-- never the base tables (graph-data-contract.md section 3).
+GRANT SELECT ON Graphs_{{ graph_key }}_ACL_0_V TO Graphs_ENG_STD_0_P WITH GRANT OPTION;
+GRANT SELECT ON Graphs_{{ graph_key }}_ACL_0_V TO Graphs_QLY_STD_0_P WITH GRANT OPTION;
+
+-- 2. This graph's own READ role -----------------------------------------------------
+CREATE ROLE R_Graphs_{{ graph_key }}_READ;
+COMMENT ON ROLE R_Graphs_{{ graph_key }}_READ IS
+    'Graph Explorer read access - {{ graph_key }} lineage graph.';
+
+GRANT SELECT ON Graphs_{{ graph_key }}_ACL_0_V TO R_Graphs_{{ graph_key }}_READ;
+
+-- 3. Register with the shared graph-explorer application role ----------------------
+-- Anyone already holding R_Graphs_USR_APP (the platform's consumer role) picks up
+-- this graph automatically; no per-user grant is needed for each new graph.
+GRANT R_Graphs_{{ graph_key }}_READ TO R_Graphs_USR_APP;
