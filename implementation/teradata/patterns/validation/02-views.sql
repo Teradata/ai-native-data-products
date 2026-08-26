@@ -1,6 +1,7 @@
--- Validation: latest-run / gate view (Teradata). Binding of the consumption contract and gate authority in design/patterns/validation.md.
+-- Validation: latest-run view (Teradata). Binding of the run record in design/patterns/validation.md §3.1.
 -- Latest-per-(product, producer) projection. The deterministic tie-break
 -- (completed_dts DESC, run_id DESC) is part of the contract (VAL-09).
+-- This is the run-level summary; the per-area trust map a consumer reads is 04-trust-map-views.sql.
 -- {db} is a generic tag, e.g. {Product}_Observability.
 
 REPLACE VIEW {db}.validation_latest
@@ -38,5 +39,7 @@ QUALIFY ROW_NUMBER() OVER (
     ORDER BY completed_dts DESC, run_id DESC
 ) = 1;
 
--- The product-level gate is the row whose producer_id matches the gate-authoritative
+-- The authoritative summary is the row whose producer_id matches the trust-authoritative
 -- producer designated in the product's orientation metadata; other rows are evidence.
+-- trust_status here is advisory: a consumer deciding how far to rely on something reads
+-- validation_trust_map for the areas it is about to query.

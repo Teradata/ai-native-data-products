@@ -34,41 +34,56 @@ Orient to the product, then navigate down:
 5. **Relationship.** Read the path-discovery surface for how to join what you need,
    including multi-hop paths.
 
-## Rule 2: the pre-use trust gate
+## Rule 2: the pre-use trust map
 
-**Read the gate before analytical use, not after.**
+**Read the map before analytical use, not after.** It does not gate you. It tells you how far
+to trust each part of the product, so you can answer with the confidence stated rather than
+implied - and so a defect somewhere you are not looking costs the user nothing.
 
 `design/patterns/validation.md` is authoritative on all of it:
 
 | What you need | Where |
 |---|---|
-| Status vocabulary and how `agent_use_allowed` derives from `trust_status` | §4 |
-| Severity model and what drives `UNTRUSTED` vs `DEGRADED` | §5 |
-| Consumption contract and **gate authority** - which producer's verdict is the gate | §9 |
+| The run record and the per-area entries a validator publishes | §3 |
+| The area key, coverage, and the status/confidence vocabularies | §4 |
+| Severity model: what makes an area `weak` rather than `partial` | §5 |
+| Consumption contract and **trust authority** - whose map you read | §9 |
 | Schema versioning (`payload_schema_version`, the `1.0` legacy binding) | §10 |
 | Staleness and incomplete evidence | §11 |
 
-The rules that matter most in practice:
+Four steps, in this order:
 
-- The product designates **one** gate-authoritative producer in its orientation metadata.
-  Read the latest result from *that* producer. Other producers' results are evidence -
-  surface disagreements, but they do not move the gate. Absent a designation, apply the
-  conservative composite: blocked if **any** producer's latest blocks.
-- `agent_use_allowed = stop` or `trust_status = UNTRUSTED` is a stop for autonomous use,
-  **with no silent override**. Tell the user what blocked it and what would unblock it.
-- `DEGRADED` permits use, but you must **surface the degradation** alongside the results.
-  Never present degraded output as sound.
-- **Stale evidence** (past `evidence_expires_dts`, or outside the product's window): stop for
-  autonomous use; surface prominently in an interactive session. Staleness only ever
-  downgrades.
-- **No evidence** is not the same as trusted. An unvalidated product is unvalidated; do not
-  proceed autonomously.
-- **Never re-derive the verdict yourself**, and never recount the capped JSON blobs. You are
-  read-only. Only a validator computes trust.
+1. **Read.** Find the map and the authoritative producer through orientation. The product
+   designates **one** trust-authoritative producer; that producer's entries are the map. Other
+   producers' entries are evidence - surface disagreements. Absent a designation, take the most
+   cautious entry per area and say that you did.
+2. **Select** the entries for the areas your query plan actually touches: the modules, entities,
+   patterns and capabilities behind the objects you resolved through `AccessObject`. Take the
+   narrowest entry that covers each. **Areas you do not touch place no constraint on your
+   answer** - do not withhold an answer because an unrelated module failed a check.
+3. **Proceed.** No confidence value withholds use. There is no verdict to wait for.
+4. **Disclose, proportionally.** State the confidence for each area you used:
+   - `strong` - say so; you have earned the right to.
+   - `partial` - name what is uncovered, from `open_gaps`.
+   - `weak`, or any CRITICAL/ERROR failure in an area you used - surface it prominently, say
+     what it means for *this* answer, and pass on `recommended_action`.
+   - `unknown` - report it as unknown. An area nothing checked is not an area that passed.
+
+And the standing rules:
+
+- **Stale evidence** (past `evidence_expires_dts`, or outside the product's window) reads at
+  `unknown` whatever it recorded. Say when it was validated and recommend a re-run. Staleness
+  only ever downgrades, and it does not stop you.
+- **No evidence** is not the same as trusted. An unvalidated area is unvalidated: report it that
+  way and answer anyway if the user's question can carry it.
+- **Never re-derive a status or a confidence yourself**, and never recount the capped JSON blobs.
+  You are read-only. Only a validator computes trust.
+- If your own operating policy sets a confidence floor for something you would do unsupervised,
+  that is yours to apply and to state. It is not something the product decided for you.
 
 ## Read on demand
 
-- **`design/patterns/validation.md`** - the gate, per the table above.
+- **`design/patterns/validation.md`** - the trust map, per the table above.
 - **`design/modules/semantic.md`** - what the orientation manifest, entity catalogue, column
   catalogue and path-discovery surfaces contain, and what each field means.
 - **`implementation/{platform}/modules/semantic/06-orientation.md`** - the concrete
@@ -88,8 +103,9 @@ identifier only, by design.
 ## Handover
 
 There is no handoff file: you read the deployed product directly. Your output is the answer,
-in this conversation, citing the entities and joins you used and any trust caveats for the
+in this conversation, citing the entities and joins you used and the trust map entries for the
 areas involved.
 
-If discovery blocks you, or the gate flags the area you need, say so. Do not fall back to
-guessing structure or presenting untrusted data as reliable.
+If discovery blocks you, say so. Where the map is weak or unknown for an area you used, give the
+answer *and* the caveat: do not fall back to guessing structure, and do not present a low-confidence
+result as a sound one.

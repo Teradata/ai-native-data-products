@@ -1,4 +1,5 @@
--- Validation: results table (Teradata). Binding of the validation result contract in design/patterns/validation.md.
+-- Validation: run record (Teradata). Binding of the validation result contract in design/patterns/validation.md.
+-- The run-level summary; the per-area trust map is 03-validation-area.sql.
 -- Operational evidence in the Observability module; append-only (EVENT_APPEND_ONLY).
 -- {db} is a generic tag bound by object-placement, e.g. {Product}_Observability.
 
@@ -12,18 +13,20 @@ CREATE MULTISET TABLE {db}.validation_run
     profile_id VARCHAR(64) CHARACTER SET LATIN,
     profile_version VARCHAR(32) CHARACTER SET LATIN,
     source_format VARCHAR(20) CHARACTER SET LATIN NOT NULL DEFAULT 'NATIVE',
-    payload_schema_version VARCHAR(8) CHARACTER SET LATIN NOT NULL DEFAULT '2.0',
+    payload_schema_version VARCHAR(8) CHARACTER SET LATIN NOT NULL DEFAULT '2.1',
 
     -- Run identity
     run_id VARCHAR(64) CHARACTER SET LATIN NOT NULL,
     started_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     completed_dts TIMESTAMP(6) WITH TIME ZONE NOT NULL,
 
-    -- Gate result
+    -- Advisory product-level summary of the map (§4.4). Not permission, not a decision.
     trust_status VARCHAR(16) CHARACTER SET LATIN NOT NULL,
+    -- Deprecated at schema 2.1: kept so a 2.0 reader still parses the record. A 2.1 producer
+    -- publishes 1 and no consumer branches on it; the trust map carries what mattered here.
     agent_use_allowed BYTEINT NOT NULL CHECK (agent_use_allowed IN (0, 1)),
 
-    -- Check totals (status axis) and gate counts (severity axis)
+    -- Check totals (status axis) and counts by severity
     total_checks INTEGER NOT NULL,
     passed_count INTEGER NOT NULL,
     failed_count INTEGER NOT NULL,

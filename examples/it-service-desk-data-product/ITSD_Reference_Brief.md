@@ -507,10 +507,14 @@ Reviewer: [identity]
 Evidence sources: design brief, build SQL, live Teradata product (MCP)
 
 ### [Module Name]
-| Area | Coverage | Status | Confidence | Open Gaps |
-|---|---|---|---|---|
-| [invariant or rule id] | [checks that exist / ran] | pass/fail/not-yet-validated/no-evidence | strong/partial/weak/unknown | [prose] |
+| Area | Coverage | Status | Confidence | Open Gaps | Recommended Action |
+|---|---|---|---|---|---|
+| [scope, e.g. MODULE:domain or ENTITY:domain.Ticket] | [checks ran / checks expected] | pass/fail/partial/not-validated/no-evidence | strong/partial/weak/unknown | [prose] | [what would raise trust] |
 ```
+
+The vocabulary is the published one (`design/patterns/validation.md` §4), so the review's map is
+the same artefact a validator later publishes as `validation_area` rows. Cite the invariant or rule
+id behind each entry in the gaps column.
 
 **Severity:**
 

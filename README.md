@@ -112,7 +112,7 @@ Cross-cutting concerns that modules *apply* (referenced, never restated):
 | **[temporal-lifecycle-metadata](design/patterns/temporal-lifecycle-metadata.md)** | Canonical temporal/lifecycle contract; half-open SCD2; point-in-time |
 | **[object-placement](design/patterns/object-placement.md)** | Where objects live and who may reach them (interface spec) |
 | **[physical-storage](design/patterns/physical-storage.md)** | Object-storage layout beneath logical containers (interface spec) |
-| **[validation](design/patterns/validation.md)** | The validation-result contract and the agent stop/go gate |
+| **[validation](design/patterns/validation.md)** | The validation-result contract and the per-area trust map an agent reads before use |
 | **[access-layer](design/patterns/access-layer.md)** | The three roles and phased grants that make a product reachable |
 
 ---

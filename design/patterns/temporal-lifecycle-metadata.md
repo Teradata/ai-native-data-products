@@ -219,7 +219,7 @@ The pattern defines two exposure **surfaces** per consumable entity. How each is
 
 ## 10. Conformance Rules
 
-Lifted directly into validator profiles by the [validation pattern](validation.md). Rules marked **[B]** are blocking (agent stop/go); the rest default to warning severity.
+Lifted directly into validator profiles by the [validation pattern](validation.md), scoped to this pattern's area or to the entity a data check resolves. Rules marked **[B]** carry CRITICAL/ERROR severity, which takes the area they fail in to `weak` confidence; the rest default to warning severity.
 
 | Rule | Check |
 |------|-------|
@@ -256,7 +256,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 
 ## 12. Relationship to Other Standards
 
-- **[Validation pattern](validation.md)**: rules are written to lift directly into validator profiles; blocking rules gate agent use.
+- **[Validation pattern](validation.md)**: rules are written to lift directly into validator profiles; a `[B]` rule failing takes its area to `weak` confidence on the published trust map.
 - **[Object-placement pattern](object-placement.md)**: layer *naming* is owned by object placement; defines layer *responsibilities* only.
 - **[Access-layer pattern](access-layer.md)**: realises the surfaces as concrete access objects.
 - **[Semantic module](../modules/semantic.md)**: its entity metadata carries the profile declaration; its own catalogue tables follow the current-state or SCD2 profile.

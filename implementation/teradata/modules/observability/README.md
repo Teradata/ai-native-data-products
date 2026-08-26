@@ -22,14 +22,14 @@ Teradata binding of [`design/modules/observability.md`](../../../../design/modul
 | `03-lineage-views.sql.j2` | `lineage_graph` and `lineage_run_latest`: deployed into the Semantic container. |
 | `04-openlineage.md` | OpenLineage entity/column mapping and RunEvent construction. |
 
-**Validation results.** The `validation_run` table and its `validation_latest` gate view are defined by the [validation pattern implementation](../../patterns/validation/) and deployed into this module's `{{ product }}_Observability` container. This module does not redefine them.
+**Validation results.** The `validation_run` and `validation_area` tables and their `validation_latest` / `validation_trust_map` views are defined by the [validation pattern implementation](../../patterns/validation/) and deployed into this module's `{{ product }}_Observability` container. This module does not redefine them.
 
 ## Capability bindings
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
 | Outcome & quality evidence | `agent_outcome`, `data_quality_metric`: read by Memory's closed-loop learning. |
-| Validation results home | Hosts the validation pattern's `validation_run`. |
+| Validation results home | Hosts the validation pattern's `validation_run` and `validation_area` (the trust map). |
 | Lineage | `data_lineage` + `lineage_run`, exposed via `lineage_graph` / `lineage_run_latest` in Semantic. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
 | `access-layer` write-back | `ROLE_AGENT` holds `INSERT` here (Phase 2.5). |
@@ -40,5 +40,5 @@ Teradata binding of [`design/modules/observability.md`](../../../../design/modul
 |-----------|--------------|
 | `INV-OBS-002` (table-level, aggregate) | Schema: `records_affected` count, `table_name` only: no instance-key columns. |
 | `INV-OBS-003` (lineage split) | Two tables: `data_lineage` (one row per flow) + `lineage_run` (one row per execution, FK to definition). |
-| `INV-OBS-005` (validation home) | `validation_run` deployed here (validation pattern), profile `EVENT_APPEND_ONLY`. |
+| `INV-OBS-005` (validation home) | `validation_run` and `validation_area` deployed here (validation pattern), profile `EVENT_APPEND_ONLY`. |
 | `INV-OBS-006` (stable graph) | `lineage_graph` reads `data_lineage WHERE is_active = 1` only. |

@@ -32,4 +32,6 @@ me. Be specific: cite the invariant or rule id behind every entry.
 - **Composition:** [which modules/patterns are in scope]
 
 Review one area at a time; let the map grow as you go. Tell me where an area has no automated
-check rather than recording it as passing.
+check rather than recording it as passing. Use the published map vocabulary from
+`design/patterns/validation.md` §4 - area scope, coverage, status, confidence, gaps, recommended
+action - so what you produce can be published into the product's own Observability store unchanged.

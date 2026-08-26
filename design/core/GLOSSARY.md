@@ -83,4 +83,6 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Temporal data**: Data that tracks change over time, distinguishing *valid time* (when true in reality) from *transaction time* (when recorded). Governed by the [temporal-lifecycle-metadata pattern](../patterns/temporal-lifecycle-metadata.md).
 
+**Trust map**: The per-area picture of what a product's validation has proven: for each area (a module, entity, pattern, or capability), which checks exist, which ran, what they found, and how far the result supports use. It informs rather than permits — no entry withholds use of the product — and it bounds what a failure costs to the area it belongs to. Defined by the [validation pattern](../patterns/validation.md); published by a validator into Observability, and built by hand by a reviewer before one exists.
+
 **Vector store**: A store optimised for holding and searching high-dimensional vectors by similarity. On a given platform it may be a native capability or a specialist component; bound by the `NearestNeighbors` / `ApproxIndex` capabilities.
