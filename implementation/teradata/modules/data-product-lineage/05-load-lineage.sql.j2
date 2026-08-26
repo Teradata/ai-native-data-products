@@ -1,0 +1,188 @@
+{#
+  Data Product Lineage: load path from Observability into the graph adapter (Teradata).
+  Binding of design/modules/data-product-lineage.md section 6.
+
+  Reads {{ product }}_Observability.data_lineage and .agent_outcome; writes
+  only into this package's own Graphs_{{ graph_key }}_STD_0_T tables
+  (INV-DPL-001: never writes back into Observability). Idempotent set-based
+  INSERT ... WHERE NOT EXISTS, the same idiom the temporal-lifecycle-metadata
+  pattern's own maintenance DML uses, run on whatever cadence DEC-GRAPH-LOAD-CADENCE
+  settles on for this product.
+
+  Node identity is allocated once per natural key and never renumbered (step 1-5
+  only INSERT new natural keys; an existing node's node_id is untouched). Steps 6-9
+  resolve natural keys to node_id and insert new edges only, deduplicated on
+  (source_node_id, target_node_id, edge_type) by the table's own unique index.
+
+  Only active lineage definitions are loaded (INV-DPL-004, matching INV-OBS-006):
+  every read from data_lineage below carries WHERE dl.is_active = 1.
+
+  Template variables:
+    product   : as in 01-graph-tables.sql.j2.
+    graph_key : as in 01-graph-tables.sql.j2.
+#}
+-- 1. TABLE nodes: every source and target table in an active lineage flow ----------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_nodes (natural_key, node_label, category)
+SELECT DISTINCT
+       'TABLE::' || t.container_name || '.' || t.object_name
+     , t.container_name || '.' || t.object_name
+     , 'TABLE'
+FROM (
+    SELECT source_database AS container_name, source_table AS object_name
+    FROM {{ product }}_Observability.data_lineage
+    WHERE is_active = 1 AND source_table IS NOT NULL
+    UNION
+    SELECT target_database, target_table
+    FROM {{ product }}_Observability.data_lineage
+    WHERE is_active = 1 AND target_table IS NOT NULL
+) AS t
+WHERE NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS n
+    WHERE n.natural_key = 'TABLE::' || t.container_name || '.' || t.object_name
+);
+
+-- 2. JOB nodes: every distinct job named by an active lineage flow -----------------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_nodes (natural_key, node_label, category)
+SELECT DISTINCT 'JOB::' || dl.job_name, dl.job_name, 'JOB'
+FROM {{ product }}_Observability.data_lineage AS dl
+WHERE dl.is_active = 1 AND dl.job_name IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS n
+    WHERE n.natural_key = 'JOB::' || dl.job_name
+);
+
+-- 3. COLUMN nodes: only where column-level lineage is populated (DEC-GRAPH-COLUMN-LINEAGE) --
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_nodes (natural_key, node_label, category)
+SELECT DISTINCT
+       'COLUMN::' || c.container_name || '.' || c.object_name || '.' || c.column_name
+     , c.container_name || '.' || c.object_name || '.' || c.column_name
+     , 'COLUMN'
+FROM (
+    SELECT source_database AS container_name, source_table AS object_name, source_column AS column_name
+    FROM {{ product }}_Observability.data_lineage
+    WHERE is_active = 1 AND source_column IS NOT NULL
+    UNION
+    SELECT target_database, target_table, target_column
+    FROM {{ product }}_Observability.data_lineage
+    WHERE is_active = 1 AND target_column IS NOT NULL
+) AS c
+WHERE NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS n
+    WHERE n.natural_key = 'COLUMN::' || c.container_name || '.' || c.object_name || '.' || c.column_name
+);
+
+-- 4. AGENT nodes: every agent that has recorded an outcome -------------------------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_nodes (natural_key, node_label, category)
+SELECT DISTINCT 'AGENT::' || ao.agent_key, ao.agent_key, 'AGENT'
+FROM {{ product }}_Observability.agent_outcome AS ao
+WHERE NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS n
+    WHERE n.natural_key = 'AGENT::' || ao.agent_key
+);
+
+-- 5. QUERY_SESSION nodes: only where a session was recorded (DEC-GRAPH-SESSION-NODES) --
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_nodes (natural_key, node_label, category)
+SELECT DISTINCT 'SESSION::' || ao.session_key, ao.session_key, 'QUERY_SESSION'
+FROM {{ product }}_Observability.agent_outcome AS ao
+WHERE ao.session_key IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS n
+    WHERE n.natural_key = 'SESSION::' || ao.session_key
+);
+
+-- 6. `produces` edges, routed through the job when one is named --------------------
+-- Leg A: source table -> job
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT src.node_id, job.node_id, 'produces', 1.0, dl.lineage_id
+FROM {{ product }}_Observability.data_lineage AS dl
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS src
+  ON src.natural_key = 'TABLE::' || dl.source_database || '.' || dl.source_table
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS job
+  ON job.natural_key = 'JOB::' || dl.job_name
+WHERE dl.is_active = 1 AND dl.source_table IS NOT NULL AND dl.job_name IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = src.node_id AND e.target_node_id = job.node_id AND e.edge_type = 'produces'
+);
+
+-- Leg B: job -> target table
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT job.node_id, tgt.node_id, 'produces', 1.0, dl.lineage_id
+FROM {{ product }}_Observability.data_lineage AS dl
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS job
+  ON job.natural_key = 'JOB::' || dl.job_name
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS tgt
+  ON tgt.natural_key = 'TABLE::' || dl.target_database || '.' || dl.target_table
+WHERE dl.is_active = 1 AND dl.job_name IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = job.node_id AND e.target_node_id = tgt.node_id AND e.edge_type = 'produces'
+);
+
+-- Leg C: no job named - source table -> target table directly
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT src.node_id, tgt.node_id, 'produces', 1.0, dl.lineage_id
+FROM {{ product }}_Observability.data_lineage AS dl
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS src
+  ON src.natural_key = 'TABLE::' || dl.source_database || '.' || dl.source_table
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS tgt
+  ON tgt.natural_key = 'TABLE::' || dl.target_database || '.' || dl.target_table
+WHERE dl.is_active = 1 AND dl.source_table IS NOT NULL AND dl.job_name IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = src.node_id AND e.target_node_id = tgt.node_id AND e.edge_type = 'produces'
+);
+
+-- 7. `derives_column` edges: direct source column -> target column -----------------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT src.node_id, tgt.node_id, 'derives_column', 1.0, dl.lineage_id
+FROM {{ product }}_Observability.data_lineage AS dl
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS src
+  ON src.natural_key = 'COLUMN::' || dl.source_database || '.' || dl.source_table || '.' || dl.source_column
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS tgt
+  ON tgt.natural_key = 'COLUMN::' || dl.target_database || '.' || dl.target_table || '.' || dl.target_column
+WHERE dl.is_active = 1 AND dl.source_column IS NOT NULL AND dl.target_column IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = src.node_id AND e.target_node_id = tgt.node_id AND e.edge_type = 'derives_column'
+);
+
+-- 8. `accessed_by` edges: table -> agent, exploding the comma-separated
+--    AgentOutcome.tables_accessed (table-level per INV-OBS-002) ---------------------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT DISTINCT tbl.node_id, agt.node_id, 'accessed_by', 1.0, CAST(NULL AS INTEGER)
+FROM {{ product }}_Observability.agent_outcome AS ao
+JOIN TABLE (TD_SYSFNLIB.STRTOK_SPLIT_TO_TABLE(ao.outcome_id, ao.tables_accessed, ',')
+            RETURNS (outcome_id INTEGER, token_num INTEGER,
+                     token VARCHAR(300) CHARACTER SET UNICODE))
+     AS accessed (outcome_id, token_num, token)
+  ON accessed.outcome_id = ao.outcome_id
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS tbl
+  ON tbl.natural_key = 'TABLE::' || TRIM(accessed.token)
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS agt
+  ON agt.natural_key = 'AGENT::' || ao.agent_key
+WHERE ao.tables_accessed IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = tbl.node_id AND e.target_node_id = agt.node_id AND e.edge_type = 'accessed_by'
+);
+
+-- 9. `queried_in` edges: agent -> session -------------------------------------------
+INSERT INTO Graphs_{{ graph_key }}_STD_0_T.graph_edges
+      (source_node_id, target_node_id, edge_type, edge_weight, lineage_id)
+SELECT DISTINCT agt.node_id, sess.node_id, 'queried_in', 1.0, CAST(NULL AS INTEGER)
+FROM {{ product }}_Observability.agent_outcome AS ao
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS agt
+  ON agt.natural_key = 'AGENT::' || ao.agent_key
+JOIN Graphs_{{ graph_key }}_STD_0_T.graph_nodes AS sess
+  ON sess.natural_key = 'SESSION::' || ao.session_key
+WHERE ao.session_key IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM Graphs_{{ graph_key }}_STD_0_T.graph_edges AS e
+    WHERE e.source_node_id = agt.node_id AND e.target_node_id = sess.node_id AND e.edge_type = 'queried_in'
+);

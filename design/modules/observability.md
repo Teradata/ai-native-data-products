@@ -90,9 +90,11 @@ Entity: DataLineage               [kind: Record]  // definitional; one row per f
   lineage_id: Identifier
   source_container: ShortText [optional]
   source_table: ShortText [optional]
+  source_column: ShortText [optional]  // null for a table-level flow; set only for column-level lineage
   source_system: ShortText [optional]  // external origin; null if internal
   target_container: ShortText [optional]
   target_table: ShortText [required]
+  target_column: ShortText [optional]  // null for a table-level flow; set only for column-level lineage
   job_name: ShortText [optional]
   transformation_type: Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT} [optional]
   transformation_logic: Text [optional]
@@ -177,6 +179,7 @@ Observability is **cross-cutting and soft**: nothing hard-depends on it, and it 
 |------------|-------------------|
 | `ChangeEventCapture` | Any module recording who changed an entity instance, when, and why: the audit trail that `DEC-COLUMN-STRATEGY` offloads here. |
 | `LineageCapture` | Any module recording the origin of an instance: source system, source record, and producing run. |
+| `AgentOutcomeCapture` | Any module or exposure layer recording which tables an agent touched, when, and with what outcome (`AgentOutcome`). |
 | `QualityScore` | Agents judging fitness before use, and Memory as a learning input. Held as a time series per `DEC-QUALITY-STORAGE`. |
 | Validation results home | The validation pattern, as the container for `validation_run` and the `validation_area` trust map. |
 | Lineage exposure (definitional + operational) | Agents and dashboards, via the Semantic exposure. |

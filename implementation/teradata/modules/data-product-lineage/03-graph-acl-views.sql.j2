@@ -1,0 +1,93 @@
+{#
+  Data Product Lineage: graph-explorer ACL adapter views (Teradata). Binding of
+  design/modules/data-product-lineage.md section 7 and the external Teradata
+  Graph Explorer data contract (graph-data-contract.md, contract version 2.0.0)
+  sections 4.2-4.4.
+
+  THIS is the contract surface. Every column name below is fixed by the external
+  contract and MUST NOT be renamed; consumers bind only to these three views, never
+  to the STD_0_T/STD_0_V objects in 01-/02-.
+
+  Template variables:
+    graph_key : as in 01-graph-tables.sql.j2.
+
+  created_dts is named identically here and on the base table: as of contract
+  version 2.0.0 the external contract's recommended provenance column is
+  `created_dts`, aligned with this repository's own temporal-lifecycle-metadata
+  naming (TLM-04) precisely so no adapter view needs to rename it. Earlier
+  contract versions recommended the singular `created_dt`, which collided with
+  TLM-04; that collision is resolved upstream, not papered over here.
+#}
+REPLACE VIEW Graphs_{{ graph_key }}_ACL_0_V.graph_nodes
+(
+      node_id       -- natural_key: recommended attribute, distinct from `node`
+    , node_label
+    , node          -- canonical surrogate identity
+    , category
+    , community
+    , importance
+    , node_role
+    , created_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      natural_key   AS node_id
+    , node_label
+    , node_id        AS node
+    , category
+    , community
+    , importance
+    , node_role
+    , created_dts
+FROM Graphs_{{ graph_key }}_STD_0_V.graph_nodes;
+
+REPLACE VIEW Graphs_{{ graph_key }}_ACL_0_V.graph_edges
+(
+      edge_id
+    , node_i        -- source_node_id (upstream)
+    , node_j        -- target_node_id (downstream)
+    , weight
+    , edge_type
+    , created_dts
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      edge_id
+    , source_node_id AS node_i
+    , target_node_id AS node_j
+    , edge_weight     AS weight
+    , edge_type
+    , created_dts
+FROM Graphs_{{ graph_key }}_STD_0_V.graph_edges;
+
+-- Undirected traversal projection (graph-data-contract.md section 4.4). The directed
+-- view above remains the source of truth for trace direction and impact analysis;
+-- this is a projection for traversal only, not evidence the relationship is symmetric.
+REPLACE VIEW Graphs_{{ graph_key }}_ACL_0_V.graph_edges_bi
+(
+      node_i
+    , node_j
+    , weight
+    , edge_type
+)
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      node_i
+    , node_j
+    , weight
+    , edge_type
+FROM (
+    SELECT node_i, node_j, weight, edge_type
+    FROM Graphs_{{ graph_key }}_ACL_0_V.graph_edges
+
+    UNION ALL
+
+    SELECT node_j AS node_i, node_i AS node_j, weight, edge_type
+    FROM Graphs_{{ graph_key }}_ACL_0_V.graph_edges
+) AS symmetric_edges
+-- Deterministic dedup of accidental mirror rows (contract 4.4): one row per
+-- (node_i, node_j) pair, picking the lowest weight so the projection is stable.
+QUALIFY ROW_NUMBER() OVER (PARTITION BY node_i, node_j ORDER BY weight) = 1;
