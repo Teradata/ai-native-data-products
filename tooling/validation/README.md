@@ -93,3 +93,11 @@ Module and pattern documents must never use either: they are exactly the content
 ```bash
 python -m unittest discover -s tooling/validation/tests
 ```
+
+Two kinds of test live there, and the distinction matters when one fails.
+
+**Corpus tests** hold the standards to their own rules: the linter's own behaviour, frontmatter and catalogue currency, and that every SQL template still renders canonical SQL under `StrictUndefined`. A failure means a document or a template is wrong.
+
+**Behavioural tests** execute shipped SQL. `test_trust_map.py` runs the validation pattern's read path — the trust map views, the consumer's scope reconciliation, and the conformance checks that resolve an area's identity — against stdlib `sqlite3`, through the narrow Teradata translator in `td_sqlite.py`. The SQL is read from `implementation/`, never retyped here, so reverting a fix in the pattern fails these tests. A failure means the *product's* SQL is wrong, not the standards.
+
+`td_sqlite.py` raises `UntranslatedSql` rather than guessing: a Teradata construct it does not handle breaks the harness loudly instead of being dropped from the statement it was load-bearing in. Extend it when the shipped SQL grows one. It is not a Teradata emulator and platform conformance is not its job — that stays the pattern's own `conformance-queries.sql`, run against a deployed product.

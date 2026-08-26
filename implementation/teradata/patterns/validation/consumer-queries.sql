@@ -1,7 +1,7 @@
 -- Validation: consumer queries (Teradata). Binding of the consumption contract, trust authority,
 -- and staleness rules in design/patterns/validation.md §9, §11.
 -- {db} is a generic tag, e.g. {Product}_Observability. :trust_producer comes from orientation
--- (trust_authoritative_producer; gate_authoritative_producer is the legacy spelling).
+-- (trust_authoritative_producer).
 --
 -- Nothing below withholds use of the product. The map says how far to trust each area and what
 -- would raise it; the consumer proceeds and reports what it read (§9: read, select, proceed, disclose).

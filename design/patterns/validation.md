@@ -273,7 +273,7 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 
 **The designation is made at design time.** Everything above is written from the consumer's side, and a consumer can only read a designation that already exists. VAL-13 is checked at runtime; the fact it checks has to be established while the product is being designed, because by deploy time the manifest is already written. So it is a designer's obligation, stated here rather than left to be inferred from the consumer rule:
 
-> Name the producer whose trust map is the product's authoritative one. Record it as a design decision, and carry it into the orientation manifest as `trust_authoritative_producer` (the [Semantic module](../modules/semantic.md) owns the field; `gate_authoritative_producer` is the legacy spelling and readers still honour it). Where the product has exactly one producer it is authoritative by definition, and must still be named: an implicit designation is not readable.
+> Name the producer whose trust map is the product's authoritative one. Record it as a design decision, and carry it into the orientation manifest as `trust_authoritative_producer` (the [Semantic module](../modules/semantic.md) owns the field). Where the product has exactly one producer it is authoritative by definition, and must still be named: an implicit designation is not readable.
 
 **Further consumer rules.** Never re-derive a status or a confidence, and never recount capped blobs: only a validator computes trust. Treat unknown JSON keys as additive extension (ignore, don't fail). Apply the staleness rules (§11).
 
@@ -288,6 +288,8 @@ Every record carries `payload_schema_version`; the canonical version is **`2.1`*
 **Wire schema `2.1`** adds the area record, the `scope_kind` / `scope_id` keys on failed-check items, and the deprecation of `agent_use_allowed`. It is additive: a 2.0 reader parses a 2.1 run record unchanged.
 
 **Reading a 2.0 or 1.0 producer.** A producer that publishes no area records still has a readable map: consumers project its run record as one `PRODUCT`-scope entry, with `checks_expected` and `checks_ran` both taken from `total_checks` and the §4.3 rules applied to the run counts. A derived entry is **capped at `partial` confidence**, because a run-level pass says nothing about which areas it covered, and it is marked as derived rather than published so a consumer can tell the difference. The map then covers one area, the whole product, which is exactly as much as such a producer knows.
+
+**Selecting records by version.** `payload_schema_version` is a version string, not an ordered number, so a reader must never select records by comparing it lexically. `'10.0'` sorts below `'2.1'`, so a reader written as "at least 2.1" silently stops covering the schema it was written for the moment a two-digit major version exists. **Registered legacy versions are enumerated explicitly**, and every other version is canonical-or-later by exclusion: a new major version is then covered by every check the day it appears, and registering a new legacy binding is a single edit per reader. This binds consumers and conformance checks alike.
 
 **Wire schema `1.0`** remains the registered legacy binding (the same status/count/score/JSON fields without the producer-identity, `source_format`, `payload_schema_version`, or `evidence_expires_dts` fields); consumers treat a 1.0 record as an implied single producer. Producer and consumer are held together by a **shared golden fixture**: both build gates fail on drift.
 

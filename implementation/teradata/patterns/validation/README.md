@@ -44,6 +44,19 @@ Append, never replace: each run inserts exactly one `validation_run` row (VAL-09
 
 The authoritative map is the set of rows whose `producer_id` matches the trust-authoritative producer designated in the product's orientation metadata; other producers' rows are evidence. Nothing in either relation withholds use of the product: a consumer reads the areas it is about to query, proceeds, and discloses their confidence and gaps.
 
+## Regression tests
+
+The read path is logic, and the review of this pattern's #57 revision found three defects in it that inspection had missed: staleness graded against the wrong run, a legacy fallback that swallowed a malformed run, and a requested area that vanished instead of reporting itself unknown. [`tooling/validation/tests/test_trust_map.py`](../../../../tooling/validation/tests/test_trust_map.py) states each as a behaviour and executes it:
+
+```bash
+python -m unittest discover -s tooling/validation/tests
+```
+
+The SQL is **read from the files in this directory**, never retyped, and translated onto stdlib `sqlite3` by [`td_sqlite.py`](../../../../tooling/validation/tests/td_sqlite.py) so nothing in `tooling/` needs a live platform. Reverting a fix here fails those tests. Two consequences worth knowing before changing anything in this directory:
+
+- **A new Teradata construct breaks the harness loudly.** The translator handles an explicit, narrow set of rewrites and raises `UntranslatedSql` on anything else, rather than dropping the clause it was load-bearing in. Extend it in the same commit.
+- **It does not test Teradata's semantics.** `QUALIFY` becomes a wrapped `ROW_NUMBER`, `INTERVAL` becomes date arithmetic, and a zone-qualified timestamp becomes ISO text: faithful for the comparisons the map makes, not in general. Platform conformance stays `conformance-queries.sql` run against the deployed product; the suite is the net underneath it.
+
 ## Legacy binding (wire schema 1.0)
 
 1.0 publishes the same status/count/score/JSON columns without the producer-identity, `source_format`, `payload_schema_version`, or audit columns, with run timestamps as `VARCHAR(40)` ISO-8601 (`started_at`/`completed_at`) under producer-specific object names in the **Semantic** module (`trust_engine_run` / `trust_engine_latest`). Migration is a re-publish (start inserting into `validation_run` with identity populated; repoint orientation), not a rename.

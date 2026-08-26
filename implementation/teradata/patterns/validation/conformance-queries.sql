@@ -9,9 +9,14 @@ WHERE trust_status NOT IN ('TRUSTED', 'DEGRADED', 'UNTRUSTED');
 
 -- VAL-02: agent_use_allowed is deprecated at 2.1 and published as go. It is retained only so a
 -- 2.0 reader still parses the record; consumers branch on the trust map, never on this field.
+-- "At the canonical schema or later" is expressed by excluding the registered legacy versions,
+-- never as a lexical comparison against '2.1': payload_schema_version is a string, so '10.0'
+-- sorts below '2.1' and a future major version would silently fall out of every check below.
+-- The list is the same one the trust map's legacy fallback uses (04-trust-map-views.sql), so a
+-- newly registered legacy binding is added in exactly two places.
 SELECT run_id, producer_id, payload_schema_version, agent_use_allowed
 FROM {db}.validation_run
-WHERE payload_schema_version >= '2.1'
+WHERE payload_schema_version NOT IN ('1.0', '2.0')
   AND agent_use_allowed <> 1;
 
 -- VAL-04: run check totals reconcile
@@ -146,12 +151,13 @@ WHERE NOT EXISTS (
           AND r.run_id         = a.run_id
       );
 
--- VAL-18 (every 2.1 run publishes at least one area entry - not only a run with failures.
--- Without this, a malformed 2.1 producer that publishes zero area rows is silently re-dressed
--- as a legacy product by the trust map's schema 2.0/1.0 fallback (04-trust-map-views.sql).)
+-- VAL-18 (every canonical-schema run publishes at least one area entry - not only a run with
+-- failures. Without this, a malformed 2.1 producer that publishes zero area rows is silently
+-- re-dressed as a legacy product by the trust map's schema 2.0/1.0 fallback
+-- (04-trust-map-views.sql).)
 SELECT r.run_id, r.producer_id, r.payload_schema_version
 FROM {db}.validation_run AS r
-WHERE r.payload_schema_version = '2.1'
+WHERE r.payload_schema_version NOT IN ('1.0', '2.0')
   AND NOT EXISTS (
         SELECT 1
         FROM {db}.validation_area AS a
@@ -163,7 +169,7 @@ WHERE r.payload_schema_version = '2.1'
 -- VAL-18 (a run that found failures publishes somewhere for them to land)
 SELECT r.run_id, r.producer_id, r.failed_count, r.error_count
 FROM {db}.validation_run AS r
-WHERE r.payload_schema_version >= '2.1'
+WHERE r.payload_schema_version NOT IN ('1.0', '2.0')
   AND r.failed_count + r.error_count > 0
   AND NOT EXISTS (
         SELECT 1
