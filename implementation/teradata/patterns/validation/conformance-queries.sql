@@ -35,6 +35,16 @@ WHERE data_product_trust_score    NOT BETWEEN 0 AND 100
    OR performance_readiness_score NOT BETWEEN 0 AND 100
    OR operational_readiness_score NOT BETWEEN 0 AND 100;
 
+-- VAL-09: an area's completed_dts is inherited from its parent run, so latest-per-area ordering
+-- matches latest-per-run and the trust map's staleness join (04-trust-map-views.sql) is sound.
+SELECT a.run_id, a.producer_id, a.scope_kind, a.scope_id, a.completed_dts, r.completed_dts AS run_completed_dts
+FROM {db}.validation_area AS a
+INNER JOIN {db}.validation_run AS r
+        ON  r.product_prefix = a.product_prefix
+        AND r.producer_id    = a.producer_id
+        AND r.run_id         = a.run_id
+WHERE a.completed_dts <> r.completed_dts;
+
 -- VAL-12: producer identity present (canonical schema)
 SELECT run_id
 FROM {db}.validation_run
@@ -44,6 +54,8 @@ WHERE producer_id IS NULL
 
 -- VAL-14: area vocabularies. The CHECK constraints on validation_area enforce the three closed
 -- vocabularies at insert; this catches a scope_id that names nothing, which no constraint can.
+-- Resolvable here for PRODUCT, MODULE and ENTITY against deployed catalogue metadata; PATTERN
+-- and CAPABILITY have no such catalogue and are a producer build-time assertion instead (§14).
 SELECT a.run_id, a.scope_kind, a.scope_id
 FROM {db}.validation_area AS a
 WHERE TRIM(a.scope_id) = '';
@@ -68,6 +80,29 @@ WHERE a.scope_kind = 'ENTITY'
           AND UPPER(e.entity_name) = UPPER(SUBSTRING(a.scope_id FROM
                                             POSITION('.' IN a.scope_id) + 1))
       );
+
+-- VAL-14 (MODULE scope resolves): every module-scoped area names a module the product actually
+-- deployed. {sem} is the product's Semantic container, e.g. {Product}_Semantic.
+SELECT a.run_id, a.scope_kind, a.scope_id
+FROM {db}.validation_area AS a
+WHERE a.scope_kind = 'MODULE'
+  AND NOT EXISTS (
+        SELECT 1
+        FROM {sem}.data_product_map AS dm
+        WHERE dm.is_active = 1
+          AND UPPER(dm.module_name) = UPPER(a.scope_id)
+      );
+
+-- VAL-14 (PRODUCT scope resolves): a PRODUCT-scoped area names this product, not another one.
+SELECT a.run_id, a.scope_kind, a.scope_id
+FROM {db}.validation_area AS a
+WHERE a.scope_kind = 'PRODUCT'
+  AND a.scope_id <> a.product_prefix;
+
+-- VAL-14 (PATTERN, CAPABILITY): these vocabularies have no deployed catalogue a consumer can
+-- resolve against, so a typo'd scope_id (e.g. 'CAPABILITY:reposrting') is caught only by the
+-- producer's own build-time assertion against its validator profile - not runtime SQL, which
+-- cannot see the profile. See design/patterns/validation.md §14 (VAL-14) for the split.
 
 -- VAL-15: per-area counts reconcile, and coverage cannot exceed what the profile defines
 SELECT run_id, producer_id, scope_kind, scope_id, checks_ran, checks_expected
@@ -109,6 +144,20 @@ WHERE NOT EXISTS (
         WHERE r.product_prefix = a.product_prefix
           AND r.producer_id    = a.producer_id
           AND r.run_id         = a.run_id
+      );
+
+-- VAL-18 (every 2.1 run publishes at least one area entry - not only a run with failures.
+-- Without this, a malformed 2.1 producer that publishes zero area rows is silently re-dressed
+-- as a legacy product by the trust map's schema 2.0/1.0 fallback (04-trust-map-views.sql).)
+SELECT r.run_id, r.producer_id, r.payload_schema_version
+FROM {db}.validation_run AS r
+WHERE r.payload_schema_version = '2.1'
+  AND NOT EXISTS (
+        SELECT 1
+        FROM {db}.validation_area AS a
+        WHERE a.product_prefix = r.product_prefix
+          AND a.producer_id    = r.producer_id
+          AND a.run_id         = r.run_id
       );
 
 -- VAL-18 (a run that found failures publishes somewhere for them to land)

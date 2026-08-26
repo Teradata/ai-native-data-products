@@ -20,9 +20,9 @@ Teradata binding of [`design/patterns/validation.md`](../../../../design/pattern
 | `01-validation-run.sql` | The `validation_run` append-only history table (profile `EVENT_APPEND_ONLY`) and its statistics: the run-level summary. |
 | `02-views.sql` | `validation_latest`: the latest-per-(product, producer) run projection. |
 | `03-validation-area.sql` | The `validation_area` append-only trust map: one row per run per area, with its vocabularies CHECK-constrained. |
-| `04-trust-map-views.sql` | `validation_trust_map`: the latest entry per (product, producer, area), coverage derived on read, plus the derived `PRODUCT` entry for a 2.0 producer. |
-| `consumer-queries.sql` | The map read before analytical use, the whole map, the most-cautious composite, evidence age, advisory summary, failure detail, per-area and run trends. |
-| `conformance-queries.sql` | `DBC`/data checks for the VAL conformance rules. `{sem}` tags the product's Semantic container where an `ENTITY` scope is resolved. |
+| `04-trust-map-views.sql` | `validation_trust_map`: the latest entry per (product, producer, area), coverage and staleness derived on read against each area's own run, plus the derived `PRODUCT` entry for a 2.0/1.0 producer. |
+| `consumer-queries.sql` | The map read before analytical use (reconciled against the caller's requested scopes, so a missing area reads as explicit `no-evidence` rather than disappearing), the whole map, the most-cautious composite, run-level evidence-age context, advisory summary, failure detail, per-area and run trends. |
+| `conformance-queries.sql` | `DBC`/data checks for the VAL conformance rules. `{sem}` tags the product's Semantic container where `PRODUCT`, `MODULE`, and `ENTITY` scopes are resolved; `PATTERN`/`CAPABILITY` have no deployed catalogue and are a producer build-time assertion instead. |
 
 Deploy in file order: the views project the tables above them.
 
