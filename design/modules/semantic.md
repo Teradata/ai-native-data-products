@@ -111,7 +111,60 @@ Entity: TableRelationship         [kind: Record]
   is_active: Flag
 ```
 
-### 3.2 Registries and orientation
+### 3.2 Measures
+
+An entity catalogue says what exists and a relationship catalogue says how it joins. Neither says what a number *means*: whether revenue is gross or net, whether a balance may be summed across time, which of four plausible readings of "active customer" the business settled on. A consumer that has to reconstruct that from a column name reconstructs it differently each time, and two consumers then disagree about a figure they both believe they took from the product.
+
+Metrics are declared at model level rather than on an entity, because a metric may span several: a ratio over a fact and a dimension belongs to neither. `MetricDataset` records which entities a metric reads, so the entities a metric needs can be resolved without parsing its expression.
+
+```
+Entity: Metric                    [kind: Record]
+  metric_id: Identifier
+  metric_name: ShortText [required] [unique]  // business name (Total Sales, Churn Rate)
+  metric_description: Text [required]  // what it measures and what it excludes
+  metric_datatype: Code [optional]  // declared result type
+  aggregation_type: Enum{SUM|AVERAGE|COUNT|COUNT_DISTINCT|MIN|MAX|RATIO|DERIVED} [optional]
+  unit: ShortText [optional]  // currency code, percent, count, days
+  grain_description: Text [optional]  // the level the metric is defined at
+  is_additive: Flag  // may be summed across every dimension
+  is_active: Flag
+
+Entity: MetricExpression          [kind: Record]
+  metric_expression_id: Identifier
+  metric_name: Reference [required] [-> Metric]
+  sql_dialect: Code [required]  // the dialect this expression is written in
+  expression_text: Text [required]  // the calculation
+  is_active: Flag
+
+Entity: MetricDataset             [kind: Record]
+  metric_dataset_id: Identifier
+  metric_name: Reference [required] [-> Metric]
+  container_name: ShortText [optional]
+  table_name: ShortText [required]  // an entity the expression reads
+  dataset_role: Enum{PRIMARY|JOINED} [required]
+  is_active: Flag
+```
+
+**A metric carries its expression once per dialect, not once.** The same metric is evaluated by the product's own platform, by a consuming tool that pushes down its own SQL, and by a catalogue that only displays it. One expression per dialect keeps those the same definition rather than three that drift; a product with a single platform declares a single dialect and loses nothing.
+
+**`is_additive` is a correctness flag, not documentation.** A consumer that sums a non-additive measure across time produces a number that is wrong rather than approximate, and nothing downstream can detect it. Declaring it is what lets a tool refuse.
+
+### 3.3 Synonyms
+
+```
+Entity: SemanticSynonym           [kind: Record]
+  synonym_id: Identifier
+  object_kind: Enum{ENTITY|COLUMN|METRIC} [required]
+  container_name: ShortText [optional]  // absent for a metric, which is model-level
+  object_name: ShortText [required]  // entity, table, or metric name
+  column_name: ShortText [optional]  // present when object_kind is COLUMN
+  synonym_text: ShortText [required]  // the alternative term
+  is_active: Flag
+```
+
+The terms a business uses are not the terms a schema uses, and the gap is where natural-language questions fail. A synonym set is separate from the glossary Memory holds: a glossary term is a definition a person reads, a synonym is an alias a resolver matches on.
+
+### 3.4 Registries and orientation
 
 ```
 Entity: DataProductRegistry       [kind: Record]  // product-level orientation anchor
@@ -326,12 +379,15 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-010`: a `COMPOSITE` object's structure is recorded in `AccessComposition` with exactly one `ANCHOR` member, and is expanded as a unit from that metadata, never by parsing the object's definition.
 - `INV-SEMANTIC-011`: the orientation relation lists the required baseline resources, one row per role, in ascending `discovery_order` with the trust map ordered before every analytical resource; consumers use stored identities verbatim, and a missing required resource is a conformance failure.
 - `INV-SEMANTIC-012`: the machine-readable manifest is generated from the registry and orientation relation (a derived view), never hand-authored, so it cannot drift from its sources.
+- `INV-SEMANTIC-013`: every registered metric carries at least one expression, each in a declared dialect, and no two expressions of one metric declare the same dialect.
+- `INV-SEMANTIC-014`: every dataset a metric names is an entity registered in the same product, and every metric names exactly one dataset in the primary role.
+- `INV-SEMANTIC-015`: every synonym resolves to a registered entity, column or metric; a synonym is unique within the object it resolves to.
 
 ---
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the trust-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity.
+**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the trust-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity; the metrics the product publishes, with an expression per dialect and an additivity declaration; synonyms for the terms consumers use.
 
 **Design review checklist:**
 
@@ -344,6 +400,8 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
 - [ ] Consumable objects registered in `AccessObject` and composites recorded in `AccessComposition`; consumers resolve through the registry, not object names (`INV-SEMANTIC-008` to `INV-SEMANTIC-010`).
+- [ ] Every published metric carries an expression per dialect, a primary dataset, and an additivity declaration (`INV-SEMANTIC-013`, `INV-SEMANTIC-014`).
+- [ ] Synonyms resolve to registered objects (`INV-SEMANTIC-015`).
 - [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles), and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
 

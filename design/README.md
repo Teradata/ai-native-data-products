@@ -41,6 +41,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
 | [Access Layer Pattern](patterns/access-layer.md) | `access-layer` | standard | `AccessView` | `DocumentationCapture` | - |
+| [Enterprise Catalogue Interface Pattern](patterns/catalogue-interface.md) | `catalogue-interface` | draft | - | `AccessView`, `CurrentStateFilter`, `PointInTimeReconstruction`, `RichMetadata`, `SemanticRegistration`, `SoftDelete` | `DEC-TEMPORAL-PATTERN`, `DEC-DELETE-STRATEGY` |
 | [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | - | - | - |
 | [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | - | - | - |
 | [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | `RichMetadata`, `SemanticRegistration` | - |

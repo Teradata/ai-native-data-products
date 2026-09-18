@@ -177,3 +177,56 @@ SELECT m.product_id
 FROM {{ product }}_Semantic.data_product_manifest AS m
 WHERE m.trust_authoritative_producer IS NULL
    OR TRIM(m.trust_authoritative_producer) = '';
+-- INV-SEMANTIC-013: a registered metric with no expression
+SELECT m.metric_name
+FROM {{ product }}_Semantic.metric_metadata AS m
+WHERE m.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.metric_expression AS x
+      WHERE x.metric_name = m.metric_name AND x.is_active = 1);
+
+-- INV-SEMANTIC-013: the same dialect declared twice for one metric
+SELECT x.metric_name, x.sql_dialect, COUNT(*) AS expressions
+FROM {{ product }}_Semantic.metric_expression AS x
+WHERE x.is_active = 1
+GROUP BY x.metric_name, x.sql_dialect
+HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-014: a metric dataset that is not a registered active entity
+SELECT d.metric_name, d.container_name, d.table_name
+FROM {{ product }}_Semantic.metric_dataset AS d
+WHERE d.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
+      WHERE e.table_name = d.table_name AND e.is_active = 1);
+
+-- INV-SEMANTIC-014: a metric without exactly one primary dataset
+SELECT m.metric_name, COUNT(d.metric_dataset_id) AS primary_datasets
+FROM {{ product }}_Semantic.metric_metadata AS m
+LEFT OUTER JOIN {{ product }}_Semantic.metric_dataset AS d
+    ON d.metric_name = m.metric_name AND d.dataset_role = 'PRIMARY' AND d.is_active = 1
+WHERE m.is_active = 1
+GROUP BY m.metric_name
+HAVING COUNT(d.metric_dataset_id) <> 1;
+
+-- INV-SEMANTIC-015: a synonym that resolves to nothing
+SELECT s.object_kind, s.object_name, s.column_name, s.synonym_text
+FROM {{ product }}_Semantic.semantic_synonym AS s
+WHERE s.is_active = 1
+  AND NOT (   (s.object_kind = 'ENTITY'
+               AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
+                           WHERE e.table_name = s.object_name AND e.is_active = 1))
+           OR (s.object_kind = 'COLUMN'
+               AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.column_metadata AS c
+                           WHERE c.table_name = s.object_name
+                             AND c.column_name = s.column_name AND c.is_active = 1))
+           OR (s.object_kind = 'METRIC'
+               AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.metric_metadata AS m
+                           WHERE m.metric_name = s.object_name AND m.is_active = 1)));
+
+-- INV-SEMANTIC-015: the same synonym registered twice against one object
+SELECT s.object_kind, s.object_name, s.column_name, s.synonym_text, COUNT(*) AS registrations
+FROM {{ product }}_Semantic.semantic_synonym AS s
+WHERE s.is_active = 1
+GROUP BY s.object_kind, s.object_name, s.column_name, s.synonym_text
+HAVING COUNT(*) > 1;

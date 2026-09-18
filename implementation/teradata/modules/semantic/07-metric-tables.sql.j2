@@ -1,0 +1,129 @@
+-- Semantic module: metric and synonym catalogue (Teradata). Binding of design/modules/semantic.md,
+-- sections Measures and Synonyms. Schema metadata only, never instance data. Replace {{ product }}.
+--
+-- Three metric tables rather than one. Expressions are one-per-dialect because the same
+-- metric is evaluated by the product's platform, by a tool that pushes down its own SQL,
+-- and by a catalogue that only displays it. Datasets are listed rather than parsed out of
+-- the expression, so the entities a metric reads can be resolved by a join.
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+
+-- metric_metadata: the measure catalogue ------------------------------------
+CREATE TABLE {{ product }}_Semantic.metric_metadata (
+    metric_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    metric_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    metric_description VARCHAR(1000) CHARACTER SET UNICODE NOT NULL,
+    metric_datatype VARCHAR(30),             -- Integer, Decimal, Float
+    aggregation_type VARCHAR(20),            -- SUM, AVERAGE, COUNT, COUNT_DISTINCT, MIN, MAX, RATIO, DERIVED
+    unit VARCHAR(30),                        -- currency code, PERCENT, COUNT, DAYS
+    grain_description VARCHAR(500) CHARACTER SET UNICODE,
+    is_additive BYTEINT NOT NULL DEFAULT 1 CHECK (is_additive IN (0, 1)),
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (metric_name);
+
+COMMENT ON TABLE {{ product }}_Semantic.metric_metadata IS
+'Measure catalogue - the calculations the product publishes, with their meaning, grain and additivity. Model-level: a metric may span several entities.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.metric_name IS 'Business name of the measure - Total Sales, Churn Rate. Unique within the product.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.metric_description IS 'What the measure represents, and what it deliberately excludes.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.metric_datatype IS 'Declared result type - Integer, Decimal, Float.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.aggregation_type IS 'SUM, AVERAGE, COUNT, COUNT_DISTINCT, MIN, MAX, RATIO, DERIVED.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.unit IS 'Unit of the result - an ISO currency code, PERCENT, COUNT, DAYS.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.grain_description IS 'The level the measure is defined at, where summing to a coarser grain changes its meaning.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.is_additive IS '1 = may be summed across every dimension. 0 = summing across at least one dimension gives a wrong answer, not an approximate one.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_metadata.is_active IS '1 = published, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.metric_metadata', 'CURRENT_STATE') }}
+
+-- metric_expression: one calculation per dialect -----------------------------
+CREATE TABLE {{ product }}_Semantic.metric_expression (
+    metric_expression_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    metric_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    sql_dialect VARCHAR(30) NOT NULL,        -- ANSI_SQL, TERADATA, SNOWFLAKE, DATABRICKS
+    expression_text VARCHAR(4000) CHARACTER SET UNICODE NOT NULL,
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (metric_name);
+
+COMMENT ON TABLE {{ product }}_Semantic.metric_expression IS
+'Metric calculations, one row per metric per dialect. A product on a single platform declares a single dialect.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_expression.metric_name IS 'Logical parent -> metric_metadata.metric_name (validated by the module checks, no physical constraint).';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_expression.sql_dialect IS 'Dialect the expression is written in - ANSI_SQL, TERADATA, SNOWFLAKE, DATABRICKS.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_expression.expression_text IS 'The calculation, qualified by entity name so it is resolvable without the reader guessing scope.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_expression.is_active IS '1 = current, 0 = superseded.';
+{{ tlm.comments(product ~ '_Semantic.metric_expression', 'CURRENT_STATE') }}
+
+-- metric_dataset: which entities a metric reads ------------------------------
+CREATE TABLE {{ product }}_Semantic.metric_dataset (
+    metric_dataset_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    metric_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    container_name VARCHAR(128) CHARACTER SET UNICODE,
+    table_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    dataset_role VARCHAR(20) NOT NULL CHECK (dataset_role IN ('PRIMARY', 'JOINED')),
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (metric_name);
+
+COMMENT ON TABLE {{ product }}_Semantic.metric_dataset IS
+'Entities each metric reads - resolves a metric to its datasets by join rather than by parsing its expression.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.metric_name IS 'Logical parent -> metric_metadata.metric_name.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.container_name IS 'Container of the entity read.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.table_name IS 'Entity read - must be registered in entity_metadata.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.dataset_role IS 'PRIMARY = the entity the metric is grained on; JOINED = read to complete the calculation. Exactly one PRIMARY per metric.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.is_active IS '1 = current, 0 = no longer read.';
+{{ tlm.comments(product ~ '_Semantic.metric_dataset', 'CURRENT_STATE') }}
+
+-- semantic_synonym: alternative terms ----------------------------------------
+-- Distinct from the Memory glossary. A glossary term is a definition a person reads; a
+-- synonym is an alias a resolver matches a natural-language question against.
+CREATE TABLE {{ product }}_Semantic.semantic_synonym (
+    synonym_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+    object_kind VARCHAR(10) NOT NULL CHECK (object_kind IN ('ENTITY', 'COLUMN', 'METRIC')),
+    container_name VARCHAR(128) CHARACTER SET UNICODE,
+    object_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    column_name VARCHAR(128) CHARACTER SET UNICODE,
+    synonym_text VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (object_name);
+
+COMMENT ON TABLE {{ product }}_Semantic.semantic_synonym IS
+'Alternative terms for entities, columns and metrics - the aliases a natural-language resolver matches on, separate from the Memory glossary.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.object_kind IS 'ENTITY, COLUMN or METRIC - which catalogue the synonym resolves into.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.container_name IS 'Container of the object; absent for a metric, which is model-level.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.object_name IS 'Table name for ENTITY and COLUMN, metric name for METRIC.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.column_name IS 'Column the synonym applies to; present when object_kind is COLUMN.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.synonym_text IS 'The alternative term a consumer is expected to use.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.is_active IS '1 = current, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.semantic_synonym', 'CURRENT_STATE') }}
+
+-- Statistics. metric_name is the primary index of three tables and the join column between
+-- them; object_kind and object_name carry the synonym lookup predicate.
+COLLECT STATISTICS
+    COLUMN (metric_name)
+   ,COLUMN (is_active)
+ON {{ product }}_Semantic.metric_metadata;
+
+COLLECT STATISTICS
+    COLUMN (metric_name)
+   ,COLUMN (sql_dialect)
+   ,COLUMN (metric_name, sql_dialect)
+ON {{ product }}_Semantic.metric_expression;
+
+COLLECT STATISTICS
+    COLUMN (metric_name)
+   ,COLUMN (dataset_role)
+   ,COLUMN (container_name, table_name)
+ON {{ product }}_Semantic.metric_dataset;
+
+COLLECT STATISTICS
+    COLUMN (object_name)
+   ,COLUMN (object_kind)
+   ,COLUMN (object_kind, object_name, column_name)
+ON {{ product }}_Semantic.semantic_synonym;
+
+-- Indexes. All four are metadata tables of tens to hundreds of rows, reached by
+-- metric_name or object_name, which are the primary indexes. No secondary index is
+-- created.

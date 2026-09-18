@@ -239,10 +239,18 @@ enriched Order-with-lines view is a `COMPOSITE` whose members (Order as anchor, 
 Product) are recorded so an agent expands it from metadata. The registry is established
 once at deployment from verifiable structure.
 
+Three measures are published: `Order Value` (additive, grained on Order), `Units Sold`
+(additive, grained on OrderLine), and `Average Order Value` (a ratio, and therefore
+non-additive: summing it across customers or months gives a wrong answer rather than an
+imprecise one). Each carries an ANSI expression and a Teradata expression. Synonyms cover
+the terms the business uses that the schema does not: *basket* and *sale* for `Order`,
+*revenue* for `Order Value`.
+
 **Invariants:** `INV-SEMANTIC-001`, `INV-SEMANTIC-002`, `INV-SEMANTIC-003`,
 `INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`,
 `INV-SEMANTIC-008`, `INV-SEMANTIC-009`, `INV-SEMANTIC-010`,
-`INV-SEMANTIC-011`, `INV-SEMANTIC-012`.
+`INV-SEMANTIC-011`, `INV-SEMANTIC-012`, `INV-SEMANTIC-013`,
+`INV-SEMANTIC-014`, `INV-SEMANTIC-015`.
 
 ---
 
