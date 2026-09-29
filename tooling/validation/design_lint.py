@@ -814,7 +814,10 @@ def lint_paths(paths: List[str]) -> List[Finding]:
     for sql in sql_artifacts:
         sql_text = sql.read_text(encoding="utf-8")
         findings += find_prohibited_name_violations(sql_text, str(sql), prohibited)
-        findings += find_comment_length_violations(sql_text, str(sql))
+        # The 255-character limit is a Teradata platform constraint, not a
+        # platform-neutral RichMetadata requirement.
+        if "teradata" in sql.parts:
+            findings += find_comment_length_violations(sql_text, str(sql))
     return sorted(findings, key=lambda f: (f.path, f.line, f.rule))
 
 
