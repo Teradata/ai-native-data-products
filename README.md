@@ -9,7 +9,7 @@ A modular library of data design patterns for building **AI-Native Data Products
 The framework is split along one boundary:
 
 - **[`design/`](design/)**: **platform-agnostic** standards. Written in logical types, capabilities, and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
-- **[`implementation/{platform}/`](implementation/)**: **platform-specific** bindings (the concrete DDL, queries, and access mechanisms). [Teradata](implementation/teradata/) and [DuckDB](implementation/duckdb/) are sibling references; each documents its enforcement boundaries and capability gaps without changing the design.
+- **[`implementation/{platform}/`](implementation/)**: **platform-specific** bindings (the concrete DDL, queries, and access mechanisms). [Teradata](implementation/teradata/), [DuckDB](implementation/duckdb/) and [PostgreSQL](implementation/postgres/) are sibling references; each documents its enforcement boundaries and capability gaps without changing the design.
 
 The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/): a design document that leaks platform SQL fails the build.
 
@@ -24,7 +24,8 @@ ai-native-data-products/
 │                               physical-storage · validation · access-layer
 ├── implementation/
 │   ├── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
-│   └── duckdb/                 portable file binding and executable conformance
+│   ├── duckdb/                 portable file binding and executable conformance
+│   └── postgres/               server binding, native grants and history constraints
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter
