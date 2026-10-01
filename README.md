@@ -195,3 +195,5 @@ python -m unittest discover -s tooling/validation/tests
 Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See [LICENSE.md](LICENSE.md) for full terms.
 
 Developed by Teradata's Worldwide Data Architecture Team, Field Technology Organization.
+
+Platform contributors must follow the [Platform Implementation Authoring Standard](design/core/IMPLEMENTATION_AUTHORING.md), including the reusable Jinja contract and required acceptance checks.

@@ -34,6 +34,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | [Advocated Standards Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | - | - | - |
 | [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | - | - | - |
 | [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | - | - | - |
+| [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) | `implementation-authoring` | standard | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |
 
 ### Patterns

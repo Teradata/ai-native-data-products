@@ -56,6 +56,8 @@ Every sentence in a design document must pass one test:
 
 The one-line rule: **semantics stay, syntax moves.**
 
+New platform bindings must also satisfy the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md): reusable Jinja templates, explicit input contracts, independent platform discovery and acceptance evidence.
+
 | Belongs in `design/` (semantics) | Belongs in `implementation/` (syntax) |
 |---|---|
 | "Store the entity reference only; join back to Domain for content." | The concrete `INNER JOIN ... ON ...` query. |

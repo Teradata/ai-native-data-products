@@ -24,6 +24,10 @@ document owns what and why; the implementation directory owns how.
 
 `{platform}` is `teradata` unless the design says otherwise.
 
+## Authoring or extending a platform binding
+
+When adding a platform or refactoring its binding, read [Platform Implementation Authoring Standard](../design/core/IMPLEMENTATION_AUTHORING.md) before writing implementation artefacts. Maintain reusable Jinja templates and explicit input contracts, keep generated product output outside the corpus, and provide the required reuse and engine evidence. Its legacy exception preserves the existing Teradata implementation.
+
 ## Procedure
 
 1. **Locate the placement standard before generating any object.** Derive every container
