@@ -27,6 +27,8 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Attribute**: A field of an entity. For example, `party_key` is an attribute of the Party entity. Typed with the [logical vocabulary](DESIGN_LANGUAGE.md).
 
+**Build context**: The single resolved input every platform binding's templates read, produced by shared tooling from a **design specification** and an **organisation profile**. Its schema is the same for every platform. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
+
 **Capability**: A named operation a design requires, declared abstractly and bound per platform. See the [capability catalogue](DESIGN_LANGUAGE.md).
 
 **Co-location**: A platform's ability to store related data together so joins avoid data movement. A physical optimisation; its availability and mechanism are platform-specific.
@@ -40,6 +42,8 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 **Decision**: A named choice a design must settle explicitly, carrying an **advocated option** and stated criteria for departing from it. The third construct alongside capabilities and invariants: where an invariant states what must be true of every implementation, a decision states what legitimately varies between them. Written `DEC-<TOPIC>`, catalogued in the [decision catalogue](ADVOCATED_STANDARDS.md), and declared in each document's frontmatter. See the [Design Language](DESIGN_LANGUAGE.md).
 
 **Design / Implementation split**: The framework's core boundary: platform-agnostic standards in `design/`, platform-specific bindings in `implementation/{platform}/`. See the [Design Language](DESIGN_LANGUAGE.md).
+
+**Design specification**: The design agent's output and the product-specific input to a build: composition, entity models, settled decisions and module configuration, with no platform, container, principal or physical names. Distinct from the *design brief*, which is the design agent's input. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
 **Documentation store**: The part of the Memory module that holds design memory (module registry, design decisions, business glossary, query cookbook, implementation notes, change log), co-located in the product's own Memory store so the product is self-contained.
 
@@ -68,6 +72,8 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 **Module**: A self-contained, independently deployable component responsible for a distinct capability. The six standard modules are Domain, Search, Prediction, Observability, Semantic, and Memory. Modules integrate through join-back and cross-module reference patterns.
 
 **Normative / advisory**: A document's conformance weight, declared in its **frontmatter**. *Normative* content is required: violating it makes a product non-conformant. *Advisory* content is recommended but not required. Placement in the hierarchy is a navigation aid and never a substitute for the declaration.
+
+**Organisation profile**: An organisation's machine-readable configuration of the standard for its own environment (placement, naming, access, classification, retention, environments and existing structures to adopt), reused by every product it builds. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
 **Platform profile**: A per-platform document collecting the physical-design conventions that apply across every binding for that platform: key strategy, partitioning, indexing, compression, statistics. Advisory rather than normative: it records recommended defaults, and a workload with different needs may deviate from them.
 

@@ -196,4 +196,4 @@ Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons Att
 
 Developed by Teradata's Worldwide Data Architecture Team, Field Technology Organization.
 
-Platform contributors must follow the [Platform Implementation Authoring Standard](design/core/IMPLEMENTATION_AUTHORING.md), including the reusable Jinja contract and required acceptance checks.
+Platform contributors must follow the [Platform Implementation Authoring Standard](design/core/IMPLEMENTATION_AUTHORING.md): one design specification must build a working product on any conforming platform, under any organisation's configuration.

@@ -22,11 +22,12 @@ and invariant the design declares.
 `design/modules/{module}.md` when you need to know *why* a binding exists. The design
 document owns what and why; the implementation directory owns how.
 
-`{platform}` is `teradata` unless the design says otherwise.
+`{platform}` is the target chosen for this build. The design specification does not choose it;
+ask if it has not been given.
 
 ## Authoring or extending a platform binding
 
-When adding a platform or refactoring its binding, read [Platform Implementation Authoring Standard](../design/core/IMPLEMENTATION_AUTHORING.md) before writing implementation artefacts. Maintain reusable Jinja templates and explicit input contracts, keep generated product output outside the corpus, and provide the required reuse and engine evidence. Its legacy exception preserves the existing Teradata implementation.
+When adding a platform or changing its binding, read the [Platform Implementation Authoring Standard](../design/core/IMPLEMENTATION_AUTHORING.md) before writing implementation artefacts. A binding builds from three inputs only (the design specification, the organisation profile and its own templates), its templates read only the shared build context, generated product output stays outside the corpus, and conformance is shown by the required portability and engine evidence. It applies to every platform alike.
 
 ## Procedure
 

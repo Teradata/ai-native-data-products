@@ -56,7 +56,7 @@ Every sentence in a design document must pass one test:
 
 The one-line rule: **semantics stay, syntax moves.**
 
-New platform bindings must also satisfy the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md): reusable Jinja templates, explicit input contracts, independent platform discovery and acceptance evidence.
+Every platform binding must also satisfy the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md): it builds any conforming design specification, under any conforming organisation profile, from templates that read only the shared build context.
 
 | Belongs in `design/` (semantics) | Belongs in `implementation/` (syntax) |
 |---|---|
