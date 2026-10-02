@@ -31,6 +31,8 @@ from spec_lint import (  # noqa: E402
 from design_lint import parse_frontmatter  # noqa: E402
 
 REFERENCE = REPO_ROOT / "tooling" / "evals" / "reference" / "customer-orders.md"
+ITSD_REFERENCE = (REPO_ROOT / "examples" / "it-service-desk-data-product" / "design-output"
+                  / "design_specification.md")
 DESIGN = REPO_ROOT / "design"
 
 
@@ -67,6 +69,14 @@ class ReferenceSpecificationIsClean(unittest.TestCase):
         self.assertEqual(
             findings, [],
             "the reference design specification no longer conforms:\n"
+            + "\n".join(str(f) for f in findings))
+
+    def test_itsd_reference_specification_validates(self):
+        """The shared example every platform binding builds must itself conform."""
+        findings = lint_spec(ITSD_REFERENCE)
+        self.assertEqual(
+            findings, [],
+            "the IT Service Desk reference specification no longer conforms:\n"
             + "\n".join(str(f) for f in findings))
 
     def test_reference_specification_exercises_every_entity_kind(self):

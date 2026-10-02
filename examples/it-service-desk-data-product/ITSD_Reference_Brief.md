@@ -20,7 +20,7 @@ advocated option, the reason is already recorded here and carries through to Mem
 
 | Event | Commit message |
 |---|---|
-| Design phase complete | `design: ITServiceDesk design specification and decisions log` |
+| Design phase complete | `design: ITServiceDesk design specification` |
 | Build DDL generated (before execution) | `build: generate DDL for ITServiceDesk` |
 | Phase 1+1.5 deployed (Memory, Semantic, roles, grants) | `build: Memory and Semantic deployed` |
 | Phase 2+2.5 deployed (Domain, Observability, grants) | `build: Domain and Observability deployed` |
@@ -57,8 +57,7 @@ itsd-data-product/
 ├── standards/
 │   └── object_placement.md          # Conforming Object Placement Standard (this repo)
 ├── design/
-│   ├── design_specification.md      # Platform-agnostic design (Design phase output)
-│   └── decisions_log.md             # Every settled decision with option and reason
+│   └── design_specification.md      # Platform-agnostic design, decisions included (Design phase output)
 ├── build/
 │   ├── 00_databases_and_roles.sql
 │   ├── 01_memory.sql
@@ -184,7 +183,7 @@ standardisation.
 ### 3b. Pre-settled design decisions
 
 The design agent will raise these in the decision conversation. Respond with the answer
-below; do not re-open. Every answer is recorded in `design/decisions_log.md`.
+below; do not re-open. Every answer is recorded in the design specification.
 
 #### The seven catalogued decisions
 
@@ -546,4 +545,4 @@ version of the design standards:
 - The only variable between runs is the content of the design, build, and review skills.
 - Comparison between runs is meaningful only if the intake and decisions are identical.
 - If a revised standard adds a new decision not in this brief, answer it with the
-  standard's advocated option and record it in the decisions log; do not leave it open.
+  standard's advocated option and record it in the design specification; do not leave it open.

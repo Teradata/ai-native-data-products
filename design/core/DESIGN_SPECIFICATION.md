@@ -244,7 +244,7 @@ A product design decision, recorded once here and captured into Memory's `Design
 
 ## 5. Expression vocabulary
 
-Expressions are platform-neutral. Each binding maps every function below to its own dialect, and the linter rejects any function not listed. An expression is built from attribute references (`Entity.attribute`), literals (numbers, `'text'`, `true`, `false`, `null`, durations such as `24 hours`), map literals (`{key: value, ...}`, where a key is a bare word or `'text'`), arithmetic (`+ - * /`), comparisons (`= <> < <= > >=`), `and`, `or`, `not`, parentheses, and these functions:
+Expressions are platform-neutral. Each binding maps every function below to its own dialect, and the linter rejects any function not listed. An expression is built from attribute references (`Entity.attribute`), literals (numbers, `'text'`, `true`, `false`, `null`, durations such as `24 hours`), map literals (`{key: value, ...}`, where a key is a bare word or `'text'`), arithmetic (`+ - * /`), comparisons (`= <> < <= > >=`), `and`, `or`, `not`, parentheses, and these functions. In a feature derivation, an attribute of an entity other than the subject is reached through the subject's single reference to that entity and read as it currently stands; `as_of` reads it as at an instant instead.
 
 | Function | Class | Arguments | Result |
 |---|---|---|---|
