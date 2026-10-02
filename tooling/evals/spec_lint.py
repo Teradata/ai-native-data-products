@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""brief_lint: validate a product design brief against the standards corpus.
+"""spec_lint: validate a product design specification against the standards corpus.
 
 `design_lint` checks that the *standards* are well formed. This checks that a
 *product design* written against them is complete and conformant, which is the
@@ -11,9 +11,9 @@ catalogue, the invariants from each module's Invariants section. Nothing about a
 particular product, and nothing about the standards, is hardcoded here. Add a module
 or a decision to the corpus and the validator expects it without being edited.
 
-    python tooling/evals/brief_lint.py tooling/evals/reference/customer-orders.md
+    python tooling/evals/spec_lint.py tooling/evals/reference/customer-orders.md
 
-Exit code is 0 when the brief conforms, 1 when it does not.
+Exit code is 0 when the specification conforms, 1 when it does not.
 
 Stdlib only, like the linter it sits beside.
 """
@@ -35,8 +35,8 @@ from design_lint import (  # noqa: E402
     lint_text,
 )
 
-REQUIRED_BRIEF_KEYS = {"product", "composition", "modules"}
-OPTIONAL_BRIEF_KEYS = {"facets", "platform", "decisions"}
+REQUIRED_SPEC_KEYS = {"product", "composition", "modules"}
+OPTIONAL_SPEC_KEYS = {"facets", "platform", "decisions"}
 
 # A Requires row is `| `Capability` | `[hard]` | `provider` | why |`.
 REQUIRES_ROW_RE = re.compile(
@@ -156,7 +156,7 @@ def _read_own_invariants(text: str, anchor: str) -> List[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Reading the brief
+# Reading the specification
 # --------------------------------------------------------------------------- #
 
 def read_entities(text: str) -> List[Tuple[str, str, List[str], int]]:
@@ -189,12 +189,12 @@ def read_entities(text: str) -> List[Tuple[str, str, List[str], int]]:
 def check_frontmatter(fm, path) -> List[Finding]:
     findings = []
     if fm is None:
-        return [Finding(path, 1, "brief-frontmatter", "design brief has no frontmatter block")]
-    for missing in sorted(REQUIRED_BRIEF_KEYS - set(fm)):
-        findings.append(Finding(path, 1, "brief-frontmatter",
+        return [Finding(path, 1, "spec-frontmatter", "design specification has no frontmatter block")]
+    for missing in sorted(REQUIRED_SPEC_KEYS - set(fm)):
+        findings.append(Finding(path, 1, "spec-frontmatter",
                                 f"missing required key '{missing}'"))
-    for unknown in sorted(set(fm) - REQUIRED_BRIEF_KEYS - OPTIONAL_BRIEF_KEYS):
-        findings.append(Finding(path, 1, "brief-frontmatter",
+    for unknown in sorted(set(fm) - REQUIRED_SPEC_KEYS - OPTIONAL_SPEC_KEYS):
+        findings.append(Finding(path, 1, "spec-frontmatter",
                                 f"unknown key '{unknown}'"))
     return findings
 
@@ -300,13 +300,13 @@ def check_entities(text: str, path) -> List[Finding]:
                                         f"`NaturalKey`"))
     if not read_entities(text):
         findings.append(Finding(path, 1, "no-entities",
-                                "the brief declares no entities; a design that models "
+                                "the specification declares no entities; a design that models "
                                 "nothing cannot be built"))
     return findings
 
 
 def check_invariants(fm, text: str, corpus: Corpus, path) -> List[Finding]:
-    """Every invariant the chosen modules declare is acknowledged by the brief."""
+    """Every invariant the chosen modules declare is acknowledged by the specification."""
     chosen = [m for m in (fm.get("modules") or []) if m in corpus.modules]
     named = set(INVARIANT_RE.findall(text))
     findings = []
@@ -315,11 +315,11 @@ def check_invariants(fm, text: str, corpus: Corpus, path) -> List[Finding]:
             if inv not in named:
                 findings.append(Finding(path, 1, "unacknowledged-invariant",
                                         f"{inv} (module '{anchor}') is not acknowledged "
-                                        f"in the brief"))
+                                        f"in the specification"))
     return findings
 
 
-def lint_brief(path: Path, design_root: Path = None) -> List[Finding]:
+def lint_spec(path: Path, design_root: Path = None) -> List[Finding]:
     corpus = Corpus(design_root or (REPO_ROOT / "design"))
     text = path.read_text(encoding="utf-8")
     p = str(path)
@@ -332,14 +332,14 @@ def lint_brief(path: Path, design_root: Path = None) -> List[Finding]:
     findings += check_decisions(fm, corpus, p)
     findings += check_entities(text, p)
     findings += check_invariants(fm, text, corpus, p)
-    # a design brief is platform-agnostic, exactly as design/ is
+    # a design specification is platform-agnostic, exactly as design/ is
     findings += lint_text(p, text)
     return sorted(findings, key=lambda f: (f.line, f.rule, f.message))
 
 
 def main(argv: List[str]) -> int:
     if not argv:
-        print("usage: brief_lint.py <brief.md> [...]", file=sys.stderr)
+        print("usage: spec_lint.py <specification.md> [...]", file=sys.stderr)
         return 2
     findings = []
     for arg in argv:
@@ -347,13 +347,13 @@ def main(argv: List[str]) -> int:
         if not target.is_file():
             print(f"warning: not a file: {arg}", file=sys.stderr)
             continue
-        findings += lint_brief(target)
+        findings += lint_spec(target)
     if not findings:
-        print(f"brief-lint: clean ({', '.join(argv)})")
+        print(f"spec-lint: clean ({', '.join(argv)})")
         return 0
     for f in findings:
         print(str(f))
-    print(f"\nbrief-lint: {len(findings)} violation(s)", file=sys.stderr)
+    print(f"\nspec-lint: {len(findings)} violation(s)", file=sys.stderr)
     return 1
 
 

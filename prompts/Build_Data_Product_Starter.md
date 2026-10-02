@@ -28,7 +28,7 @@ satisfy every capability and invariant the design declares.
 - **Target platform:** [teradata, the current reference, or another platform's implementation
   tree]
 - **Product name:** [used for container names, e.g. `Customer360`]
-- **Design input:** [attach/paste the design brief from the Design starter, or point to it]
+- **Design input:** [attach/paste the design specification from the Design starter, or point to it]
 - **Object Placement Standard:** [path to your organisation's conforming implementation,
   required before any object is generated]
 - **Object storage in use?** [if yes, provide the Physical Storage Standard implementation

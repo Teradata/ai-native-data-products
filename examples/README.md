@@ -26,8 +26,8 @@ The second reason is teaching. The standards are written as contracts, which is 
 
 | | `customer-orders.md` | `examples/` |
 |---|---|---|
-| What it is | A minimal design brief, six entities | A complete product: brief, placement standard, seed data |
-| What runs it | `brief_lint`, on every test run | A full agent-driven cycle, by hand |
+| What it is | A minimal design specification, six entities | A complete product: reference brief, placement standard, seed data |
+| What runs it | `spec_lint`, on every test run | A full agent-driven cycle, by hand |
 | What it proves | A conforming design still passes after a change to `design/` | The standards produce a working product |
 | Cost to run | Milliseconds | A working session per phase |
 | When it fails | The build is broken | The standards permitted something they should not |

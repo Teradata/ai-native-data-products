@@ -64,7 +64,7 @@ Two related records: one **run** record summarising the whole run, and one **are
 
 ### 3.1 The run record
 
-The result entity is **`ValidationRun`**, bound to `validation_run`. The name is part of the contract, not a designer's choice: the standard conformance queries and the latest-run projection resolve it by name, so a product that names it something else does not fail loudly. The queries find no rows, count no failures, and report clean. A design brief that proposes a different name is corrected rather than accommodated.
+The result entity is **`ValidationRun`**, bound to `validation_run`. The name is part of the contract, not a designer's choice: the standard conformance queries and the latest-run projection resolve it by name, so a product that names it something else does not fail loudly. The queries find no rows, count no failures, and report clean. A design specification that proposes a different name is corrected rather than accommodated.
 
 One logical record per product per producer per run; consumers read the **latest** per (product, producer).
 

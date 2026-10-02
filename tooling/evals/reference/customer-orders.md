@@ -30,7 +30,7 @@ decisions:
     choice: regulatory
 ---
 
-# Customer Orders: Design Brief
+# Customer Orders: Design Specification
 
 The fixture the standards are tested against. It is re-validated on every test run, so a
 change to `design/` that would invalidate a conforming design fails the build.

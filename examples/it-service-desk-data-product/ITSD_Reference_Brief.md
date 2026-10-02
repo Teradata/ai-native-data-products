@@ -20,7 +20,7 @@ advocated option, the reason is already recorded here and carries through to Mem
 
 | Event | Commit message |
 |---|---|
-| Design phase complete | `design: ITServiceDesk design brief and decisions log` |
+| Design phase complete | `design: ITServiceDesk design specification and decisions log` |
 | Build DDL generated (before execution) | `build: generate DDL for ITServiceDesk` |
 | Phase 1+1.5 deployed (Memory, Semantic, roles, grants) | `build: Memory and Semantic deployed` |
 | Phase 2+2.5 deployed (Domain, Observability, grants) | `build: Domain and Observability deployed` |
@@ -57,7 +57,7 @@ itsd-data-product/
 ├── standards/
 │   └── object_placement.md          # Conforming Object Placement Standard (this repo)
 ├── design/
-│   ├── design_brief.md              # Platform-agnostic design (Design phase output)
+│   ├── design_specification.md      # Platform-agnostic design (Design phase output)
 │   └── decisions_log.md             # Every settled decision with option and reason
 ├── build/
 │   ├── 00_databases_and_roles.sql
@@ -385,7 +385,7 @@ Paste this block into the Build Starter prompt's **Intake** section.
 
 **Target platform:** Teradata Vantage 17.20  
 **Product name:** `ITServiceDesk`  
-**Design input:** `design/design_brief.md` in the repository  
+**Design input:** `design/design_specification.md` in the repository  
 **Object Placement Standard:** `standards/object_placement.md` in this repository. Read
 it in full before generating any object  
 **Object storage in use?** No
@@ -482,7 +482,7 @@ Paste this block into the Review Starter prompt's **Intake** section.
 ---
 
 **What to review:** Both design and build  
-**Artefacts:** `design/design_brief.md` and `build/*.sql` in the repository; live deployed
+**Artefacts:** `design/design_specification.md` and `build/*.sql` in the repository; live deployed
 product accessible via the Teradata MCP Server  
 **Composition:** Full AI-Native (all six modules)
 
@@ -504,7 +504,7 @@ product accessible via the Teradata MCP Server
 
 Reviewed: [date]  
 Reviewer: [identity]  
-Evidence sources: design brief, build SQL, live Teradata product (MCP)
+Evidence sources: design specification, build SQL, live Teradata product (MCP)
 
 ### [Module Name]
 | Area | Coverage | Status | Confidence | Open Gaps | Recommended Action |

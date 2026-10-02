@@ -47,7 +47,7 @@ implementation/
   teradata/        the concrete binding: DDL templates, queries, grants, platform profile
 tooling/
   validation/      design_lint.py - checks the standards are well formed
-  evals/           brief_lint.py  - checks a product design against the standards
+  evals/           spec_lint.py   - checks a design specification against the standards
 examples/          worked products: fixed inputs for an end-to-end run
 roles/             the four working procedures
 ```
@@ -79,5 +79,5 @@ this conversation, their repo, or an MCP resource - based on what you can actual
 
 **The product is its own artifact store.** Once built, design decisions live in Memory
 (documentation facet), structure in Semantic, and validation evidence in Observability. The
-next role reads them from there. The one transient artifact is the pre-build design brief,
+next role reads them from there. The one transient artifact is the pre-build design specification,
 because Memory does not exist yet to hold it.

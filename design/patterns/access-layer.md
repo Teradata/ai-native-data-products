@@ -99,7 +99,7 @@ Treating them as a single phase makes the first hostage to the second. When role
 
 Permissions per role, for whichever modules the composition includes:
 
-**This matrix is the authoritative statement of the consumer role model.** It is reproduced in several places, and those reproductions drift: a product's design brief restates it, a deployment sequence restates the phase grants inline, and a placement implementation declares an access model of its own. Where any of them disagrees with this table, this table is correct. A placement implementation declares the *implied* grants its container structure requires ([object-placement](object-placement.md) Section 7) and the principal types the platform offers; it does not redefine who may read what.
+**This matrix is the authoritative statement of the consumer role model.** It is reproduced in several places, and those reproductions drift: a product's design specification restates it, a deployment sequence restates the phase grants inline, and a placement implementation declares an access model of its own. Where any of them disagrees with this table, this table is correct. A placement implementation declares the *implied* grants its container structure requires ([object-placement](object-placement.md) Section 7) and the principal types the platform offers; it does not redefine who may read what.
 
 | Module | `ROLE_READ` | `ROLE_AGENT` | `ROLE_ADMIN` |
 |--------|-------------|--------------|--------------|

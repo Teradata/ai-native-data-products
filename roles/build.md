@@ -91,7 +91,7 @@ uncovered area is a coverage gap with a recommended action, not a failure.
 
 ## Handover
 
-Your input is the **design brief**; your output is the **deployable artefacts**, plus the
+Your input is the **design specification**; your output is the **deployable artefacts**, plus the
 entities and design decisions you register into the product's own Semantic and Memory stores
 as you deploy.
 

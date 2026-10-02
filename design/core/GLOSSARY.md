@@ -43,6 +43,8 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Design / Implementation split**: The framework's core boundary: platform-agnostic standards in `design/`, platform-specific bindings in `implementation/{platform}/`. See the [Design Language](DESIGN_LANGUAGE.md).
 
+**Design brief**: The design agent's input: the intake of business purpose, consumers, use cases, data sources, volumes and sensitivity a design starts from. Not a build input; the design agent turns it into a **design specification**.
+
 **Design specification**: The design agent's output and the product-specific input to a build: composition, entity models, settled decisions and module configuration, with no platform, container, principal or physical names. Distinct from the *design brief*, which is the design agent's input. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
 **Documentation store**: The part of the Memory module that holds design memory (module registry, design decisions, business glossary, query cookbook, implementation notes, change log), co-located in the product's own Memory store so the product is self-contained.
