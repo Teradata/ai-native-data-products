@@ -60,12 +60,22 @@ Drive one module at a time. Do not dump the whole design at once.
 The specification is the single handoff a builder needs, and the one transient artifact in the
 pipeline - Memory does not exist yet to hold it.
 
-Its format is defined executably rather than in prose:
+Its content and notation are defined by
+**`design/core/DESIGN_SPECIFICATION.md`**: the frontmatter, the entity extensions (temporal
+profile, allocation, volume, derived features), the module blocks (`Embedding:`, `Model:`,
+`Metric:`, `Orientation:`, `Quality:`, `Lineage:`, `Retention:`, `Runtime:`), the product
+`Decision:` blocks, and the closed expression vocabulary derivations are written in. Every
+fact a builder needs goes in one of those; prose explains, it is never the only statement of
+a fact. Name no platform, container, principal or physical type: the specification must
+build on any platform under any organisation's configuration.
 
 - **`tooling/evals/reference/customer-orders.md`** - the reference specification. Copy its
   shape.
-- **`tooling/evals/spec_lint.py`** - the authority on required frontmatter
-  (`product`, `composition`, `modules`; optional `facets`, `platform`, `decisions`).
+- **`tooling/evals/spec_lint.py`** - the executable form of that standard.
+
+Record each product design decision as a `Decision:` block in the specification itself, not
+in a separate log: the build captures them into Memory from there. A profile or surrogate
+allocation that departs from the default needs one whose `Applies to` names the entity.
 
 **Validate before handing over, and give the user the output with the specification:**
 

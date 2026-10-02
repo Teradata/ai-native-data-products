@@ -33,6 +33,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 |---|---|---|---|---|---|
 | [Advocated Standards Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | - | - | - |
 | [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | - | - | - |
+| [Design Specification Standard](core/DESIGN_SPECIFICATION.md) | `design-specification` | draft | - | - | - |
 | [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | - | - | - |
 | [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) | `implementation-authoring` | draft | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |

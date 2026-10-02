@@ -39,7 +39,7 @@ Each input answers one question. The specification decides *what* the product is
 
 Every fact a build needs from the product design must be present in a structured, machine-readable part of the specification: its frontmatter or a notation block defined by the Design Language. Prose explains and justifies; it is never the only statement of a fact a build consumes. A builder that has to interpret prose to decide what to generate will make different choices on different platforms, and the products will differ.
 
-The specification must not name containers, principals, physical objects or a platform. Those come from the organisation profile and the binding, which is what lets one specification serve every organisation and every platform. The notation for each fact is defined in the Design Language and validated by the specification linter, not restated here.
+The specification must not name containers, principals, physical objects or a platform. Those come from the organisation profile and the binding, which is what lets one specification serve every organisation and every platform. The content and notation are defined by the [Design Specification Standard](DESIGN_SPECIFICATION.md) and validated by the specification linter, not restated here.
 
 ## 3. The build context
 

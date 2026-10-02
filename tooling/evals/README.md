@@ -24,7 +24,8 @@ Exit code is `0` when the specification conforms, `1` when it does not. The refe
 
 | Rule | Fails when… |
 |------|-------------|
-| `spec-frontmatter` | the specification has no frontmatter, omits `product` / `composition` / `modules`, or carries an unrecognised key. |
+| `spec-frontmatter` | the specification has no frontmatter, omits a required key, carries an unrecognised key, or has a `product_code` that is not identifier-safe. Keys come from the [Design Specification Standard](../../design/core/DESIGN_SPECIFICATION.md). |
+| `platform-reference` | the specification carries a `platform` key or names a platform anywhere. |
 | `unknown-module` | a chosen module does not exist in `design/modules/`. |
 | `invalid-composition` | a module's `[hard]` requirement is not met by a `Provides` inside the composition. Requirements met by `self`, `platform`, or `external` are satisfied by definition. |
 | `unsettled-decision` | a decision the chosen modules raise is not settled, or is listed without a choice. |
@@ -34,9 +35,19 @@ Exit code is `0` when the specification conforms, `1` when it does not. The refe
 | `identity-shape` | a `[kind: History]` entity declares no `Identifier` or no `NaturalKey`. |
 | `no-entities` | the specification models nothing. |
 | `unacknowledged-invariant` | an invariant declared by a chosen module is not named in the specification. |
+| `missing-profile` | an entity declares no temporal profile. |
+| `unrecorded-departure` | an entity's profile falls outside its kind's defaults, or its allocation differs from the product's, with no `Decision:` applying to it. |
+| `unresolved-reference` | a reference target is neither in the specification nor defined by an included module. |
+| `missing-discriminator` | a reference with several targets has no `Enum` discriminator listing them. |
+| `invalid-expression` | a `[derive:]` expression uses a function outside the vocabulary, an aggregate in a row context, or an attribute that does not resolve. |
+| `timestamp-name` / `prohibited-name` | a `Timestamp` is not named `<event>_dts`, or an attribute takes a name the temporal pattern prohibits. |
+| `missing-section` | an entity lacks a section its kind requires (`Volume:`), or a feature group lacks `Features:`. |
+| `missing-block` | an included module or facet has no block it requires. |
+| `missing-field` / `unknown-field` / `invalid-value` | a block or section field is missing, not in the standard's table, or invalid for its declared type. |
+| `duplicate-block` | the same block is declared twice. |
 | *(all `design_lint` rules)* | the specification contains platform SQL. A design specification is platform-agnostic, exactly as `design/` is. |
 
-**Nothing about the standards is hardcoded here.** The capability graph comes from the module Provides/Requires tables, the decisions from the Decisions-to-settle tables and the catalogue, the invariants from each module's Invariants section. Add a module, a capability, or a decision to `design/` and the validator expects it without being edited. That is the same trick the linter and the catalogue generator use, and it is what stops this becoming a second place to maintain the standards.
+**Nothing about the standards is hardcoded here.** The capability graph comes from the module Provides/Requires tables, the decisions from the Decisions-to-settle tables and the catalogue, the invariants from each module's Invariants section. The notation rules (fields, types, enumerations, module requirements, the expression vocabulary) come from the tables of the Design Specification Standard, read by `spec_notation.py`, and the temporal profiles and names from the temporal pattern. Add a module, a capability, or a decision to `design/` and the validator expects it without being edited. That is the same trick the linter and the catalogue generator use, and it is what stops this becoming a second place to maintain the standards.
 
 ## The reference product
 

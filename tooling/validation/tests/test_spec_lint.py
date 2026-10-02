@@ -23,6 +23,7 @@ from spec_lint import (  # noqa: E402
     check_entities,
     check_frontmatter,
     check_invariants,
+    check_notation,
     declared_types,
     lint_spec,
     read_entities,
@@ -47,7 +48,15 @@ def rules_for(text):
         findings += check_decisions(fm, corpus, "specification.md")
         findings += check_entities(text, "specification.md")
         findings += check_invariants(fm, text, corpus, "specification.md")
+        findings += check_notation(fm, text, corpus, "specification.md")
     return [f.rule for f in findings]
+
+
+def broken(old, new):
+    """The reference specification with one targeted change, which must apply."""
+    text = spec_text()
+    assert old in text, f"fixture no longer contains {old!r}"
+    return text.replace(old, new, 1)
 
 
 class ReferenceSpecificationIsClean(unittest.TestCase):
@@ -134,6 +143,164 @@ class InvariantRules(unittest.TestCase):
                         "observability's invariants should be found despite the prefix")
         self.assertTrue(all(i.startswith("INV-OBS-")
                             for i in corpus.modules["observability"]["invariants"]))
+
+
+class NotationFrontmatter(unittest.TestCase):
+    def test_missing_product_code_flagged(self):
+        self.assertIn("spec-frontmatter", rules_for(broken("product_code: CUSTORD\n", "")))
+
+    def test_product_code_must_be_identifier_safe(self):
+        text = broken("product_code: CUSTORD", "product_code: Customer Orders")
+        self.assertIn("spec-frontmatter", rules_for(text))
+
+    def test_a_platform_key_is_flagged(self):
+        text = broken("product_code: CUSTORD\n", "product_code: CUSTORD\nplatform: snowflake\n")
+        self.assertIn("platform-reference", rules_for(text))
+
+    def test_a_platform_named_in_the_body_is_flagged(self):
+        text = broken("Similarity over product descriptions.",
+                      "Similarity over product descriptions, using Snowflake Cortex.")
+        self.assertIn("platform-reference", rules_for(text))
+
+
+class NotationEntities(unittest.TestCase):
+    STATUS = "Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY]"
+
+    def test_missing_profile_flagged(self):
+        text = broken(self.STATUS, "Entity: OrderStatus               [kind: Reference]")
+        self.assertIn("missing-profile", rules_for(text))
+
+    def test_unknown_profile_flagged(self):
+        text = broken(self.STATUS, self.STATUS.replace("SCD2_HISTORY", "SCD3"))
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_profile_departure_needs_a_decision(self):
+        text = broken(self.STATUS, self.STATUS.replace("SCD2_HISTORY", "CURRENT_STATE"))
+        self.assertIn("unrecorded-departure", rules_for(text))
+
+    def test_a_recorded_departure_is_accepted(self):
+        text = broken(self.STATUS, self.STATUS.replace("SCD2_HISTORY", "CURRENT_STATE"))
+        text = text.replace("Decision: DD-SEARCH-001", "Decision: DD-DOMAIN-001\n"
+                            "  Title: Order statuses hold present values only\n"
+                            "  Category: SCHEMA\n  Module: domain\n  Applies to: OrderStatus\n"
+                            "  Context: Reference entities default to SCD2_HISTORY.\n"
+                            "  Rationale: Status labels are never reworded.\n```\n\n```\n"
+                            "Decision: DD-SEARCH-001", 1)
+        self.assertNotIn("unrecorded-departure", rules_for(text))
+
+    def test_allocation_departure_needs_a_decision(self):
+        text = broken("[kind: History] [profile: SCD2_BITEMPORAL]",
+                      "[kind: History] [profile: SCD2_BITEMPORAL] [allocation: inline]")
+        self.assertIn("unrecorded-departure", rules_for(text))
+
+    def test_unresolved_reference_flagged(self):
+        text = broken("[required] [-> Customer]  // the ordering customer",
+                      "[required] [-> Client]  // the ordering customer")
+        self.assertIn("unresolved-reference", rules_for(text))
+
+    def test_multi_target_reference_needs_a_discriminator(self):
+        text = broken("[required] [-> Customer]  // the ordering customer",
+                      "[required] [-> Customer | Product]  // the ordering customer")
+        self.assertIn("missing-discriminator", rules_for(text))
+
+    def test_unknown_function_in_a_derivation_flagged(self):
+        text = broken("[derive: count_related(", "[derive: rolling_count(")
+        self.assertIn("invalid-expression", rules_for(text))
+
+    def test_aggregate_in_a_row_derivation_flagged(self):
+        text = broken("[derive: count_related(Order, Order.ordered_dts, 90 days) /",
+                      "[derive: sum(Order.order_total) /")
+        self.assertIn("invalid-expression", rules_for(text))
+
+    def test_unresolved_attribute_in_a_derivation_flagged(self):
+        text = broken("Order, Order.ordered_dts, 90 days)", "Order, Order.placed_dts, 90 days)")
+        self.assertIn("invalid-expression", rules_for(text))
+
+    def test_timestamp_not_named_dts_flagged(self):
+        text = broken("  ordered_dts      : Timestamp", "  ordered_at       : Timestamp")
+        self.assertIn("timestamp-name", rules_for(text))
+
+    def test_prohibited_name_flagged(self):
+        text = broken("  ordered_dts      : Timestamp [required]",
+                      "  ordered_dts      : Timestamp [required]\n  valid_from : Date [optional]")
+        self.assertIn("prohibited-name", rules_for(text))
+
+    def test_effective_date_outside_current_state_flagged(self):
+        text = broken("  ordered_dts      : Timestamp [required]",
+                      "  ordered_dts      : Timestamp [required]\n  effective_date : Date [optional]")
+        self.assertIn("prohibited-name", rules_for(text))
+
+    def test_missing_volume_flagged(self):
+        text = broken("    natural:   order_status_code\n\n  Volume:\n    initial: 8\n"
+                      "    growth:  0 per year\n    horizon: 3 years\n",
+                      "    natural:   order_status_code\n")
+        self.assertIn("missing-section", rules_for(text))
+
+    def test_malformed_growth_flagged(self):
+        self.assertIn("invalid-value", rules_for(broken("growth:  2000 per month", "growth:  lots")))
+
+    def test_feature_group_without_derived_features_flagged(self):
+        text = re.sub(r" \[derive: [^\n]*?\]  //", "  //", spec_text(), count=1)
+        self.assertNotEqual(text, spec_text(), "fixture should carry a derivation to strip")
+        self.assertIn("missing-field", rules_for(text))
+
+
+class NotationBlocks(unittest.TestCase):
+    def test_module_without_its_required_block_flagged(self):
+        text = re.sub(r"```\nOrientation: -\n.*?```", "", spec_text(), flags=re.S)
+        self.assertIn("missing-block", rules_for(text))
+
+    def test_required_field_missing_flagged(self):
+        self.assertIn("missing-field", rules_for(broken("  Similarity: cosine\n", "")))
+
+    def test_unknown_field_flagged(self):
+        text = broken("  Similarity: cosine\n", "  Similarity: cosine\n  Colour: blue\n")
+        self.assertIn("unknown-field", rules_for(text))
+
+    def test_value_outside_enumeration_flagged(self):
+        self.assertIn("invalid-value", rules_for(broken("Similarity: cosine", "Similarity: manhattan")))
+
+    def test_measure_must_be_an_aggregate(self):
+        text = broken("Measure:     sum(Order.order_total)", "Measure:     Order.order_total")
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_metric_reference_must_resolve(self):
+        text = broken("ratio(metric('Order Value')", "ratio(metric('Order Worth')")
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_thresholds_must_fit_the_check(self):
+        text = broken("- freshness(Order): warn after 24 hours, fail after 48 hours",
+                      "- freshness(Order): pass >= 0.9, warn >= 0.8")
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_weights_must_sum_to_100(self):
+        self.assertIn("invalid-value", rules_for(broken("completeness: 40%", "completeness: 45%")))
+
+    def test_flow_target_must_resolve(self):
+        text = broken("-> load_orders -> Order", "-> load_orders -> Orders")
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_retention_must_be_a_duration(self):
+        self.assertIn("invalid-value", rules_for(broken("AgentInteraction: 1 years",
+                                                        "AgentInteraction: a while")))
+
+    def test_retention_names_an_entity(self):
+        self.assertIn("invalid-value", rules_for(broken("AgentInteraction: 1 years",
+                                                        "AgentChat: 1 years")))
+
+    def test_decision_id_shape_enforced(self):
+        self.assertIn("invalid-value", rules_for(broken("Decision: DD-SEARCH-001",
+                                                        "Decision: SEARCH-1")))
+
+    def test_embedding_dimensions_match_a_vector(self):
+        self.assertIn("invalid-value", rules_for(broken("Dimensions: 768", "Dimensions: 512")))
+
+    def test_unnamed_block_takes_no_name(self):
+        self.assertIn("invalid-value", rules_for(broken("Orientation: -", "Orientation: main")))
+
+    def test_duplicate_block_flagged(self):
+        block = re.search(r"```\nRuntime: -\n.*?```", spec_text(), flags=re.S).group(0)
+        self.assertIn("duplicate-block", rules_for(broken(block, block + "\n\n" + block)))
 
 
 class PlatformNeutrality(unittest.TestCase):
