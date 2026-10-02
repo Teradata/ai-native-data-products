@@ -37,6 +37,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | - | - | - |
 | [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) | `implementation-authoring` | draft | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |
+| [Organisation Profile Standard](core/ORGANISATION_PROFILE.md) | `organisation-profile` | draft | - | - | - |
 
 ### Patterns
 

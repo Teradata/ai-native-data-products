@@ -66,7 +66,7 @@ Every capability named in a design document has a binding there, and every invar
 check.
 
 **Never invent a container, database, or object name.** Placement comes from the
-object-placement standard at build time and from the product's own registries at access
+organisation profile, through the resolved build context, at build time and from the product's own registries at access
 time. A name derived from a convention will either fail loudly or, worse, resolve to a
 different object than you meant.
 

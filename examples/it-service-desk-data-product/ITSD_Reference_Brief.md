@@ -55,7 +55,7 @@ itsd-data-product/
 │   ├── customers.csv
 │   └── tickets.csv
 ├── standards/
-│   └── object_placement.md          # Conforming Object Placement Standard (this repo)
+│   └── organisation-profile.md      # Organisation profile: placement, naming, roles (this repo)
 ├── design/
 │   └── design_specification.md      # Platform-agnostic design, decisions included (Design phase output)
 ├── build/
@@ -227,7 +227,7 @@ One entity, `EntityEmbedding`, as the Search module defines it. The two embeddin
 
 | `source_attribute` | Embedding source | Dimensions | Coverage |
 |---|---|---|---|
-| `subject_description` | `subject \|\| ' ' \|\| description` | 384 | Every ticket, since both attributes are mandatory |
+| `subject_description` | subject and description, joined with a space | 384 | Every ticket, since both attributes are mandatory |
 | `resolution_notes` | `resolution_notes` | 384 | Resolved and closed tickets only; no row where `resolution_notes` is NULL |
 
 `entity_kind` is `TICKET` for both. Absence is represented by the absence of a row, not by a row with a null vector: `embedding` is required, and a null vector is not a fact about an unresolved ticket.
@@ -239,7 +239,7 @@ One entity, `EntityEmbedding`, as the Search module defines it. The two embeddin
 
 **Prediction: entity model**
 
-Prediction target: `sla_breach_risk_score DECIMAL(5,4)`, a probability 0.0000–1.0000 that
+Prediction target: an SLA breach risk score, a probability 0.0000–1.0000 that
 the ticket will breach SLA before resolution. Binary classification model output stored as
 continuous score for downstream agent decision-making.
 
@@ -338,15 +338,16 @@ then purged.
 
 The catalogue entities are the module's own: `EntityMetadata`, `ColumnMetadata`,
 `NamingStandard`, `TableRelationship`, `DataProductMap`, `PrimaryObject`. The product-level
-`DataProductRegistry` row lives in the shared `governance` container, not in `ITSD_SEM`,
-since its purpose is cross-product discovery.
+`DataProductRegistry` row lives in the organisation's shared registry rather than the
+product's own Semantic store, since its purpose is cross-product discovery; where that is
+is the organisation profile's to say.
 
 Every entity across every module registers at deploy time, and each registration states its
 `temporal_pattern`. The profile declaration is what lets a validator resolve an entity's
 temporal behaviour from metadata instead of guessing from its name, and it is what licenses
 Category's `effective_date` / `expiration_date`. The relationship catalogue covers all FK
-relationships in Domain. Entity and column metadata are sourced from `COMMENT ON
-TABLE/COLUMN` values via `DBC.TablesV` and `DBC.ColumnsV`.
+relationships in Domain. Entity and column metadata are sourced from the descriptions
+the build records on each object and attribute, read back from the platform catalogue.
 
 **Access layer: role definitions**
 
@@ -354,21 +355,22 @@ The three roles the access-layer pattern defines, no more:
 
 | Role | Consumers | Reads | Write-back |
 |---|---|---|---|
-| `ITSD_ROLE_READ` | Operations analysts, service desk managers, BI, ad-hoc users | `ITSD_ACC`, `ITSD_SEM` | None |
-| `ITSD_ROLE_AGENT` | AI agents and automated tools | `ITSD_ACC`, `ITSD_SEM` | Append to `ITSD_MEM` and `ITSD_OBS` |
-| `ITSD_ROLE_ADMIN` | Product owner, data steward | All `ITSD_*` | Full |
+| `ROLE_READ` | Operations analysts, service desk managers, BI, ad-hoc users | The access layer and Semantic | None |
+| `ROLE_AGENT` | AI agents and automated tools | The access layer and Semantic | Append to Memory and Observability |
+| `ROLE_ADMIN` | Product owner, data steward | Every module | Full |
 
-Consumer-facing views live in `ITSD_ACC` only. End users are granted roles, never direct
-database access. Everything a consumer needs from Observability, Search and Prediction is
-reached through a view in `ITSD_ACC`, so the read set does not widen per module as the
-composition grows.
+The tier names are the standard's; the physical role names and the containers they reach
+come from the organisation profile. Consumer-facing views live in the access layer only.
+End users are granted roles, never direct access to a module's store. Everything a consumer
+needs from Observability, Search and Prediction is reached through an access-layer view,
+so the read set does not widen per module as the composition grows.
 
 Role comments carry **one short sentence naming the consumers** and never what the role can
 reach: a comment enumerating the grant boundary publishes it to everyone who can query the
 catalogue, and the grant matrix plus `DD-ACCESS-001` already record it.
 
 Agent write-back is append-only, and it reaches Memory's runtime entities and
-Observability's usage and quality events. It is not a general write on `ITSD_MEM`: the
+Observability's usage and quality events. It is not a general write on Memory: the
 documentation facet is written at deploy time by the capture protocol, not by an agent at
 runtime.
 
@@ -385,8 +387,8 @@ Paste this block into the Build Starter prompt's **Intake** section.
 **Target platform:** Teradata Vantage 17.20  
 **Product name:** `ITServiceDesk`  
 **Design input:** `design/design_specification.md` in the repository  
-**Object Placement Standard:** `standards/object_placement.md` in this repository. Read
-it in full before generating any object  
+**Organisation profile:** `standards/organisation-profile.md` in this repository. Resolve
+it with the design specification into the build context before generating any object  
 **Object storage in use?** No
 
 ---

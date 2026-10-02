@@ -42,6 +42,7 @@ from spec_notation import (  # noqa: E402
     REFERENCE,
     Specification,
     Standard,
+    entity_module,
     load_standard,
     outermost_call,
     parse_specification,
@@ -628,7 +629,19 @@ def check_entity_notation(ctx: NotationContext, path) -> List[Finding]:
                                         f"{where}.{a.name} is a name the temporal pattern "
                                         f"prohibits{' outside ' + conditional if conditional else ''}"))
 
+        module = e.header.get("module") or entity_module(e, std)
+        if "module" in e.header and module not in ctx.modules:
+            findings.append(Finding(path, e.line, "invalid-value",
+                                    f"{where}: module '{module}' is not in the composition"))
         feature_group = e.name in ctx.feature_groups or "Features" in e.sections
+        if feature_group and module != "prediction":
+            findings.append(Finding(path, e.line, "misplaced-entity",
+                                    f"{where} is a feature group in module '{module}'; feature "
+                                    f"groups belong to prediction (declare [module: prediction])"))
+        if any(a.type.startswith("Vector") for a in e.attributes.values()) and module != "search":
+            findings.append(Finding(path, e.line, "misplaced-entity",
+                                    f"{where} holds a Vector in module '{module}'; embeddings "
+                                    f"belong to search (declare [module: search])"))
         for section, kinds in std.section_kinds.items():
             needed = e.kind in kinds or ("feature-group" in kinds and feature_group)
             if needed and section not in e.sections:

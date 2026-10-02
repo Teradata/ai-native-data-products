@@ -75,7 +75,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Normative / advisory**: A document's conformance weight, declared in its **frontmatter**. *Normative* content is required: violating it makes a product non-conformant. *Advisory* content is recommended but not required. Placement in the hierarchy is a navigation aid and never a substitute for the declaration.
 
-**Organisation profile**: An organisation's machine-readable configuration of the standard for its own environment (placement, naming, access, classification, retention, environments and existing structures to adopt), reused by every product it builds. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
+**Organisation profile**: An organisation's machine-readable configuration of the standard for its own environment (placement, naming, access, classification, retention, environments and existing structures to adopt), reused by every product it builds on one platform. See the [Organisation Profile Standard](ORGANISATION_PROFILE.md).
 
 **Platform profile**: A per-platform document collecting the physical-design conventions that apply across every binding for that platform: key strategy, partitioning, indexing, compression, statistics. Advisory rather than normative: it records recommended defaults, and a workload with different needs may deviate from them.
 

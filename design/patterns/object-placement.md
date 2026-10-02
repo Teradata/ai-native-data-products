@@ -67,7 +67,7 @@ When generating any object:
 
 **Priority order for locating an implementation:**
 
-1. The placement section of the organisation profile supplied for the build (see the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md)).
+1. The organisation profile supplied for the build ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md)), resolved into the build context by `tooling/build/build_context.py`.
 2. An explicit path in the current conversation or project instructions.
 3. `implementation/{platform}/patterns/object-placement/` in the product repository.
 4. A conforming standard named in the product's Semantic module.
@@ -78,6 +78,8 @@ When generating any object:
 ## 4. Required Sections
 
 Every conforming implementation MUST include all eight, using these exact headings. An agent may reject an implementation that omits any required section.
+
+The preferred conforming implementation is an [organisation profile](../core/ORGANISATION_PROFILE.md): it carries these eight sections as its first eight headings and states each section's rules in blocks the build-context resolver executes, so the derivation function is run rather than interpreted and its worked examples are re-checked on every build. A prose implementation still conforms, but an agent must then apply its rules by reading them.
 
 **Section 1. Platform Declaration.** Target platform and version; the platform's term for "container" and "access principal"; whether the namespace is hierarchical or flat; the maximum container-name length; reserved characters/words.
 

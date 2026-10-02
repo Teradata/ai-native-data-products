@@ -60,7 +60,7 @@ The build context schema is platform-independent: its *shape* is the same for ev
 
 ## 4. Organisation configuration
 
-The organisation profile is how an organisation adapts the standard to its own environment without editing a standard or a template. It is machine-readable and validated before resolution.
+The organisation profile is how an organisation adapts the standard to its own environment without editing a standard or a template. It is machine-readable and validated before resolution; its format is defined by the [Organisation Profile Standard](ORGANISATION_PROFILE.md).
 
 ### 4.1 Required coverage
 

@@ -31,10 +31,18 @@ When adding a platform or changing its binding, read the [Platform Implementatio
 
 ## Procedure
 
-1. **Locate the placement standard before generating any object.** Derive every container
-   from the organisation's conforming object-placement implementation; if object storage is
+1. **Resolve the build context before generating any object.** The organisation profile
+   is the organisation's placement, naming, access and classification configuration for
+   this platform. Validate it and resolve it with the design specification:
+
+   ```bash
+   python tooling/build/build_context.py design_specification.md organisation-profile.md --out build_context.json
+   ```
+
+   Every container, object and principal name comes from that context; if object storage is
    in use, derive physical paths from the physical-storage implementation. **Never invent a
-   container or a path.** If none has been provided, stop and ask.
+   container, a name or a path.** If no profile has been provided, stop and ask; if
+   resolution reports problems, fix the input it names rather than working around it.
 2. **Deploy in dependency order**, running only the phases the composition includes
    (MASTER_DESIGN §10): Memory and Semantic first, then Access Layer 1.5, then Domain and
    Observability, then Access Layer 2.5, then Search and Prediction. A composition that
@@ -58,7 +66,7 @@ When adding a platform or changing its binding, read the [Platform Implementatio
    tidying pass.
 6. **Apply the platform profile** for physical design across everything you generate.
 
-Drive one deployment phase at a time. Confirm the placement standard before writing any DDL.
+Drive one deployment phase at a time. Resolve the build context before writing any DDL.
 
 ## Verifying as you go
 

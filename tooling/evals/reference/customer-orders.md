@@ -358,7 +358,7 @@ Decision: DD-SEARCH-001
 ```
 
 ```
-Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY]
+Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY] [module: search]
   product_embedding_id : Identifier                    // surrogate for the embedding
   product_key          : NaturalKey [required]         // the embedded product
   product_id           : Reference [required] [-> Product]  // key only; no content duplication
@@ -404,7 +404,7 @@ Model: reorder
 ```
 
 ```
-Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY]
+Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY] [module: prediction]
   customer_feature_id : Identifier                     // surrogate for the feature row
   feature_key         : NaturalKey [required]          // feature name and version
   customer_id         : Reference [required] [-> Customer]  // the subject

@@ -73,6 +73,8 @@ class Standard:
     module_entities: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
     patterns: Set[str] = field(default_factory=set)
     unnamed_blocks: Set[str] = field(default_factory=set)
+    implicit_relations: Dict[str, Tuple[str, List[str]]] = field(default_factory=dict)
+    entity_facets: Dict[Tuple[str, str], str] = field(default_factory=dict)
 
 
 def _enum(cell: str) -> Optional[List[str]]:
@@ -84,6 +86,53 @@ def _heading_key(text: str) -> str:
     """`Embedding:` for a block heading, otherwise the heading text itself."""
     ticks = BACKTICK.findall(text)
     return ticks[0].rstrip(":") if ticks else text
+
+
+def table_rows(text: str) -> List[Tuple[str, List[str]]]:
+    """Every table row in a standards document, with the heading key it sits under.
+
+    Header and separator rows are skipped. Shared by every reader of a standard's tables.
+    """
+    rows, heading = [], ""
+    for line in text.splitlines():
+        h = HEADING.match(line)
+        if h:
+            heading = _heading_key(h.group(2))
+            continue
+        row = line.strip()
+        if not row.startswith("|") or re.fullmatch(r"\|[\s|:-]*", row):
+            continue
+        rows.append((heading, [c.strip() for c in row.strip("|").split("|")]))
+    return rows
+
+
+def field_tables(text: str) -> Dict[str, Dict[str, FieldSpec]]:
+    """`| `Field` | yes/no | type | value |` tables, keyed by heading."""
+    tables: Dict[str, Dict[str, FieldSpec]] = {}
+    heading = ""
+    for line in text.splitlines():
+        h = HEADING.match(line)
+        if h:
+            heading = _heading_key(h.group(2))
+            continue
+        fm = FIELD_ROW.match(line.strip())
+        if fm:
+            name, req, ftype, cell = fm.groups()
+            tables.setdefault(heading, {})[name] = FieldSpec(
+                name, req == "yes", ftype, _enum(cell) if ftype == "enum" else None)
+    return tables
+
+
+def entity_module(entity: "Entity", std: "Standard") -> str:
+    """The module an entity belongs to: declared, else the module whose standard defines
+    an entity of that name, else `domain` (Design Specification Standard §3.2)."""
+    declared = entity.header.get("module")
+    if declared:
+        return declared
+    for module, entities in sorted(std.module_entities.items()):
+        if entity.name in entities:
+            return module
+    return "domain"
 
 
 def load_standard(design_root: Path) -> Standard:
@@ -129,6 +178,10 @@ def load_standard(design_root: Path) -> Standard:
                     std.growth_units = set(BACKTICK.findall(cell))
             elif heading == "Module requirements":
                 std.module_blocks[key] = BACKTICK.findall(cell)
+            elif heading == "Standard-owned relations":
+                ticks = BACKTICK.findall(cell)
+                std.implicit_relations[key] = (ticks[0] if ticks else "none",
+                                               [x for x in ticks[1:] if re.fullmatch(r"[A-Z]\w+", x)])
             elif heading == "Entity sections":
                 std.section_kinds[key] = (["feature-group"] if "feature group" in cell
                                           else BACKTICK.findall(cell))
@@ -149,8 +202,19 @@ def load_standard(design_root: Path) -> Standard:
     _load_temporal(std, design_root / "patterns" / "temporal-lifecycle-metadata.md")
     std.patterns = {p.stem for p in (design_root / "patterns").glob("*.md")}
     for p in sorted((design_root / "modules").glob("*.md")):
-        spec = parse_specification(p.read_text(encoding="utf-8"), std=None)
+        module_text = p.read_text(encoding="utf-8")
+        spec = parse_specification(module_text, std=None)
         std.module_entities[p.stem] = {e.name: set(e.attributes) for e in spec.entities}
+        # Entities under an `Entity Model: <X> Facet` heading belong to that facet.
+        facet, lines = None, module_text.split("\n")
+        starts = {e.line: e.name for e in spec.entities}
+        for number, line in enumerate(lines, start=1):
+            h = re.match(r"^##\s+(?:[\d.]+\s+)?(.*)$", line)
+            if h:
+                f = re.search(r"(\w+) Facet", h.group(1))
+                facet = f.group(1).lower() if f else None
+            if number in starts and facet:
+                std.entity_facets[(p.stem, starts[number])] = facet
     return std
 
 
@@ -286,8 +350,15 @@ def parse_specification(text: str, std: Optional[Standard]) -> Specification:
     With `std` absent only `Entity:` blocks are read: that is how a module standard's own
     entities are loaded before the standard itself is complete.
     """
+    return parse_blocks(text, set(std.blocks) if std else set())
+
+
+def parse_blocks(text: str, known: Set[str]) -> Specification:
+    """`Entity:` blocks and blocks of the `known` kinds, from every fenced block in `text`.
+
+    A design specification and an organisation profile share this notation.
+    """
     spec, lines = Specification(), text.split("\n")
-    known = set(std.blocks) if std else set()
     infence, current = False, None
     for idx, line in enumerate(lines, start=1):
         if FENCE.match(line):

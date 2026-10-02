@@ -69,6 +69,7 @@ Entities are declared in the Design Language entity notation, with these header 
 |---|---|---|---|
 | `profile` | yes | text | A temporal profile defined by the [temporal-lifecycle-metadata pattern](../patterns/temporal-lifecycle-metadata.md). |
 | `allocation` | no | enum | `keymap` or `inline`. Defaults to the product's `DEC-SURROGATE-ALLOCATION` choice; meaningful only on an entity with a surrogate key. |
+| `module` | no | module | The module the entity belongs to, which decides where it is placed. Defaults to the module whose standard defines an entity of that name, otherwise `domain`. Must be included in the composition. |
 
 A profile outside the defaults the temporal pattern gives the entity's kind, or an allocation other than the product's choice, is a departure and must be covered by a `Decision:` block whose `Applies to` names the entity.
 
@@ -129,6 +130,19 @@ Each block is a fenced code block opening with `<Block>: <name>`, like an `Entit
 | `memory` | `Retention` |
 
 A product with the `memory:runtime` facet also requires a `Runtime` block.
+
+#### Standard-owned relations
+
+Relations a build creates for an included module without the specification declaring them, placed and named through the organisation profile. A specification entity of the same name replaces the standard's.
+
+| Owner | Relations |
+|---|---|
+| `domain` | `none`: the specification declares every Domain entity. |
+| `search` | `none`: the specification declares its embedding entities. |
+| `prediction` | `none`: the specification declares its feature groups and prediction entities. |
+| `semantic` | `all` the module's entities. |
+| `observability` | `all` the module's entities, and the validation pattern's `ValidationRun` and `ValidationArea`. |
+| `memory` | `by facet`: the entities of each enabled facet. |
 
 ### 4.2 `Embedding:`
 
@@ -292,4 +306,5 @@ Expressions are platform-neutral. Each binding maps every function below to its 
 - a block missing a required field, carrying a field outside its table, or holding a value invalid for its type;
 - a module in the composition without its required blocks;
 - an expression using a function outside section 5, of the wrong class for its field, or naming an attribute or metric that does not resolve;
-- a `Timestamp` attribute not named `<event>_dts`, or a name the temporal pattern prohibits.
+- a `Timestamp` attribute not named `<event>_dts`, or a name the temporal pattern prohibits;
+- an entity in the wrong module: a feature group outside `prediction`, or an entity holding a `Vector` outside `search`.

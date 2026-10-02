@@ -538,7 +538,7 @@ prediction time (resolution, closure, satisfaction) are excluded. Agent and cust
 attributes are read as at the ticket's opening.
 
 ```
-Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY]
+Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [module: prediction]
   feature_group_id      : Identifier                          // surrogate for the feature row
   feature_group_key     : NaturalKey [required] [unique]      // ticket key and feature version
   entity_id             : Reference [required] [-> Ticket]    // the featurised ticket; key only

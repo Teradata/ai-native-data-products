@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Teradata/ai-native-data-products/tooling/build/build_context.schema.json",
+  "title": "Build context",
+  "description": "The single resolved input every platform binding's templates read (Platform Implementation Authoring Standard §3). Produced by tooling/build/build_context.py from a design specification and an organisation profile. Its shape is the same for every platform; the names it carries are one organisation's, for one target.",
+  "type": "object",
+  "required": [
+    "schema_version", "inputs", "product", "organisation", "platform", "environment",
+    "composition", "modules", "facets", "decisions", "product_decisions", "separation",
+    "containers", "principals", "grant_level", "entities", "relations", "standard_names",
+    "classification", "embeddings", "models", "metrics", "access_objects", "orientation",
+    "quality", "lineage", "retention", "runtime", "settings", "defaults_applied"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "placed": {
+      "type": "object",
+      "required": ["container", "name"],
+      "properties": {"container": {"type": "string"}, "name": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "objects": {
+      "type": "object",
+      "required": ["table"],
+      "properties": {
+        "table": {"$ref": "#/$defs/placed"},
+        "base_view": {"$ref": "#/$defs/placed"},
+        "consumer_view": {"$ref": "#/$defs/placed"}
+      },
+      "additionalProperties": false
+    },
+    "block": {"type": "object", "additionalProperties": {"type": ["string", "array"]}},
+    "principal": {
+      "type": "object",
+      "required": ["name", "create"],
+      "properties": {"name": {"type": "string"}, "create": {"type": "boolean"}},
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "inputs": {
+      "type": "object",
+      "required": ["specification", "profile"],
+      "properties": {"specification": {"type": "string"}, "profile": {"type": "string"}}
+    },
+    "product": {
+      "type": "object",
+      "required": ["name", "code"],
+      "properties": {"name": {"type": "string"}, "code": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}}
+    },
+    "organisation": {"type": "string"},
+    "platform": {
+      "type": "object",
+      "required": ["name", "version", "container_term", "principal_term", "namespace", "max_name_length", "name_characters"],
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}}
+    },
+    "environment": {
+      "type": "object",
+      "required": ["name", "phases", "isolation"],
+      "properties": {
+        "name": {"type": "string"},
+        "phases": {"type": "array", "items": {"type": "string"}},
+        "isolation": {"enum": ["system", "container"]}
+      }
+    },
+    "composition": {"type": "string"},
+    "modules": {"type": "array", "items": {"type": "string"}},
+    "facets": {"type": "array", "items": {"type": "string", "pattern": "^[a-z]+:[a-z-]+$"}},
+    "decisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["choice", "advocated"],
+        "properties": {"choice": {"type": "string"}, "because": {"type": ["string", "null"]}, "advocated": {"type": "boolean"}}
+      }
+    },
+    "product_decisions": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "separation": {"$ref": "#/$defs/block"},
+    "containers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "adopted"],
+        "properties": {"name": {"type": "string"}, "adopted": {"type": "boolean"}},
+        "additionalProperties": false
+      }
+    },
+    "principals": {
+      "type": "object",
+      "required": ["ROLE_READ", "ROLE_AGENT", "ROLE_ADMIN"],
+      "additionalProperties": {"$ref": "#/$defs/principal"}
+    },
+    "grant_level": {"enum": ["container", "object"]},
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "module", "profile", "allocation", "attributes", "keys", "volume", "features", "synonyms", "patterns", "capabilities", "objects", "adopted"],
+        "properties": {
+          "name": {"type": "string"},
+          "kind": {"enum": ["History", "Reference", "Relationship", "Keymap", "Record"]},
+          "module": {"type": "string"},
+          "profile": {"type": "string"},
+          "allocation": {"enum": ["keymap", "inline", null]},
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "physical_name", "type", "required", "unique", "references", "discriminator", "derive", "synonyms", "flags", "classification", "protection"],
+              "properties": {
+                "name": {"type": "string"},
+                "physical_name": {"type": "string"},
+                "type": {"type": "string"},
+                "required": {"type": "boolean"},
+                "unique": {"type": "boolean"},
+                "references": {"type": "array", "items": {"type": "string"}},
+                "discriminator": {"type": ["string", "null"]},
+                "derive": {"type": ["string", "null"]},
+                "synonyms": {"type": "array", "items": {"type": "string"}},
+                "flags": {"type": "array", "items": {"enum": ["current-flag", "deleted-flag"]}},
+                "classification": {"type": "string"},
+                "protection": {"type": "string"}
+              }
+            }
+          },
+          "keys": {"type": "object", "additionalProperties": {"type": "string"}},
+          "volume": {"type": ["object", "null"]},
+          "features": {"type": ["object", "null"]},
+          "synonyms": {"type": "array", "items": {"type": "string"}},
+          "patterns": {"type": "array", "items": {"type": "string"}},
+          "capabilities": {"type": "array", "items": {"type": "string"}},
+          "objects": {"$ref": "#/$defs/objects"},
+          "adopted": {"type": "boolean"}
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "module", "objects"],
+        "properties": {"name": {"type": "string"}, "module": {"type": "string"}, "objects": {"$ref": "#/$defs/objects"}}
+      }
+    },
+    "standard_names": {"type": "object", "additionalProperties": {"type": "string"}},
+    "classification": {
+      "type": "object",
+      "required": ["scheme", "default", "markers", "protection"],
+      "properties": {
+        "scheme": {"type": "array", "items": {"type": "string"}},
+        "default": {"type": "string"},
+        "markers": {"type": "object", "additionalProperties": {"type": "string"}},
+        "protection": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "embeddings": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "models": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "metrics": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "access_objects": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "orientation": {"oneOf": [{"$ref": "#/$defs/block"}, {"type": "null"}]},
+    "quality": {"oneOf": [{"$ref": "#/$defs/block"}, {"type": "null"}]},
+    "lineage": {"oneOf": [{"$ref": "#/$defs/block"}, {"type": "null"}]},
+    "retention": {"type": "object", "additionalProperties": {"type": "string"}},
+    "runtime": {"oneOf": [{"$ref": "#/$defs/block"}, {"type": "null"}]},
+    "settings": {"type": "object", "additionalProperties": {"type": "string"}},
+    "defaults_applied": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "value", "source"],
+        "properties": {"field": {"type": "string"}, "source": {"type": "string"}}
+      }
+    }
+  }
+}

@@ -249,6 +249,19 @@ class NotationEntities(unittest.TestCase):
     def test_malformed_growth_flagged(self):
         self.assertIn("invalid-value", rules_for(broken("growth:  2000 per month", "growth:  lots")))
 
+    def test_feature_group_outside_prediction_flagged(self):
+        text = broken("[profile: SCD2_HISTORY] [module: prediction]", "[profile: SCD2_HISTORY]")
+        self.assertIn("misplaced-entity", rules_for(text))
+
+    def test_embedding_outside_search_flagged(self):
+        text = broken("[profile: SCD2_HISTORY] [module: search]", "[profile: SCD2_HISTORY]")
+        self.assertIn("misplaced-entity", rules_for(text))
+
+    def test_declared_module_must_be_in_the_composition(self):
+        text = broken("[profile: SCD2_HISTORY] [module: search]",
+                      "[profile: SCD2_HISTORY] [module: telepathy]")
+        self.assertIn("invalid-value", rules_for(text))
+
     def test_feature_group_without_derived_features_flagged(self):
         text = re.sub(r" \[derive: [^\n]*?\]  //", "  //", spec_text(), count=1)
         self.assertNotEqual(text, spec_text(), "fixture should carry a derivation to strip")
