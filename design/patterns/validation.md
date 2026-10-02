@@ -24,7 +24,7 @@ normative: true
 | **Module home** | [Observability](../modules/observability.md): validation results are operational evidence |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Wire schema** | 2.1 (canonical, additive over 2.0); 1.0 registered as a legacy binding |
-| **Implementations** | [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/) |
+| **Implementations** | `implementation/{platform}/patterns/validation/`, one per platform |
 
 This pattern defines the **validation result contract** and the **trust map** an agent reads before using a product. Each module and pattern contributes *conformance checks*, its invariants, the temporal `TLM-01..17` rules, the Semantic primary-object validations, which validators execute and publish as results in this contract. Results are append-only operational evidence in the Observability module (temporal profile `EVENT_APPEND_ONLY`).
 
@@ -64,7 +64,7 @@ Two related records: one **run** record summarising the whole run, and one **are
 
 ### 3.1 The run record
 
-The result entity is **`ValidationRun`**, bound to `validation_run`. The name is part of the contract, not a designer's choice: the standard conformance queries and the latest-run projection resolve it by name, so a product that names it something else does not fail loudly. The queries find no rows, count no failures, and report clean. A design specification that proposes a different name is corrected rather than accommodated.
+The result entity is **`ValidationRun`**, with the logical relation name `validation_run`. The logical name is part of the contract, not a designer's choice: the standard conformance queries and the latest-run projection resolve it by that name, so a product that renames it does not fail loudly. The queries find no rows, count no failures, and report clean. A design specification that proposes a different name is corrected rather than accommodated. An organisation may still map the logical name to a physical name of its own; the binding registers the mapping in Semantic, and the queries resolve the physical relation through it, never through a literal.
 
 One logical record per product per producer per run; consumers read the **latest** per (product, producer).
 
@@ -92,7 +92,7 @@ A simple test harness populates the identity, status, and count fields and leave
 
 ### 3.2 The area record
 
-The trust-map entity is **`ValidationArea`**, bound to `validation_area`. One logical record per run per area; consumers read the **latest** per (product, producer, area). Its name is part of the contract for the same reason `validation_run` is.
+The trust-map entity is **`ValidationArea`**, with the logical relation name `validation_area`. One logical record per run per area; consumers read the **latest** per (product, producer, area). Its logical name is part of the contract, and may be mapped to a physical name, on the same terms as `validation_run`.
 
 | Field | Meaning |
 |-------|---------|
@@ -363,7 +363,7 @@ The result is mappable from/to established open formats; `source_format` records
 - **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)**: both results relations declare profile `EVENT_APPEND_ONLY`; `TLM` blocking rules are canonical CRITICAL/ERROR checks, scoped to that pattern's area.
 - **[Semantic module](../modules/semantic.md)**: its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation declares the results location and the trust-authoritative producer, so the map is read before analytical resource use. Its catalogue is also where an `ENTITY` scope resolves.
 - **`roles/review.md`**: a reviewer builds this same map by hand, in this vocabulary, before a validator exists to publish it. The two are the same artefact at different stages of a product's life.
-- **Implementation**: the Teradata binding (results table, DBC/data checks, wire-schema bindings) lives in [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/).
+- **Implementation**: each platform binding (results relations, catalogue and data checks, wire-schema bindings) lives in `implementation/{platform}/patterns/validation/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
 
 ---
 

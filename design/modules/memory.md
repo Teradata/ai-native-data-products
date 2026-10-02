@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Memory module: agent state and learning (runtime), and design memory (documentation) |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/) |
+| **Implementations** | `implementation/{platform}/modules/memory/`, one per platform |
 
 Memory is the module that **provides `DocumentationCapture`**: the capability every other module soft-requires to record its design decisions. It is also the store of agent runtime state.
 
@@ -367,7 +367,7 @@ These are the catalogued decisions a Memory module design must settle. The recom
 
 ## 12. Implementation
 
-The Teradata binding (the runtime and documentation tables, the standard views, the capture-protocol templates, and the invariant checks) lives in [`implementation/teradata/modules/memory/`](../../implementation/teradata/modules/memory/). Other platforms add sibling directories under `implementation/` without changing this document.
+Each platform binding provides the runtime and documentation tables, the standard views, the capture-protocol templates, and the invariant checks, in `implementation/{platform}/modules/memory/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

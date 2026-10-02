@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Semantic module: knowledge and meaning; the discovery map agents navigate |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/) |
+| **Implementations** | `implementation/{platform}/modules/semantic/`, one per platform |
 
 Semantic is the module that **provides `SemanticRegistration`** and the discovery map every other module and pattern points at: the entity/column catalogue, the relationship graph, the module and primary-object registries, and the product orientation layer. It is the map that makes [Master agent discovery](../core/MASTER_DESIGN.md) possible.
 
@@ -122,6 +122,7 @@ Entity: Metric                    [kind: Record]
   metric_id: Identifier
   metric_name: ShortText [required] [unique]  // business name (Total Sales, Churn Rate)
   metric_description: Text [required]  // what it measures and what it excludes
+  metric_definition: Text [required]  // platform-neutral: what is measured, aggregation, filters, combination
   metric_datatype: Code [optional]  // declared result type
   aggregation_type: Enum{SUM|AVERAGE|COUNT|COUNT_DISTINCT|MIN|MAX|RATIO|DERIVED} [optional]
   unit: ShortText [optional]  // currency code, percent, count, days
@@ -145,7 +146,7 @@ Entity: MetricDataset             [kind: Record]
   is_active: Flag
 ```
 
-**A metric carries its expression once per dialect, not once.** The same metric is evaluated by the product's own platform, by a consuming tool that pushes down its own SQL, and by a catalogue that only displays it. One expression per dialect keeps those the same definition rather than three that drift; a product with a single platform declares a single dialect and loses nothing.
+**A metric is defined once, logically, and expressed once per dialect.** The design states each metric in platform-neutral terms over registered entities and attributes: what is measured, how it aggregates, what it filters, and how component metrics combine. It never states SQL. Each platform binding renders that definition into its own dialect at build time and registers the result as a `MetricExpression`, and may register further dialects for consuming tools that push down their own SQL. The product's platform, a consuming tool and a catalogue that only displays the metric then share one definition rather than three that drift, and the same design builds on any platform.
 
 **`is_additive` is a correctness flag, not documentation.** A consumer that sums a non-additive measure across time produces a number that is wrong rather than approximate, and nothing downstream can detect it. Declaring it is what lets a tool refuse.
 
@@ -379,7 +380,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-010`: a `COMPOSITE` object's structure is recorded in `AccessComposition` with exactly one `ANCHOR` member, and is expanded as a unit from that metadata, never by parsing the object's definition.
 - `INV-SEMANTIC-011`: the orientation relation lists the required baseline resources, one row per role, in ascending `discovery_order` with the trust map ordered before every analytical resource; consumers use stored identities verbatim, and a missing required resource is a conformance failure.
 - `INV-SEMANTIC-012`: the machine-readable manifest is generated from the registry and orientation relation (a derived view), never hand-authored, so it cannot drift from its sources.
-- `INV-SEMANTIC-013`: every registered metric carries at least one expression, each in a declared dialect, and no two expressions of one metric declare the same dialect.
+- `INV-SEMANTIC-013`: every registered metric carries a platform-neutral definition and at least one expression derived from it, each in a declared dialect, and no two expressions of one metric declare the same dialect.
 - `INV-SEMANTIC-014`: every dataset a metric names is an entity registered in the same product, and every metric names exactly one dataset in the primary role.
 - `INV-SEMANTIC-015`: every synonym resolves to a registered entity, column or metric; a synonym is unique within the object it resolves to.
 
@@ -387,7 +388,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 
 ## 11. Designer Responsibilities
 
-**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the trust-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity; the metrics the product publishes, with an expression per dialect and an additivity declaration; synonyms for the terms consumers use.
+**Designers supply:** the entity/column/relationship catalogue for every module; naming standards; the module map and primary objects with their roles; the product registry and manifest, including the trust-authoritative producer the [validation pattern](../patterns/validation.md) reads; the temporal profile per entity; the metrics the product publishes, each with a platform-neutral definition and an additivity declaration (dialect expressions are generated by the platform binding, never written by the designer); synonyms for the terms consumers use.
 
 **Design review checklist:**
 
@@ -400,7 +401,7 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] `TableRelationship` completeness verified; no undocumented isolated entity (`INV-SEMANTIC-005`).
 - [ ] Primary objects use verbatim identities and controlled roles (`INV-SEMANTIC-003`, `INV-SEMANTIC-007`).
 - [ ] Consumable objects registered in `AccessObject` and composites recorded in `AccessComposition`; consumers resolve through the registry, not object names (`INV-SEMANTIC-008` to `INV-SEMANTIC-010`).
-- [ ] Every published metric carries an expression per dialect, a primary dataset, and an additivity declaration (`INV-SEMANTIC-013`, `INV-SEMANTIC-014`).
+- [ ] Every published metric carries a platform-neutral definition, a primary dataset, and an additivity declaration, with its dialect expressions generated from the definition (`INV-SEMANTIC-013`, `INV-SEMANTIC-014`).
 - [ ] Synonyms resolve to registered objects (`INV-SEMANTIC-015`).
 - [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles), and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
@@ -420,7 +421,7 @@ These are the catalogued decisions a Semantic module design must settle. The rec
 
 ## 12. Implementation
 
-The Teradata binding (the catalogue and registry tables, the recursive path-discovery view, the live hybrid column catalogue, the orientation manifest and MCP resource shapes, and the validation queries) lives in [`implementation/teradata/modules/semantic/`](../../implementation/teradata/modules/semantic/). Other platforms add sibling directories under `implementation/` without changing this document.
+Each platform binding provides the catalogue and registry tables, the recursive path-discovery view, the live hybrid column catalogue, the orientation manifest and MCP resource shapes, and the validation queries, in `implementation/{platform}/modules/semantic/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

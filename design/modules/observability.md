@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Observability module: monitoring, feedback, lineage, and the home of validation results |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/) |
+| **Implementations** | `implementation/{platform}/modules/observability/`, one per platform |
 
 Observability is the operational-evidence module: it monitors product health, records lineage, and is the **home of validation results** ([validation pattern](../patterns/validation.md)). It closes the feedback loop by supplying the learning inputs Memory consumes.
 
@@ -139,11 +139,11 @@ Entity: AgentOutcome              [kind: Record]
   records_processed: Integer [optional]  // aggregate count
 ```
 
-**Validation results.** The [validation pattern](../patterns/validation.md)'s result record, the `ValidationRun` entity, is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container. The entity name is fixed by that contract: conformance queries resolve it by name and report clean against anything else.
+**Validation results.** The [validation pattern](../patterns/validation.md)'s result record, the `ValidationRun` entity, is homed in this module as append-only evidence (`EVENT_APPEND_ONLY`, `INV-OBS-005`). Its contract is owned by the validation pattern; this module provides its container. Its logical name is fixed by that contract and is not a designer's choice. An organisation may map it to a physical name of its own; the binding registers that mapping in Semantic, and conformance queries resolve the relation through it rather than through a literal name.
 
 ### 4.1 Graph Node and Edge Model (optional, `graph-lineage` facet)
 
-A product that enables the `graph-lineage` facet (§8.1) maps `DataLineage` and `AgentOutcome` into a graph-explorer-conformant node/edge adapter, so lineage can be opened in Teradata Graph Explorer, traced, and rendered as a graph, rather than only queried as the tabular `lineage_graph` edge list (§5). This is a mapping onto the entities already defined in §4, not a new system of record (`INV-OBS-007`).
+A product that enables the `graph-lineage` facet (§8.1) maps `DataLineage` and `AgentOutcome` into a node/edge exposure that conforms to a graph consumer contract, so lineage can be opened in graph-native tooling, traced, and rendered as a graph, rather than only queried as the tabular `lineage_graph` edge list (§5). This is a mapping onto the entities already defined in §4, not a new system of record (`INV-OBS-007`).
 
 **Node categories:**
 
@@ -155,9 +155,9 @@ A product that enables the `graph-lineage` facet (§8.1) maps `DataLineage` and 
 | `agent` | `consumer` | `agent_key` | `AgentOutcome.agent_key` |
 | `query_session` | `session` | `session_key` | `AgentOutcome.session_key` (omit this category entirely if a product does not need session-grain traversal) |
 
-`node` is the dense surrogate identity assigned at load time (§5.1); the natural key above is carried as a separate, non-canonical attribute per the graph-explorer contract's rule that a natural key must not replace `node`.
+`node` is the dense surrogate identity assigned at load time (§5.1); the natural key above is carried as a separate, non-canonical attribute because a natural key must not replace the surrogate node identity.
 
-**Edge types**, registered in the graph catalogue's `graph_relationship` vocabulary, all `ASYMMETRIC`:
+**Edge types**, registered in the graph catalogue's relationship vocabulary, all asymmetric:
 
 | `edge_type` | Direction (`node_i` → `node_j`) | Source |
 |---|---|---|
@@ -166,7 +166,7 @@ A product that enables the `graph-lineage` facet (§8.1) maps `DataLineage` and 
 | `accessed_by` | table → agent | `AgentOutcome.tables_accessed` (exploded to one row per accessed table) |
 | `queried_in` | agent → query_session | `AgentOutcome.session_key` |
 
-`is_weighted=0`; every edge emits `weight=1.0` per the contract's guidance for unweighted graphs. `has_relationship=1` since `edge_type` is always populated and vocabulary-backed.
+The graph is unweighted: every edge carries a weight of 1.0. Every edge carries an `edge_type` drawn from the registered vocabulary.
 
 ---
 
@@ -179,9 +179,9 @@ Two views are deployed **into the Semantic container** so agents discover lineag
 
 ### 5.1 Graph-Native Exposure (optional, `graph-lineage` facet)
 
-Where `lineage_graph` is the lightweight discovery edge-list for agents already inside Semantic, a product that enables the `graph-lineage` facet additionally binds its lineage and access records to the external **Teradata Graph Explorer** data contract (out-of-repo, normative for consumer adapters — `graph-data-contract.md` in the `teradata-graph-explorer` repository): a heavier, separately-packaged adapter for graph-native tooling, built from the same source-of-truth entities (§4), so an agent or analyst can open the product's lineage in Graph Explorer, search it, trace it upstream/downstream, and visualise it rather than only query it as a tabular edge list. Nothing here creates a second system of record: it reads `DataLineage`/`AgentOutcome` only and never writes back into them (`INV-OBS-007`).
+Where `lineage_graph` is the lightweight discovery edge-list for agents already inside Semantic, a product that enables the `graph-lineage` facet additionally exposes its lineage and access records through a **graph consumer contract**: the published contract of the graph-native tooling a platform binding targets, which that binding names and conforms to. It is a heavier, separately packaged exposure built from the same source-of-truth entities (§4), so an agent or analyst can open the product's lineage in graph tooling, search it, trace it upstream or downstream, and visualise it rather than only query it as a tabular edge list. Nothing here creates a second system of record: it reads `DataLineage`/`AgentOutcome` only and never writes back into them (`INV-OBS-007`).
 
-**Graph scope principle.** One data product, one graph (`DEC-GRAPH-SCOPE`, §11.1, decided, not left open per product): each data product registers its own `graph_key` (e.g. `lineage_<product>`), its own `Graphs_<KEY>_STD_0_T`/`ACL_0_V` objects, and its own catalogue row (`INV-OBS-008`). `community` is not used to represent product ownership — the contract defines `community` as an instance grouping or analytical partition that may change between graph builds (e.g. Louvain clustering); product identity is a stable governance fact that must never move between runs, and conflating the two would also block a product from using `community` for its own legitimate subject-area clustering. Cross-product federated lineage, if ever needed, is a separate, explicitly designed federated graph with `data_product` as a genuine `category` value on its own nodes — out of scope for this module.
+**Graph scope principle.** One data product, one graph (`DEC-GRAPH-SCOPE`, §11.1, decided, not left open per product): each data product registers its own `graph_key`, its own node and edge relations, and its own catalogue entry (`INV-OBS-008`). `community` is not used to represent product ownership: graph consumer contracts treat `community` as an instance grouping or analytical partition that may change between graph builds (e.g. Louvain clustering); product identity is a stable governance fact that must never move between runs, and conflating the two would also block a product from using `community` for its own legitimate subject-area clustering. Cross-product federated lineage, if ever needed, is a separate, explicitly designed federated graph with `data_product` as a genuine `category` value on its own nodes — out of scope for this module.
 
 **Load semantics.** A set-based upsert from `DataLineage`/`AgentOutcome` into the graph tables, run on the same cadence as lineage/outcome capture or on a scheduled interval (`DEC-GRAPH-LOAD-CADENCE`, §11.1):
 
@@ -189,19 +189,18 @@ Where `lineage_graph` is the lightweight discovery edge-list for agents already 
 2. **Edge upsert**: `DataLineage` and `AgentOutcome` rows resolve their natural keys to `node_id` and are inserted as `(node_i, node_j, edge_type, weight)`, deduplicated on `(node_i, node_j, edge_type)`.
 3. Only `DataLineage` rows with `is_active=1` are loaded, matching `INV-OBS-006`'s stability guarantee: a retired flow does not appear as a live edge in the graph.
 
-**Graph Product contract binding**, for graph key `<KEY>` (one per data product):
+**Exposure planes**, one set per graph key (one per data product):
 
-| Plane | Object | Populated by |
+| Plane | Holds | Populated by |
 |---|---|---|
-| Data tables | `Graphs_<KEY>_STD_0_T.graph_nodes`, `.graph_edges` | Load path above |
-| Data locking views | `Graphs_<KEY>_STD_0_V.*` | Standard locking wrapper |
-| Consumer adapters | `Graphs_<KEY>_ACL_0_V.graph_nodes`, `.graph_edges`, `.graph_edges_bi` | Canonical column remap — the only surface external consumers bind to |
-| Read role | `R_Graphs_<KEY>_READ` | Standard grant |
-| Catalogue | `Graphs_CAT_STD_0_T.graph_registry`, `.graph_relationship`, `.graph_role`, `.graph_trace_profile` | One-time registration, updated only on vocabulary change |
+| Data | The node and edge relations | Load path above |
+| Consumer surface | The node and edge projection in the shape the graph consumer contract defines: the only surface external consumers bind to | Derived from the data plane |
+| Access | One read principal per graph, the sole consumer-facing grant onto the consumer surface | Access layer |
+| Catalogue | The graph's registry entry, relationship vocabulary, role vocabulary and trace profiles | One-time registration, updated only on vocabulary change |
 
-This exposure's SHIPS package declares the shared `graph-platform` package as an `EXTERNAL_PARENT`; it does not recreate it.
+Physical names for every plane arrive through the build context, never from this document: from the graph consumer contract where it fixes them, otherwise from the organisation's placement and naming rules. The shared graph catalogue and engine belong to the graph platform, not the product: a product registers into them and does not recreate them.
 
-**Trace profiles**, registered in `graph_trace_profile`:
+**Trace profiles**, registered in the graph catalogue:
 
 | `profile_id` | `direction` | `relationship` | `stop_at_roles` | Purpose |
 |---|---|---|---|---|
@@ -222,9 +221,9 @@ The lineage entities align with **OpenLineage**: the definition/execution split 
 | Pattern | Contribution to Observability |
 |---------|-------------------------------|
 | `temporal-lifecycle-metadata` | Event entities declare the `EVENT_APPEND_ONLY` profile; `DataLineage` carries an `is_active` lifecycle. When `graph-lineage` is enabled, its node/edge tables carry `created_dts` as provenance only, never business validity. |
-| `object-placement` | Which container the tables and views live in, and who may reach them; governs the `Graphs_<KEY>_*` container naming and locking-view pairing when `graph-lineage` is enabled. |
-| `access-layer` | `ROLE_AGENT` write-back (append) to this module: agents record outcomes and quality signals (Phase 2.5). `R_Graphs_<KEY>_READ` is the sole consumer-facing grant onto the graph exposure when enabled. |
-| `validation` | Hosts the validation results and the trust map; its own quality/lineage evidence is a validator source. The external graph-explorer contract's own structural and semantic quality gates are the validator source for the `graph-lineage` facet. |
+| `object-placement` | Which container the tables and views live in, and who may reach them; governs the containers the graph exposure planes occupy when `graph-lineage` is enabled. |
+| `access-layer` | `ROLE_AGENT` write-back (append) to this module: agents record outcomes and quality signals (Phase 2.5). The graph's read principal is the sole consumer-facing grant onto the graph exposure when enabled. |
+| `validation` | Hosts the validation results and the trust map; its own quality/lineage evidence is a validator source. The graph consumer contract's own structural and semantic quality gates are the validator source for the `graph-lineage` facet. |
 
 ---
 
@@ -238,10 +237,10 @@ Beyond its always-present base, Observability exposes two facets that a product 
 
 | Facet | Holds | Provides |
 |---|---|---|
-| **`graph-lineage`** | The graph-explorer node/edge adapter (§4.1, §5.1): `Graphs_<KEY>_*` tables, catalogue registration, trace profiles. | `GraphNativeLineageTraversal`. |
-| **`column-lineage`** | Populated `DataLineage.source_column`/`.target_column`; `column` nodes and `derives_column` edges within the `graph-lineage` adapter. | `ColumnGrainLineageTraversal`, catalogue-registered so a consumer can discover it without querying the graph. |
+| **`graph-lineage`** | The graph node/edge exposure (§4.1, §5.1): node and edge relations, consumer surface, catalogue registration, trace profiles. | `GraphNativeLineageTraversal`. |
+| **`column-lineage`** | Populated `DataLineage.source_column`/`.target_column`; `column` nodes and `derives_column` edges within the `graph-lineage` exposure. | `ColumnGrainLineageTraversal`, catalogue-registered so a consumer can discover it without querying the graph. |
 
-A product that does not enable `graph-lineage` gets the tabular `lineage_graph` discovery view (§5) only. A product that enables `graph-lineage` but not `column-lineage` gets the full graph adapter at table grain: it does not populate the column extension, and its catalogue registration omits the `derives_column` relationship and `COLUMN` role, so an agent can tell the capability is absent from the catalogue alone rather than by tracing an empty result.
+A product that does not enable `graph-lineage` gets the tabular `lineage_graph` discovery view (§5) only. A product that enables `graph-lineage` but not `column-lineage` gets the full graph exposure at table grain: it does not populate the column extension, and its catalogue registration omits the `derives_column` relationship and `COLUMN` role, so an agent can tell the capability is absent from the catalogue alone rather than by tracing an empty result.
 
 **Provides:**
 
@@ -253,8 +252,8 @@ A product that does not enable `graph-lineage` gets the tabular `lineage_graph` 
 | `QualityScore` | — | Agents judging fitness before use, and Memory as a learning input. Held as a time series per `DEC-QUALITY-STORAGE`. |
 | Validation results home | — | The validation pattern, as the container for `validation_run` and the `validation_area` trust map. |
 | Lineage exposure (definitional + operational) | — | Agents and dashboards, via the Semantic exposure. |
-| `GraphNativeLineageTraversal` | `graph-lineage` | Teradata Graph Explorer and any agent/analyst using it: upstream/downstream trace, impact analysis, and access-path traversal over this product's lineage. |
-| `ColumnGrainLineageTraversal` | `column-lineage` | Teradata Graph Explorer and any agent/analyst using it: column-to-column derivation trace, in addition to table-grain trace. |
+| `GraphNativeLineageTraversal` | `graph-lineage` | Graph-native lineage tooling and any agent or analyst using it: upstream/downstream trace, impact analysis, and access-path traversal over this product's lineage. |
+| `ColumnGrainLineageTraversal` | `column-lineage` | Graph-native lineage tooling and any agent or analyst using it: column-to-column derivation trace, in addition to table-grain trace. |
 
 **Requires:**
 
@@ -273,7 +272,7 @@ A product that does not enable `graph-lineage` gets the tabular `lineage_graph` 
 - **Observability → Memory**: outcomes and quality trends feed Memory's learned strategies (the closed loop). Memory soft-requires these learning inputs.
 - **Observability + Domain**: table-level change tracking of Domain loads; one event per batch, never per record.
 - **Observability monitors all modules**: quality, performance, and lineage across whatever is deployed.
-- **Observability + external `graph-platform`**: when `graph-lineage` is enabled, hard-depends on the shared catalogue, engine, and quality procedures (§8); provides no capability the platform itself does not already define, only this product's specific graph. No integration with Semantic: `lineage_graph` (§5) stays the Semantic-facing discovery edge-list; the graph adapter is a separate, heavier surface for graph-native tooling and does not register into the Semantic map.
+- **Observability + external `graph-platform`**: when `graph-lineage` is enabled, hard-depends on the shared catalogue, engine, and quality procedures (§8); provides no capability the platform itself does not already define, only this product's specific graph. No integration with Semantic: `lineage_graph` (§5) stays the Semantic-facing discovery edge-list; the graph exposure is a separate, heavier surface for graph-native tooling and does not register into the Semantic map.
 
 ---
 
@@ -304,7 +303,7 @@ A product that does not enable `graph-lineage` gets the tabular `lineage_graph` 
 - [ ] Separate retention policies for definition vs execution (`INV-OBS-004`).
 - [ ] Validation results homed here (`INV-OBS-005`); `lineage_graph` / `lineage_run_latest` deployed to Semantic.
 - [ ] Entities registered in the Semantic map (`SemanticRegistration`); documentation captured, including the lineage split as a design decision.
-- [ ] If `graph-lineage` is enabled: graph key chosen and unique across the estate (`INV-OBS-008`); catalogue rows registered before the ACL views are published; `R_Graphs_<KEY>_READ` is the only grant issued; the same graph key is written back onto this product's `Semantic.data_product_map.graph_key` (`OBSERVABILITY` row) so a consumer can resolve it from the product prefix alone, without guessing a naming convention.
+- [ ] If `graph-lineage` is enabled: graph key chosen and unique across the estate (`INV-OBS-008`); catalogue entries registered before the consumer surface is published; the graph's read principal is the only grant issued; the same graph key is written back onto this product's `DataProductMap.graph_key` (`OBSERVABILITY` row) so a consumer can resolve it from the product prefix alone, without guessing a naming convention.
 - [ ] `column-lineage` enabled only if column-level lineage is in scope for this product; the `DataLineage` column extension populated and catalogue rows registered together, never one without the other.
 - [ ] This document passes the design linter with no ignore directive.
 
@@ -323,13 +322,15 @@ These are the catalogued decisions a Observability module design must settle. Th
 | `DEC-GRAPH-SCOPE` | one graph per data product | Already settled by this standard (§5.1); revisit only when a genuine cross-product federated graph is separately designed. |
 | `DEC-GRAPH-COLUMN-LINEAGE` | omit the `column-lineage` facet unless requested | Does any consumer need column-grain trace, or is table-grain sufficient? |
 | `DEC-GRAPH-SESSION-NODES` | omit unless requested | Is session-level access traversal (`query_session` nodes) actually queried, or does `agent`-level suffice? |
-| `DEC-GRAPH-LOAD-CADENCE` | same cadence as lineage capture | Does graph-explorer need near-real-time lineage, or is a scheduled batch load sufficient? |
+| `DEC-GRAPH-LOAD-CADENCE` | same cadence as lineage capture | Do graph consumers need near-real-time lineage, or is a scheduled batch load sufficient? |
 
 ---
 
 ## 12. Implementation
 
-The Teradata binding (the event, metric, and lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, the OpenLineage event construction, and — when `graph-lineage` is enabled — the graph-explorer adapter tables, catalogue seed, and load path) lives in [`implementation/teradata/modules/observability/`](../../implementation/teradata/modules/observability/). The validation results table is defined by the [validation pattern implementation](../../implementation/teradata/patterns/validation/) and deployed into this module's container. The external graph-explorer contract itself — ACL column shapes, catalogue table definitions, and quality procedures — is defined in the `teradata-graph-explorer` repository's `docs/graph-data-contract.md` and is out of scope for this repository to redefine.
+Each platform binding provides the event, metric, and lineage tables, the `lineage_graph` and `lineage_run_latest` Semantic views, the OpenLineage event construction, and, when `graph-lineage` is enabled, the graph exposure planes, catalogue registration and load path, in `implementation/{platform}/modules/observability/`. It conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). The validation results relations are defined by that platform's binding of the [validation pattern](../patterns/validation.md) and deployed into this module's container.
+
+A binding that supports `graph-lineage` names the graph consumer contract it targets and conforms to it. That contract's column shapes, catalogue definitions and quality procedures belong to its owner and are not redefined here; a platform with no graph consumer contract reports the facet as unsupported. Adding a platform changes nothing in this document.
 
 ---
 

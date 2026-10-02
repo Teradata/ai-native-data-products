@@ -225,4 +225,4 @@ A designer also settles: the state vocabulary, if the four advocated states do n
 
 ## 9. Implementation
 
-A platform binding provides: the versioned product, interface and container entities; the transition operations for each lifecycle event; the query surfaces a catalogue reads; the resolution query returning a product's consumer-facing objects and contacts from metadata alone; and conformance checks for the invariants above. The Teradata binding is `implementation/teradata/patterns/catalogue-interface/`.
+A platform binding provides: the versioned product, interface and container entities; the transition operations for each lifecycle event; the query surfaces a catalogue reads; the resolution query returning a product's consumer-facing objects and contacts from metadata alone; and conformance checks for the invariants above. Each binding lives in `implementation/{platform}/patterns/catalogue-interface/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).

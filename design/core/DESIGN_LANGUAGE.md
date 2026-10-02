@@ -230,7 +230,7 @@ Entity: Party                     [kind: History]
     - INV-DOMAIN-002: the current version of an entity is retrievable by a single predictable filter.
 ```
 
-Notice what is *absent*: no data types, no `CREATE`, no index clause, no temporal columns. The temporal columns come from the referenced `temporal-lifecycle-metadata` pattern; the physical index comes from `object-placement` / the platform. Those live in `implementation/teradata/modules/domain/`.
+Notice what is *absent*: no data types, no `CREATE`, no index clause, no temporal columns. The temporal columns come from the referenced `temporal-lifecycle-metadata` pattern; the physical index comes from `object-placement` / the platform. Those live in each platform's `implementation/{platform}/modules/domain/`.
 
 ---
 

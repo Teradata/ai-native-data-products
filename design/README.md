@@ -73,12 +73,12 @@ Nothing under `design/` may contain a SQL keyword, a vendor data type, a catalog
 
 `design/` and `implementation/{platform}/` share **anchor names**: the basename of a module or pattern. Given an anchor, either path is computable without a lookup table:
 
-| Design | Teradata implementation |
+| Design | Platform implementation |
 |--------|-------------------------|
-| `design/modules/{anchor}.md` | `implementation/teradata/modules/{anchor}/` |
-| `design/patterns/{anchor}.md` | `implementation/teradata/patterns/{anchor}/` |
+| `design/modules/{anchor}.md` | `implementation/{platform}/modules/{anchor}/` |
+| `design/patterns/{anchor}.md` | `implementation/{platform}/patterns/{anchor}/` |
 
-The implementation side is a **directory** per anchor rather than a single file, because one binding is often more than one artifact: a design document plus one or more templates. See [`implementation/teradata/README.md`](../implementation/teradata/README.md) for what those directories contain.
+The implementation side is a **directory** per anchor rather than a single file, because one binding is often more than one artifact: a design document plus one or more templates. Each platform's `implementation/{platform}/README.md` describes what its directories contain, and the [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) defines what every platform must provide.
 
 `design/core/` has no implementation counterpart: it is architecture-level material with nothing to bind.
 

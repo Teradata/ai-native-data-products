@@ -15,7 +15,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 ---
 
-**Access Layer**: The mandatory access-control artefact of a data product. Creates the three standard roles (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) and grants them read access to module containers, so the product can be discovered and queried. Deployed in two phases interleaved with the module sequence. See the [access-layer pattern](../patterns/access-layer.md).
+**Access Layer**: The mandatory access-control artefact of a data product. Establishes the three standard access tiers (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`), each realised by a principal the **organisation profile** names or creates, and grants them read access to module containers, so the product can be discovered and queried. Deployed in two phases interleaved with the module sequence. See the [access-layer pattern](../patterns/access-layer.md).
 
 **Advocated option**: The recommended answer to a **Decision**. Choosing it needs no justification; choosing another option requires a recorded reason. Advocacy is not mandate: what conformance requires is that the choice be *declared*, not that it match the recommendation. See the [decision catalogue](ADVOCATED_STANDARDS.md).
 

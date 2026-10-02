@@ -22,7 +22,7 @@ normative: true
 | **Scope** | The mandatory access-control artefact that makes a deployed product reachable |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/patterns/access-layer/`](../../implementation/teradata/patterns/access-layer/) |
+| **Implementations** | `implementation/{platform}/patterns/access-layer/`, one per platform |
 
 This pattern realises the mandatory Access Layer of [Master](../core/MASTER_DESIGN.md) and `INV-MASTER-004`. Without it, a correctly deployed product is **operationally invisible**: every consumer (agents, dashboards, reporting tools, analysts) is denied access no matter how completely the module containers are deployed.
 
@@ -30,7 +30,7 @@ This pattern realises the mandatory Access Layer of [Master](../core/MASTER_DESI
 
 ## 1. Core Principle
 
-Consumers are granted access to the container(s) that expose a module's **public interface**: the view layer. Under the standard `{ProductName}_{Module}` placement this is the module container; where [object-placement](object-placement.md) separates tables and views into distinct containers, consumers are granted the **view-layer container only**, never the base-table container. The term **module access container** refers to whichever container(s) consumers should reach for a module.
+Consumers are granted access to the container(s) that expose a module's **public interface**: the view layer. Where placement co-locates a module's tables and views, this is the module container; where [object-placement](object-placement.md) separates tables and views into distinct containers, consumers are granted the **view-layer container only**, never the base-table container. The term **module access container** refers to whichever container(s) consumers should reach for a module.
 
 ---
 
@@ -52,13 +52,13 @@ Consumers are granted access to the container(s) that expose a module's **public
 
 ## 3. Standard Roles
 
-Three roles are created per product, named `{ProductName}_ROLE_{TIER}`:
+Three access tiers are defined per product. `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN` are the standard's logical names for them, not physical names. The physical principal that realises each tier comes from the organisation profile's access model through the build context: the profile either names a principal to create for this product or binds the tier to a principal the organisation already has (see the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md)). A principal is whatever the platform grants to: a role, a group, or a policy.
 
-| Role | Consumers | Scope |
+| Tier | Consumers | Scope |
 |------|-----------|-------|
-| `{ProductName}_ROLE_READ` | Analysts, BI tools, ad-hoc users | Read on the module access containers. |
-| `{ProductName}_ROLE_AGENT` | AI agents, automated tools | Read on the module access containers, plus **write-back** (append) to Memory and Observability. |
-| `{ProductName}_ROLE_ADMIN` | Product owner, data steward | Read on all containers, including any separate base-table containers. |
+| `ROLE_READ` | Analysts, BI tools, ad-hoc users | Read on the module access containers. |
+| `ROLE_AGENT` | AI agents, automated tools | Read on the module access containers, plus **write-back** (append) to Memory and Observability. |
+| `ROLE_ADMIN` | Product owner, data steward | Read on all containers, including any separate base-table containers. |
 
 **What a role's description says.** Each role carries a description, and it names **who the role is for** in one short sentence. It must not enumerate what the role can reach.
 
@@ -84,7 +84,7 @@ The Access Layer deploys in two phases interleaved with the module sequence ([Ma
 | Phase | Timing | Action | Privilege |
 |-------|--------|--------|-----------|
 | **1.5a** | As soon as the containers exist, at the end of Phase 1 | Provision the **implied grants** the container structure requires: the cross-container rights that let the access layer compile views over module containers. | Ownership of both containers. |
-| **1.5b** | After Phase 1 (Memory + Semantic) | Create the roles; grant read on the Semantic and Memory access containers; grant Memory write-back to `ROLE_AGENT`. | **Elevated (role creation).** |
+| **1.5b** | After Phase 1 (Memory + Semantic) | Create the tier principals the profile asks for; grant read on the Semantic and Memory access containers; grant Memory write-back to `ROLE_AGENT`. | **Elevated (principal creation)**, unless every tier is bound to an existing principal. |
 | **2.5** | After Phase 2 (Domain + Observability), then as further modules deploy | Extend read to Domain and Observability; grant Observability write-back to `ROLE_AGENT`; extend to Search and Prediction as each deploys. | Elevated. |
 
 **Why 1.5 splits.** The two halves look like one step and are not. Implied grants are a **build dependency**: without them a view in a separate access container cannot compile, so every consumer view downstream fails. Role creation is an **operational** one, and on most enterprise platforms it needs a privilege the deploying account does not hold.
@@ -111,8 +111,8 @@ Permissions per role, for whichever modules the composition includes:
 | Observability: write-back | - | Phase 2.5 | Phase 2.5 |
 | Search: read | when deployed | when deployed | when deployed |
 | Prediction: read | when deployed | when deployed | when deployed |
-| Domain / Semantic, write | - |, | ✔ |
-| Base-table containers (if separate) | - |: | ✔ |
+| Domain / Semantic: write | - | - | ✔ |
+| Base-table containers (if separate) | - | - | ✔ |
 
 **Why agents do not write to Domain or Semantic.** Domain data originates from authoritative source systems via governed pipelines: agent write-back would bypass data governance. Semantic metadata is maintained by product designers; agents read the schema but do not define it.
 

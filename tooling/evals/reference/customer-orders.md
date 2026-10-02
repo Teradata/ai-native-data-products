@@ -242,7 +242,7 @@ once at deployment from verifiable structure.
 Three measures are published: `Order Value` (additive, grained on Order), `Units Sold`
 (additive, grained on OrderLine), and `Average Order Value` (a ratio, and therefore
 non-additive: summing it across customers or months gives a wrong answer rather than an
-imprecise one). Each carries an ANSI expression and a Teradata expression. Synonyms cover
+imprecise one). Each is defined in logical terms over the entities above; the platform binding generates its expressions. Synonyms cover
 the terms the business uses that the schema does not: *basket* and *sale* for `Order`,
 *revenue* for `Order Value`.
 

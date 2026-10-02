@@ -22,9 +22,11 @@ normative: true
 | **Scope** | Every persisted table in every module: temporal and lifecycle metadata |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/patterns/temporal-lifecycle-metadata/`](../../implementation/teradata/patterns/temporal-lifecycle-metadata/) |
+| **Implementations** | `implementation/{platform}/patterns/temporal-lifecycle-metadata/`, one per platform |
 
 This pattern defines **semantic contracts only**: the canonical names and meanings of temporal and lifecycle metadata. It contains no platform types, sentinel literals, or catalogue queries; those bind in the implementation. It underpins the `CurrentStateFilter` and `PointInTimeReconstruction` capabilities, and its conformance rules are lifted directly by the [validation pattern](validation.md).
+
+**Canonical names are logical.** An organisation whose naming standard differs may map the canonical names to physical names of its own through its organisation profile (see the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md)). A mapping is one-to-one, applies uniformly to every product the organisation builds, and is registered in each product's Semantic metadata, so consumers and the conformance rules below resolve a canonical name to its physical column through metadata rather than by assuming it. The prohibited names constrain designs and unmapped columns: a physical name produced by a declared mapping is the canonical attribute under another name, not a competing convention. A mapping that sends two canonical names to one physical name, or a canonical name onto a name another canonical attribute already holds, is invalid and fails at build.
 
 ---
 
@@ -181,7 +183,7 @@ Every persisted table **declares exactly one profile**. The declaration lives in
 | Operational log / audit | `OPERATIONAL_LOG` | audit + event timestamps | lifecycle / SCD2 columns unless the logged object is versioned |
 | SCD2 bitemporal | `SCD2_BITEMPORAL` | SCD2 required columns + transaction-time pair | - |
 
-Missing required columns, or prohibited columns present, are conformance failures for the declared profile.
+Missing required columns, or prohibited columns present, are conformance failures for the declared profile. Both are judged after resolving the organisation's name mapping.
 
 **Entity kinds and their default profiles.** Every kind in the [entity notation](../core/DESIGN_LANGUAGE.md) resolves to a profile, so no persisted table falls outside this pattern:
 
@@ -260,7 +262,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 - **[Object-placement pattern](object-placement.md)**: layer *naming* is owned by object placement; defines layer *responsibilities* only.
 - **[Access-layer pattern](access-layer.md)**: realises the surfaces as concrete access objects.
 - **[Semantic module](../modules/semantic.md)**: its entity metadata carries the profile declaration; its own catalogue tables follow the current-state or SCD2 profile.
-- **Implementation**: the Teradata binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in [`implementation/teradata/patterns/temporal-lifecycle-metadata/`](../../implementation/teradata/patterns/temporal-lifecycle-metadata/).
+- **Implementation**: each platform binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in `implementation/{platform}/patterns/temporal-lifecycle-metadata/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
 
 ---
 

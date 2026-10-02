@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Search module: vector embeddings and similarity retrieval |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/) |
+| **Implementations** | `implementation/{platform}/modules/search/`, one per platform |
 
 This document defines **what** the Search module must be and **why**, in platform-neutral terms. Vector storage formats, distance functions, and index mechanisms are platform specifics: they live in the implementation directory, bound to the capabilities named here.
 
@@ -266,7 +266,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 12. Implementation
 
-The Teradata binding (the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks) lives in [`implementation/teradata/modules/search/`](../../implementation/teradata/modules/search/). Other platforms add sibling directories under `implementation/` without changing this document.
+Each platform binding provides the embedding table, the searchable view, the similarity and RAG query templates, and the invariant checks, in `implementation/{platform}/modules/search/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

@@ -23,7 +23,7 @@ normative: true
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Companion** | [object-placement](object-placement.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/patterns/physical-storage/`](../../implementation/teradata/patterns/physical-storage/) |
+| **Implementations** | `implementation/{platform}/patterns/physical-storage/`, one per platform |
 
 This pattern is an **interface specification**: it defines what a conforming physical-storage implementation must **declare** when object storage (S3, ADLS, GCS, …) is the physical layer beneath the logical containers of the [object-placement](object-placement.md) pattern. The physical path is derived deterministically from the logical names: the two patterns are explicitly coupled, and neither is complete without the other when object storage is in use.
 

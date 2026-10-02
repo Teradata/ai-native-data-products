@@ -153,15 +153,15 @@ Because many products may share one platform, container names must be unique per
 
 A composition deployed for consumption **must** include an Access Layer. Without it a correctly deployed product is operationally invisible: every consumer is denied access no matter how complete the modules are (`INV-MASTER-004`).
 
-Three standard roles are created per product, named `{ProductName}_ROLE_{TIER}`:
+Three standard access tiers are defined per product. The tier names are logical; the organisation profile supplies the physical principal for each, created for the product or bound to one the organisation already has:
 
-| Role | Consumers | Purpose |
-| -------------------------- | -------------------------------- | ---------------------------------------------------------------- |
-| `{ProductName}_ROLE_READ` | Analysts, BI tools, ad-hoc users | Read access to module containers. |
-| `{ProductName}_ROLE_AGENT` | AI agents, automated tools | Read access, kept separate for independent lifecycle management. |
-| `{ProductName}_ROLE_ADMIN` | Product owner, data steward | Read access across all containers. |
+| Tier | Consumers | Purpose |
+| ------------ | -------------------------------- | ---------------------------------------------------------------- |
+| `ROLE_READ` | Analysts, BI tools, ad-hoc users | Read access to module containers. |
+| `ROLE_AGENT` | AI agents, automated tools | Read access, kept separate for independent lifecycle management. |
+| `ROLE_ADMIN` | Product owner, data steward | Read access across all containers. |
 
-The roles are product artefacts owned by the product team; assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the [access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
+A principal created for the product is a product artefact owned by the product team; one bound from the organisation is granted to, not owned. Assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the [access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
 
 ---
 
@@ -186,10 +186,11 @@ A composition that omits a module simply omits its phase. A Data Asset runs Phas
 
 ## 11. Design Standards and Platform Implementation
 
-The framework is split along one boundary, defined by the [Design Language](DESIGN_LANGUAGE.md):
+The framework is split along one boundary, defined by the [Design Language](DESIGN_LANGUAGE.md), and configured per organisation by a third input:
 
 - **`design/`**: platform-agnostic. This document, the module standards, and the patterns. Written in logical types, capabilities, and invariants; no platform SQL (enforced by the linter).
-- **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Teradata is the current reference; new platforms (Postgres, DuckDB) are added as sibling directories, changing no design document.
+- **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Every platform is a sibling directory held to the same [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md); adding one changes no design document.
+- **Organisation profile**: organisation-specific. Placement, naming, access principals, classification and existing structures, supplied at build time, so neither tree encodes one organisation's conventions.
 
 A platform "profile" *is* an `implementation/{platform}/` tree: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
 

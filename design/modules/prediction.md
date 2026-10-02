@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Prediction module: the feature store: engineered features, model outputs, point-in-time training data |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/) |
+| **Implementations** | `implementation/{platform}/modules/prediction/`, one per platform |
 
 Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on Domain: it references Domain entities and joins back for raw context.
 
@@ -209,7 +209,7 @@ These are the catalogued decisions a Prediction module design must settle. The r
 
 ## 10. Implementation
 
-The Teradata binding (the wide and tall feature tables, the prediction table, the current, enriched, and point-in-time views, and the invariant checks) lives in [`implementation/teradata/modules/prediction/`](../../implementation/teradata/modules/prediction/). Other platforms add sibling directories under `implementation/` without changing this document.
+Each platform binding provides the wide and tall feature tables, the prediction table, the current, enriched, and point-in-time views, and the invariant checks, in `implementation/{platform}/modules/prediction/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

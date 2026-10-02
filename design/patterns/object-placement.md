@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Any relational or cloud data platform: where objects live and who may reach them |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/patterns/object-placement/`](../../implementation/teradata/patterns/object-placement/) |
+| **Implementations** | `implementation/{platform}/patterns/object-placement/`, one per platform |
 
 This pattern is an **interface specification**: it defines what a conforming object-placement implementation must **declare**, not a fixed convention. An AI-native data product agent must not assume how an organisation structures its containers: it must read a conforming implementation before generating any DDL, placement decision, or access statement. It realises the `object-placement` concern that every module applies.
 
@@ -67,10 +67,11 @@ When generating any object:
 
 **Priority order for locating an implementation:**
 
-1. An explicit path in the current conversation or project instructions.
-2. `implementation/{platform}/patterns/object-placement/` in the product repository.
-3. A conforming standard named in the product's Semantic module.
-4. **If none exists:** STOP and ask the user for their object-placement standard (container structure, separation, naming) before generating objects.
+1. The placement section of the organisation profile supplied for the build (see the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md)).
+2. An explicit path in the current conversation or project instructions.
+3. `implementation/{platform}/patterns/object-placement/` in the product repository.
+4. A conforming standard named in the product's Semantic module.
+5. **If none exists:** STOP and ask the user for their object-placement standard (container structure, separation, naming) before generating objects.
 
 ---
 
