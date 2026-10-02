@@ -45,19 +45,19 @@ Environments are separate Teradata systems, so container names carry no environm
 
 ```
 Containers: -
-  memory:        {product_code}_MEM
-  semantic:      {product_code}_SEM
-  domain:        {product_code}_DOM
-  observability: {product_code}_OBS
-  search:        {product_code}_SCH
-  prediction:    {product_code}_PRD
+  memory:        {product_code}_{module|abbrev}
+  semantic:      {product_code}_{module|abbrev}
+  domain:        {product_code}_{module|abbrev}
+  observability: {product_code}_{module|abbrev}
+  search:        {product_code}_{module|abbrev}
+  prediction:    {product_code}_{module|abbrev}
   access:        {product_code}_ACC
   governance:    governance
 ```
 
 ## Section 3. Naming Pattern
 
-Containers are `{product_code}_{module abbreviation}`. Objects take the entity name; a
+Containers are `{product_code}_{module abbreviation}`, the abbreviations below. Objects take the entity name; a
 versioned Domain entity's table carries `_History`, every governed view carries `_Current`,
 and the consumer view takes the bare entity name. Attributes keep the specification's names. The
 validation pattern's relations keep their logical snake-case names, which this
@@ -74,13 +74,24 @@ Naming: -
   Standard names:
     ValidationRun: validation_run
     ValidationArea: validation_area
+    LineageGraph: lineage_graph
+    LineageRunLatest: lineage_run_latest
+  Abbreviations:
+    memory: MEM
+    semantic: SEM
+    domain: DOM
+    observability: OBS
+    search: SCH
+    prediction: PRD
+  Graph key: LIN_{product_code}
 ```
 
 ## Section 4. Object Placement Rules
 
 Tables, governed views and procedures sit in their module's database; every consumer view
 sits in the access database; functions sit with Domain. The product's registry row lives
-in the shared governance database because its purpose is cross-product discovery.
+in the shared governance database because its purpose is cross-product discovery. The lineage
+discovery views sit with Semantic, so agents find lineage where they find everything else.
 
 ```
 Placement: -
@@ -91,6 +102,8 @@ Placement: -
     procedure: module
     function: domain
     DataProductRegistry: governance
+    LineageGraph: semantic
+    LineageRunLatest: semantic
 ```
 
 ## Section 5. Separation Policy
@@ -183,4 +196,18 @@ it.
 Adoption: -
   Containers:
     governance: governance
+```
+
+## Catalogue
+
+The organisation's catalogue reads the registry live and uses its advocated lifecycle
+states.
+
+```
+Catalogue: -
+  Layers:
+    table: BASE
+    base_view: GOVERNED
+    consumer_view: CONSUMER
+  Projection: live
 ```

@@ -166,11 +166,11 @@ class ProfileRules(unittest.TestCase):
 
     def test_unknown_template_variable_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "{product_code}_MEM", "{product_name}_MEM")))
+            broken(PROFILE_A, "{product_code}_ACC", "{product_name}_ACC")))
 
     def test_unknown_template_filter_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "{product_code}_MEM", "{product_code|kebab}_MEM")))
+            broken(PROFILE_A, "{product_code}_ACC", "{product_code|kebab}_ACC")))
 
     def test_unknown_object_role_flagged(self):
         self.assertIn("invalid-value", profile_rules(
@@ -260,7 +260,7 @@ class Portability(unittest.TestCase):
     def test_products_differ_only_where_the_profiles_do(self):
         """Strip what a profile controls; what is left is the product, and must match."""
         def logical(ctx):
-            return [(e["name"], e["module"], e["profile"], e["allocation"],
+            return [(e["name"], e["module"], e["profile"], e["identity"],
                      [(a["name"], a["type"], a["required"], a["derive"]) for a in e["attributes"]])
                     for e in ctx["entities"]]
         a, b = Resolved(profile=PROFILE_A).context, Resolved(profile=PROFILE_B).context
@@ -291,7 +291,100 @@ class Portability(unittest.TestCase):
         self.assertEqual(contact(PROFILE_B), ("Sensitive", "mask for ROLE_READ, ROLE_AGENT"))
 
 
+class ProfileExtensions(unittest.TestCase):
+    def test_parent_must_be_a_container(self):
+        self.assertIn("invalid-value", profile_rules(
+            broken(PROFILE_B, "dp_{product_code|lower}_data in product", "dp_{product_code|lower}_data in estate")))
+
+    def test_rules_never_route_to_a_parent(self):
+        self.assertIn("invalid-value", profile_rules(broken(PROFILE_B, "    function: data", "    function: product")))
+
+    def test_classification_routing_names_a_class(self):
+        self.assertIn("invalid-value", profile_rules(broken(PROFILE_B, "table Sensitive: secure", "table Secret: secure")))
+
+    def test_abbrev_needs_every_module_abbreviated(self):
+        self.assertIn("missing-field", profile_rules(broken(PROFILE_A, "    search: SCH\n", "")))
+
+    def test_storage_sections_come_together(self):
+        self.assertIn("missing-heading", profile_rules(
+            broken(PROFILE_B, "## Storage Section 5. Partition Strategy", "## Partitions")))
+
+    def test_storage_example_must_agree(self):
+        self.assertIn("derivation-mismatch", profile_rules(
+            broken(PROFILE_B, "-> dp-itsd/dp_itsd_data/ticket", "-> dp-itsd/ticket")))
+
+    def test_standard_name_never_lands_on_another(self):
+        self.assertIn("invalid-value", profile_rules(
+            broken(PROFILE_B, "    updated_dts: row_updated_ts", "    updated_dts: created_dts")))
+
+    def test_column_alias_shape(self):
+        self.assertIn("invalid-value", profile_rules(
+            broken(PROFILE_B, "ITSD.Customer.tier: service_tier", "Customer.tier: service_tier")))
+
+
 class ResolutionRules(unittest.TestCase):
+    def test_classification_routes_sensitive_tables(self):
+        ctx = Resolved(profile=PROFILE_B).context
+        agent = next(e for e in ctx["entities"] if e["name"] == "Agent")
+        self.assertEqual(agent["classification"], "Sensitive")
+        self.assertEqual(agent["objects"]["table"]["container"], "dp_itsd_secure_prod")
+
+    def test_parent_containers_are_reported(self):
+        ctx = Resolved(profile=PROFILE_B).context
+        parent = next(c for c in ctx["containers"] if c["name"] == "dp_itsd_prod")
+        self.assertFalse(parent["holds_objects"])
+        data = next(c for c in ctx["containers"] if c["name"] == "dp_itsd_data_prod")
+        self.assertEqual(data["parent"], "dp_itsd_prod")
+
+    def test_storage_paths_resolved(self):
+        ctx = Resolved(profile=PROFILE_B).context
+        ticket = next(e for e in ctx["entities"] if e["name"] == "Ticket")
+        self.assertEqual(ticket["objects"]["table"]["path"], "dp-itsd/dp_itsd_data_prod/ticket")
+        self.assertNotIn("path", ticket["objects"]["consumer_view"])
+        self.assertIsNone(Resolved(profile=PROFILE_A).context["storage"])
+
+    def test_column_aliases_applied_to_an_adopted_entity(self):
+        ctx = Resolved(profile=PROFILE_B).context
+        customer = next(e for e in ctx["entities"] if e["name"] == "Customer")
+        tier = next(a for a in customer["attributes"] if a["name"] == "tier")
+        self.assertEqual(tier["physical_name"], "service_tier")
+
+    def test_identity_is_resolved_per_allocation(self):
+        ctx = Resolved().context
+        ticket = next(e for e in ctx["entities"] if e["name"] == "Ticket")
+        self.assertEqual(ticket["identity"]["keymap"], "TicketKeymap")
+        self.assertEqual(ticket["identity"]["natural"], [])
+        self.assertFalse(any(a["type"] == "NaturalKey" for a in ticket["attributes"]))
+
+    def test_lineage_views_follow_the_profile(self):
+        views = {x["name"]: x["objects"]["base_view"] for x in Resolved().context["relations"]
+                 if x["kind"] == "view"}
+        self.assertEqual(views["LineageGraph"], {"container": "ITSD_SEM", "name": "lineage_graph"})
+
+    def test_personal_data_bound_enforced(self):
+        r = Resolved(profile=PROFILE_B, spec_text=broken(ITSD_SPEC, "LearnedStrategy:   2 years", "LearnedStrategy:   5 years"))
+        self.assertIn("retention-bound", r.rules)
+
+    def test_graph_lineage_needs_a_graph_key(self):
+        text = broken(ITSD_SPEC, "  - memory:runtime\n", "  - memory:runtime\n  - observability:graph-lineage\n",
+                      "```\nRuntime: -", "```\nGraph: -\n  Session nodes: omit\n  Load cadence:  with-lineage\n```\n\n```\nRuntime: -")
+        ok = Resolved(spec_text=text)
+        self.assertEqual(ok.findings, [], "\n".join(map(str, ok.findings)))
+        self.assertEqual(ok.context["graph"]["graph_key"], "LIN_ITSD")
+        missing = Resolved(spec_text=text, profile_text=broken(PROFILE_A, "  Graph key: LIN_{product_code}\n", ""))
+        self.assertIn("missing-graph-key", missing.rules)
+
+    def test_external_allocator_needs_the_profile_to_name_it(self):
+        text = broken(ITSD_SPEC, "    choice: keymap", "    choice: external-allocator\n    because: the organisation runs a key service")
+        text = re.sub(r"```\nEntity: \w+Keymap .*?```\n", "", text, flags=re.S)
+        r = Resolved(spec_text=text)
+        self.assertIn("missing-allocator", r.rules)
+        self.assertNotIn("missing-allocator", Resolved(spec_text=text, profile=PROFILE_B).rules)
+
+    def test_standard_name_may_not_take_a_specification_attribute(self):
+        r = Resolved(profile_text=broken(PROFILE_A, "    ValidationArea: validation_area", "    ValidationArea: status"))
+        self.assertIn("name-collision", r.rules)
+
     def test_adopted_entity_and_principal(self):
         ctx = Resolved(profile=PROFILE_B).context
         customer = next(e for e in ctx["entities"] if e["name"] == "Customer")
@@ -305,7 +398,8 @@ class ResolutionRules(unittest.TestCase):
         ticket = lambda c: next(e for e in c["entities"] if e["name"] == "Ticket")["objects"]["table"]
         self.assertEqual(ticket(dev)["container"], "dp_itsd_data_dev")
         self.assertEqual(ticket(dev)["name"], ticket(prod)["name"])
-        self.assertIn({"name": "enterprise_catalogue", "adopted": True}, dev["containers"])
+        catalogue = next(c for c in dev["containers"] if c["name"] == "enterprise_catalogue")
+        self.assertTrue(catalogue["adopted"])
 
     def test_unknown_environment_flagged(self):
         self.assertIn("unknown-environment", Resolved(environment="staging").rules)
@@ -335,7 +429,7 @@ class ResolutionRules(unittest.TestCase):
 
     def test_unplaceable_module_flagged(self):
         r = Resolved(profile_text=broken(
-            PROFILE_A, "  search:        {product_code}_SCH\n", "",
+            PROFILE_A, "  search:        {product_code}_{module|abbrev}\n", "",
             "    - table search EntityEmbedding History -> ITSD_SCH.EntityEmbedding\n", ""))
         self.assertIn("unplaceable", r.rules)
 

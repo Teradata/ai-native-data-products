@@ -122,13 +122,42 @@ class DecisionRules(unittest.TestCase):
 
 
 class EntityRules(unittest.TestCase):
-    def test_history_entity_without_a_natural_key_flagged(self):
-        text = re.sub(r"  customer_key\s*: NaturalKey[^\n]*\n", "", spec_text(), count=1)
-        self.assertIn("identity-shape", rules_for(text))
+    """Identity follows allocation: under keymap the natural key lives on the keymap (#59)."""
 
-    def test_history_entity_without_an_identifier_flagged(self):
-        text = re.sub(r"  customer_id\s*: Identifier[^\n]*\n", "", spec_text(), count=1)
-        self.assertIn("identity-shape", rules_for(text))
+    def test_keymap_entity_carrying_its_natural_key_is_a_departure(self):
+        text = broken("  customer_id      : Identifier                        // surrogate; stable across all versions\n",
+                      "  customer_id      : Identifier                        // surrogate; stable across all versions\n"
+                      "  customer_number  : NaturalKey [required] [unique]    // duplicated on the entity\n")
+        self.assertIn("unrecorded-departure", rules_for(text))
+
+    def test_keymap_allocated_entity_needs_its_keymap(self):
+        self.assertIn("identity", rules_for(broken("[allocates: Customer]", "[allocates: Order]")))
+
+    def test_keymap_must_name_what_it_allocates(self):
+        self.assertIn("identity", rules_for(broken(" [allocates: Customer]", "")))
+
+    def test_keymap_for_an_undeclared_entity_flagged(self):
+        self.assertIn("identity", rules_for(broken("[allocates: Customer]", "[allocates: Client]")))
+
+    def test_inline_entity_declares_both_keys(self):
+        text = broken("    surrogate: order_line_id\n    natural:   order_id, product_id\n",
+                      "    surrogate: order_line_id\n")
+        self.assertIn("identity", rules_for(text))
+
+    def test_declared_identity_must_name_attributes(self):
+        text = broken("    natural:   order_id, product_id", "    natural:   order_id, sku")
+        self.assertIn("identity", rules_for(text))
+
+    def test_unreferenced_entity_may_allocate_inline_without_a_decision(self):
+        self.assertNotIn("unrecorded-departure", rules_for(spec_text()))
+
+    def test_profile_prohibited_attribute_flagged(self):
+        text = broken("[kind: Keymap] [profile: CURRENT_STATE] [allocates: Customer]",
+                      "[kind: Keymap] [profile: CURRENT_STATE] [allocates: Customer]")
+        text = text.replace("  source_system    : ShortText [optional]              // system that introduced the key\n",
+                            "  source_system    : ShortText [optional]              // system that introduced the key\n"
+                            "  is_current       : Flag [current-flag]               // not allowed here\n", 1)
+        self.assertIn("profile-prohibited", rules_for(text))
 
     def test_capability_name_is_not_mistaken_for_a_type(self):
         """`NaturalKeyLookup` contains `NaturalKey`; only declarations count."""
@@ -139,6 +168,39 @@ class EntityRules(unittest.TestCase):
     def test_a_specification_with_no_entities_flagged(self):
         text = re.sub(r"```\nEntity:.*?```", "", spec_text(), flags=re.S)
         self.assertIn("no-entities", rules_for(text))
+
+
+class NotationProductBlocks(unittest.TestCase):
+    def test_every_specification_needs_a_product_block(self):
+        text = re.sub(r"```\nProduct: -\n.*?```\n", "", spec_text(), flags=re.S)
+        self.assertIn("missing-block", rules_for(text))
+
+    def test_documentation_facet_needs_a_glossary(self):
+        text = re.sub(r"```\nGlossary: [^\n]*\n.*?```", "", spec_text(), flags=re.S)
+        self.assertIn("missing-block", rules_for(text))
+
+    def test_zone_naive_needs_an_assumed_zone(self):
+        self.assertIn("missing-field", rules_for(broken("choice: zone-aware", "choice: zone-naive\n    because: legacy interface")))
+
+    def test_settles_names_a_catalogued_decision(self):
+        text = broken("  Module:    search\n", "  Module:    search\n  Settles:   DEC-NOT-A-THING\n")
+        self.assertIn("invalid-value", rules_for(text))
+
+    def test_two_tier_retention_accepted(self):
+        text = broken("ChangeEvent:      7 years", "ChangeEvent:      2 years queryable, 7 years archived")
+        self.assertNotIn("invalid-value", rules_for(text))
+
+    def test_indefinite_retention_accepted(self):
+        self.assertNotIn("invalid-value", rules_for(broken("ChangeEvent:      7 years", "ChangeEvent:      indefinite")))
+
+    def test_graph_block_choices_and_reason(self):
+        text = broken("  - memory:runtime\n", "  - memory:runtime\n  - observability:graph-lineage\n")
+        self.assertIn("missing-block", rules_for(text))
+        graph = ("```\nGraph: -\n  Session nodes: include\n  Load cadence:  scheduled\n```\n\n"
+                 "```\nRuntime: -")
+        rules = rules_for(text.replace("```\nRuntime: -", graph, 1))
+        self.assertIn("unjustified-choice", rules)
+        self.assertIn("missing-field", rules)
 
 
 class InvariantRules(unittest.TestCase):
@@ -174,10 +236,10 @@ class NotationFrontmatter(unittest.TestCase):
 
 
 class NotationEntities(unittest.TestCase):
-    STATUS = "Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY]"
+    STATUS = "Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY] [allocation: inline]"
 
     def test_missing_profile_flagged(self):
-        text = broken(self.STATUS, "Entity: OrderStatus               [kind: Reference]")
+        text = broken(self.STATUS, "Entity: OrderStatus               [kind: Reference] [allocation: inline]")
         self.assertIn("missing-profile", rules_for(text))
 
     def test_unknown_profile_flagged(self):
@@ -281,7 +343,7 @@ class NotationBlocks(unittest.TestCase):
         self.assertIn("unknown-field", rules_for(text))
 
     def test_value_outside_enumeration_flagged(self):
-        self.assertIn("invalid-value", rules_for(broken("Similarity: cosine", "Similarity: manhattan")))
+        self.assertIn("invalid-value", rules_for(broken("Similarity: cosine", "Similarity: chebyshev")))
 
     def test_measure_must_be_an_aggregate(self):
         text = broken("Measure:     sum(Order.order_total)", "Measure:     Order.order_total")

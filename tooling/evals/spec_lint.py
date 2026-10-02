@@ -310,19 +310,9 @@ def declared_types(attrs: List[str]) -> List[str]:
 
 
 def check_entities(text: str, path) -> List[Finding]:
-    """Entities declare a kind, and a versioned entity carries the identity shape."""
+    """A specification models something. Identity is checked with the notation, because
+    its shape depends on each entity's allocation (Design Specification Standard §3.3)."""
     findings = []
-    for name, kind, attrs, lineno in read_entities(text):
-        types = declared_types(attrs)
-        if kind == "History":
-            if "Identifier" not in types:
-                findings.append(Finding(path, lineno, "identity-shape",
-                                        f"entity '{name}' [kind: History] declares no "
-                                        f"`Identifier`"))
-            if "NaturalKey" not in types:
-                findings.append(Finding(path, lineno, "identity-shape",
-                                        f"entity '{name}' [kind: History] declares no "
-                                        f"`NaturalKey`"))
     if not read_entities(text):
         findings.append(Finding(path, 1, "no-entities",
                                 "the specification declares no entities; a design that models "
@@ -386,6 +376,8 @@ class NotationContext:
                         for d in (fm.get("decisions") or []) if isinstance(d, dict)}
         self.anchors = set(corpus.modules) | std.patterns
         self.feature_groups = {b.fields.get("Features") for b in spec.blocks_of("Model")}
+        self.referenced = {t.strip() for e in spec.entities for a in e.attributes.values()
+                           for t in a.qualifiers.get("->", "").split("|") if t.strip()}
 
     def resolves(self, entity: str, attribute: str = None) -> bool:
         if entity not in self.entities:
@@ -395,7 +387,8 @@ class NotationContext:
 
     def covered(self, entity: str) -> bool:
         """A `Decision:` block names this entity in `Applies to`."""
-        return any(str(d.fields.get("Applies to", "")).strip() == entity for d in self.decisions)
+        return any(entity in [x.strip() for x in str(d.fields.get("Applies to", "")).split(",")]
+                   for d in self.decisions)
 
 
 def expression_errors(expr: str, ctx: NotationContext, kind: str) -> List[str]:
@@ -482,7 +475,9 @@ def value_errors(value, spec_field, ctx: NotationContext) -> List[str]:
         units = "|".join(re.escape(u) for u in sorted(std.growth_units))
         return [] if re.fullmatch(rf"\d+\s+(?:{units})", value) else [f"'{value}' is not a growth rate"]
     if t == "retention":
-        ok = value == "life of product" or re.fullmatch(rf"{duration}(\s+after\s+.+)?", value)
+        single = rf"(?:{duration}(?:\s+after\s+[^,]+)?|life of product|indefinite)"
+        ok = re.fullmatch(single, value) or re.fullmatch(
+            rf"{single}\s+queryable,\s*{single}\s+archived", value)
         return [] if ok else [f"'{value}' is not a retention"]
     if t == "weights":
         return _weights_errors(value, std)
@@ -594,6 +589,7 @@ def check_entity_notation(ctx: NotationContext, path) -> List[Finding]:
                                         f"{where}: allocation '{alloc}' is not one of "
                                         f"{allocation.values}"))
             elif (ctx.settled.get("DEC-SURROGATE-ALLOCATION") not in (None, alloc)
+                  and not (alloc == "inline" and e.name not in ctx.referenced)
                   and not ctx.covered(e.name)):
                 findings.append(Finding(path, e.line, "unrecorded-departure",
                                         f"{where} allocates '{alloc}' against the product's "
@@ -729,7 +725,138 @@ def check_notation(fm: dict, text: str, corpus: Corpus, path, design_root: Path 
     spec = parse_specification(text, std)
     ctx = NotationContext(fm, spec, std, corpus)
     return (check_platform_names(text, std, path) + check_entity_notation(ctx, path)
-            + check_blocks(ctx, path))
+            + check_identity(ctx, path) + check_blocks(ctx, path)
+            + check_block_rules(ctx, corpus, path))
+
+
+IDENTITY_KINDS = ("History", "Reference", "Relationship")
+
+
+def _keys(entity) -> Dict[str, List[str]]:
+    out = {}
+    for line in entity.sections.get("Keys", []) or []:
+        if ":" in line:
+            k, v = line.split(":", 1)
+            out[k.strip()] = [x.strip() for x in v.split(",") if x.strip()]
+    return out
+
+
+def check_identity(ctx: NotationContext, path) -> List[Finding]:
+    """Identity follows allocation (Design Specification Standard §3.3).
+
+    Under keymap allocation the natural key lives on the keymap alone (issue #59), so a
+    versioned entity carries the surrogate and its keymap carries the natural key.
+    """
+    findings, spec = [], ctx.spec
+    product_choice = ctx.settled.get("DEC-SURROGATE-ALLOCATION") or "keymap"
+    keymaps: Dict[str, List[str]] = {}
+    for e in spec.entities:
+        if e.kind != "Keymap":
+            continue
+        target = e.header.get("allocates")
+        where = f"keymap '{e.name}'"
+        types = {a.type for a in e.attributes.values()}
+        if not target:
+            findings.append(Finding(path, e.line, "identity", f"{where} declares no [allocates: <Entity>]"))
+        elif spec.entity(target) is None:
+            findings.append(Finding(path, e.line, "identity", f"{where} allocates for '{target}', "
+                                                              f"which the specification does not declare"))
+        else:
+            keymaps.setdefault(target, []).append(e.name)
+        if not {"Identifier", "NaturalKey"} <= types:
+            findings.append(Finding(path, e.line, "identity",
+                                    f"{where} must carry the Identifier it allocates and the NaturalKey"))
+
+    for e in spec.entities:
+        if e.kind not in IDENTITY_KINDS:
+            continue
+        where = f"entity '{e.name}'"
+        alloc = e.header.get("allocation") or product_choice
+        keys = _keys(e)
+        types = [a.type for a in e.attributes.values()]
+        natural_attrs = [a.name for a in e.attributes.values() if a.type == "NaturalKey"]
+        for k, names in keys.items():
+            for n in names:
+                if n not in e.attributes:
+                    findings.append(Finding(path, e.line, "identity",
+                                            f"{where} Keys {k}: '{n}' is not an attribute"))
+        served = keymaps.get(e.name, [])
+        if len(served) > 1:
+            findings.append(Finding(path, e.line, "identity",
+                                    f"{where} has several keymaps: {', '.join(served)}"))
+        if alloc in ("keymap", "external-allocator"):
+            if "surrogate" not in keys or "Identifier" not in types:
+                findings.append(Finding(path, e.line, "identity",
+                                        f"{where} allocates by {alloc} but declares no surrogate Identifier"))
+            if alloc == "keymap" and not served:
+                findings.append(Finding(path, e.line, "identity",
+                                        f"{where} allocates by keymap but no keymap [allocates: {e.name}]"))
+            if alloc == "external-allocator" and served:
+                findings.append(Finding(path, e.line, "identity",
+                                        f"{where} uses an external allocator but also has a keymap"))
+            if natural_attrs and not ctx.covered(e.name):
+                findings.append(Finding(path, e.line, "unrecorded-departure",
+                                        f"{where} carries natural key {', '.join(natural_attrs)}, which "
+                                        f"under {alloc} allocation lives on the keymap alone, with no "
+                                        f"Decision applying to it"))
+        elif alloc == "inline":
+            if "surrogate" not in keys or "natural" not in keys:
+                findings.append(Finding(path, e.line, "identity",
+                                        f"{where} allocates inline and must declare both surrogate and "
+                                        f"natural in Keys"))
+        elif alloc == "natural-key":
+            if "natural" not in keys or "Identifier" in types:
+                findings.append(Finding(path, e.line, "identity",
+                                        f"{where} uses its natural key as identity: declare natural in "
+                                        f"Keys and no Identifier"))
+        if served and alloc != "keymap":
+            findings.append(Finding(path, e.line, "identity",
+                                    f"{where} has a keymap but allocates by {alloc}"))
+    return findings
+
+
+def check_block_rules(ctx: NotationContext, corpus: "Corpus", path) -> List[Finding]:
+    """Rules a block's fields state about each other and about the catalogue."""
+    findings, std, spec = [], ctx.std, ctx.spec
+    for kind in std.global_blocks:
+        if not spec.blocks_of(kind):
+            findings.append(Finding(path, 1, "missing-block",
+                                    f"the specification has no {kind}: block, which every one requires"))
+    for b in spec.blocks:
+        table = std.blocks[b.kind]
+        nonadvocated = []
+        for name, field_spec in table.items():
+            dec = re.search(r"`(DEC-[A-Z0-9-]+)`", field_spec.note or "")
+            value = b.fields.get(name)
+            if not dec or not isinstance(value, str):
+                continue
+            options = corpus.decisions.get(dec.group(1), {})
+            if value in options and not options[value]:
+                nonadvocated.append(dec.group(1))
+        if nonadvocated and "Because" in table and not b.fields.get("Because"):
+            findings.append(Finding(path, b.line, "unjustified-choice",
+                                    f"{b.kind} block departs from the advocated option of "
+                                    f"{', '.join(nonadvocated)} without a 'Because'"))
+        if b.kind == "Graph" and b.fields.get("Load cadence") == "scheduled" and not b.fields.get("Schedule"):
+            findings.append(Finding(path, b.line, "missing-field", "Graph: a scheduled load needs a 'Schedule'"))
+        if b.kind == "Decision" and b.fields.get("Settles") and b.fields["Settles"] not in corpus.decisions:
+            findings.append(Finding(path, b.line, "invalid-value",
+                                    f"Decision '{b.name}' settles '{b.fields['Settles']}', which is not "
+                                    f"in the decision catalogue"))
+    if ctx.settled.get("DEC-TIMESTAMP-ZONE") == "zone-naive":
+        product = spec.blocks_of("Product")
+        if not product or not product[0].fields.get("Assumed zone"):
+            findings.append(Finding(path, 1, "missing-field",
+                                    "DEC-TIMESTAMP-ZONE is zone-naive, so the Product block needs an "
+                                    "'Assumed zone'"))
+    for e in spec.entities:
+        banned = std.profile_prohibited.get(e.header.get("profile", ""), set())
+        for a in e.attributes.values():
+            if a.name in banned:
+                findings.append(Finding(path, a.line, "profile-prohibited",
+                                        f"entity '{e.name}'.{a.name} is prohibited by its profile "
+                                        f"{e.header.get('profile')}"))
+    return findings
 
 
 def lint_spec(path: Path, design_root: Path = None) -> List[Finding]:

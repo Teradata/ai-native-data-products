@@ -48,7 +48,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | - | - | - |
 | [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | - | - | - |
 | [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | `RichMetadata`, `SemanticRegistration` | - |
-| [Validation Pattern](patterns/validation.md) | `validation` | standard | `QualityScore` | `RichMetadata` | - |
+| [Validation Pattern](patterns/validation.md) | `validation` | standard | - | `RichMetadata` | - |
 
 ### Modules
 

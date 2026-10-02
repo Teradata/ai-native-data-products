@@ -139,11 +139,11 @@ Underneath all of this: **these documents are standards, not designs.** A standa
 
 ## 4. Logical Type Vocabulary
 
-Design documents describe attributes using these logical types only. Each has fixed semantics here; each platform declares its concrete binding in `implementation/{platform}/patterns/type-bindings/` (or its equivalent). Design documents never write a platform data type.
+Design documents describe attributes using these logical types only. Each has fixed semantics here; each platform binding declares its concrete binding of every type (its domain module's binding document carries the table). Design documents never write a platform data type.
 
 | Logical type | Semantics | Notes |
 |---|---|---|
-| `Identifier` | System-generated surrogate key. Unique, stable, never reused, never recycled. | For entities that are reference targets, allocated via the **surrogate-key-allocation** pattern so the value is stable across all versions: not by inline auto-increment. |
+| `Identifier` | System-generated surrogate key. Unique, stable, never reused, never recycled. | For entities that are reference targets, allocated per `DEC-SURROGATE-ALLOCATION` (a keymap, by default) so the value is stable across all versions: not by inline auto-increment. |
 | `NaturalKey` | Business identifier sourced from an originating system. User- and report-facing. | Distinct from `Identifier`: `NaturalKey` comes from the source; `Identifier` is assigned internally. |
 | `Reference -> <Entity>` | A pointer to another entity instance. | Names its target. Carries no content of the target: content is obtained by joining back (see `EntityJoinBack` capability). |
 | `Code` | A short controlled-vocabulary value drawn from a reference set. | e.g. a type or status code. Backed by a Reference entity. |
@@ -167,8 +167,10 @@ The vocabulary is intentionally small and closed. If a design genuinely needs a 
 
 Design documents declare structure in a keyword-free pseudo-notation. It carries logical structure, entities, attributes, keys, references, applied patterns, invariants, capabilities, and deliberately cannot express a physical table.
 
+This section defines the notation the standards and a product's design share. A product's [design specification](DESIGN_SPECIFICATION.md) extends it with header qualifiers (`profile`, `allocation`, `allocates`, `module`), the identity rule that ties a versioned entity's keys to its allocation, further attribute qualifiers (multi-target references, `derive`, `synonyms`, `pii-incidental`), and entity sections (`Volume:`, `Features:`, `Synonyms:`). Those extensions are defined there, once, and not restated here.
+
 ```
-Entity: <Name>                    [kind: History | Reference | Relationship | Keymap]
+Entity: <Name>                    [kind: History | Reference | Relationship | Keymap | Record]
   <attribute>: <LogicalType> [qualifiers]  // <business description>
   ...
 
@@ -197,8 +199,8 @@ Entity: <Name>                    [kind: History | Reference | Relationship | Ke
 | `[optional]` | May be absent. |
 | `[unique]` | Unique within the entity (within the current version set, for versioned entities). |
 | `[-> <Entity>]` | For a `Reference`: names the target entity. |
-| `[pii]` | Carries personal or sensitive data; implementations must apply the platform's protection binding. |
-| `[current-flag]` / `[deleted-flag]` | Marks the indicator used by the `CurrentStateFilter` capability. |
+| `[pii]` | Carries personal or sensitive data. The organisation profile maps it to a class and the protection that class requires; the binding applies that protection. |
+| `[current-flag]` / `[deleted-flag]` | Marks the attribute as the temporal pattern's canonical `is_current` / `is_deleted` flag, the indicator `CurrentStateFilter` uses. It names that flag; it does not introduce a second one. |
 
 **Entity kinds** map to recurring shapes: `History` (a versioned business entity), `Reference` (a controlled vocabulary / lookup set), `Relationship` (an association between two entities), `Keymap` (a surrogate-key allocation table), `Record` (an append-oriented operational log or state entry, not SCD-versioned). Kinds are semantic labels, not table types.
 
@@ -261,7 +263,7 @@ A design document lists the capabilities it requires. Each platform implementati
 | `DocumentationCapture` | Record the module's design decisions, glossary terms, and change history in the product's Memory store. | inserts into the Memory documentation entities. |
 | `AgentContinuity` | Carry agent state across sessions: retrieve prior sessions, interactions, learned strategies, and preferences for a given scope, so an agent resumes rather than restarts. | inserts and reads over the Memory runtime entities. |
 | `NearestNeighbors(query, candidates, metric, k)` | Return the `k` candidates most similar to `query` under a distance `metric`, as ranked `(id, distance)`. | vector-distance function; nearest-neighbour operator. |
-| `ApproxIndex{IVF\|HNSW}` | *(Optional)* Accelerate `NearestNeighbors` with an approximate index of the named family. | IVF/KMEANS index; HNSW graph index. |
+| `ApproxIndex` | *(Optional)* Accelerate `NearestNeighbors` with an approximate index. Which algorithm is the binding's choice. | a clustered or graph-based vector index. |
 | `Embed(text, model)` | Produce a `Vector[dim]` for `text` using the named embedding `model`. | in-database embedding; external embedding API. |
 | `GraphNativeLineageTraversal` | Traverse a product's lineage and access history as a graph: upstream/downstream trace, impact analysis, and access-path traversal over nodes and directed edges. | graph-explorer-conformant node/edge adapter views plus catalogue registration. |
 | `ColumnGrainLineageTraversal` | *(Optional)* Traverse column-to-column derivation edges within a product's lineage graph, in addition to table-grain trace. | graph-explorer `COLUMN` node category and `derives_column` edge type, catalogue-registered only where the providing module's column-lineage facet is enabled. |
@@ -427,7 +429,7 @@ This appendix is illustrative only. Authoritative bindings live in each platform
 | Capability | Teradata | Postgres | DuckDB |
 |---|---|---|---|
 | `NearestNeighbors` | `TD_VectorDistance` | `ORDER BY emb <=> q LIMIT k` (pgvector) | `array_cosine_similarity` / vss |
-| `ApproxIndex{IVF\|HNSW}` | KMEANS / HNSW via Vector Store | `ivfflat` / `hnsw` index | vss HNSW |
+| `ApproxIndex` | KMEANS / HNSW via Vector Store | `ivfflat` / `hnsw` index | vss HNSW |
 | `Embed(text, model)` | in-database ONNX embedding | external API | external API |
 | `CurrentStateFilter` | flag predicate | flag predicate | flag predicate |
 

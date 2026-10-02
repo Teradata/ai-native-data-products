@@ -36,6 +36,8 @@ TIERS = ("ROLE_READ", "ROLE_AGENT", "ROLE_ADMIN")
 PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 EXAMPLE = re.compile(
     r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)\.(\S+)$")
+PATH_EXAMPLE = re.compile(
+    r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)$")
 PRINCIPAL = re.compile(r"^(create|existing)\s+(\S.*)$")
 PROTECTION = re.compile(r"^(none|(mask|exclude) for (.+))$")
 
@@ -156,19 +158,35 @@ def template_errors(template: str, pstd: ProfileStandard) -> List[str]:
 
 
 def render(template: str, variables: Dict[str, str]) -> str:
+    """Fill a template. `variables["_abbrev"]`, when present, backs the `abbrev` filter."""
     def one(m):
         name, *filters = [x.strip() for x in m.group(1).split("|")]
         value = str(variables[name])
         for f in filters:
-            value = FILTERS[f](value)
+            if f == "abbrev":
+                value = variables.get("_abbrev", {})[value]
+            else:
+                value = FILTERS[f](value)
         return value
     return PLACEHOLDER.sub(one, template)
 
 
-def container_key(profile: Profile, role: str, module: str, relation: str = None) -> str:
+def container_parts(profile: Profile) -> Dict[str, Tuple[str, Optional[str]]]:
+    """Each container key's template and parent key (`<template> in <parent>`)."""
+    out = {}
+    for key, value in profile.containers().items():
+        m = re.match(r"^(.*?)\s+in\s+(\w+)$", value)
+        out[key] = (m.group(1), m.group(2)) if m else (value, None)
+    return out
+
+
+def container_key(profile: Profile, role: str, module: str, relation: str = None,
+                  classification: str = None) -> str:
+    """The container key: a relation's own rule, then the role narrowed by class, then the role."""
     rules = profile.mapping("Placement", "Rules")
-    key = rules.get(relation) if relation else None
-    key = key or rules.get(role)
+    candidates = ([relation] if relation else []) + (
+        [f"{role} {classification}"] if classification else []) + [role]
+    key = next((rules[c] for c in candidates if c in rules), None)
     return module if key == "module" else key
 
 
@@ -177,7 +195,8 @@ def container_name(profile: Profile, key: str, variables: Dict[str, str],
     adopted = profile.mapping("Adoption", "Containers")
     if key in adopted:
         return adopted[key]  # it exists already, under that name, in every environment
-    name = render(profile.containers()[key], variables)
+    # In a container template, {module} is the container's own key.
+    name = render(container_parts(profile)[key][0], dict(variables, module=key))
     template = profile.field("Environments", "Container template")
     if environment and profile.field("Environments", "Isolation") == "container" and template:
         name = render(template, {"container": name, "environment": environment})
@@ -187,7 +206,7 @@ def container_name(profile: Profile, key: str, variables: Dict[str, str],
 def object_name(profile: Profile, role: str, entity: str, kind: str = None,
                 variables: Dict[str, str] = None, standard: bool = False) -> str:
     """An object's physical name. A standard-owned relation takes its mapped name first."""
-    if standard and role == "table":
+    if standard and role in ("table", "base_view"):
         mapped = profile.mapping("Naming", "Standard names").get(entity)
         if mapped:
             return mapped
@@ -202,12 +221,41 @@ def object_name(profile: Profile, role: str, entity: str, kind: str = None,
 
 def derive(profile: Profile, role: str, module: str, entity: str, kind: str = None,
            variables: Dict[str, str] = None, environment: str = None,
-           standard: bool = False) -> Tuple[str, str]:
+           standard: bool = False, classification: str = None) -> Tuple[str, str]:
     """`(container, object)` for an object: the profile's derivation function."""
-    variables = dict(variables or {}, module=module)
-    key = container_key(profile, role, module, entity if standard else None)
+    variables = dict(variables or {}, module=module,
+                     _abbrev=profile.mapping("Naming", "Abbreviations"))
+    key = container_key(profile, role, module, entity if standard else None, classification)
     container = container_name(profile, key, variables, environment)
     return container, object_name(profile, role, entity, kind, variables, standard)
+
+
+def has_storage(profile: Profile) -> bool:
+    return "Storage" in profile.blocks
+
+
+def derive_path(profile: Profile, role: str, module: str, entity: str, kind: str = None,
+                variables: Dict[str, str] = None, environment: str = None,
+                standard: bool = False, classification: str = None) -> Optional[str]:
+    """The object-store path for an object, or None when it is not held in object storage."""
+    if not has_storage(profile):
+        return None
+    excluded = [x.strip() for x in (profile.field("Storage", "Excluded") or "").split(",") if x.strip()]
+    if role in excluded or entity in excluded:
+        return None
+    rules = profile.mapping("Paths", "Bucket rules")
+    candidates = ([f"{role} {classification}"] if classification else []) + [role]
+    bucket_key = next((rules[c] for c in candidates if c in rules), None)
+    if bucket_key is None:
+        if profile.field("Storage", "Scope") == "declared":
+            return None
+        raise KeyError(f"bucket rule for '{role}'")
+    container, obj = derive(profile, role, module, entity, kind, variables, environment,
+                            standard, classification)
+    full = dict(variables or {}, module=module, container=container, object=obj,
+                environment=environment or "", _abbrev=profile.mapping("Naming", "Abbreviations"))
+    full["bucket"] = render(profile.mapping("Paths", "Buckets")[bucket_key], full)
+    return render(profile.field("Paths", "Path"), full)
 
 
 # --------------------------------------------------------------------------- #
@@ -216,7 +264,7 @@ def derive(profile: Profile, role: str, module: str, entity: str, kind: str = No
 
 def _field_value_errors(value, spec: FieldSpec, pstd: ProfileStandard) -> List[str]:
     t = spec.type
-    multi = t in ("templates", "mappings", "examples")
+    multi = t in ("templates", "mappings", "examples", "path-examples")
     if multi != isinstance(value, list):
         return ["expects indented lines" if multi else "expects a single-line value"]
     if not value:
@@ -242,6 +290,9 @@ def _field_value_errors(value, spec: FieldSpec, pstd: ProfileStandard) -> List[s
         if t == "examples":
             if not EXAMPLE.match(line):
                 errors.append(f"'{line}' is not '- <role> <module> <Entity> [<Kind>] -> <container>.<object>'")
+        elif t == "path-examples":
+            if not PATH_EXAMPLE.match(line):
+                errors.append(f"'{line}' is not '- <role> <module> <Entity> [<Kind>] -> <path>'")
         elif ":" not in line:
             errors.append(f"'{line}' is not '<key>: <value>'")
         elif t == "templates":
@@ -265,6 +316,11 @@ def check_profile(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
     if fm.get("platform") and fm["platform"] not in pstd.platforms:
         add("profile-frontmatter", f"platform '{fm['platform']}' has no directory under implementation/")
 
+    storage = [h for h in pstd.headings if h.startswith("Storage Section")]
+    present_storage = [h for h in storage if h in profile.headings]
+    if present_storage and len(present_storage) != len(storage):
+        add("missing-heading", "the Storage Section headings are present together or not at all; "
+                               f"missing {sorted(set(storage) - set(present_storage))}")
     for heading, (required, blocks) in pstd.headings.items():
         present = heading in profile.headings
         if required and not present:
@@ -309,7 +365,8 @@ def _check_rules(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
     objects = profile.mapping("Naming", "Objects")
     rules = profile.mapping("Placement", "Rules")
     relations = {name for entities in pstd.spec.module_entities.values() for name in entities}
-    relations |= {x for _, extra in pstd.spec.implicit_relations.values() for x in extra}
+    relations |= {x for imp in pstd.spec.implicit_relations.values()
+                  for x in imp.tables + imp.views + imp.tall}
 
     modules = set(pstd.spec.module_entities)
     for key in objects:
@@ -325,13 +382,50 @@ def _check_rules(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
             add("missing-field", f"Naming: no template for required role '{role}'", "Naming")
         if required and role not in rules:
             add("missing-field", f"Placement: no rule for required role '{role}'", "Placement")
+    scheme_classes = [s.strip() for s in profile.field("Classification", "Scheme", "").split(",")]
+    parts = container_parts(profile)
+    parents = {p for _, p in parts.values() if p}
+    for key, (_, parent) in parts.items():
+        if parent and parent not in containers:
+            add("invalid-value", f"Containers: '{key}' names parent '{parent}', which is not a "
+                                 f"container", "Containers")
+        seen, cur = {key}, parent
+        while cur and cur in parts:
+            if cur in seen:
+                add("invalid-value", f"Containers: parents of '{key}' form a cycle", "Containers")
+                break
+            seen.add(cur)
+            cur = parts[cur][1]
     for key, target in rules.items():
-        if key not in pstd.roles and key not in relations:
+        role, *cls = key.split(" ", 1)
+        if cls and role in pstd.roles:
+            if cls[0] not in scheme_classes:
+                add("invalid-value", f"Placement: '{key}' narrows by '{cls[0]}', which is not a "
+                                     f"class in the scheme", "Placement")
+        elif key not in pstd.roles and key not in relations:
             add("invalid-value", f"Placement: '{key}' is neither an object role nor a "
                                  f"standard-owned relation", "Placement")
         if target != "module" and target not in containers:
             add("invalid-value", f"Placement: '{key}' routes to '{target}', which is not a "
                                  f"container", "Placement")
+        if target in parents:
+            add("invalid-value", f"Placement: '{key}' routes to parent container '{target}', "
+                                 f"which holds no objects", "Placement")
+    abbreviations = profile.mapping("Naming", "Abbreviations")
+    uses_abbrev = any("abbrev" in v for v in list(containers.values())
+                      + list(profile.mapping("Naming", "Objects").values()))
+    if uses_abbrev:
+        for module in pstd.spec.module_entities:
+            if module not in abbreviations:
+                add("missing-field", f"Naming: the abbrev filter is used but module '{module}' "
+                                     f"has no abbreviation", "Naming")
+    for role in profile.mapping("Catalogue", "Layers"):
+        if role not in pstd.roles:
+            add("invalid-value", f"Catalogue: '{role}' is not an object role", "Catalogue")
+    for key in profile.mapping("Adoption", "Column aliases"):
+        if not re.fullmatch(r"[A-Za-z]\w*\.[A-Z]\w*\.[a-z_]\w*", key):
+            add("invalid-value", f"Adoption: column alias '{key}' is not "
+                                 f"'<product_code>.<Entity>.<attribute>'", "Adoption")
 
     standard = profile.mapping("Naming", "Standard names")
     known = pstd.spec.canonical_attributes | relations
@@ -340,6 +434,10 @@ def _check_rules(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
             add("invalid-value", f"Naming: '{logical}' is not a standard-owned name", "Naming")
     if len(set(standard.values())) != len(standard):
         add("invalid-value", "Naming: standard names must map one-to-one", "Naming")
+    for logical, physical in standard.items():
+        if physical in known and physical != logical:
+            add("invalid-value", f"Naming: '{logical}' maps onto '{physical}', which another "
+                                 f"standard-owned name already holds", "Naming")
 
     scheme = [s.strip() for s in profile.field("Classification", "Scheme", "").split(",")]
     if profile.field("Classification", "Default") not in scheme:
@@ -372,6 +470,29 @@ def _check_rules(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
                                  f"'<product_code>.<Entity>: <container>.<object>'", "Adoption")
 
     findings += _check_examples(profile, relations)
+    if has_storage(profile):
+        findings += _check_path_examples(profile, relations)
+    return findings
+
+
+def _check_path_examples(profile: Profile, relations: Set[str]) -> List[Finding]:
+    findings, b = [], profile.blocks["Paths"]
+    code = profile.field("Derivation", "Product code")
+    lines = profile.field("Paths", "Examples", [])
+    if len(lines) < 3:
+        findings.append(Finding(profile.path, b.line, "missing-field",
+                                "Paths: at least three worked examples are required"))
+    for line in lines:
+        role, module, entity, kind, path = PATH_EXAMPLE.match(line).groups()
+        try:
+            got = derive_path(profile, role, module, entity, kind,
+                              {"product_code": code, "product": code},
+                              standard=entity in relations)
+        except (KeyError, TypeError, StopIteration) as exc:
+            got = f"<cannot derive: {exc}>"
+        if got != path:
+            findings.append(Finding(profile.path, b.line, "derivation-mismatch",
+                                    f"Paths: '{line}' but the profile derives {got}"))
     return findings
 
 

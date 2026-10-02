@@ -50,6 +50,15 @@ python tooling/evals/spec_lint.py examples/it-service-desk-data-product/design-o
 
 ## Business purpose
 
+```
+Product: -
+  Description:       Central data product for IT service desk operations: SLA breach prediction, similar-ticket retrieval and ticket quality monitoring.
+  Domain:            IT service management
+  Owner:             Service desk operations
+  Technical contact: Service desk data engineering
+  Trust producer:    the IT Service Desk validation pipeline, run by the product owner or data steward
+```
+
 Central data product for IT service desk operations. Supports SLA breach prediction on open
 tickets, semantic discovery of similar past tickets and their resolutions, and quality
 monitoring across the full ticket lifecycle. Serves real-time triage (agent-driven) and
@@ -79,10 +88,13 @@ Four business entities: three `History` entities on the bi-temporal profile with
 allocation, and `Category`, a `Reference` entity holding present values only. The temporal
 and lifecycle columns come from the temporal pattern and are not restated.
 
+Under keymap allocation each natural key lives on its keymap alone: `Ticket`, `Agent` and
+`Customer` carry the stable surrogate, and the source identifiers (`ticket_id`,
+`agent_id` and `customer_id` in the source files) arrive as the keymaps' natural keys.
+
 ```
 Entity: Ticket                    [kind: History] [profile: SCD2_BITEMPORAL]
   ticket_id          : Identifier                          // surrogate; stable across all versions
-  ticket_key         : NaturalKey [required] [unique]      // source ticket identifier
   customer_id        : Reference [required] [-> Customer]  // the reporting customer
   assigned_agent_id  : Reference [optional] [-> Agent]     // assigned agent; absent while unassigned
   category_id        : Reference [required] [-> Category]  // ticket category
@@ -105,7 +117,6 @@ Entity: Ticket                    [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: ticket_id
-    natural:   ticket_key
 
   Volume:
     initial: 150
@@ -131,7 +142,6 @@ Entity: Ticket                    [kind: History] [profile: SCD2_BITEMPORAL]
 ```
 Entity: Agent                     [kind: History] [profile: SCD2_BITEMPORAL]
   agent_id   : Identifier                          // surrogate; stable across all versions
-  agent_key  : NaturalKey [required] [unique]      // source agent identifier
   first_name : ShortText [required]                // given name
   last_name  : ShortText [required]                // family name
   email      : ShortText [required] [pii]          // work email
@@ -144,7 +154,6 @@ Entity: Agent                     [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: agent_id
-    natural:   agent_key
 
   Volume:
     initial: 12
@@ -169,7 +178,6 @@ Entity: Agent                     [kind: History] [profile: SCD2_BITEMPORAL]
 ```
 Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   customer_id         : Identifier                                 // surrogate; stable across all versions
-  customer_key        : NaturalKey [required] [unique]             // source customer identifier
   company_name        : ShortText [required]                       // customer organisation
   contact_name        : ShortText [required] [pii]                 // primary contact
   contact_email       : ShortText [required] [pii]                 // primary contact email
@@ -181,7 +189,6 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: customer_id
-    natural:   customer_key
 
   Volume:
     initial: 20
@@ -213,7 +220,6 @@ Entity: Category                  [kind: Reference] [profile: CURRENT_STATE] [al
   default_sla_hours  : Integer [optional]                   // SLA applied to new tickets in this category
   effective_date     : Date [optional]                      // first day the category may be assigned
   expiration_date    : Date [optional]                      // last day the category may be assigned
-  is_current         : Flag [current-flag]                  // current marker
 
   Keys:
     surrogate: category_id
@@ -235,10 +241,14 @@ Entity: Category                  [kind: Reference] [profile: CURRENT_STATE] [al
 ```
 
 ```
-Entity: TicketKeymap              [kind: Keymap] [profile: CURRENT_STATE]
+Entity: TicketKeymap              [kind: Keymap] [profile: CURRENT_STATE] [allocates: Ticket]
   ticket_id     : Identifier                       // allocated once per natural key; never reused
-  ticket_key    : NaturalKey [required] [unique]   // natural key from source
+  ticket_key    : NaturalKey [required] [unique]   // source ticket identifier
   source_system : ShortText [optional]             // system that introduced the key
+
+  Keys:
+    surrogate: ticket_id
+    natural:   ticket_key
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -250,10 +260,14 @@ Entity: TicketKeymap              [kind: Keymap] [profile: CURRENT_STATE]
 ```
 
 ```
-Entity: AgentKeymap               [kind: Keymap] [profile: CURRENT_STATE]
+Entity: AgentKeymap               [kind: Keymap] [profile: CURRENT_STATE] [allocates: Agent]
   agent_id      : Identifier                       // allocated once per natural key; never reused
-  agent_key     : NaturalKey [required] [unique]   // natural key from source
+  agent_key     : NaturalKey [required] [unique]   // source agent identifier; the agent's email is not used as a key
   source_system : ShortText [optional]             // system that introduced the key
+
+  Keys:
+    surrogate: agent_id
+    natural:   agent_key
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -265,10 +279,14 @@ Entity: AgentKeymap               [kind: Keymap] [profile: CURRENT_STATE]
 ```
 
 ```
-Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE]
+Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE] [allocates: Customer]
   customer_id   : Identifier                       // allocated once per natural key; never reused
-  customer_key  : NaturalKey [required] [unique]   // natural key from source
+  customer_key  : NaturalKey [required] [unique]   // source customer identifier
   source_system : ShortText [optional]             // system that introduced the key
+
+  Keys:
+    surrogate: customer_id
+    natural:   customer_key
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -342,7 +360,6 @@ IT service desk data at this scope.
 Orientation: -
   Entrypoint:     access-layer
   Access mode:    VIEW
-  Trust producer: the IT Service Desk validation pipeline, run by the product owner or data steward
 ```
 
 ```
@@ -446,9 +463,8 @@ One `EntityEmbedding` entity, as the Search module defines it, with two embeddin
 ticket discriminated by `source_attribute`. Absence is no row, never a null vector.
 
 ```
-Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY]
+Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [allocation: inline]
   embedding_id            : Identifier                         // surrogate for the embedding record
-  embedding_key           : NaturalKey [required] [unique]     // ticket key, source attribute and model
   entity_id               : Reference [required] [-> Ticket]   // the embedded ticket; key only
   entity_kind             : Enum{TICKET} [required]            // always TICKET in this product
   source_attribute        : ShortText [required]               // which embedding: the Embedding block name
@@ -461,7 +477,7 @@ Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY]
 
   Keys:
     surrogate: embedding_id
-    natural:   embedding_key
+    natural:   entity_id, source_attribute, embedding_model
 
   Volume:
     initial: 250
@@ -538,9 +554,8 @@ prediction time (resolution, closure, satisfaction) are excluded. Agent and cust
 attributes are read as at the ticket's opening.
 
 ```
-Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [module: prediction]
+Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [module: prediction] [allocation: inline]
   feature_group_id      : Identifier                          // surrogate for the feature row
-  feature_group_key     : NaturalKey [required] [unique]      // ticket key and feature version
   entity_id             : Reference [required] [-> Ticket]    // the featurised ticket; key only
   entity_kind           : Enum{TICKET} [required]             // always TICKET
   f_priority_int        : Integer [optional] [derive: map(Ticket.priority, {P1: 1, P2: 2, P3: 3, P4: 4})]  // priority, 1 is highest
@@ -560,7 +575,7 @@ Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [modul
 
   Keys:
     surrogate: feature_group_id
-    natural:   feature_group_key
+    natural:   entity_id
 
   Volume:
     initial: 150
@@ -587,9 +602,8 @@ Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [modul
 ```
 
 ```
-Entity: ModelPrediction           [kind: History] [profile: SCD2_HISTORY]
+Entity: ModelPrediction           [kind: History] [profile: SCD2_HISTORY] [allocation: inline]
   prediction_id           : Identifier                        // surrogate for the prediction
-  prediction_key          : NaturalKey [required] [unique]    // ticket key, model and scoring instant
   entity_id               : Reference [required] [-> Ticket]  // the scored ticket; key only
   entity_kind             : Enum{TICKET} [required]           // always TICKET
   model_key               : ShortText [required]              // the Model block name
@@ -604,7 +618,7 @@ Entity: ModelPrediction           [kind: History] [profile: SCD2_HISTORY]
 
   Keys:
     surrogate: prediction_id
-    natural:   prediction_key
+    natural:   entity_id, model_key
 
   Volume:
     initial: 150
@@ -748,6 +762,136 @@ Decision: DD-MEM-001
 `INV-MEMORY-005`, `INV-MEMORY-006`.
 
 ---
+
+## Glossary
+
+The terms this product introduces, three per module for Memory's capture floor.
+
+```
+Glossary: SLA breach
+  Definition: A ticket not resolved within its contracted SLA hours.
+  Module:     domain
+  Related:    Ticket
+```
+
+```
+Glossary: Escalation
+  Definition: Moving a ticket to a higher support tier or team because it cannot be resolved at the current one.
+  Module:     domain
+  Related:    Ticket
+```
+
+```
+Glossary: Customer tier
+  Definition: The service level a customer has contracted: Platinum, Gold, Silver or Bronze.
+  Module:     domain
+  Related:    Customer
+```
+
+```
+Glossary: Leaf category
+  Definition: A category with no children; tickets are assigned to leaf categories.
+  Module:     semantic
+  Related:    Category
+```
+
+```
+Glossary: First response
+  Definition: The first reply an agent sends on a ticket, from which response time is measured.
+  Module:     semantic
+  Related:    Ticket
+```
+
+```
+Glossary: CSAT
+  Definition: The 1 to 5 satisfaction score a customer gives a closed ticket.
+  Module:     semantic
+  Related:    Ticket
+```
+
+```
+Glossary: Similar ticket
+  Definition: A past ticket whose subject and description, or resolution notes, are at least 0.75 cosine-similar to the one under investigation.
+  Module:     search
+  Related:    Ticket, EntityEmbedding
+```
+
+```
+Glossary: Resolution embedding
+  Definition: The embedding of a resolved ticket's resolution notes, used to retrieve how similar tickets were fixed.
+  Module:     search
+  Related:    EntityEmbedding
+```
+
+```
+Glossary: Embedding source
+  Definition: Which text of a ticket an embedding was produced from: subject and description, or resolution notes.
+  Module:     search
+  Related:    EntityEmbedding
+```
+
+```
+Glossary: Breach risk
+  Definition: The model's probability, 0 to 1, that an open ticket breaches its SLA before resolution.
+  Module:     prediction
+  Related:    Ticket, ModelPrediction
+```
+
+```
+Glossary: Observation instant
+  Definition: The point in time a feature row is computed as at, so training never sees later facts.
+  Module:     prediction
+  Related:    TicketFeatureSet
+```
+
+```
+Glossary: Passthrough feature
+  Definition: A feature copied unchanged from its source because it is a contractual constant, not an observation.
+  Module:     prediction
+  Related:    TicketFeatureSet
+```
+
+```
+Glossary: Satisfaction coverage
+  Definition: The share of closed tickets that carry a satisfaction score.
+  Module:     observability
+  Related:    Ticket
+```
+
+```
+Glossary: Freshness
+  Definition: The age of the newest ticket loaded; the timeliness check warns at 24 hours and fails at 48.
+  Module:     observability
+  Related:    Ticket
+```
+
+```
+Glossary: Orphaned reference
+  Definition: A reference to an agent, customer or category that does not exist; any one fails integrity.
+  Module:     observability
+  Related:    Ticket
+```
+
+```
+Glossary: Investigation session
+  Definition: An agent's multi-step piece of work on a ticket, carried across interactions until it ends or expires.
+  Module:     memory
+  Related:    AgentSession
+```
+
+```
+Glossary: Session timeout
+  Definition: Twenty-four hours without activity, after which a session is abandoned.
+  Module:     memory
+  Related:    AgentSession
+```
+
+```
+Glossary: Learned strategy
+  Definition: An approach an agent found effective, kept once validated so later sessions can reuse it.
+  Module:     memory
+  Related:    LearnedStrategy
+```
 
 ## Access layer
 

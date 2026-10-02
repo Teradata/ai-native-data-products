@@ -32,6 +32,15 @@ decisions:
 
 # Customer Orders: Design Specification
 
+```
+Product: -
+  Description:    Customer orders, their lines and products, for order analytics, product search and reorder prediction.
+  Domain:         Retail sales
+  Owner:          Sales operations
+  Technical contact: Data engineering
+  Trust producer: the Customer Orders validation pipeline, run by the product owner
+```
+
 The fixture the standards are tested against. It is re-validated on every test run, so a
 change to `design/` that would invalidate a conforming design fails the build.
 
@@ -72,7 +81,6 @@ plain reference.
 ```
 Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   customer_id      : Identifier                        // surrogate; stable across all versions
-  customer_key     : NaturalKey [required] [unique]    // account number from the ordering system
   legal_name       : ShortText [required] [pii]        // registered name
   email            : ShortText [optional] [pii]        // contact address
   region_code      : Code [required]                   // trading region
@@ -81,7 +89,6 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: customer_id
-    natural:   customer_key
 
   Volume:
     initial: 200000
@@ -104,7 +111,6 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
 ```
 Entity: Product                   [kind: History] [profile: SCD2_BITEMPORAL]
   product_id       : Identifier                        // surrogate; stable across all versions
-  product_key      : NaturalKey [required] [unique]    // SKU from the ordering system
   product_name     : ShortText [required]              // display name
   description      : Text [optional]                   // the text Search embeds
   is_current       : Flag [current-flag]               // current version marker
@@ -112,7 +118,6 @@ Entity: Product                   [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: product_id
-    natural:   product_key
 
   Volume:
     initial: 20000
@@ -134,7 +139,6 @@ Entity: Product                   [kind: History] [profile: SCD2_BITEMPORAL]
 ```
 Entity: Order                     [kind: History] [profile: SCD2_BITEMPORAL]
   order_id         : Identifier                        // surrogate; stable across all versions
-  order_key        : NaturalKey [required] [unique]    // order number from the ordering system
   customer_id      : Reference [required] [-> Customer]  // the ordering customer
   order_status     : Code [required]                   // status, from OrderStatus
   ordered_dts      : Timestamp [required]              // when the order was placed
@@ -145,7 +149,6 @@ Entity: Order                     [kind: History] [profile: SCD2_BITEMPORAL]
 
   Keys:
     surrogate: order_id
-    natural:   order_key
 
   Volume:
     initial: 5000000
@@ -168,13 +171,17 @@ Entity: Order                     [kind: History] [profile: SCD2_BITEMPORAL]
 ```
 
 ```
-Entity: OrderLine                 [kind: Relationship] [profile: ASSOCIATION_SCD2]
+Entity: OrderLine                 [kind: Relationship] [profile: ASSOCIATION_SCD2] [allocation: inline]
   order_line_id    : Identifier                        // surrogate for the association
   order_id         : Reference [required] [-> Order]     // the order
   product_id       : Reference [required] [-> Product]   // the product ordered
   quantity         : Integer [required]                // units ordered
   line_value       : Decimal(12,2) [required]          // extended line value
   is_current       : Flag [current-flag]               // current version marker
+
+  Keys:
+    surrogate: order_line_id
+    natural:   order_id, product_id
 
   Volume:
     initial: 15000000
@@ -193,7 +200,7 @@ Entity: OrderLine                 [kind: Relationship] [profile: ASSOCIATION_SCD
 ```
 
 ```
-Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY]
+Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY] [allocation: inline]
   order_status_id  : Identifier                        // surrogate for the entry
   order_status_code: Code [required] [unique]          // status code used by Order; natural key
   short_description: ShortText [required]              // label for reports
@@ -226,12 +233,18 @@ reworded, and an order placed last year should still read back with the wording 
 was current when it was placed. The validity pair comes from the temporal pattern and
 is not restated here, exactly as for `Customer` above.
 
+`Customer`, `Product` and `Order` are reference targets, so each allocates its surrogate through a keymap, and its natural key lives on that keymap alone. A customer's account number is personal data in some jurisdictions; holding it in one place is what lets it be protected in one place. `OrderLine` and `OrderStatus` are referenced by nothing, so they allocate inline.
+
 ```
-Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE]
+Entity: CustomerKeymap          [kind: Keymap] [profile: CURRENT_STATE] [allocates: Customer]
   customer_id      : Identifier                        // allocated once per natural key
-  customer_key     : NaturalKey [required] [unique]    // natural key from source
+  customer_key     : NaturalKey [required] [unique]    // account number from the ordering system
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
+
+  Keys:
+    surrogate: customer_id
+    natural:   customer_key
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -242,7 +255,45 @@ Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE]
     - RichMetadata
 ```
 
-`Product` and `Order` take the same keymap shape, since both are reference targets.
+```
+Entity: ProductKeymap           [kind: Keymap] [profile: CURRENT_STATE] [allocates: Product]
+  product_id       : Identifier                        // allocated once per natural key
+  product_key      : NaturalKey [required] [unique]    // SKU from the ordering system
+  source_system    : ShortText [optional]              // system that introduced the key
+  created_dts      : Timestamp [required]              // allocation time; immutable
+
+  Keys:
+    surrogate: product_id
+    natural:   product_key
+
+  Applies patterns:
+    - temporal-lifecycle-metadata
+    - object-placement
+
+  Requires capabilities:
+    - SurrogateKeyAllocation
+    - RichMetadata
+```
+
+```
+Entity: OrderKeymap             [kind: Keymap] [profile: CURRENT_STATE] [allocates: Order]
+  order_id         : Identifier                        // allocated once per natural key
+  order_key        : NaturalKey [required] [unique]    // order number from the ordering system
+  source_system    : ShortText [optional]              // system that introduced the key
+  created_dts      : Timestamp [required]              // allocation time; immutable
+
+  Keys:
+    surrogate: order_id
+    natural:   order_key
+
+  Applies patterns:
+    - temporal-lifecycle-metadata
+    - object-placement
+
+  Requires capabilities:
+    - SurrogateKeyAllocation
+    - RichMetadata
+```
 
 **Invariants:** `INV-DOMAIN-001`, `INV-DOMAIN-002`, `INV-DOMAIN-003`, `INV-DOMAIN-004`,
 `INV-DOMAIN-005`, `INV-DOMAIN-006`, `INV-DOMAIN-007`.
@@ -319,7 +370,6 @@ AccessObject: OrderWithLines
 Orientation: -
   Entrypoint:     access-layer
   Access mode:    VIEW
-  Trust producer: the Customer Orders validation pipeline, run by the product owner
 ```
 
 **Invariants:** `INV-SEMANTIC-001`, `INV-SEMANTIC-002`, `INV-SEMANTIC-003`,
@@ -358,14 +408,17 @@ Decision: DD-SEARCH-001
 ```
 
 ```
-Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY] [module: search]
+Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY] [module: search] [allocation: inline]
   product_embedding_id : Identifier                    // surrogate for the embedding
-  product_key          : NaturalKey [required]         // the embedded product
   product_id           : Reference [required] [-> Product]  // key only; no content duplication
   embedding            : Vector[768] [required]        // dense embedding of the description
   embedding_model      : ShortText [required]          // model that produced the vector
   embedding_dimensions : Integer [required]            // dimensionality, for reproducibility
   is_current           : Flag [current-flag]           // current embedding for this product
+
+  Keys:
+    surrogate: product_embedding_id
+    natural:   product_id, embedding_model
 
   Volume:
     initial: 20000
@@ -404,13 +457,16 @@ Model: reorder
 ```
 
 ```
-Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY] [module: prediction]
+Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY] [module: prediction] [allocation: inline]
   customer_feature_id : Identifier                     // surrogate for the feature row
-  feature_key         : NaturalKey [required]          // feature name and version
   customer_id         : Reference [required] [-> Customer]  // the subject
   reorder_propensity  : Decimal(5,4) [optional] [derive: count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)]  // share of the last year's orders placed in the last 90 days
   observation_dts     : Timestamp [required]           // as-at instant for the feature
   is_current          : Flag [current-flag]            // current feature version
+
+  Keys:
+    surrogate: customer_feature_id
+    natural:   customer_id
 
   Volume:
     initial: 200000
@@ -499,6 +555,27 @@ sessions and learned strategies. Retention for both is in the Observability sect
 ```
 Runtime: -
   Session timeout: 8 hours
+```
+
+```
+Glossary: Order Value
+  Definition: Gross value of an order before returns; the measure the business calls revenue.
+  Module:     semantic
+  Related:    Order
+```
+
+```
+Glossary: Reorder propensity
+  Definition: How likely a customer is to order again soon, as the share of the last year's orders placed in the last 90 days.
+  Module:     prediction
+  Related:    Customer, CustomerFeature
+```
+
+```
+Glossary: SKU
+  Definition: The stock-keeping unit that identifies a product in the ordering system.
+  Module:     domain
+  Related:    Product
 ```
 
 **Invariants:** `INV-MEMORY-001`, `INV-MEMORY-002`, `INV-MEMORY-003`,

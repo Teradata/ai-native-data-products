@@ -23,7 +23,7 @@ BACKTICK = re.compile(r"`([^`]+)`")
 ENUM_LEAD = re.compile(r"^`[^`]+`(?:(?:, | or )`[^`]+`)*")
 HEADING = re.compile(r"^(#{2,4})\s+(?:[\d.]+\s+)?(.*?)\s*$")
 FIELD_ROW = re.compile(
-    r"^\|\s*`([^`]+)`\s*\|\s*(yes|no)\s*\|\s*([a-z]+)\s*\|\s*(.*?)\s*\|\s*$")
+    r"^\|\s*`([^`]+)`\s*\|\s*(yes|no)\s*\|\s*([a-z-]+)\s*\|\s*(.*?)\s*\|\s*$")
 TWO_COL_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*(.*?)\s*\|\s*$")
 FUNCTION_ROW = re.compile(r"^\|\s*`([a-z_]+)`\s*\|\s*(row|aggregate|quality)\s*\|")
 FENCE = re.compile(r"^\s*(```|~~~)")
@@ -48,6 +48,16 @@ class FieldSpec:
     required: bool
     type: str
     values: Optional[List[str]]  # the enumeration, for type `enum`
+    note: str = ""  # the Value cell, for rules stated there (a decision a field settles)
+
+
+@dataclass
+class Implicit:
+    """A module's standard-owned relations (Design Specification Standard §4.1)."""
+    mode: str  # all | none | by facet
+    tables: List[str] = field(default_factory=list)  # extra relations, from patterns
+    views: List[str] = field(default_factory=list)   # standard-owned views
+    tall: List[str] = field(default_factory=list)    # created when a feature group is tall
 
 
 @dataclass
@@ -60,6 +70,8 @@ class Standard:
     blocks: Dict[str, Dict[str, FieldSpec]] = field(default_factory=dict)
     module_blocks: Dict[str, List[str]] = field(default_factory=dict)
     facet_blocks: Dict[str, List[str]] = field(default_factory=dict)
+    global_blocks: List[str] = field(default_factory=list)
+    profile_prohibited: Dict[str, Set[str]] = field(default_factory=dict)
     functions: Dict[str, str] = field(default_factory=dict)
     refresh_terms: Set[str] = field(default_factory=set)
     duration_units: Set[str] = field(default_factory=set)
@@ -73,7 +85,7 @@ class Standard:
     module_entities: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
     patterns: Set[str] = field(default_factory=set)
     unnamed_blocks: Set[str] = field(default_factory=set)
-    implicit_relations: Dict[str, Tuple[str, List[str]]] = field(default_factory=dict)
+    implicit_relations: Dict[str, Implicit] = field(default_factory=dict)
     entity_facets: Dict[Tuple[str, str], str] = field(default_factory=dict)
 
 
@@ -119,7 +131,7 @@ def field_tables(text: str) -> Dict[str, Dict[str, FieldSpec]]:
         if fm:
             name, req, ftype, cell = fm.groups()
             tables.setdefault(heading, {})[name] = FieldSpec(
-                name, req == "yes", ftype, _enum(cell) if ftype == "enum" else None)
+                name, req == "yes", ftype, _enum(cell) if ftype == "enum" else None, cell)
     return tables
 
 
@@ -151,7 +163,8 @@ def load_standard(design_root: Path) -> Standard:
         fm = FIELD_ROW.match(row)
         if fm:
             name, req, ftype, cell = fm.groups()
-            spec = FieldSpec(name, req == "yes", ftype, _enum(cell) if ftype == "enum" else None)
+            spec = FieldSpec(name, req == "yes", ftype, _enum(cell) if ftype == "enum" else None,
+                             cell)
             if heading == "Frontmatter":
                 std.frontmatter[name] = spec
             elif heading == "Entity header qualifiers":
@@ -180,15 +193,23 @@ def load_standard(design_root: Path) -> Standard:
                 std.module_blocks[key] = BACKTICK.findall(cell)
             elif heading == "Standard-owned relations":
                 ticks = BACKTICK.findall(cell)
-                std.implicit_relations[key] = (ticks[0] if ticks else "none",
-                                               [x for x in ticks[1:] if re.fullmatch(r"[A-Z]\w+", x)])
+                camel = lambda s: [x for x in BACKTICK.findall(s) if re.fullmatch(r"[A-Z]\w+", x)]
+                before, _, after = cell.partition(" views ")
+                imp = Implicit(ticks[0] if ticks else "none")
+                if "storage: tall" in cell:
+                    imp.tall = camel(cell)
+                else:
+                    imp.tables, imp.views = camel(before), camel(after)
+                std.implicit_relations[key] = imp
             elif heading == "Entity sections":
                 std.section_kinds[key] = (["feature-group"] if "feature group" in cell
                                           else BACKTICK.findall(cell))
 
-    for facet, block in re.findall(r"with the `([a-z]+:[a-z-]+)` facet also requires a `(\w+)` block",
-                                   text):
-        std.facet_blocks.setdefault(facet, []).append(block)
+    for m in re.finditer(r"with the `([a-z]+:[a-z-]+)` facet also requires ((?:an? `\w+` block(?: and )?)+)",
+                         text):
+        std.facet_blocks.setdefault(m.group(1), []).extend(re.findall(r"`(\w+)`", m.group(2)))
+    for m in re.finditer(r"Every specification also requires ((?:an? `\w+` block(?: and )?)+)", text):
+        std.global_blocks.extend(re.findall(r"`(\w+)`", m.group(1)))
     m = re.search(r"Weight dimensions are (.+?)\.", text)
     if m:
         std.weight_dimensions = set(BACKTICK.findall(m.group(1)))
@@ -248,6 +269,11 @@ def _load_temporal(std: Standard, path: Path) -> None:
                 std.kind_defaults[kind[0]] = set(uppercase)
             else:
                 std.profiles.update(uppercase)
+                if len(cells) >= 4 and len(uppercase) == 1:
+                    # A cell opening `-` prohibits nothing; its parenthesis only qualifies.
+                    cell = "" if cells[3].startswith("-") else cells[3]
+                    names = {n for n in BACKTICK.findall(cell) if re.fullmatch(r"[a-z_]+", n)}
+                    std.profile_prohibited[uppercase[0]] = names
 
 
 # --------------------------------------------------------------------------- #
