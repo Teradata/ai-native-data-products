@@ -85,6 +85,8 @@ entity("semantic", "data_product_registry", "Product-first discovery anchor; one
     c("trust_authoritative_producer", "Validator whose latest area evidence defines the trust map."),
     c("approved_entrypoint", "Fully qualified approved initial business surface."),
     c("approved_access_mode", "VIEW for this embedded binding."),
+    c("platform_profile", "Platform the product was built for: an implementation directory name.", "VARCHAR"),
+    c("standard_version", "Master Design version the product was built against.", "VARCHAR"),
     c("max_evidence_age_days", "Maximum evidence age before confidence becomes unknown.", "INTEGER NOT NULL")], "product_id")
 entity("semantic", "data_product_map", "Deployed module discovery map, not design rationale.", [
     c("module_name", "Module anchor in the six-module composition."), c("container_name", "Exact deployed schema."),
@@ -114,11 +116,16 @@ entity("semantic", "table_relationship", "Registered joins including semantic re
     c("relationship_type", "FOREIGN_KEY or semantic association."),
     c("is_mandatory", "Whether each source row must resolve.", "BOOLEAN NOT NULL")], "relationship_id")
 entity("semantic", "access_object", "Authoritative access classification established from generated view structure.", [
-    c("object_identity", "Exact qualified consumable object."), c("access_role", "BASE, PASSTHROUGH or COMPOSITE."),
+    c("object_identity", "Exact qualified consumable object."),
+    c("object_type", "Object role: TABLE, BASE_VIEW or CONSUMER_VIEW, giving the STORAGE, ACCESS or CONSUMER layer."),
+    c("access_role", "BASE, PASSTHROUGH or COMPOSITE."),
     c("represents_entity", "Entity represented; null for composite objects.", "VARCHAR"),
     c("object_grain", "One row represents this unit."),
     c("is_agent_consumable", "Whether this is a public analytical surface.", "BOOLEAN NOT NULL"),
-    c("resolves_to_object", "Base object exposed by a passthrough.", "VARCHAR"), c("access_note", "Filtering and safe-use guidance.")], "object_identity")
+    c("resolves_to_object", "Base object exposed by a passthrough.", "VARCHAR"),
+    c("consumer_audience", "AGENT, BI or ALL on CONSUMER_VIEW objects; null on every other object type.", "VARCHAR"),
+    c("access_semantics", "FULL_HISTORY, CURRENT_ONLY or POINT_IN_TIME; null when the entity declares no history.", "VARCHAR"),
+    c("access_note", "Filtering and safe-use guidance.")], "object_identity")
 entity("semantic", "access_composition", "Declared members of joined surfaces; consumers never parse DDL.", [
     c("access_composition_id", "Composite and member identity."), c("composite_object", "Exact joined view."),
     c("member_entity", "Qualified catalogued member."), c("member_role", "ANCHOR or joined-member role."),

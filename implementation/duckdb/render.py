@@ -1,6 +1,7 @@
 """Render plain SQL from the explicit model. Run with --check in build gates."""
 import argparse
 import itertools
+import re
 from pathlib import Path
 from model import ENTITIES, AUDIT, TEMPORAL, MODULES
 
@@ -17,6 +18,15 @@ def literal(value):
     if isinstance(value, (int, float)):
         return str(value)
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def standard_version():
+    """The Master Design version this product is built against, recorded in its registry."""
+    text = (ROOT.parents[1] / "design/core/MASTER_DESIGN.md").read_text(encoding="utf-8")
+    found = re.search(r"^version:\s*\"?([^\"\s]+)\"?\s*$", text.split("\n---", 2)[0], re.M)
+    if not found:
+        raise SystemExit("design/core/MASTER_DESIGN.md has no version in its frontmatter")
+    return found.group(1)
 
 
 def columns(e):
@@ -79,6 +89,8 @@ def ddl(e):
         "severity": ("INFO","WARNING","ERROR","CRITICAL"),
         "dataset_role": ("PRIMARY","JOINED"),
         "object_kind": ("ENTITY","COLUMN","METRIC"),
+        "consumer_audience": ("AGENT","BI","ALL"),
+        "access_semantics": ("FULL_HISTORY","CURRENT_ONLY","POINT_IN_TIME"),
     }
     if e.name == "validation_check":
         vocabularies["status"] = ("PASSED","FAILED","ERROR")
@@ -147,7 +159,8 @@ def relationships():
 def registration():
     sql = row("semantic.data_product_registry", product_id="customer360", product_version="1.0", product_status="ACTIVE",
               owner_team="Synthetic demo maintainers", trust_authoritative_producer="duckdb-reference", approved_entrypoint="domain.v_customer",
-              approved_access_mode="VIEW", max_evidence_age_days=7)
+              approved_access_mode="VIEW", platform_profile="duckdb", standard_version=standard_version(),
+              max_evidence_age_days=7)
     for module, purpose in MODULES.items():
         sql += row("semantic.data_product_map", module_name=module, container_name=module, module_purpose=purpose,
                    deployment_status="DEPLOYED", module_version="1.0")
@@ -163,13 +176,15 @@ def registration():
                        container_name=e.schema, table_name=e.name, column_name=name, business_description=meaning,
                        is_pii=name in ("display_name", "user_key"), is_sensitive=e.runtime,
                        data_classification="PUBLIC", source="Authored deployment model")
-        sql += row("semantic.access_object", object_identity=e.qualified, access_role="BASE", represents_entity=e.qualified,
+        sql += row("semantic.access_object", object_identity=e.qualified, object_type="TABLE", access_role="BASE", represents_entity=e.qualified,
                    object_grain="one physical record or historical version", is_agent_consumable=False,
-                   resolves_to_object=None, access_note="Governed full contract; private to the host administration boundary.")
+                   resolves_to_object=None, consumer_audience=None, access_semantics="FULL_HISTORY" if e.history else None,
+                   access_note="Governed full contract; private to the host administration boundary.")
         if not e.runtime:
-            sql += row("semantic.access_object", object_identity=e.schema + ".v_" + e.name, access_role="PASSTHROUGH",
+            sql += row("semantic.access_object", object_identity=e.schema + ".v_" + e.name, object_type="CONSUMER_VIEW", access_role="PASSTHROUGH",
                        represents_entity=e.qualified, object_grain="one current non-deleted record" if e.history else "one record",
-                       is_agent_consumable=True, resolves_to_object=e.qualified, access_note="Public logical surface; no native security isolation.")
+                       is_agent_consumable=True, resolves_to_object=e.qualified, consumer_audience="ALL",
+                       access_semantics="CURRENT_ONLY" if e.history else None, access_note="Public logical surface; no native security isolation.")
             sql += row("semantic.primary_object", object_identity=e.schema + ".v_" + e.name, module_name=e.schema,
                        object_type="VIEW", object_role="ANALYTICAL_QUERY" if e.schema in ("domain", "prediction", "search") else "REFERENCE_LOOKUP",
                        usage_guidance=e.description)
@@ -208,7 +223,7 @@ def registration():
         "search.searchable": [("search.entity_embedding", "ANCHOR", ""), ("domain.product", "INNER", "entity_id = product_id")],
         "prediction.enriched": [("prediction.model_prediction", "ANCHOR", ""), ("domain.customer", "INNER", "entity_id = customer_id")],
     }.items():
-        sql += row("semantic.access_object", object_identity=obj, access_role="COMPOSITE", represents_entity=None,
+        sql += row("semantic.access_object", object_identity=obj, object_type="CONSUMER_VIEW", access_role="COMPOSITE", represents_entity=None, consumer_audience="ALL",
                    object_grain="one current enhancement record", is_agent_consumable=True, resolves_to_object=None,
                    access_note="Context is joined from current Domain; no content is persisted here.")
         for member, role, predicate in members:
@@ -248,7 +263,7 @@ def registration():
         schema, view = obj.split(".")
         sql += f"COMMENT ON VIEW {obj} IS {literal(meaning)};\n"
         if obj not in ("search.searchable", "prediction.enriched"):
-            sql += row("semantic.access_object", object_identity=obj, access_role="COMPOSITE", represents_entity=None,
+            sql += row("semantic.access_object", object_identity=obj, object_type="CONSUMER_VIEW", access_role="COMPOSITE", represents_entity=None, consumer_audience="ALL",
                        object_grain=meaning, is_agent_consumable=True, resolves_to_object=None, access_note="Derived from registered metadata or evidence; no security isolation.")
             for i, member in enumerate(members):
                 sql += row("semantic.access_composition", access_composition_id=obj+":"+member, composite_object=obj,
