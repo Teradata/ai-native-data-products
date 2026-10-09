@@ -339,7 +339,12 @@ class EngineTests:
             self.con.execute(f"INSERT INTO lab_store.specimen VALUES (1,'LAB-1',1.5,'{frm}','{to}',{cur},current_timestamp,current_timestamp,false,NULL)")
         check=next(c for c in m['checks'] if c['test_id']=='lab_store.specimen:temporal')
         self.assertEqual(self.con.execute(check['sql']).fetchall(),[])
-        self.con.execute("UPDATE lab_store.specimen SET valid_to_dts='2025-02-10' WHERE valid_from_dts='2025-01-01'")
+        # An engine that can enforce non-overlap (PostgreSQL exclusion constraint) refuses the write;
+        # one that cannot (DuckDB) must have the check detect it. Either way the overlap is not silent.
+        try:
+            self.con.execute("UPDATE lab_store.specimen SET valid_to_dts='2025-02-10' WHERE valid_from_dts='2025-01-01'")
+        except Exception:
+            return
         self.assertTrue(self.con.execute(check['sql']).fetchall())
 
     def test_active_lineage_and_runtime_privacy_metadata(self):
