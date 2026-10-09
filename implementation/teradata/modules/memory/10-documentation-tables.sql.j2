@@ -73,7 +73,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Module_Registry.version_date IS 'When thi
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Design_Decision (
     decision_key            BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    decision_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- DD-{MODULE}-{NNN}
+    decision_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- DD-MODULE-NNN
     decision_version        INTEGER NOT NULL DEFAULT 1,
     decision_title          VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
     decision_description    CLOB CHARACTER SET UNICODE,
@@ -95,7 +95,7 @@ PRIMARY INDEX (decision_key);
 
 COMMENT ON TABLE {{ product }}_Memory.Design_Decision IS
 'Architecture Decision Records - why design choices were made, with version chain for superseded decisions.';
-COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decision_id IS 'Human-readable decision id - DD-{MODULE}-{NNN}.';
+COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decision_id IS 'Human-readable decision id - DD-MODULE-NNN.';
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decision_version IS 'Version within decision_id; increments on supersede.';
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decision_title IS 'Short title of the decision.';
 COMMENT ON COLUMN {{ product }}_Memory.Design_Decision.decision_description IS 'What was decided.';
@@ -153,7 +153,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Business_Glossary.is_active IS '1 = activ
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Query_Cookbook (
     recipe_key              BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    recipe_id               VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- QC-{MODULE}-{NNN}
+    recipe_id               VARCHAR(50) CHARACTER SET UNICODE NOT NULL,       -- QC-MODULE-NNN
     recipe_title            VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
     recipe_description      CLOB CHARACTER SET UNICODE NOT NULL,
     use_case                VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
@@ -172,7 +172,7 @@ PRIMARY INDEX (recipe_key);
 
 COMMENT ON TABLE {{ product }}_Memory.Query_Cookbook IS
 'Proven query patterns - agents use these as starting points rather than generating queries from scratch.';
-COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.recipe_id IS 'Human-readable recipe id - QC-{MODULE}-{NNN}.';
+COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.recipe_id IS 'Human-readable recipe id - QC-MODULE-NNN.';
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.recipe_title IS 'Short title.';
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.recipe_description IS 'What the recipe does.';
 COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.use_case IS 'When to use it.';
@@ -192,7 +192,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Query_Cookbook.is_active IS '1 = active, 
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Implementation_Note (
     note_key            BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    note_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- IN-{MODULE}-{NNN}
+    note_id             VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- IN-MODULE-NNN
     note_title          VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
     note_content        CLOB CHARACTER SET UNICODE NOT NULL,
     note_category       VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- DEPLOYMENT, WORKAROUND, KNOWN_ISSUE, PERFORMANCE_TIP, OPERATIONAL, SECURITY
@@ -209,7 +209,7 @@ PRIMARY INDEX (note_key);
 
 COMMENT ON TABLE {{ product }}_Memory.Implementation_Note IS
 'Operational knowledge - workarounds, known issues, deployment tips, and gotchas.';
-COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.note_id IS 'Human-readable note id - IN-{MODULE}-{NNN}.';
+COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.note_id IS 'Human-readable note id - IN-MODULE-NNN.';
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.note_title IS 'Short title.';
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.note_content IS 'The note.';
 COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.note_category IS 'DEPLOYMENT, WORKAROUND, KNOWN_ISSUE, PERFORMANCE_TIP, OPERATIONAL, SECURITY.';
@@ -227,7 +227,7 @@ COMMENT ON COLUMN {{ product }}_Memory.Implementation_Note.is_active IS '1 = act
 -- ---------------------------------------------------------------------------
 CREATE TABLE {{ product }}_Memory.Change_Log (
     change_key          BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    change_id           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- CL-{MODULE}-{NNN}
+    change_id           VARCHAR(50) CHARACTER SET UNICODE NOT NULL,          -- CL-MODULE-NNN
     version_number      VARCHAR(20) CHARACTER SET UNICODE NOT NULL,
     change_title        VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
     change_description  CLOB CHARACTER SET UNICODE NOT NULL,
@@ -247,7 +247,7 @@ PRIMARY INDEX (change_key);
 
 COMMENT ON TABLE {{ product }}_Memory.Change_Log IS
 'Versioned change history - each row is a point-in-time event; order by version_number to reconstruct deployment history.';
-COMMENT ON COLUMN {{ product }}_Memory.Change_Log.change_id IS 'Human-readable change id - CL-{MODULE}-{NNN}.';
+COMMENT ON COLUMN {{ product }}_Memory.Change_Log.change_id IS 'Human-readable change id - CL-MODULE-NNN.';
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.version_number IS 'Version this change belongs to.';
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.change_title IS 'Short title.';
 COMMENT ON COLUMN {{ product }}_Memory.Change_Log.change_description IS 'What changed.';

@@ -30,8 +30,8 @@ Cite the invariant or rule id behind every entry.
    |---|---|
    | domain, search, prediction, semantic, memory | `implementation/{platform}/modules/{module}/validation.sql.j2` |
    | observability | **none shipped** |
-   | temporal-lifecycle-metadata, validation | `implementation/{platform}/patterns/{pattern}/conformance-queries.sql` |
-   | access-layer | `implementation/{platform}/patterns/access-layer/dd-access-001.sql` |
+   | temporal-lifecycle-metadata, validation | `implementation/{platform}/patterns/{pattern}/conformance-queries.sql.j2` |
+   | access-layer | `implementation/{platform}/patterns/access-layer/dd-access-001.sql.j2` |
    | object-placement, physical-storage | **none shipped** |
 
    An area with no shipped check is `no-evidence`, never `pass`. Report it as a coverage gap

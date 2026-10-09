@@ -19,7 +19,7 @@ A conforming implementation of the [`physical-storage`](../../../../design/patte
 Object store: Amazon S3 (region-pinned). OTF: Apache Iceberg. Companion: `implementation/teradata/patterns/object-placement`. Governs OTF tables only; volatile/temporary tables remain on block storage and are excluded.
 
 ## Section 2: Path Model
-One bucket per environment tier. Logical `{{Product}}_{{Module}}` maps to the path prefix `{{product}}/{{module}}/`. Root prefix `/data/`. Segments use raw values. Views have no physical path. Environment separation is by bucket, not by path.
+One bucket per environment tier. A logical product-and-module container maps to the path prefix of the lower-cased product name and module name, separated by a slash. Root prefix `/data/`. Segments use raw values. Views have no physical path. Environment separation is by bucket, not by path.
 
 ## Section 3: Path Derivation Pattern
 ```

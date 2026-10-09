@@ -2,7 +2,7 @@
 -- Binding of design/modules/observability.md. Events and metrics, not data; table-level.
 -- Replace {{ product }}.
 --
--- Every table here is EVENT_APPEND_ONLY: it carries its own <event>_dts and takes the
+-- Every table here is EVENT_APPEND_ONLY: it carries its own event timestamp (named for the event, ending _dts) and takes the
 -- row-audit pair from the temporal pattern's macros. The audit columns are not spelled
 -- out per table, so they cannot drift per table.
 {%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}

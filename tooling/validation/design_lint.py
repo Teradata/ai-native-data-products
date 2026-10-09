@@ -155,7 +155,7 @@ FENCE_RE = re.compile(r"^\s*```(\S*)")
 # parenthetical qualifier is skipped for the same reason: `created_date` is prohibited
 # *as audit* and legal as a day-grain event column, and nothing in a `CREATE TABLE`
 # says which it is. Both are left to the catalogue check that can resolve them
-# (`conformance-queries.sql` §1b), which is why this set matches that file's §1 exactly.
+# (`conformance-queries.sql.j2` §1b), which is why this set matches that file's §1 exactly.
 TEMPORAL_PATTERN_ANCHOR = "temporal-lifecycle-metadata"
 PROHIBITED_ROW_RE = re.compile(r"^\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 ALL_PROFILES_SCOPE = "all profiles"
@@ -167,7 +167,7 @@ PLAIN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 # their replacements, and flagging that would make the rule unstatable.
 #
 # `.dcl` is here because a deployed product's access layer ships as
-# `00-access/{ProductName}_access_layer.dcl` (see the access-layer binding). Point this
+# `00-access/` as a rendered access-layer DCL file (see the access-layer binding). Point this
 # linter at a generated product tree as well as at the corpus:
 #     python tooling/validation/design_lint.py design implementation path/to/product
 # The design tree has to be among the paths either way, since the prohibited-name table
@@ -500,7 +500,7 @@ def mask_sql_noise(text: str) -> str:
 
     Comments and string literals are replaced with spaces, newlines preserved, so line
     numbers still point at the source. This is what lets the rule be stated without
-    exceptions: `conformance-queries.sql` scans *for* the prohibited names and
+    exceptions: `conformance-queries.sql.j2` scans *for* the prohibited names and
     `10-documentation-tables.sql.j2` explains in its header which spellings it replaced,
     and neither is a column named that way. A prohibited name inside SQL embedded in a
     string literal (a stored `Query_Cookbook` recipe) is invisible here, which is the
