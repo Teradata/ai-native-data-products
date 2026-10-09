@@ -9,7 +9,7 @@ A modular library of data design patterns for building **AI-Native Data Products
 The framework is split along one boundary:
 
 - **[`design/`](design/)**: **platform-agnostic** standards. Written in logical types, capabilities, and invariants; no platform SQL. This is the single source of truth for *what* and *why*.
-- **[`implementation/{platform}/`](implementation/)**: **platform-specific** bindings (the concrete DDL, queries, and grants) that satisfy the design. Teradata is the current reference; new platforms are added as sibling directories, changing no design document.
+- **[`implementation/{platform}/`](implementation/)**: **platform-specific** bindings (the concrete DDL, queries, and access mechanisms). [Teradata](implementation/teradata/), [DuckDB](implementation/duckdb/) and [PostgreSQL](implementation/postgres/) are sibling references; each documents its enforcement boundaries and capability gaps without changing the design.
 
 The boundary is enforced automatically by the linter in [`tooling/validation/`](tooling/validation/): a design document that leaks platform SQL fails the build.
 
@@ -23,7 +23,9 @@ ai-native-data-products/
 │   └── patterns/               temporal-lifecycle-metadata · object-placement ·
 │                               physical-storage · validation · access-layer
 ├── implementation/
-│   └── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
+│   ├── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
+│   ├── duckdb/                 portable file binding and executable conformance
+│   └── postgres/               reusable Jinja bindings, native grants and history constraints
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter
@@ -139,10 +141,10 @@ Modules deploy in dependency order: only those the composition includes:
 python tooling/validation/design_lint.py design implementation
 ```
 
-`tooling/evals/brief_lint.py` is the other half, and the one a **designer** uses: `design_lint` checks that the standards are well formed, `brief_lint` checks that a product design written against them is complete and conformant. Run it on a design brief before handing it to review:
+`tooling/evals/spec_lint.py` is the other half, and the one a **designer** uses: `design_lint` checks that the standards are well formed, `spec_lint` checks that a design specification written against them is complete and conformant. Run it on a design specification before handing it to review:
 
 ```bash
-python tooling/evals/brief_lint.py path/to/design_brief.md
+python tooling/evals/spec_lint.py path/to/design_specification.md
 ```
 
 `tooling/catalogue/build_catalogue.py` regenerates the navigation tables in the hierarchy READMEs from document frontmatter: run it after adding or renaming a document:
@@ -195,3 +197,5 @@ python -m unittest discover -s tooling/validation/tests
 Copyright © 2025-2026 Teradata Corporation. Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). See [LICENSE.md](LICENSE.md) for full terms.
 
 Developed by Teradata's Worldwide Data Architecture Team, Field Technology Organization.
+
+Platform contributors must follow the [Platform Implementation Authoring Standard](design/core/IMPLEMENTATION_AUTHORING.md): one design specification must build a working product on any conforming platform, under any organisation's configuration.

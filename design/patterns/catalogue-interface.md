@@ -11,7 +11,7 @@ normative: true
 
 ## 1. Purpose
 
-A data product describes itself across three modules: Semantic holds the entity, column and relationship catalogue, Memory holds the glossary and design decisions, Observability holds lineage and quality. An enterprise catalogue (Alation, Collibra, DataHub) needs a product-level summary of that, on a stable contract, with change history.
+A data product describes itself across three modules: Semantic holds the entity, column and relationship catalogue, Memory holds the glossary and design decisions, Observability holds lineage and quality. An enterprise catalogue needs a product-level summary of that, on a stable contract, with change history.
 
 This pattern defines that contract. It answers four questions:
 
@@ -28,9 +28,11 @@ The fourth question is why the product record is versioned rather than current-s
 
 **Out of scope.** Column-level business meaning, glossary terms, lineage edges and quality measurements. Those are owned by the Semantic, Memory and Observability modules and are exported from them per release. This pattern says where a catalogue finds them, not what they contain.
 
-It also defines no transport. Whether the catalogue pulls from the governance container or a build pipeline pushes a rendered bundle is a site decision.
+It also defines no transport. Whether a catalogue reads the registry or a build pipeline pushes a rendered bundle is the organisation's decision.
 
-The registry holds product-level governance state that exists nowhere else — lifecycle, contacts, approved entrypoint — plus pointers to the modules that own the detail. It does not duplicate module content.
+**The registry belongs to the organisation, not to a product.** It is the one organisation-level exception to `INV-MASTER-003` ([Master Design](../core/MASTER_DESIGN.md) §8): it holds registrations *about* products and never product data. No product owns it or creates it. A product registers into it through its organisation profile, which adopts the shared container the registry lives in (`Adoption:` `Containers`) and routes the registration there with a placement rule. Where the registry lives is therefore the profile's statement, never a convention this pattern or a binding assumes.
+
+**A registration is a projection of what the product already says about itself.** Each product describes itself in its own Semantic registry: `DataProductRegistry` carries its identity, version, status, owner team, approved entrypoint and access mode, and manifest; `DataProductMap` carries each deployed module and its container ([Semantic module](../modules/semantic.md) §3.4). The registration projects those fields rather than redefining them, and adds the product facts the design specification's `Product:` block carries (description, domain, contacts and catalogue contact choice; [Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.12). What only the registry holds is what no product can hold about itself: the history of its lifecycle state across versions, its contacts as they stood at each registration, and the approvals and detail pointers a governance process records against it. It does not duplicate module content.
 
 ## 3. Capabilities
 
@@ -45,17 +47,17 @@ The registry holds product-level governance state that exists nowhere else — l
 | `SoftDelete` | `[hard]` | `pattern:temporal-lifecycle-metadata` | Retirement has to be a readable event, not a missing row. |
 | `RichMetadata` | `[hard]` | `self` / `platform` | Every published field carries a description. |
 | `SemanticRegistration` | `[hard]` | `module:Semantic` | The interface feed is projected from the product's entity, view and primary-object catalogues. |
-| `AccessView` | `[soft]` | `module:Domain` | Where the product exposes named consumer views, those are what the interface feed publishes. A product exposing only tables still works. |
+| `AccessView` | `[soft]` | `pattern:access-layer` | Where the product exposes named consumer views, those are what the interface feed publishes. A product exposing only tables still works. |
 
 ## 4. Placement Independence
 
-Sites place containers where their standards say, and name them what they like. So:
+Organisations place containers where their profiles say, and name them what they like. So:
 
 > **Nothing a catalogue needs may be derivable only from a container or object name.**
 
-A catalogue that infers the consumer surface from a name suffix works only at sites that adopted that suffix. Every container a product occupies is declared as data, at the grain of (product, module, layer). A product whose Domain layer sits in one hierarchy and whose Semantic layer sits in another is described as accurately as one that took every default.
+A catalogue that infers the consumer surface from a name suffix works only in organisations that adopted that suffix. Every container a product occupies is declared as data, at the grain of (product, module, layer). A product whose Domain layer sits in one hierarchy and whose Semantic layer sits in another is described as accurately as one that took every default.
 
-The registry is the only object a catalogue must be told the location of.
+The registry is the only object a catalogue must be told the location of, and the organisation profile is where that location is stated.
 
 ## 5. The Interface Contract
 
@@ -73,20 +75,22 @@ Five feeds. A conforming implementation provides all five; a catalogue consumes 
 
 ```
 Entity: DataProductRegistration          [kind: History]
-  product_id: NaturalKey [required] [unique]  // stable identifier; never reused across products
-  product_name: ShortText [required]          // human-readable name
-  product_version: ShortText [required]       // the contract version this registration describes
-  product_domain: ShortText [optional]        // business domain the catalogue files it under
-  product_description: Text [optional]        // purpose, scope, intended consumers
-  product_status: Enum{DRAFT|ACTIVE|DEPRECATED|RETIRED} [required]
-  owner_team: ShortText [optional]            // owning team or steward function
-  owner_name: ShortText [optional]            // accountable person, by name
-  owner_email: ShortText [optional] [pii]     // accountable person, addressable
-  technical_contact_name: ShortText [optional] // engineering contact, by name
-  technical_contact_email: ShortText [optional] [pii]  // engineering contact, addressable
-  approved_entrypoint: Text [optional]        // the approved first data-access surface
-  approved_access_mode: Enum{VIEW|MCP_TOOL|SEMANTIC_QUERY} [optional]
-  manifest: Json [optional]                   // machine-readable orientation manifest
+  product_id: NaturalKey [required] [unique]  // projected: DataProductRegistry; never reused across products
+  product_name: ShortText [required]          // projected: DataProductRegistry
+  product_version: ShortText [required]       // projected: DataProductRegistry; the build's, not the design's
+  product_domain: ShortText [optional]        // Product block: Domain
+  product_description: Text [optional]        // Product block: Description
+  product_status: Enum{DRAFT|ACTIVE|DEPRECATED|RETIRED} [required]  // projected: DataProductRegistry; the profile's state vocabulary where it declares one
+  owner_team: ShortText [optional]            // projected: DataProductRegistry; Product block: Owner, by role or team
+  technical_contact: ShortText [optional]     // Product block: Technical contact, by role or team
+  catalogue_contact: Enum{OWNER|TECHNICAL} [optional]  // Product block: Catalogue contact; OWNER when the block gives none
+  owner_name: ShortText [optional]            // registry only: accountable person as of this registration
+  owner_email: ShortText [optional] [pii]     // registry only: that person's address as of this registration
+  technical_contact_name: ShortText [optional] // registry only: engineering contact as of this registration
+  technical_contact_email: ShortText [optional] [pii]  // registry only: that contact's address as of this registration
+  approved_entrypoint: Text [optional]        // projected: DataProductRegistry; the resolved surface for the Orientation block's Entrypoint
+  approved_access_mode: Enum{VIEW|MCP_TOOL|SEMANTIC_QUERY} [optional]  // projected: DataProductRegistry; Orientation block: Access mode
+  manifest: Json [optional]                   // projected: DataProductRegistry
   is_active: Flag [required]                  // discoverable to consumers
 
   Keys:
@@ -103,11 +107,15 @@ Entity: DataProductRegistration          [kind: History]
     - RichMetadata
 ```
 
-**A contact is a person and an address.** `owner_team` names the accountable function; it is not an answer to "who do I ask about this". Conformance requires a reachable address on any product published as active. Both contact pairs are optional in the model, and an absent contact stays absent — an implementation does not substitute the build user or the team name.
+**Contacts are declared, never inferred.** Who owns the product, who its engineering contact is, and which of the two a catalogue that accepts only one contact should show are product facts. The specification's `Product:` block carries them, by role or team, as `Owner`, `Technical contact` and `Catalogue contact`, and the build carries them into the registration verbatim. `Owner` is required, so every conforming product names an accountable owner at design time: that satisfies `INV-CATALOGUE-007`. A technical contact the block does not give stays absent, and an implementation never substitutes the build user or a team name for it: that satisfies `INV-CATALOGUE-010` for contacts. A named person and an address are not design facts. Where the organisation's governance process records them at registration, the registry holds them as they stood at that registration, and nothing else does.
 
-**The registration is versioned.** At product level the transition is the fact a governance reader wants: when the product became active, when it deprecated, which version added the field they are asking about. Other catalogue entities in the corpus declare `CURRENT_STATE` because an agent generating a query wants today's meaning only; here the audience is different.
+**The approved entrypoint is a resolved surface.** The specification's `Orientation:` block chooses the logical surface agents query first, `access-layer` or `semantic`, and the access mode. The build records the surface that choice resolves to, where an agent finds it, in `DataProductRegistry.approved_entrypoint`, and the registration projects it. A catalogue reads the recorded surface; it never derives one from the choice.
 
-`product_status` is a value of the current version. A product reaching `DEPRECATED` closes the version that was `ACTIVE` and opens a successor. Retirement is a logical deletion, which under the temporal pattern is itself a new current version — so a retired product is still readable at any earlier instant.
+**The registration is versioned.** At product level the transition is the fact a governance reader wants: when the product became active, when it deprecated, which version added the field they are asking about. Other catalogue entities in the corpus, the product's own `DataProductRegistry` among them, hold current state because an agent generating a query wants today's meaning only; here the audience is different, and the history is what only the registry holds.
+
+`product_status` is a value of the current version. A product reaching `DEPRECATED` closes the version that was `ACTIVE` and opens a successor. Retirement is a logical deletion, which under the temporal pattern is itself a new current version, so a retired product is still readable at any earlier instant.
+
+The state vocabulary is the organisation's. The four states above are advocated; an organisation whose governance process needs others declares them once in its profile's `Catalogue:` block (`States`), and every product it builds registers in that vocabulary.
 
 ### 5.2 Consumer interfaces
 
@@ -117,8 +125,8 @@ Entity: DataProductInterface              [kind: History]
   interface_name: ShortText [required]      // the object as a consumer names it
   container_name: ShortText [required]      // exact deployed container; used verbatim
   object_name: ShortText [required]         // exact deployed object; never derived
-  object_kind: Enum{TABLE|VIEW|MACRO|PROCEDURE|FUNCTION} [required]
-  interface_layer: Code [optional]          // layer of the container the object sits in
+  object_kind: Enum{TABLE|VIEW|PROCEDURE|FUNCTION} [required]  // as the Semantic PrimaryObject records it
+  interface_layer: Code [optional]          // the profile's layer code for the object's role
   exposure_type: Code [optional]            // what kind of exposure it is, from the module's view catalogue
   module_name: Code [optional]              // owning module
   interface_purpose: Text [optional]        // what this surface is for
@@ -141,15 +149,17 @@ Entity: DataProductInterface              [kind: History]
 
 The interface feed is a projection. The authority for which objects a consumer may query is the Semantic module's view and primary-object catalogues, maintained by the product as part of its own deployment. The feed exists so a catalogue gets the same list across every product without connecting to each product's Semantic container, and so an object withdrawn between versions stays visible as withdrawn. `INV-CATALOGUE-006` checks the projection against its source in both directions.
 
-`is_consumer_facing` is recorded from the product's access declaration. It is not inferred from the container's name or the object's suffix.
+`is_consumer_facing` is recorded from the product's access declaration. It is not inferred from the container's name or the object's suffix. Whether the feed is projected at release or read live is the organisation's choice, stated once in its profile's `Catalogue:` block (`Projection`).
+
+`object_kind` follows the vocabulary of the Semantic module's primary-object catalogue. A platform with further object types (a macro, for illustration) maps them in its binding and declares the mapping in its platform profile; the design vocabulary does not grow per platform.
 
 ### 5.3 Containers
 
 ```
 Entity: DataProductContainer              [kind: History]
   product_id: Reference [required] [-> DataProductRegistration]
-  module_name: Code [required]              // DOMAIN, SEMANTIC, MEMORY, OBSERVABILITY, SEARCH, PREDICTION, or site-defined
-  layer_code: Code [required]               // which layer: base, view, access, business, staging
+  module_name: Code [required]              // projected: DataProductMap; DOMAIN, SEMANTIC, MEMORY, OBSERVABILITY, SEARCH, PREDICTION, or organisation-defined
+  layer_code: Code [required]               // the profile's layer code for the object roles the container holds
   container_name: ShortText [required]      // exact deployed container
   is_active: Flag [required]
 
@@ -165,19 +175,19 @@ Entity: DataProductContainer              [kind: History]
     - RichMetadata
 ```
 
-One row per container the product occupies, at any depth of hierarchy, under any naming. A site that adds a module, or splits one module across three layers, adds rows rather than columns. This is what makes a product deployed outside the default hierarchy fully describable.
+One row per container the product occupies, at any depth of hierarchy, under any naming. The rows are projected from the product's `DataProductMap` and the placement resolved in its build context. An organisation that adds a module, or splits one module across three layers, adds rows rather than columns. This is what makes a product deployed outside the default hierarchy fully describable.
 
-`layer_code` draws on a vocabulary shared across products, so a catalogue can ask which container holds a product's consumer surface and get the same answer at every site. `container_name` is whatever the site deployed, and nothing reads meaning out of it. An object's layer is a property of the container it sits in, declared once here.
+`layer_code` draws on the organisation's vocabulary, declared once in its profile's `Catalogue:` block as a layer code for each object role (`Layers`), so a catalogue can ask which container holds a product's consumer surface and get the same answer for every product the organisation builds. `container_name` is whatever the organisation deployed, and nothing reads meaning out of it. An object's layer is a property of the container it sits in, declared once here.
 
 ### 5.4 Change visibility
 
 A catalogue synchronises by reading the versions that opened after a given instant. Three properties make that work, all inherited from the temporal pattern: a transition closes the predecessor and opens a successor in one unit of work; replaying the same input opens nothing; and a logical deletion is a version, so a retirement is an event to read rather than an absence to detect.
 
-The product-level feeds do not carry column-level or definition-level change. The Semantic catalogues that hold those declare `CURRENT_STATE` and record today's meaning only. A change to a column's business definition reaches a catalogue as a version-stamped snapshot difference: the registration's `product_version` moves, the release renders a complete detail export for that version, and the catalogue holds both. A site needing definition-level history inside the database is choosing `DEC-TEMPORAL-PATTERN` differently for its Semantic module and must record that choice; the interface contract is the same either way, since it reads the export.
+The product-level feeds do not carry column-level or definition-level change. The Semantic catalogues that hold those declare `CURRENT_STATE` and record today's meaning only. A change to a column's business definition reaches a catalogue as a version-stamped snapshot difference: the registration's `product_version` moves, the release renders a complete detail export for that version, and the catalogue holds both. A product needing definition-level history inside the database is choosing `DEC-TEMPORAL-PATTERN` differently for its Semantic module and must record that choice; the interface contract is the same either way, since it reads the export.
 
 ### 5.5 Detail pointers
 
-Per registration, a location for each body of detail a catalogue may navigate to: contract, semantic model, glossary, query cookbook, lineage, quality report and access policy. A pointer is set by whoever governs that surface, and re-registration never overwrites it. A build knows where its own artefacts are but not which of them a site has published, so an automated registration that cleared an operator's pointer would destroy the only value in the field.
+Per registration, a location for each body of detail a catalogue may navigate to: contract, semantic model, glossary, query cookbook, lineage, quality report and access policy. A pointer is set by whoever governs that surface, and re-registration never overwrites it. A build knows where its own artefacts are but not which of them an organisation has published, so an automated registration that cleared an operator's pointer would destroy the only value in the field.
 
 ## 6. Semantic Model Export
 
@@ -200,13 +210,13 @@ Both are emitted at release, stamped with the product version current at that in
 
 ## 7. Invariants
 
-- `INV-CATALOGUE-001`: every registration carries a lifecycle state from the declared state vocabulary.
+- `INV-CATALOGUE-001`: every registration carries a lifecycle state from the declared state vocabulary: the organisation profile's, or the four advocated states.
 - `INV-CATALOGUE-002`: at most one version of a given product is current at any instant.
 - `INV-CATALOGUE-003`: a product's state and version history is reconstructable for any past instant, including after retirement.
 - `INV-CATALOGUE-004`: a retired product is recorded as logically deleted and carries the instant of its retirement; no registration is physically removed.
 - `INV-CATALOGUE-005`: every container a product occupies is declared as data; no consumer of the interface derives a container or object name from a naming convention.
 - `INV-CATALOGUE-006`: every consumer-facing interface in the interface feed resolves to a live object declared by the product's own Semantic catalogue, and every object that catalogue declares consumer-facing appears in the feed.
-- `INV-CATALOGUE-007`: a product published as active carries a reachable contact address.
+- `INV-CATALOGUE-007`: a product published as active carries a contact: the accountable owner its design specification's `Product:` block names.
 - `INV-CATALOGUE-008`: a detail pointer set by a governance operator survives re-registration of the product by an automated build.
 - `INV-CATALOGUE-009`: re-registering an unchanged product version opens no new version.
 - `INV-CATALOGUE-010`: no field in any feed is populated with a value the source could not supply; an absent fact is absent, not inferred.
@@ -218,11 +228,11 @@ Both are emitted at release, stamped with the product version current at that in
 
 | Decision | Recommended | Settle it by asking |
 |---|---|---|
-| `DEC-TEMPORAL-PATTERN` | `scd2` | Does a governance audience need to know when the product's state or contract changed, or only what it is now? Retirement decides it: an audience asking what was live last quarter cannot be served from current state. `scd2` is recommended over the advocated `bi-temporal` because a registration is a governance declaration, true from the instant it is declared, so valid time and transaction time coincide and the second pair carries no information. A site that corrects registrations retrospectively should take `bi-temporal`. |
+| `DEC-TEMPORAL-PATTERN` | `scd2` | Does a governance audience need to know when the product's state or contract changed, or only what it is now? Retirement decides it: an audience asking what was live last quarter cannot be served from current state. `scd2` is recommended over the advocated `bi-temporal` because a registration is a governance declaration, true from the instant it is declared, so valid time and transaction time coincide and the second pair carries no information. An organisation that corrects registrations retrospectively should take `bi-temporal`. |
 | `DEC-DELETE-STRATEGY` | `soft-delete` | Is a retired product still subject to audit, to an access review, or to a question about a report someone ran last year? |
 
-A designer also settles: the state vocabulary, if the four advocated states do not fit the site's governance process; the layer vocabulary used by the container feed; whether the interface feed is projected at release time or read live; and which single contact a catalogue requiring exactly one should be given.
+Beyond these, a designer settles only product facts, in the specification's `Product:` block: description, domain, owner, technical contact, and which contact a catalogue that accepts only one should show. The state vocabulary, the layer code for each object role, and whether the interface feed is projected at release or read live are the organisation's, stated once in its profile's `Catalogue:` block and applied to every product it builds. Where the registry lives is the profile's too (§2).
 
 ## 9. Implementation
 
-A platform binding provides: the versioned product, interface and container entities; the transition operations for each lifecycle event; the query surfaces a catalogue reads; the resolution query returning a product's consumer-facing objects and contacts from metadata alone; and conformance checks for the invariants above. The Teradata binding is `implementation/teradata/patterns/catalogue-interface/`.
+A platform binding provides: the versioned product, interface and container entities; the transition operations for each lifecycle event; the projection of each registration from the product's Semantic registry and build context; the query surfaces a catalogue reads; the resolution query returning a product's consumer-facing objects and contacts from metadata alone; and conformance checks for the invariants above. The registry's container, the state vocabulary, the layer codes and the projection timing reach it resolved in the build context; it holds none of them as literals. Each binding lives in `implementation/{platform}/patterns/catalogue-interface/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).

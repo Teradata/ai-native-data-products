@@ -1,0 +1,10 @@
+[
+  {"name":"empty","expected":0,"outcomes":[],"area_status":"no-evidence","confidence":"unknown"},
+  {"name":"not run","expected":2,"outcomes":[],"area_status":"not-validated","confidence":"unknown"},
+  {"name":"full pass","expected":2,"outcomes":[["PASSED","ERROR"],["PASSED","CRITICAL"]],"area_status":"pass","confidence":"strong"},
+  {"name":"partial pass","expected":2,"outcomes":[["PASSED","ERROR"]],"area_status":"partial","confidence":"partial"},
+  {"name":"low coverage","expected":3,"outcomes":[["PASSED","ERROR"]],"area_status":"partial","confidence":"weak"},
+  {"name":"warning","expected":1,"outcomes":[["FAILED","WARNING"]],"area_status":"fail","confidence":"partial"},
+  {"name":"critical","expected":1,"outcomes":[["FAILED","CRITICAL"]],"area_status":"fail","confidence":"weak"},
+  {"name":"execution error","expected":1,"outcomes":[["ERROR","ERROR"]],"area_status":"fail","confidence":"weak"}
+]

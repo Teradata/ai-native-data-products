@@ -4,7 +4,7 @@
 
 `design_lint.py` enforces the [Design Language](../../design/core/DESIGN_LANGUAGE.md) across both hierarchies. It is the executable form of the **No-Platform-SQL Rule**, the **frontmatter schema**, and the **decision rules**. Stdlib-only, Python 3.8+.
 
-> **This checks the standards, not a product.** Its rules are corpus rules: module spines, the capability and decision catalogues, frontmatter identity. Pointing it at a product's design brief reports things that are true of a standards document and meaningless for a product artefact. The linter for a product design written *against* these standards is [`brief_lint`](../evals/), and it checks what a designer actually needs checked: unsettled decisions, unmet hard requirements, unacknowledged invariants, and platform SQL in a brief.
+> **This checks the standards, not a product.** Its rules are corpus rules: module spines, the capability and decision catalogues, frontmatter identity. Pointing it at a product's design specification reports things that are true of a standards document and meaningless for a product artefact. The linter for a design specification written *against* these standards is [`spec_lint`](../evals/), and it checks what a designer actually needs checked: unsettled decisions, unmet hard requirements, unacknowledged invariants, and platform SQL in a brief.
 
 ## Run it
 

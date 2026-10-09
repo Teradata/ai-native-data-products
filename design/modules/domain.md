@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Domain / Subject data module: authoritative business entities |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/) |
+| **Implementations** | `implementation/{platform}/modules/domain/`, one per platform |
 
 This document defines **what** a Domain module must be and **why**, in platform-neutral terms. **How** a specific platform realises it lives in that platform's implementation directory. Every capability named here has a binding there; every invariant named here has a check there.
 
@@ -74,19 +74,22 @@ Domain entities are declared in the [entity notation](../core/DESIGN_LANGUAGE.md
 
 ### 3.1 Core entity (History)
 
-Every core business entity follows one shape, so an agent that learns one learns all.
+Every core business entity follows one shape for its allocation, so an agent that learns one learns all. The block below shows the advocated `keymap` allocation and the profile the advocated `bi-temporal` option of `DEC-TEMPORAL-PATTERN` gives a History entity; a product that settles `scd2` declares `SCD2_HISTORY` instead.
 
 ```
-Entity: <EntityName>              [kind: History]
-  <entity>_id: Identifier  // surrogate key; stable across every version
-  <entity>_key: NaturalKey [required] [unique]  // business identifier from the source system
+Entity: <EntityName>              [kind: History] [profile: SCD2_BITEMPORAL]
+  <entity>_id: Identifier  // stable entity identity, allocated by the keymap; the same across every version
   is_current: Flag [current-flag]  // marks the current version of the entity
   is_deleted: Flag [deleted-flag]  // soft-delete marker; row retained for audit
   <attribute>: <LogicalType> [required|optional] [pii]  // designer-supplied business attributes
 
   Keys:
     surrogate: <entity>_id
-    natural:   <entity>_key
+
+  Volume:
+    initial: <rows at first load>
+    growth:  <count> per <day|month|year>
+    horizon: <duration>
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -101,14 +104,22 @@ Entity: <EntityName>              [kind: History]
     - RichMetadata
 ```
 
-The `Identifier` / `NaturalKey` split is deliberate: `<entity>_id` is the internal, join-facing surrogate; `<entity>_key` is the human- and report-facing business key from source. Every entity carries both, under the same names.
+**Identity follows allocation.** `<entity>_id` is the internal, join-facing surrogate; `<entity>_key` is the human- and report-facing business key from source. Which of them the entity itself carries depends on how its `Identifier` is allocated ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §3.3):
+
+| Allocation | `Keys:` | The entity carries |
+| --- | --- | --- |
+| `keymap`, `external-allocator` | `surrogate:` | `<entity>_id` only. `<entity>_key` is declared once, on the keymap that `[allocates:]` the entity, or held by the organisation's allocator. |
+| `inline` | `surrogate:` and `natural:` | Both. |
+| `natural-key` | `natural:` | `<entity>_key` only. |
+
+Holding the natural key in one place is deliberate. `NaturalKeyLookup` resolves a business key to the entity through the keymap, and a natural key that is personal data is protected (masked, for instance, under the organisation profile's protection policy) in that one place rather than on every version of every row. Carrying the natural key on a keymap-allocated entity as well is a departure and needs a covering decision.
 
 ### 3.2 Reference data (Reference)
 
 Controlled vocabularies and lookups: simpler than a full history entity, but versioned on the same contract.
 
 ```
-Entity: <ReferenceName>           [kind: Reference]
+Entity: <ReferenceName>           [kind: Reference] [profile: SCD2_HISTORY] [allocation: inline]
   <reference>_id: Identifier  // surrogate key for the entry
   <reference>_code: Code [required] [unique]  // code used by entities; the natural key
   short_description: ShortText [required]  // brief label for UI and reports
@@ -121,6 +132,11 @@ Entity: <ReferenceName>           [kind: Reference]
     surrogate: <reference>_id
     natural:   <reference>_code
 
+  Volume:
+    initial: <rows at first load>
+    growth:  <count> per <day|month|year>
+    horizon: <duration>
+
   Applies patterns:
     - temporal-lifecycle-metadata
     - object-placement
@@ -132,24 +148,31 @@ Entity: <ReferenceName>           [kind: Reference]
     - RichMetadata
 ```
 
-**What "simpler" means.** Fewer attributes, and usually direct surrogate allocation rather than a keymap (see Surrogate-key allocation). It does **not** mean a different temporal contract. A code's label and definition change over time, and a ticket raised in 2024 must still decode against what its category meant in 2024, so the default profile is `SCD2_HISTORY` and the validity columns come from the [temporal pattern](../patterns/temporal-lifecycle-metadata.md), exactly as they do for a History entity: which is why they are not restated in the block above.
+**What "simpler" means.** Fewer attributes, and usually `inline` allocation rather than a keymap: the entry carries its `Identifier` and its code as the natural key, as above (see Surrogate-key allocation). Identity still follows allocation, so a reference set allocated another way takes that option's shape. It does **not** mean a different temporal contract. A code's label and definition change over time, and a ticket raised in 2024 must still decode against what its category meant in 2024, so the default profile is `SCD2_HISTORY` and the validity columns come from the [temporal pattern](../patterns/temporal-lifecycle-metadata.md), exactly as they do for a History entity: which is why they are not restated in the block above.
 
-A reference set that genuinely carries no history declares `CURRENT_STATE` instead, and records the choice. That is a real case, and the profile declaration is what tells a validator, and an agent, which one it is looking at.
+A reference set that genuinely carries no history declares `CURRENT_STATE` instead, and records the choice in a decision naming the entity, since it departs from the kind's default. On `CURRENT_STATE` the entity carries no `is_current` and no validity pair: the profile prohibits both, so the flag in the block above is dropped. That is a real case, and the profile declaration is what tells a validator, and an agent, which one it is looking at.
 
 **Where a code's in-force period belongs.** *When a version of this row was true* and *when the business permits this code to be assigned* are two different facts, and a single date pair cannot carry both (the [temporal pattern](../patterns/temporal-lifecycle-metadata.md) treats conflating two concepts in one column as a conformance failure). The first is the validity pair the pattern supplies. The second, where a product needs it, is a day-grain business attribute of its own, named for the event it records.
 
 ### 3.3 Relationship
 
-An association between two entities, versioned like a history entity.
+An association between two entities, versioned as the entities it associates: `ASSOCIATION_SCD2` when they version, `ASSOCIATION_CURRENT` when they do not.
 
 ```
-Entity: <Entity1><Entity2>        [kind: Relationship]
-  <entity1>_<entity2>_id: Identifier  // surrogate key for the association
+Entity: <Entity1><Entity2>        [kind: Relationship] [profile: ASSOCIATION_SCD2] [allocation: inline]
   <entity1>_id: Reference [required] [-> <Entity1>]  // first entity in the relationship
   <entity2>_id: Reference [required] [-> <Entity2>]  // second entity in the relationship
   is_current: Flag [current-flag]
   is_deleted: Flag [deleted-flag]
   <attribute>: <LogicalType>...  // relationship-specific attributes
+
+  Keys:
+    natural: <entity1>_id, <entity2>_id
+
+  Volume:
+    initial: <rows at first load>
+    growth:  <count> per <day|month|year>
+    horizon: <duration>
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -160,16 +183,22 @@ Entity: <Entity1><Entity2>        [kind: Relationship]
     - RichMetadata
 ```
 
+A relationship has no business identifier of its own: its identity is the pair of references, declared as its natural key, and its versions are keyed on that pair. A relationship that other entities reference allocates a surrogate `Identifier` instead, and its identity then follows that allocation like any other entity's.
+
 ### 3.4 Surrogate-key allocation (Keymap)
 
 For entities that are reference targets, the surrogate `Identifier` must stay the same across every version of the entity. Allocation is therefore separated into a keymap, so the surrogate is assigned once per natural key and reused across all versions.
 
 ```
-Entity: <EntityName>Keymap        [kind: Keymap]
+Entity: <EntityName>Keymap        [kind: Keymap] [profile: CURRENT_STATE] [allocates: <EntityName>]
   <entity>_id: Identifier  // allocated once per natural key; never reused or recycled
-  <entity>_key: NaturalKey [required] [unique]  // natural key from source system
+  <entity>_key: NaturalKey [required] [unique]  // natural key from source system; held here and nowhere else
   source_system: ShortText [optional]  // system that first introduced this natural key
   created_dts: Timestamp [required]  // allocation time; immutable once set
+
+  Keys:
+    surrogate: <entity>_id
+    natural:   <entity>_key
 
   Applies patterns:
     - temporal-lifecycle-metadata
@@ -182,7 +211,9 @@ Entity: <EntityName>Keymap        [kind: Keymap]
 
 A keymap holds one row per natural key and never versions, so it declares the `CURRENT_STATE` profile. It applies the temporal pattern all the same: `created_dts` is a canonical audit column, and a table that stands outside the pattern is a table whose column names drift away from it.
 
-Reference entities and detail entities that are never reference targets may allocate their surrogate directly and omit the keymap. This decision, keymap vs direct allocation, is a per-entity designer choice recorded in the design decisions.
+Every keymap names the one entity it allocates for in its `[allocates:]` qualifier, and it is the only place that entity's natural key is held. A natural key that is personal data is marked `[pii]` here, so the organisation profile's protection applies where the key lives.
+
+The product settles `DEC-SURROGATE-ALLOCATION` once. An entity that takes another option says so with `[allocation: ...]` in its header and a decision naming it, which is how a referenced reference set records its usual `inline` allocation. An `inline` entity that nothing references, such as a detail entity that is never a reference target, needs no decision. Either way, an `inline` entity has no keymap.
 
 ---
 
@@ -192,9 +223,9 @@ Domain does not restate cross-cutting concerns; it applies them. Each pattern is
 
 | Pattern | What it contributes to Domain |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `temporal-lifecycle-metadata` | The versioning columns and the rule for point-in-time reconstruction. The designer chooses an approach (bi-temporal, type-2, event-sourced); the pattern defines the contract it must meet. |
-| `object-placement` | Which container each entity, view, and procedure is created in, and the access principals that reach them. |
-| `physical-storage` | (When object storage is in use) the physical path, file format, and partition strategy beneath the logical container. |
+| `temporal-lifecycle-metadata` | The versioning columns, the profile each entity declares, and the rule for point-in-time reconstruction. The product chooses an option of `DEC-TEMPORAL-PATTERN` (`bi-temporal`, `scd2` or `current-state`); the pattern defines the contract it must meet. |
+| `object-placement` | Where each entity, view, and procedure is placed, what it is called, and the access principals that reach them: all from the organisation profile, never from the design. |
+| `physical-storage` | (When the organisation profile places data in object storage) the path, file format, and partitioning beneath the logical container, from that profile. |
 | `access-layer` | The standard views (current, enriched) and their explicit column contracts. |
 | `validation` | The conformance checks an implementation runs before it is declared done. |
 
@@ -233,6 +264,13 @@ Other modules reference Domain entities with **one** consistent pattern, chosen 
 - **Generic reference**: a `Reference` plus an `Enum` entity-kind discriminator, used when a module points at *many* entity types (e.g. an embedding that may describe a party, a product, or a document).
 - **Specific reference**: one `Reference [-> <Entity>]` per referenced entity, used when a module points at a *few* known types.
 
+A generic reference lists every entity it may target and names its discriminator, whose members are the target entity names in upper case ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §3.4):
+
+```
+  entity_id: Reference [required] [-> <Entity1> | <Entity2>] [discriminator: entity_kind]  // the entity described; id only
+  entity_kind: Enum{<ENTITY1>|<ENTITY2>} [required]  // which target entity_id points at
+```
+
 In both cases, **content is obtained by join-back, never duplicated** (`EntityJoinBack`). A referencing module stores the `Identifier` and joins to the Domain entity for names, descriptions, and other attributes. This keeps Domain the single source of truth and avoids drift between copies.
 
 ---
@@ -241,12 +279,12 @@ In both cases, **content is obtained by join-back, never duplicated** (`EntityJo
 
 These are semantic requirements, true on every platform, that make the module usable by an autonomous agent. Each maps to a capability and is checked by the `validation` pattern.
 
-1. **Consistent patterns.** Every entity presents the same identity shape (`Identifier` + `NaturalKey`), the same current/deleted flags, and the same temporal contract. An agent generalises from one entity to all.
+1. **Consistent patterns.** Every entity presents the identity shape its allocation sets (see Core entity), the same current/deleted flags, and the same temporal contract. An agent generalises from one entity to all.
 2. **Rich metadata.** Every object and attribute carries a meaningful description of business meaning (not restated structure), including units, sensitivity, and source (`RichMetadata`).
-3. **Descriptive references.** A reference attribute names the entity it points to; generic opaque foreign keys are prohibited.
+3. **Descriptive references.** A reference attribute names the entity or entities it points to, and a reference with several targets names its discriminator; generic opaque foreign keys are prohibited.
 4. **Standard views.** Every entity exposes at least a *current* view with an explicit column contract, so an agent reads the contract, not the query body (`AccessView`).
-5. **Documented conventions.** Naming conventions and suffix signals are recorded in the Semantic module so an agent can look them up rather than infer them.
-6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy, every entity, its columns, and its relationships are registered in the product's Semantic map (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture (see Documentation Capture Requirements) is the other. In a composition without Semantic, discovery falls back to the platform catalogue plus `RichMetadata`.
+5. **Documented conventions.** Naming conventions and suffix signals are the organisation's, set in its organisation profile, not the design's. The build records the conventions in force, and each object's logical-to-physical name, in the product's metadata, so an agent looks them up rather than infers them.
+6. **Registered in the Semantic map** *(when the composition includes Semantic).* On deploy, every entity, its columns, and its relationships are registered in the product's Semantic map (`SemanticRegistration`), so an agent discovers them by querying the map rather than inspecting the catalogue directly. This is the discovery half of `INV-MASTER-002`; documentation capture (see Documentation Capture Requirements) is the other. In a composition without Semantic, the organisation's catalogue entry points at the product's objects, and the `RichMetadata` on them carries their descriptions and the logical-to-physical names the build records.
 
 **Discoverability test.** An agent that has never seen these entities can: discover what entities exist; understand what each represents; retrieve current active records; navigate relationships; and generate valid queries: using metadata alone.
 
@@ -259,28 +297,28 @@ Every conforming implementation must satisfy these. Each has a corresponding che
 - `INV-DOMAIN-001`: every attribute of every entity carries descriptive metadata.
 - `INV-DOMAIN-002`: current, non-deleted records are retrievable by a single predictable filter over the current-flag and deleted-flag.
 - `INV-DOMAIN-003`: a surrogate `Identifier` is stable across all versions of the same real-world entity; it never changes as the entity versions.
-- `INV-DOMAIN-004`: every entity exposes the same identity shape: one surrogate `Identifier` and one `NaturalKey`.
+- `INV-DOMAIN-004`: every versioned entity has exactly one stable entity identity, declared in its `Keys:` section, whose shape matches its allocation: the `Identifier` alone under `keymap` or `external-allocator` (the natural key held on the keymap or by the allocator), both under `inline`, the `NaturalKey` alone under `natural-key`. A Relationship's identity is its references unless it allocates a surrogate.
 - `INV-DOMAIN-005`: other modules reference Domain entities by `Identifier` only and obtain content by join-back; no Domain-owned attribute is duplicated outside Domain.
 - `INV-DOMAIN-006`: the state of any entity is reconstructable as at any past `Timestamp`.
-- `INV-DOMAIN-007`: every reference attribute names the entity it targets.
+- `INV-DOMAIN-007`: every reference attribute names the entity it targets; a reference with several targets names an `Enum` discriminator whose members are those targets.
 
 ---
 
 ## 9. Design Flexibility
 
-This standard defines **structure and patterns, not a specific implementation**. Within the invariants below, designers choose the approach that best fits their platform, data volumes, and governance. The flexible dimensions: and the constraint each must still honour:
+This standard defines **structure and patterns, not a specific implementation**. Within the invariants below, designers choose the approach that best fits their data volumes and governance. The flexible dimensions, and the constraint each must still honour, are:
 
 | Dimension | Flexibility | Constraint |
 | --------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Temporal strategy** | Bi-temporal, Type-2 SCD, event sourcing, or another approach. | Must satisfy the `temporal-lifecycle-metadata` contract and `INV-DOMAIN-006` (point-in-time reconstruction). |
-| **Column set** | Minimal core vs extended metadata. Operational metadata (audit who/when, source system, batch, lineage, quality) may be **offloaded to Observability** and joined back, keeping high-volume tables lean; low-volume tables may carry it inline. | Must carry the identity shape (`INV-DOMAIN-004`) and the current/deleted flags (`INV-DOMAIN-002`). Offloaded data is events/metrics, never a second copy of business content (`INV-OBS-001`). |
-| **Key allocation** | Keymap (separate allocation) vs direct allocation, chosen per entity. | Surrogate must be stable across versions for reference-target entities (`INV-DOMAIN-003`). |
+| **Temporal strategy** | Bi-temporal, scd2, or current-state: the options of `DEC-TEMPORAL-PATTERN`, chosen once for the product. An entity takes another profile only through its declared `profile`. | Must satisfy the `temporal-lifecycle-metadata` contract and `INV-DOMAIN-006` (point-in-time reconstruction). |
+| **Column set** | Minimal core vs extended metadata. Operational metadata (audit who/when, source system, batch, lineage, quality) may be **offloaded to Observability** and joined back, keeping high-volume tables lean; low-volume tables may carry it inline. | Must carry the identity its allocation sets (`INV-DOMAIN-004`) and the current/deleted flags (`INV-DOMAIN-002`). Offloaded data is events/metrics, never a second copy of business content (`INV-OBS-001`). |
+| **Key allocation** | Keymap, external allocator, inline, or natural key: chosen once for the product, with any entity's departure declared in its `[allocation:]` qualifier. | Surrogate must be stable across versions for reference-target entities (`INV-DOMAIN-003`). |
 | **Deletion representation** | How a logical deletion is recorded. | The audit trail must be preserved: deletion is soft, retained for audit (`INV-DOMAIN-002`, `INV-DOMAIN-005`). |
-| **Storage optimisation** | Normalisation vs denormalisation, partitioning, indexing. | A platform concern: lives entirely in `implementation/` and must not change the logical contract. |
+| **Physical optimisation** | Normalisation vs denormalisation of physical structures, partitioning, indexing. | A binding concern: settings the platform binding declares and the organisation profile may set. It never appears in the specification and must not change the logical contract. |
 
 **Rule:** whatever is chosen must support the AI-native characteristics (see Purpose) and satisfy every invariant (see Invariants).
 
-The first four dimensions are not free-form: each corresponds to a catalogued **decision** (`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`, `DEC-DELETE-STRATEGY`), and this module's choices are declared in its frontmatter: the advocated option in every case. A product that departs from one records its reason there, so the choice is traceable rather than implicit, and the linter enforces that it is made at all. Storage optimisation carries no decision because it is a platform concern that never reaches the logical contract.
+The first four dimensions are not free-form: each corresponds to a catalogued **decision** (`DEC-TEMPORAL-PATTERN`, `DEC-COLUMN-STRATEGY`, `DEC-SURROGATE-ALLOCATION`, `DEC-DELETE-STRATEGY`). This standard recommends the advocated option in every case (see Decisions to settle), and a product records what it settled in its design specification's frontmatter `decisions`. A product that departs from one records its reason there, so the choice is traceable rather than implicit, and the linter enforces that it is made at all. Physical optimisation carries no decision because it belongs to the binding and never reaches the logical contract.
 
 ---
 
@@ -294,12 +332,13 @@ Platform-neutral decisions the designer owns:
 | ------------------------- | ------------------------------------------------------------------- |
 | Entity model | An established model where one exists (see Entity model sourcing), or custom. |
 | Entity attributes | Business requirements, typed with the logical vocabulary. |
-| Natural keys | The source-system business identifier per entity. |
+| Natural keys | The source-system business identifier per entity, declared where its allocation puts it (on the keymap under `keymap`). |
 | Relationships | Business-domain analysis. |
 | Reference data | Industry or business-controlled vocabularies. |
-| Temporal strategy | The approach satisfying the `temporal-lifecycle-metadata` contract. |
-| Key allocation per entity | Keymap vs direct allocation (see Surrogate-key allocation). |
-| Sensitivity | Which attributes are `[pii]`. |
+| Temporal strategy | The product's `DEC-TEMPORAL-PATTERN` option, and each entity's `profile`. |
+| Key allocation | The product's `DEC-SURROGATE-ALLOCATION` option, and any entity's departing `[allocation:]` (see Surrogate-key allocation). |
+| Volume | Rows at first load, growth and horizon, in the `Volume:` section of every History, Reference and Relationship entity. |
+| Sensitivity | Which attributes are `[pii]`, and which free-text attributes are `[pii-incidental]`: not designed to hold personal data but liable to. |
 
 ### 10.2 Entity model sourcing
 
@@ -336,15 +375,16 @@ These are the catalogued decisions a Domain module design must settle. The recom
 | `DEC-TIMESTAMP-ZONE` | `zone-aware` | Is the data genuinely single-zone and certain to stay so? |
 
 
-Every settled decision is recorded as part of designing the product: see *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md) for the destination and the record set. This module's decisions take the id prefix `DD-DOMAIN-<NNN>` and typically fall under `ARCHITECTURE` (temporal strategy), `SCHEMA` (attribute set), `NAMING` (natural key and source alignment), `PERFORMANCE` (index and partitioning strategy), `SECURITY` (PII identification and access approach).
+Every settled decision is recorded as part of designing the product: see *Capturing the Design* in the [Master Design](../core/MASTER_DESIGN.md) for the destination and the record set. This module's decisions take the id prefix `DD-DOMAIN-<NNN>` and typically fall under `ARCHITECTURE` (temporal strategy), `SCHEMA` (attribute set), `NAMING` (natural key and source alignment), `PERFORMANCE` (logical choices made for performance, such as the column strategy or an entity's grain; index and partitioning strategy are binding settings, not design decisions), `SECURITY` (PII identification and access approach).
 
 ### 10.4 Design review checklist
 
 - [ ] Every attribute uses a logical type; no platform types leak into this document.
-- [ ] Every entity has the identity shape (`Identifier` + `NaturalKey`).
+- [ ] Every versioned entity has one stable identity whose shape matches its allocation (`INV-DOMAIN-004`); every keymap names its entity in `[allocates:]` and is the only place that entity's natural key is held.
+- [ ] Every entity header declares its `profile`; every History, Reference and Relationship entity carries a `Volume:` section.
 - [ ] Entity model source identified and documented: enterprise, industry, or custom (see Entity model sourcing).
-- [ ] Flexible-dimension choices (temporal, key allocation, column set, deletion, storage) settled as catalogued decisions (see Design Flexibility).
-- [ ] Key-allocation approach chosen and recorded per entity (keymap vs direct).
+- [ ] Flexible-dimension choices (temporal, key allocation, column set, deletion) settled as catalogued decisions (see Design Flexibility).
+- [ ] Every entity whose allocation departs from the product's choice, or whose profile departs from its kind's defaults, declares it in its header and is covered by a decision.
 - [ ] Temporal strategy chosen and satisfies the `temporal-lifecycle-metadata` contract.
 - [ ] Reference patterns follow the Integration with Other Modules section (one pattern per referencing module).
 - [ ] Every entity has at least a current view (`AccessView`).
@@ -357,7 +397,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 11. Implementation
 
-The Teradata binding of this module (concrete table and view templates, the capability binding table, and the invariant checks) lives in [`implementation/teradata/modules/domain/`](../../implementation/teradata/modules/domain/). Additional platforms (Postgres, DuckDB) add sibling directories under `implementation/` without any change to this document.
+Each platform binding provides concrete table and view templates, the capability binding table, and the invariant checks, in `implementation/{platform}/modules/domain/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

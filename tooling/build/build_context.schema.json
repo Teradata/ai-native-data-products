@@ -1,0 +1,704 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Teradata/ai-native-data-products/tooling/build/build_context.schema.json",
+  "title": "Build context",
+  "description": "The single resolved input every platform binding's templates read (Platform Implementation Authoring Standard \u00a73). Produced by tooling/build/build_context.py from a design specification and an organisation profile. Its shape is the same for every platform; the names it carries are one organisation's, for one target.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "inputs",
+    "product",
+    "organisation",
+    "platform",
+    "environment",
+    "composition",
+    "modules",
+    "facets",
+    "decisions",
+    "product_decisions",
+    "separation",
+    "containers",
+    "principals",
+    "grant_level",
+    "entities",
+    "relations",
+    "standard_names",
+    "classification",
+    "embeddings",
+    "models",
+    "metrics",
+    "access_objects",
+    "orientation",
+    "quality",
+    "lineage",
+    "retention",
+    "runtime",
+    "allocator",
+    "glossary",
+    "graph",
+    "catalogue",
+    "storage",
+    "settings",
+    "defaults_applied"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "placed": {
+      "type": "object",
+      "required": [
+        "container",
+        "name"
+      ],
+      "properties": {
+        "container": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "objects": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "$ref": "#/$defs/placed"
+        },
+        "base_view": {
+          "$ref": "#/$defs/placed"
+        },
+        "consumer_view": {
+          "$ref": "#/$defs/placed"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "array"
+        ]
+      }
+    },
+    "principal": {
+      "type": "object",
+      "required": [
+        "name",
+        "create"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "create": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "specification",
+        "profile"
+      ],
+      "properties": {
+        "specification": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "required": [
+        "name",
+        "code",
+        "description",
+        "domain",
+        "owner",
+        "trust_producer"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "organisation": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "container_term",
+        "principal_term",
+        "namespace",
+        "max_name_length",
+        "name_characters"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "name",
+        "phases",
+        "isolation"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isolation": {
+          "enum": [
+            "system",
+            "container"
+          ]
+        }
+      }
+    },
+    "composition": {
+      "type": "string"
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "facets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+:[a-z-]+$"
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "choice",
+          "advocated"
+        ],
+        "properties": {
+          "choice": {
+            "type": "string"
+          },
+          "because": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "advocated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "product_decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "separation": {
+      "$ref": "#/$defs/block"
+    },
+    "containers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "adopted",
+          "parent",
+          "holds_objects"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "adopted": {
+            "type": "boolean"
+          },
+          "parent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holds_objects": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "principals": {
+      "type": "object",
+      "required": [
+        "ROLE_READ",
+        "ROLE_AGENT",
+        "ROLE_ADMIN"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/principal"
+      }
+    },
+    "grant_level": {
+      "enum": [
+        "container",
+        "object"
+      ]
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "module",
+          "profile",
+          "identity",
+          "classification",
+          "attributes",
+          "volume",
+          "features",
+          "synonyms",
+          "patterns",
+          "capabilities",
+          "objects",
+          "adopted"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "History",
+              "Reference",
+              "Relationship",
+              "Keymap",
+              "Record"
+            ]
+          },
+          "module": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "physical_name",
+                "type",
+                "required",
+                "unique",
+                "references",
+                "discriminator",
+                "derive",
+                "synonyms",
+                "flags",
+                "classification",
+                "protection"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "physical_name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "unique": {
+                  "type": "boolean"
+                },
+                "references": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "discriminator": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "derive": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "synonyms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "current-flag",
+                      "deleted-flag"
+                    ]
+                  }
+                },
+                "classification": {
+                  "type": "string"
+                },
+                "protection": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "volume": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "features": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "synonyms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "patterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objects": {
+            "$ref": "#/$defs/objects"
+          },
+          "adopted": {
+            "type": "boolean"
+          },
+          "identity": {
+            "type": "object",
+            "required": [
+              "allocation",
+              "surrogate",
+              "natural",
+              "keymap",
+              "allocates"
+            ],
+            "properties": {
+              "allocation": {
+                "enum": [
+                  "keymap",
+                  "external-allocator",
+                  "inline",
+                  "natural-key",
+                  null
+                ]
+              },
+              "surrogate": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "natural": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "keymap": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allocates": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "classification": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "module",
+          "kind",
+          "objects"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "objects": {
+            "$ref": "#/$defs/objects"
+          },
+          "kind": {
+            "enum": [
+              "table",
+              "view"
+            ]
+          }
+        }
+      }
+    },
+    "standard_names": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": [
+        "scheme",
+        "default",
+        "markers",
+        "protection"
+      ],
+      "properties": {
+        "scheme": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "type": "string"
+        },
+        "markers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "protection": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "embeddings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "access_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "orientation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quality": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lineage": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "runtime": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "defaults_applied": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "value",
+          "source"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "allocator": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "graph": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "catalogue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "storage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

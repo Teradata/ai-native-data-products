@@ -39,16 +39,16 @@ Cite the invariant or rule id behind every entry.
 
 ## Procedure
 
-1. **Boundary check.** The design brief should arrive with `brief_lint` output from the
+1. **Boundary check.** The design specification should arrive with `spec_lint` output from the
    designer. If it does not, run it before reading anything else and record on the map that
    the design was handed over unvalidated:
 
    ```bash
-   python tooling/evals/brief_lint.py path/to/design_brief.md
+   python tooling/evals/spec_lint.py path/to/design_specification.md
    ```
 
    It reports unsettled decisions, unmet hard requirements, unacknowledged invariants, and
-   platform SQL in a brief. Each is a low-trust entry.
+   platform SQL in a specification. Each is a low-trust entry.
 
    Reserve `tooling/validation/design_lint.py` for reviewing changes to the **standards**
    themselves. Run against a product it reports on rules that do not apply to one, which
@@ -109,7 +109,7 @@ checklist item and note the absence of an id.
 
 ## Handover
 
-Your inputs are the design brief and/or the built product; your output is the **trust map**.
+Your inputs are the design specification and/or the built product; your output is the **trust map**.
 Once the product is deployed the map's durable home is **Observability**, as `validation_area`
 rows a validator publishes per run (`implementation/{platform}/patterns/validation/`); before then
 it is a standalone report. Agree with the user where it goes based on what you can reach, and

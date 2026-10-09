@@ -27,7 +27,7 @@ me. Be specific: cite the invariant or rule id behind every entry.
 ### Intake
 
 - **What to review:** [the design, the build, or both]
-- **Artefacts:** [attach/paste or point to the design brief and/or the generated
+- **Artefacts:** [attach/paste or point to the design specification and/or the generated
   implementation]
 - **Composition:** [which modules/patterns are in scope]
 
