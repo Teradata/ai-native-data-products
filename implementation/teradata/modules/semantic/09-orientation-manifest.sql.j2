@@ -3,7 +3,7 @@
 -- data_product_orientation formalises the orientation handshake into an ordered, queryable,
 -- conformance-checkable relation (one row per resource); data_product_manifest is a view derived
 -- from the registry and orientation, so the manifest cannot drift from the metadata it summarises.
--- Registry lives in the shared 'governance' container (03-registry.sql). Replace {{ product }}.
+-- Registry lives in the shared governance container (03-registry.sql.j2).
 {%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
 
 -- data_product_orientation: one ordered row per product resource ---------------
@@ -70,7 +70,7 @@ SELECT
     , MAX(CASE WHEN o.resource_role = 'RELATIONSHIP_CATALOGUE' THEN o.fully_qualified_object_name END)
     , r.trust_authoritative_producer
     , r.manifest_json
-FROM governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_registry AS r
 LEFT JOIN {{ product }}_Semantic.data_product_orientation AS o
     ON  o.product_id = r.product_id
     AND o.is_active  = 1

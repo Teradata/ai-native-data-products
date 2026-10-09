@@ -18,7 +18,7 @@ Concrete Teradata binding of [`design/modules/search.md`](../../../../design/mod
 | File | Purpose |
 |------|---------|
 | `01-embedding.sql.j2` | `entity_embedding` table: native `VECTOR`, keys only, full column metadata. |
-| `02-searchable-view.sql.j2` | `v_{entity}_searchable`: embedding joined to Domain content (`AccessView`). |
+| `02-searchable-view.sql.j2` | `v_entity_searchable`: embedding joined to Domain content (`AccessView`). |
 | `03-similarity.sql.j2` | Similarity search and RAG retrieval templates (`NearestNeighbors` binding). |
 | `validation.sql.j2` | Runnable checks for the module's invariants. |
 
@@ -32,12 +32,12 @@ The `.sql.j2` files are Jinja2 templates, rendered by the builder with the produ
 | `NearestNeighbors(query, candidates, metric, k)` | `TD_VectorDistance` table operator with `DistanceMeasure` and `TopK`. |
 | `ApproxIndex{IVF\|HNSW}` | `KMEANS` (IVF-style) or `HNSW` via the Enterprise Vector Store API. |
 | `CurrentStateFilter` | `WHERE is_current = 1`. |
-| `EntityJoinBack` | `INNER JOIN Domain.{Entity}_H ON entity_id`, current-filtered. |
+| `EntityJoinBack` | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
-| `AccessView` | `v_{entity}_searchable` with an explicit column contract. |
+| `AccessView` | `v_entity_searchable` with an explicit column contract. |
 | `SemanticRegistration` *(soft)* | When the composition includes Semantic: on deploy, `INSERT` embedding entity/column rows into `{product}_Semantic`. Skipped if Semantic is absent. |
 | `DocumentationCapture` *(soft)* | When the composition includes Memory's documentation facet: on deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory`. Skipped if absent. |
-| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.{Entity}_H ON entity_id`, current-filtered. Search cannot deploy without Domain. |
+| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. Search cannot deploy without Domain. |
 
 ## Logical-type bindings used here
 

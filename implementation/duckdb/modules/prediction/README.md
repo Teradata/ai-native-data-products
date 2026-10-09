@@ -1,30 +1,40 @@
 ---
-title: DuckDB Prediction Module Implementation
+title: DuckDB Prediction Implementation
 anchor: prediction
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: prediction
 platform: duckdb
 ---
 
-# DuckDB Prediction
+# DuckDB: Prediction
 
-Binding of [Prediction](../../../../design/modules/prediction.md). [schema.sql](schema.sql) chooses tall engineered values and versioned model outputs. Wide feature groups are an alternative model choice, not a second required copy of the same values.
+Binding of [Prediction](../../../../design/modules/prediction.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+`01-tables.sql.j2` renders the approved FeatureGroup, tall FeatureValue or ModelPrediction entities supplied by the design. Features, keys, profiles, model identifiers and score types are inputs. Definitions belong to Semantic; monitoring belongs to Observability. Domain context is obtained by identity join-back, not copied into feature or prediction records.
+
+The temporal macros provide SCD2 and bitemporal historical surfaces as DuckDB table macros. Product feature SQL must apply both effective and knowledge-time cutoffs to each source, and respect observation and availability time. A wide feature group and tall values are choices, not mandatory duplicate stores.
+
+Generic checks validate the declared temporal structure; they cannot certify leakage freedom, model calibration or feature correctness. Supply product-specific engineering, training and scoring checks. ITSD inputs describe its ten features and breach probability, but neither trained scores nor retrospective source history are fabricated. The earlier DuckDB reference's bespoke point-in-time training function and retrospective-rewrite guard are not carried by this binding; see [conformance scope](../../CONFORMANCE.md).
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `PointInTimeReconstruction` | Half-open feature history plus observation cutoff. |
-| `CurrentStateFilter` | Canonical current feature and prediction views. |
-| `AccessView` | Current, enriched and `training_at(t)` surfaces. |
+| `PointInTimeReconstruction` | Half-open table macros over feature and prediction history. Cutoff correctness is a product obligation. |
+| `CurrentStateFilter` | Current views over open validity, current flag and deletion state. |
+| `AccessView` | Explicit consumer projections hiding lifecycle and audit fields. |
 
-Spend intensity clips aggregate AUD spend divided by 1000 to [0,1]; no customer descriptive attributes are copied. Definitions and model metadata are Semantic-owned; lineage and quality are Observability-owned. The score is reproducible as one minus the exact feature snapshot and has no calibrated predictive claim.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
 
-The example's snapshot computation filters each source entity as-of observation_dts and includes transactions posted strictly before it. Feature validity cannot precede availability. Prediction records the exact feature observation timestamp and model version; training joins Domain at the same historical instant. Source-observation joins, bounds and scoring reconstruction are runnable checks.
+## Invariants and checks
 
-`DD-PREDICTION-001` records the departure from advocated bitemporal history: this small fixture has no as-known correction use case. The writer rejects retrospective feature corrections. A production design needing those must add a bitemporal profile rather than silently rewriting old feature knowledge. No claim is made that business-time SCD2 alone solves every late-source leakage problem.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-PRED-001,003` | Product feature design review; only engineered values and Domain identifiers belong here. |
+| `INV-PRED-002` | Temporal templates support reconstruction; product feature pipeline must prove cutoff correctness. |
+| `INV-PRED-004,005` | Standard metadata and monitoring stores are separate; product capture and lineage checks remain required. |
 
-Tests cover January/February boundaries, future-feature exclusion, source joins, prediction provenance and absence of raw content. Soft deletion and metadata follow the shared compiler/writer.
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

@@ -1,0 +1,32 @@
+-- Temporal & Lifecycle Metadata: access views (Teradata).
+-- Binding of the access exposure policy in design/patterns/temporal-lifecycle-metadata.md. Default current
+-- surface selects from the governed view, never the base table (TLM-14).
+{#
+  Template variables (build context):
+    db            : container holding the views
+    current_view  : name of the default current access view
+    governed_view : name of the governed full-contract view
+    natural_key   : natural/business key column
+    attributes    : list of { name } business attributes the current surface exposes
+#}
+
+-- Default current access view: authoritative sentinel predicate PLUS the
+-- convenience flag (any disagreement is a TLM-10 defect validation catches).
+-- Hides valid_to_dts, is_current, deletion metadata, and audit timestamps.
+REPLACE VIEW {{ db }}.{{ current_view }}
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      a.{{ natural_key }}
+{%- for a in attributes %}
+    , a.{{ a.name }}
+{%- endfor %}
+    , a.valid_from_dts AS effective_since   -- optional exposure (access exposure policy)
+FROM {{ db }}.{{ governed_view }} AS a
+WHERE a.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
+  AND a.is_current = 1
+  AND a.is_deleted = 0;
+
+-- Point-in-time (as-of) access uses the half-open predicate:
+--   WHERE a.valid_from_dts <= :as_of_dts
+--     AND :as_of_dts < a.valid_to_dts

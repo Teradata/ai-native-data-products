@@ -1,0 +1,3 @@
+{# Inputs: schemas (explicit resolved placement). No inferred containers. #}
+{% for schema in schemas %}CREATE SCHEMA {{ schema|ident }};
+{% endfor %}

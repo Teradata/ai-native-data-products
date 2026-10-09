@@ -32,13 +32,13 @@ Every capability required by the design document is bound here:
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
-| `SurrogateKeyAllocation` | `_Keymap` table with `GENERATED ALWAYS AS IDENTITY`; the stable `{entity}_id` is looked up from the keymap on load, never generated on the `_H` table. |
+| `SurrogateKeyAllocation` | `_Keymap` table with `GENERATED ALWAYS AS IDENTITY`; the stable `entity_id` is looked up from the keymap on load, never generated on the `_H` table. |
 | `CurrentStateFilter` | `WHERE is_current = 1 AND is_deleted = 0`. |
 | `PointInTimeReconstruction` | Bi-temporal predicate on `valid_from_dts` / `valid_to_dts` (period containment). |
-| `NaturalKeyLookup` | Equality predicate on `{entity}_key`, current-filtered. |
-| `EntityJoinBack` | `INNER JOIN Domain.{Entity}_H ON {entity}_id`, current-filtered. |
+| `NaturalKeyLookup` | Equality predicate on `entity_key`, current-filtered. |
+| `EntityJoinBack` | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN` for every object and column. |
-| `AccessView` | `{Entity}_Current` and `{Entity}_Enriched` views with explicit column lists. |
+| `AccessView` | `Entity_Current` and `Entity_Enriched` views with explicit column lists. |
 | `MetadataCoverageCheck` | Catalogue query over `DBC.ColumnsV` (see `validation.sql.j2`). |
 | `SemanticRegistration` *(soft)* | When the composition includes Semantic: on deploy, `INSERT` entity/column/relationship rows into `{product}_Semantic`. Skipped if Semantic is absent. |
 | `DocumentationCapture` *(soft)* | When the composition includes Memory's documentation facet: on deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory`. Skipped if absent. |
@@ -63,8 +63,8 @@ Every capability required by the design document is bound here:
 |-----------|-------|
 | `INV-DOMAIN-001` (every attribute has metadata) | `validation.sql.j2` §1: zero uncommented columns. |
 | `INV-DOMAIN-002` (current filter) | `_Current` views exist and apply the flag filter. |
-| `INV-DOMAIN-003` (stable surrogate) | Keymap allocation; `{entity}_id` not `GENERATED` on `_H`. |
-| `INV-DOMAIN-004` (identity shape) | `validation.sql.j2` §2: every `_H` table has `{entity}_id` + `{entity}_key`. |
-| `INV-DOMAIN-005` (no duplicated content) | Reviewed at design time; other modules store `{entity}_id` only. |
+| `INV-DOMAIN-003` (stable surrogate) | Keymap allocation; `entity_id` not `GENERATED` on `_H`. |
+| `INV-DOMAIN-004` (identity shape) | `validation.sql.j2` §2: every `_H` table has `entity_id` + `entity_key`. |
+| `INV-DOMAIN-005` (no duplicated content) | Reviewed at design time; other modules store `entity_id` only. |
 | `INV-DOMAIN-006` (point-in-time) | Bi-temporal columns present on `_H` tables. |
 | `INV-DOMAIN-007` (named references) | Reference columns named `{target}_id`, not `fk1`/`fk2`. |
