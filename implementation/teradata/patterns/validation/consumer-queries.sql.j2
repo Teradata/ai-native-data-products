@@ -1,6 +1,6 @@
 -- Validation: consumer queries (Teradata). Binding of the consumption contract, trust authority,
 -- and staleness rules in design/patterns/validation.md §9, §11.
--- {db} is a generic tag, e.g. {Product}_Observability. :trust_producer comes from orientation
+-- Observability container: {{ db }}, as placed by the build context. :trust_producer comes from orientation
 -- (trust_authoritative_producer).
 --
 -- Nothing below withholds use of the product. The map says how far to trust each area and what
@@ -36,7 +36,7 @@ SELECT s.scope_kind
      , COALESCE(m.map_source, 'NONE') AS map_source
      , m.completed_dts
 FROM requested_validation_scope AS s
-LEFT OUTER JOIN {db}.validation_trust_map AS m
+LEFT OUTER JOIN {{ db }}.validation_trust_map AS m
              ON  m.product_prefix = :product_prefix
              AND m.producer_id    = :trust_producer
              AND m.scope_kind     = s.scope_kind
@@ -54,7 +54,7 @@ SELECT m.scope_kind
      , m.coverage_ratio
      , m.open_gaps
      , m.recommended_action
-FROM {db}.validation_trust_map AS m
+FROM {{ db }}.validation_trust_map AS m
 WHERE m.product_prefix = :product_prefix
   AND m.producer_id    = :trust_producer
 ORDER BY m.scope_kind, m.scope_id;
@@ -66,7 +66,7 @@ SELECT m.scope_kind
      , MIN(CASE m.confidence WHEN 'unknown' THEN 1 WHEN 'weak' THEN 2
                              WHEN 'partial' THEN 3 ELSE 4 END) AS lowest_confidence_rank
      , COUNT(DISTINCT m.confidence) AS producers_disagree
-FROM {db}.validation_trust_map AS m
+FROM {{ db }}.validation_trust_map AS m
 WHERE m.product_prefix = :product_prefix
 GROUP BY m.scope_kind, m.scope_id
 ORDER BY lowest_confidence_rank, m.scope_kind, m.scope_id;
@@ -82,7 +82,7 @@ SELECT v.producer_id
      , CASE WHEN COALESCE(v.evidence_expires_dts, v.completed_dts + INTERVAL '7' DAY)
                 < CURRENT_TIMESTAMP(6) THEN 1 ELSE 0
        END AS evidence_is_stale
-FROM {db}.validation_latest AS v
+FROM {{ db }}.validation_latest AS v
 WHERE v.product_prefix = :product_prefix
   AND v.producer_id    = :trust_producer;
 
@@ -96,7 +96,7 @@ SELECT v.trust_status
      , v.failed_count
      , v.error_count
      , v.completed_dts
-FROM {db}.validation_latest AS v
+FROM {{ db }}.validation_latest AS v
 WHERE v.product_prefix = :product_prefix
   AND v.producer_id    = :trust_producer;
 
@@ -106,7 +106,7 @@ SELECT v.producer_id
      , v.completed_dts
      , v.failed_checks_json
      , v.repair_candidate_count
-FROM {db}.validation_latest AS v
+FROM {{ db }}.validation_latest AS v
 WHERE v.product_prefix = :product_prefix
   AND v.producer_id    = :trust_producer;
 
@@ -118,7 +118,7 @@ SELECT a.scope_kind
      , a.confidence
      , a.checks_ran
      , a.checks_expected
-FROM {db}.validation_area AS a
+FROM {{ db }}.validation_area AS a
 WHERE a.product_prefix = :product_prefix
   AND a.producer_id    = :trust_producer
 ORDER BY a.scope_kind, a.scope_id, a.completed_dts DESC;
@@ -131,6 +131,6 @@ SELECT r.producer_id
      , r.critical_failure_count
      , r.error_failure_count
      , r.failed_count
-FROM {db}.validation_run AS r
+FROM {{ db }}.validation_run AS r
 WHERE r.product_prefix = :product_prefix
 ORDER BY r.completed_dts DESC;

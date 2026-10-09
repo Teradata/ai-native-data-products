@@ -17,12 +17,12 @@ Teradata binding of [`design/patterns/validation.md`](../../../../design/pattern
 
 | File | Purpose |
 |------|---------|
-| `01-validation-run.sql` | The `validation_run` append-only history table (profile `EVENT_APPEND_ONLY`) and its statistics: the run-level summary. |
-| `02-views.sql` | `validation_latest`: the latest-per-(product, producer) run projection. |
-| `03-validation-area.sql` | The `validation_area` append-only trust map: one row per run per area, with its vocabularies CHECK-constrained. |
-| `04-trust-map-views.sql` | `validation_trust_map`: the latest entry per (product, producer, area), coverage and staleness derived on read against each area's own run, plus the derived `PRODUCT` entry for a 2.0/1.0 producer. |
-| `consumer-queries.sql` | The map read before analytical use (reconciled against the caller's requested scopes, so a missing area reads as explicit `no-evidence` rather than disappearing), the whole map, the most-cautious composite, run-level evidence-age context, advisory summary, failure detail, per-area and run trends. |
-| `conformance-queries.sql` | `DBC`/data checks for the VAL conformance rules. `{sem}` tags the product's Semantic container where `PRODUCT`, `MODULE`, and `ENTITY` scopes are resolved; `PATTERN`/`CAPABILITY` have no deployed catalogue and are a producer build-time assertion instead. |
+| `01-validation-run.sql.j2` | The `validation_run` append-only history table (profile `EVENT_APPEND_ONLY`) and its statistics: the run-level summary. |
+| `02-views.sql.j2` | `validation_latest`: the latest-per-(product, producer) run projection. |
+| `03-validation-area.sql.j2` | The `validation_area` append-only trust map: one row per run per area, with its vocabularies CHECK-constrained. |
+| `04-trust-map-views.sql.j2` | `validation_trust_map`: the latest entry per (product, producer, area), coverage and staleness derived on read against each area's own run, plus the derived `PRODUCT` entry for a 2.0/1.0 producer. |
+| `consumer-queries.sql.j2` | The map read before analytical use (reconciled against the caller's requested scopes, so a missing area reads as explicit `no-evidence` rather than disappearing), the whole map, the most-cautious composite, run-level evidence-age context, advisory summary, failure detail, per-area and run trends. |
+| `conformance-queries.sql.j2` | `DBC`/data checks for the VAL conformance rules. `semantic_db` is the product's Semantic container where `PRODUCT`, `MODULE`, and `ENTITY` scopes are resolved; `PATTERN`/`CAPABILITY` have no deployed catalogue and are a producer build-time assertion instead. |
 
 Deploy in file order: the views project the tables above them.
 
@@ -55,7 +55,7 @@ python -m unittest discover -s tooling/validation/tests
 The SQL is **read from the files in this directory**, never retyped, and translated onto stdlib `sqlite3` by [`td_sqlite.py`](../../../../tooling/validation/tests/td_sqlite.py) so nothing in `tooling/` needs a live platform. Reverting a fix here fails those tests. Two consequences worth knowing before changing anything in this directory:
 
 - **A new Teradata construct breaks the harness loudly.** The translator handles an explicit, narrow set of rewrites and raises `UntranslatedSql` on anything else, rather than dropping the clause it was load-bearing in. Extend it in the same commit.
-- **It does not test Teradata's semantics.** `QUALIFY` becomes a wrapped `ROW_NUMBER`, `INTERVAL` becomes date arithmetic, and a zone-qualified timestamp becomes ISO text: faithful for the comparisons the map makes, not in general. Platform conformance stays `conformance-queries.sql` run against the deployed product; the suite is the net underneath it.
+- **It does not test Teradata's semantics.** `QUALIFY` becomes a wrapped `ROW_NUMBER`, `INTERVAL` becomes date arithmetic, and a zone-qualified timestamp becomes ISO text: faithful for the comparisons the map makes, not in general. Platform conformance stays `conformance-queries.sql.j2` run against the deployed product; the suite is the net underneath it.
 
 ## Legacy binding (wire schema 1.0)
 
