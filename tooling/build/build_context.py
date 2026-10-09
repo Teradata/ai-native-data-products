@@ -119,6 +119,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
     platform = {"name": profile.frontmatter["platform"],
                 "version": str(profile.frontmatter["platform_version"]).strip('"'),
                 **_fields(profile.blocks["Platform"])}
+    master_fm, _ = parse_frontmatter((design_root / "core" / "MASTER_DESIGN.md").read_text(encoding="utf-8"))
+    standard_version = str((master_fm or {}).get("version", "")).strip()
+    if not standard_version:
+        r.fail("no-standard-version", "design/core/MASTER_DESIGN.md has no 'version' in its frontmatter")
     max_len = int(platform["max_name_length"])
     reserved = {w.strip().upper() for w in platform.get("reserved_words", "").split(",") if w.strip()}
 
@@ -373,6 +377,7 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         "product": product,
         "organisation": profile.frontmatter.get("organisation"),
         "platform": platform,
+        "standard_version": standard_version,
         "environment": {"name": environment, "phases": phases,
                         "isolation": profile.field("Environments", "Isolation")},
         "composition": fm.get("composition"),

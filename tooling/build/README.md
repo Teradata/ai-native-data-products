@@ -20,6 +20,19 @@ required headings and blocks, field types and enumerations, template variables a
 object roles, one-to-one standard-name mappings, classification and protection, and the
 profile's own worked derivation examples, which are re-derived and must agree.
 
+## Check the platform layouts
+
+```bash
+python tooling/build/platform_layout.py            # check every platform profile
+python tooling/build/platform_layout.py --json     # export every layout as JSON
+```
+
+Each `implementation/{platform}/PLATFORM_PROFILE.md` declares a `Layout:` block under a `Layout`
+heading. Its fields, types and permitted values are read from the field table of the
+[Platform Layout Standard](../../design/core/PLATFORM_LAYOUT.md) §4.1. Platforms are discovered
+from `implementation/`, so a new platform that omits the block fails. The JSON export is the
+machine-readable platform layout that evaluators load.
+
 ## Resolve a build context
 
 ```bash
@@ -39,6 +52,7 @@ first; resolution does not start on an invalid input. Resolution then:
 - applies the environment's container template where phases share a system;
 - checks names against the platform's length limit and reserved words, checks for
   collisions, and checks audit retention against the organisation's bounds;
+- records the Master Design version as `standard_version`, which a binding writes with the platform name to the product registry ([Platform Layout Standard](../../design/core/PLATFORM_LAYOUT.md) §5);
 - records every default it applied in `defaults_applied`.
 
 Any problem fails the run with a message naming the fact and the input it belongs to, and

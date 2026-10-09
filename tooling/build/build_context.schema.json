@@ -10,6 +10,7 @@
     "product",
     "organisation",
     "platform",
+    "standard_version",
     "environment",
     "composition",
     "modules",
@@ -148,6 +149,10 @@
     },
     "organisation": {
       "type": "string"
+    },
+    "standard_version": {
+      "type": "string",
+      "description": "The Master Design version the product is built against. Bindings record it, with platform.name, in the product registry (Platform Layout Standard §5)."
     },
     "platform": {
       "type": "object",
