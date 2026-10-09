@@ -50,6 +50,18 @@
         "comment": "Declared access mode."
       },
       {
+        "name": "platform_profile",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Platform the product was built for: an implementation directory name."
+      },
+      {
+        "name": "standard_version",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Master Design version the product was built against."
+      },
+      {
         "name": "max_evidence_age_days",
         "type": "INTEGER",
         "nullable": false,
@@ -331,6 +343,12 @@
         "comment": "Exact qualified consumable object."
       },
       {
+        "name": "object_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Object role: TABLE, BASE_VIEW or CONSUMER_VIEW, giving the STORAGE, ACCESS or CONSUMER layer."
+      },
+      {
         "name": "access_role",
         "type": "VARCHAR",
         "nullable": false,
@@ -359,6 +377,18 @@
         "type": "VARCHAR",
         "nullable": true,
         "comment": "Base object exposed by a passthrough."
+      },
+      {
+        "name": "consumer_audience",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "AGENT, BI or ALL on CONSUMER_VIEW objects; null on every other object type."
+      },
+      {
+        "name": "access_semantics",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "FULL_HISTORY, CURRENT_ONLY or POINT_IN_TIME; null when the entity declares no history."
       },
       {
         "name": "access_note",

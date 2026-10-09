@@ -17,7 +17,7 @@ REPO=Path(__file__).resolve().parents[3]
 PLATFORMS=tuple(p.name for p in sorted((REPO/'examples/it-service-desk-data-product').iterdir()) if (p/'placement.json').exists())
 assert PLATFORMS, 'No binding placement inputs found'
 sys.path.insert(0,str(REPO))
-from tooling.bindings.render import render_product,environment,qualified
+from tooling.bindings.render import render_product,environment,qualified,standard_version
 from tooling.bindings.validate import validate
 
 
@@ -98,6 +98,18 @@ class Rendering(unittest.TestCase):
                         self.assertNotIn('ticket',files['deploy.sql'].lower())
                         self.assertNotIn('CREATE SCHEMA "itsd_',files['deploy.sql'])
 
+    def test_layout_declaration_is_registered(self):
+        """The registry records the platform and standard version (Platform Layout Standard, section 5)."""
+        for p in PLATFORMS:
+            c=itsd(p)
+            files=render_product(c,p)
+            registration=files['10-registration.sql']
+            with self.subTest(platform=p):
+                self.assertIn(f",'{p}','{standard_version()}',",registration)
+                self.assertIn("'CONSUMER_VIEW'",registration)
+                manifest=json.loads(files['manifest.json'])
+                self.assertIn('semantic:layout',[k['test_id'] for k in manifest['checks']])
+
     def test_missing_names_and_strict_templates(self):
         from jinja2 import UndefinedError
         with self.assertRaises(UndefinedError):
@@ -143,6 +155,13 @@ class EngineTests:
         # An input brief is not a completed documentation/ML deployment. Preserve gaps.
         self.assertTrue(self.con.execute("SELECT count(*) FROM itsd_access.trust_map WHERE confidence<>'strong'").fetchone()[0])
         self.assertEqual(self.con.execute('SELECT count(*) FROM itsd_access.v_model_prediction').fetchone()[0],0)
+
+    def test_layout_is_declared_in_the_registry(self):
+        self.deploy(itsd(self.platform))
+        row=self.con.execute('SELECT platform_profile,standard_version FROM itsd_semantic.data_product_registry').fetchone()
+        self.assertEqual(tuple(row),(self.platform,standard_version()))
+        audiences=self.con.execute("SELECT DISTINCT consumer_audience FROM itsd_semantic.access_object WHERE object_type='CONSUMER_VIEW'").fetchall()
+        self.assertEqual([tuple(a) for a in audiences],[('ALL',)])
 
     def test_unrelated_minimal_composition_executes(self):
         m=self.deploy(unrelated())

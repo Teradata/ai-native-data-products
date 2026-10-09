@@ -37,5 +37,8 @@ See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CO
 | `INV-SEMANTIC-004,011,012` | Derived manifest and explicit orientation; consumer workflow verification remains required. |
 | `INV-SEMANTIC-005,007..010` | Declared relationships and access rows; completeness/standalone/composite review remains required. |
 | `INV-SEMANTIC-013..015` | Schemas support metrics/synonyms; product registration and reference checks remain required. |
+| `INV-SEMANTIC-016,017` | `validation-layout.sql.j2` (check `semantic:layout`): registry without platform or standard version (`LAYOUT_NOT_DECLARED`); consumer view without audience; audience on another object type. The check of two consumer views sharing an audience and semantics is an outstanding gap: this binding registers one consumer view per entity. |
+
+This binding has no `ACCESS` layer object: its layer roles are `STORAGE` (`object_type` `TABLE`, `access_role` `BASE`) and `CONSUMER` (`CONSUMER_VIEW`, `PASSTHROUGH`). `data_product_registry.platform_profile` is `postgres` and `standard_version` is read from the Master Design by the renderer.
 
 Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal/lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

@@ -1,6 +1,6 @@
 {# Inputs: product, modules, containers, entities, relationships. No product-specific records. #}
 INSERT INTO {{ qualified(containers.semantic,'data_product_registry') }} VALUES
- ({{ product.id|literal }},{{ product.version|literal }},'ACTIVE',{{ product.owner|literal }},{{ product.validator|literal }},{{ product.entrypoint|literal }},'VIEW',{{ product.evidence_days }},current_timestamp,current_timestamp);
+ ({{ product.id|literal }},{{ product.version|literal }},'ACTIVE',{{ product.owner|literal }},{{ product.validator|literal }},{{ product.entrypoint|literal }},'VIEW',{{ platform|literal }},{{ standard_version|literal }},{{ product.evidence_days }},current_timestamp,current_timestamp);
 {% for m in modules %}
 INSERT INTO {{ qualified(containers.semantic,'data_product_map') }} VALUES
  ({{ m|literal }},{{ containers[m]|literal }},{{ ('Capabilities declared by the ' ~ m ~ ' module')|literal }},'DEPLOYED',{{ product.version|literal }},current_timestamp,current_timestamp);
@@ -13,10 +13,10 @@ INSERT INTO {{ qualified(containers.semantic,'column_metadata') }} VALUES
  ({{ (e.identity ~ '.' ~ c.name)|literal }},{{ e.schema|literal }},{{ e.name|literal }},{{ c.name|literal }},{{ c.comment|literal }},{{ c.pii|default(false)|literal }},{{ e.runtime|literal }},{{ c.classification|default('INTERNAL')|literal }},'Approved design',current_timestamp,current_timestamp);
 {% endfor %}
 INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
- ({{ e.identity|literal }},'BASE',{{ e.identity|literal }},'One physical version or record',false,NULL,'Maintainer surface',current_timestamp,current_timestamp);
+ ({{ e.identity|literal }},'TABLE','BASE',{{ e.identity|literal }},'One physical version or record',false,NULL,NULL,{{ ('FULL_HISTORY' if e.history else none)|literal }},'Maintainer surface',current_timestamp,current_timestamp);
 {% if not e.runtime %}
 INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
- ({{ (containers.access ~ '.' ~ e.current_view)|literal }},'PASSTHROUGH',{{ e.identity|literal }},'One current non-deleted record',true,{{ e.identity|literal }},'Declared consumer surface',current_timestamp,current_timestamp);
+ ({{ (containers.access ~ '.' ~ e.current_view)|literal }},'CONSUMER_VIEW','PASSTHROUGH',{{ e.identity|literal }},'One current non-deleted record',true,{{ e.identity|literal }},'ALL',{{ ('CURRENT_ONLY' if e.history else none)|literal }},'Declared consumer surface',current_timestamp,current_timestamp);
 INSERT INTO {{ qualified(containers.semantic,'primary_object') }} VALUES
  ({{ (containers.access ~ '.' ~ e.current_view)|literal }},{{ e.module|literal }},'VIEW','REFERENCE_LOOKUP',{{ e.description|literal }},current_timestamp,current_timestamp);
 {% endif %}
