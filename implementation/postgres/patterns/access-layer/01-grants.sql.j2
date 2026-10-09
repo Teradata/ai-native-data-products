@@ -1,0 +1,31 @@
+{# Inputs: explicit role names, schemas, entities and search surfaces. PostgreSQL only.
+   Run role creation separately if deployment privileges require operator assistance. #}
+{% for tier in ['read','agent','admin'] %}CREATE ROLE {{ roles[tier]|ident }} NOLOGIN;{% endfor %}
+{% for schema in schemas %}
+REVOKE ALL ON SCHEMA {{ schema|ident }} FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA {{ schema|ident }} FROM PUBLIC;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ schema|ident }} FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA {{ schema|ident }} REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+GRANT USAGE ON SCHEMA {{ schema|ident }} TO {{ roles.read|ident }},{{ roles.agent|ident }},{{ roles.admin|ident }};
+GRANT ALL ON ALL TABLES IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
+GRANT ALL ON ALL SEQUENCES IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
+{% endfor %}
+{% for e in entities %}
+{% if e.runtime %}
+ALTER TABLE {{ e.qualified }} ENABLE ROW LEVEL SECURITY;
+CREATE POLICY runtime_user ON {{ e.qualified }} TO {{ roles.agent|ident }} USING(scope_level='USER' AND scope_identifier=session_user) WITH CHECK(scope_level='USER' AND scope_identifier=session_user);
+CREATE POLICY runtime_admin ON {{ e.qualified }} TO {{ roles.admin|ident }} USING(true) WITH CHECK(true);
+GRANT SELECT,INSERT,UPDATE ON {{ e.qualified }} TO {{ roles.agent|ident }};
+{% else %}GRANT SELECT ON {{ e.view }} TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endif %}
+{% endfor %}
+{% if 'semantic' in modules %}
+GRANT SELECT ON {{ qualified(containers.access,'data_product_manifest') }},{{ qualified(containers.access,'column_catalogue') }},{{ qualified(containers.access,'relationship_edges') }},{{ qualified(containers.access,'relationship_paths') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};
+{% if 'observability' in modules %}GRANT SELECT ON {{ qualified(containers.access,'trust_map') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endif %}
+{% endif %}
+{% if 'observability' in modules %}GRANT INSERT ON {{ qualified(containers.observability,'agent_outcome') }} TO {{ roles.agent|ident }};{% endif %}
+{% for s in searches %}GRANT EXECUTE ON FUNCTION {{ qualified(containers.search,s.name) }}(DOUBLE PRECISION[],INTEGER) TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endfor %}
+
+{% if 'semantic' in modules and 'observability' in modules %}
+GRANT SELECT ON {{ qualified(containers.access,'lineage_graph') }},{{ qualified(containers.access,'lineage_run_latest') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};
+{% endif %}

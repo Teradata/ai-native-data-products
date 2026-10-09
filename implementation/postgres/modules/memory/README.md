@@ -11,10 +11,30 @@ platform: postgres
 
 # PostgreSQL: Memory
 
-Binding of [Memory](../../../../design/modules/memory.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Memory](../../../../design/modules/memory.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-[schema.sql](schema.sql) separates versioned documentation from private runtime process state. `DocumentationCapture` generates decisions, glossary, cookbook, release notes and provenance for every module. `AgentContinuity` stores scoped sessions, interactions, strategies, preferences and patterns; it does not store business result rows.
+`entities.json` provides the six standard documentation entities and five runtime entities. Documentation uses versioned history. Runtime is optional (`runtime_memory`) and has no public passthrough view. `02-capture.sql.j2` records supplied design decisions and module declarations; it does not fabricate glossary terms, recipes or decisions to satisfy minimum counts.
 
-Documentation uses SCD2 current views. Runtime uses CURRENT_STATE and has no public passthrough views. Native row policies bind USER scope to authenticated `session_user`; caller-set configuration variables are never trusted identities. AGENT may read/insert/update only its own USER rows. TEAM, ORGANIZATION and AGENT scope sharing is deliberately denied until a membership policy is implemented. READ cannot reach runtime tables. ADMIN, owners and superusers are privileged.
+`validation.sql.j2` checks per-module minimum decisions, glossary and cookbook coverage. Incomplete capture is a reported gap until the builder records the actual design. Runtime stores process context and aggregate counts, not copied business results.
 
-`DOC`, `MEM-SCOPE`, `BOUNDARY` and metadata checks cover registration and minimum content. Integration tests exercise authenticated scope, denied owner changes and denied deletes. Separate login identities are required; pooling all end users through one login requires a separately designed authentication boundary.
+PostgreSQL USER rows are scoped to authenticated session_user. Shared scopes are denied until a membership policy is supplied; owners, superusers and BYPASSRLS principals remain privileged. A pooled single database login cannot distinguish end users. DuckDB needs an authenticated serving application or separate protected storage; file access exposes runtime data.
+
+## Capability bindings
+
+| Capability | Binding |
+|---|---|
+| `DocumentationCapture` | Templates and enforcement limits described above. |
+| `AgentContinuity` | Templates and enforcement limits described above. |
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+
+## Invariants and checks
+
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-MEMORY-001,002,004` | Standard structures separate process/design context; producer payload review remains necessary. |
+| `INV-MEMORY-003` | Required scope columns; PostgreSQL USER RLS tests or external DuckDB enforcement. |
+| `INV-MEMORY-005` | Shared versioned temporal templates and checks. |
+| `INV-MEMORY-006` | Module minimum decision/glossary/recipe query; complete capture protocol still applies. |
+
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal/lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

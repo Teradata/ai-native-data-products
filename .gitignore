@@ -6,6 +6,7 @@ __pycache__/
 .duckdb-deps/
 *.duckdb
 *.duckdb.wal
+/build/
 
 # Generated skills (see issue #44)
 /skills/

@@ -1,0 +1,35 @@
+{# Inputs: product, modules, containers, entities, relationships. No product-specific records. #}
+INSERT INTO {{ qualified(containers.semantic,'data_product_registry') }} VALUES
+ ({{ product.id|literal }},{{ product.version|literal }},'ACTIVE',{{ product.owner|literal }},{{ product.validator|literal }},{{ product.entrypoint|literal }},'VIEW',{{ product.evidence_days }},current_timestamp,current_timestamp);
+{% for m in modules %}
+INSERT INTO {{ qualified(containers.semantic,'data_product_map') }} VALUES
+ ({{ m|literal }},{{ containers[m]|literal }},{{ ('Capabilities declared by the ' ~ m ~ ' module')|literal }},'DEPLOYED',{{ product.version|literal }},current_timestamp,current_timestamp);
+{% endfor %}
+{% for e in entities %}
+INSERT INTO {{ qualified(containers.semantic,'entity_metadata') }} VALUES
+ ({{ e.identity|literal }},{{ e.description|literal }},{{ e.module|literal }},{{ e.schema|literal }},{{ e.name|literal }},{{ (e.current_view if not e.runtime else none)|literal }},{{ e.key|literal }},{{ (e.natural_key or e.key)|literal }},{{ e.profile|literal }},{{ ('is_current' if e.history else none)|literal }},{{ ('is_deleted' if e.supports_deletion else none)|literal }},NULL,current_timestamp,current_timestamp);
+{% for c in e.all_columns %}
+INSERT INTO {{ qualified(containers.semantic,'column_metadata') }} VALUES
+ ({{ (e.identity ~ '.' ~ c.name)|literal }},{{ e.schema|literal }},{{ e.name|literal }},{{ c.name|literal }},{{ c.comment|literal }},{{ c.pii|default(false)|literal }},{{ e.runtime|literal }},{{ c.classification|default('INTERNAL')|literal }},'Approved design',current_timestamp,current_timestamp);
+{% endfor %}
+INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
+ ({{ e.identity|literal }},'BASE',{{ e.identity|literal }},'One physical version or record',false,NULL,'Maintainer surface',current_timestamp,current_timestamp);
+{% if not e.runtime %}
+INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
+ ({{ (containers.access ~ '.' ~ e.current_view)|literal }},'PASSTHROUGH',{{ e.identity|literal }},'One current non-deleted record',true,{{ e.identity|literal }},'Declared consumer surface',current_timestamp,current_timestamp);
+INSERT INTO {{ qualified(containers.semantic,'primary_object') }} VALUES
+ ({{ (containers.access ~ '.' ~ e.current_view)|literal }},{{ e.module|literal }},'VIEW','REFERENCE_LOOKUP',{{ e.description|literal }},current_timestamp,current_timestamp);
+{% endif %}
+{% endfor %}
+{% for r in relationships %}
+INSERT INTO {{ qualified(containers.semantic,'table_relationship') }} VALUES
+ ({{ ('REL-' ~ loop.index)|literal }},{{ r.source_entity.identity|literal }},{{ r.source_column|literal }},{{ r.target_entity.identity|literal }},{{ r.target_column|literal }},'MANY_TO_ONE','SEMANTIC',{{ r.mandatory|literal }},current_timestamp,current_timestamp);
+{% endfor %}
+{% for role,name in [('MANIFEST','data_product_manifest'),('MODULE_MAP','v_data_product_map'),('OBJECT_CATALOGUE','v_access_object'),('ENTITY_CATALOGUE','v_entity_metadata'),('COLUMN_CATALOGUE','column_catalogue'),('RELATIONSHIP_CATALOGUE','v_table_relationship')] %}
+INSERT INTO {{ qualified(containers.semantic,'data_product_orientation') }} VALUES
+ ({{ role|literal }},{{ product.id|literal }},{{ (containers.access ~ '.' ~ name)|literal }},{{ loop.index+2 }},true,current_timestamp,current_timestamp);
+{% endfor %}
+{% if 'observability' in modules %}
+INSERT INTO {{ qualified(containers.semantic,'data_product_orientation') }} VALUES
+ ('TRUST_MAP',{{ product.id|literal }},{{ (containers.access ~ '.trust_map')|literal }},2,true,current_timestamp,current_timestamp);
+{% endif %}

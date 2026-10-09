@@ -1,21 +1,20 @@
-<!-- design-lint: ignore-file (implementation evidence index, not a design document) -->
+<!-- design-lint: ignore-file (implementation evidence scope) -->
 
-# PostgreSQL conformance scope
+# Conformance scope after template refactoring
 
-The profile in [checks.py](checks.py) defines 542 violation queries over this fixed product. The SQL build, full profile and Python integration suite have run against PostgreSQL 18.3 through PGlite 0.5.8 and Psycopg 3.3.6. This is actual PostgreSQL execution, but does not establish native server concurrency, authentication transport, durability or PostgreSQL 16 compatibility. The version target still needs a native server matrix.
+The old product-specific check count is no longer a coverage claim. Checks are rendered from each product's declared entities and relationships. Tests live in tooling/bindings/tests and render into memory/temporary outputs rather than committing finished products.
 
-| Contract | Executable evidence | Limit |
+| Contract | Evidence | Remaining obligation |
 |---|---|---|
-| Domain identity, meaning, join-back | DOM-KEY, META, JOIN, BOUNDARY; native keymap FK and temporal tests | Keymap retention and privileged maintenance require operational controls |
-| Semantic discovery, metrics, synonyms | SEM/REL inventory, registered resources, recursive paths, cookbook/demo execution | Fixed product model, not automatic arbitrary-schema discovery |
-| Search ownership and provenance | SEARCH, JOIN, BOUNDARY; dimension rejection, ranking and live content join-back | Toy lexical quality unassessed; approximate indexing absent |
-| Prediction ownership and cutoffs | PRED, JOIN, BOUNDARY; training cutoff tests | SCD2 only, no as-known correction history |
-| Observability quality and lineage | OBS/VAL, event-only allowlists and append tests | No automatic capture for arbitrary maintainer SQL |
-| Memory documentation and privacy | DOC/MEM-SCOPE/BOUNDARY; cookbook and authenticated RLS tests | Shared scopes and pooled end-user identity not implemented |
-| Temporal lifecycle | TLM profile/type/finite/interval/view checks; overlapping history rejection; replay, late change and tombstone tests | Native concurrent-writer stress tests outstanding |
-| Validation wire 2.1 | VAL counts, vocabularies, parentage; error savepoints, append, authority and expiry behavior | Count-only native producer, no legacy importer |
-| Access layer | Reader view success, base/history/runtime denial; scope spoof and outcome-update rejection | Login provisioning and operator access review remain unknown |
-| Object placement | PLACE and deployed resource inventory | One dedicated database; fixed roles require unused cluster names |
-| Physical storage | Transactional build and rollback behavior | Backup, recovery, replication and performance remain unknown |
+| Reusability | ITSD and unrelated laboratory contexts, renamed containers/entities, different compositions/dimensions | Additional product designs and workload-specific types |
+| Physical metadata | Every declared field exists and carries a comment; keymaps registered | Full semantic meanings, metric/synonym coverage and domain quality |
+| History | Half-open SCD2 and two-axis correction/reconstruction | Caller-planned replay, late changes, full temporal maintenance concurrency |
+| Relationships | Shared ITSD source rows and current-surface reference checks | Historical referential completeness |
+| Search / Prediction | Parameterised structures and source join-back | Encoder, feature pipeline, trained model and quality evidence |
+| Memory | Actual authored decisions; minimum-capture check reports gaps | Complete glossary, cookbook and per-module capture at build time |
+| Validation | Query errors retained; evidence append and explicit unknown/partial areas | Additional design-specific invariant checks |
+| Access | Platform enforcement boundaries documented; native grants where supported | Deployment identity/membership and operational policy review |
 
-Strong confidence means the defined native checks for that area passed. It does not certify omitted capabilities. Access operations, physical storage and embedding quality retain explicit unknown areas. SQL-only counts are not published validation evidence.
+Execution evidence for this refactor: DuckDB 1.4.3 and PostgreSQL 18.3 through PGlite 0.5.8/Psycopg. Native PostgreSQL 16 execution and concurrent-server testing are not claimed. All supported profiles render; execution tests cover current-state, event, SCD2 and bitemporal structures.
+
+The shared ITSD input is a design/build example, not a prebuilt product. Its seven captured decisions alone do not satisfy per-module documentation minimums. The validator reports memory:coverage until builders capture the remaining real documentation. Embedding/scoring tables begin empty; no synthetic probability or claimed model quality fills that gap. Strong structural evidence never substitutes for semantic, ML or operational validation.

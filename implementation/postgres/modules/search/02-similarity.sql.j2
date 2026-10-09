@@ -1,0 +1,29 @@
+{# Inputs: searches, each declaring source/embedding entities, model, dimensions and content fields.
+   Embeddings come from a declared external or in-database encoder. No toy encoder is substituted. #}
+{% for s in searches %}
+{% if platform=='postgres' %}
+CREATE FUNCTION {{ qualified(containers.search,s.name) }}(query_vector DOUBLE PRECISION[], result_limit INTEGER)
+RETURNS TABLE(entity_id BIGINT,similarity DOUBLE PRECISION{% for name in s.content_columns %},{{ name|ident }} TEXT{% endfor %})
+LANGUAGE SQL STABLE AS $body$
+SELECT e.entity_id,
+ (SELECT sum(e.{{ s.vector_column|ident }}[i]*query_vector[i]) /
+ nullif(sqrt(sum(e.{{ s.vector_column|ident }}[i]^2))*sqrt(sum(query_vector[i]^2)),0)
+ FROM generate_series(1,{{ s.dimensions }}) g(i)) AS similarity
+{% for name in s.content_columns %},d.{{ name|ident }}::TEXT{% endfor %}
+FROM {{ s.embedding_entity.view }} e JOIN {{ s.source_entity.view }} d ON e.entity_id=d.{{ s.source_entity.key|ident }}
+WHERE e.entity_kind={{ s.entity_kind|literal }} AND e.embedding_model={{ s.model|literal }} AND e.embedding_model_version={{ s.model_version|literal }}
+ AND e.source_attribute={{ s.source_attribute|literal }}
+ AND cardinality(query_vector)={{ s.dimensions }} AND array_ndims(query_vector)=1 AND array_lower(query_vector,1)=1 AND array_position(query_vector,NULL) IS NULL
+ AND NOT(query_vector && ARRAY['NaN'::FLOAT8,'Infinity'::FLOAT8,'-Infinity'::FLOAT8])
+ORDER BY similarity DESC NULLS LAST,e.entity_id LIMIT greatest(0,least(result_limit,1000));
+$body$;
+{% else %}
+CREATE MACRO {{ qualified(containers.search,s.name) }}(query_vector,result_limit) AS TABLE
+SELECT e.entity_id,list_cosine_similarity(e.{{ s.vector_column|ident }},query_vector) AS similarity
+{% for name in s.content_columns %},d.{{ name|ident }}{% endfor %}
+FROM {{ s.embedding_entity.view }} e JOIN {{ s.source_entity.view }} d ON e.entity_id=d.{{ s.source_entity.key|ident }}
+WHERE e.entity_kind={{ s.entity_kind|literal }} AND e.embedding_model={{ s.model|literal }} AND e.embedding_model_version={{ s.model_version|literal }}
+ AND e.source_attribute={{ s.source_attribute|literal }}
+ORDER BY similarity DESC,e.entity_id LIMIT greatest(0,least(result_limit,1000));
+{% endif %}
+{% endfor %}

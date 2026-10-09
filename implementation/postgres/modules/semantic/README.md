@@ -11,10 +11,31 @@ platform: postgres
 
 # PostgreSQL: Semantic
 
-Binding of [Semantic](../../../../design/modules/semantic.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Semantic](../../../../design/modules/semantic.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-[schema.sql](schema.sql) stores product, module, entity, field, relationship, model, feature, metric, synonym and approved-access contracts. [discovery.sql](discovery.sql) joins `pg_catalog` structural facts to authored meaning; provenance stays explicit. `SemanticRegistration` comes from the deployment model, never inferred from consumer object names.
+`entities.json` declares standard-owned catalogue entities; it is not a business model. `01-tables.sql.j2` uses the same physical and temporal macros as other modules. `02-registration.sql.j2` registers the supplied entities, keymaps, relationships, profiles, comments and consumer surfaces. `03-discovery.sql.j2` publishes a manifest, hybrid column catalogue and bounded relationship paths.
 
-Bootstrap at `semantic.data_product_manifest` (or `semantic.v_data_product_registry`), then resolve ordered orientation resources. The manifest uses `jsonb_agg`; consumers read the trust map before business surfaces. Recursive CTEs preserve ordered join predicates, prevent cycles and cap traversal at four hops. Access paths resolve registered consumer views; base-table paths are descriptive metadata, not grants.
+Registration uses explicit placement and declared relationships, never name inference. Structural facts come from information_schema; business meanings come from authored metadata. Relationship paths describe base-entity joins and must be resolved through access_object before consumer SQL is issued. Object registries contain datasets, never business instances.
 
-`SEM`, `REL`, `META` and `DOC` checks cover inventory, resources, comments, joins, metrics and minimum documentation. Object registries describe datasets, never individual business instances. The model is fixed for the example; deployments must regenerate and review registrations when changing it.
+`validation.sql.j2` detects unregistered persisted tables in the supplied module containers. Per-entity checks verify column existence and comments. Metric, synonym, primary-object and model registrations are standard-owned schemas ready for product capture; the helper does not invent their content or certify semantic completeness.
+
+## Capability bindings
+
+| Capability | Binding |
+|---|---|
+| `SemanticRegistration` | Templates and enforcement limits described above. |
+| `RichMetadata` | Templates and enforcement limits described above. |
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+
+## Invariants and checks
+
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-SEMANTIC-001,002` | Standard-owned catalogue schema; no business-instance registration. |
+| `INV-SEMANTIC-003,006` | Deployment registration plus unregistered-table check. |
+| `INV-SEMANTIC-004,011,012` | Derived manifest and explicit orientation; consumer workflow verification remains required. |
+| `INV-SEMANTIC-005,007..010` | Declared relationships and access rows; completeness/standalone/composite review remains required. |
+| `INV-SEMANTIC-013..015` | Schemas support metrics/synonyms; product registration and reference checks remain required. |
+
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal/lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

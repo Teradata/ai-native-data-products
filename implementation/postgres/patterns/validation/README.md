@@ -11,10 +11,12 @@ platform: postgres
 
 # PostgreSQL: Validation
 
-Binding of [Validation](../../../../design/patterns/validation.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Validation](../../../../design/patterns/validation.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-[checks.py](../../checks.py) defines executable violation queries; [conformance.sql](conformance.sql) reports counts for SQL clients. Zero rows means the check passed. [validate.py](../../validate.py) executes the profile and appends wire-schema 2.1 evidence, retaining SQL execution errors as ERROR records. Each query uses a savepoint so one error does not abort all later checks. Evidence publication is atomic.
+`01-entity-check.sql.j2` returns physical-metadata and temporal defects; `02-relationship-check.sql.j2` checks current-surface reference coverage. Module validation templates add inventory and documentation coverage. The helper renders a check manifest for the actual product instead of a fixed test inventory.
 
-[views.sql](views.sql) resolves the designated producer, newest evidence per area, conservative fallback when no authority is designated, and expired evidence as unknown. Missing evidence is no-evidence/unknown, never success. Trust is advisory and does not gate database access. The example uses a seven-day freshness policy; optional scores remain null.
+`04-trust-map.sql.j2` retains wire-schema 2.1 semantics: designated producer, latest evidence per area, expiry, cautious fallback and no-evidence/unknown. It requires Semantic and Observability. Other compositions can execute checks without persisting evidence; absence of a module must not create dangling SQL.
 
-The profile covers this declared fixture, not arbitrary products. Strong means its defined checks passed; unassessed authentication operations, physical storage and semantic embedding quality are explicitly separate unknown areas. `VAL` checks verify wire vocabularies, parentage, counts and area accounting. Tests cover append behavior, SQL errors, expiry and build rollback. See [CONFORMANCE.md](../../CONFORMANCE.md) for limits.
+`tooling/bindings/validate.py` records errors without treating them as zero defects. PostgreSQL uses savepoints; DuckDB runs individual checks outside a caller transaction and publishes evidence in a separate transaction. It is a structural profile, not a certification of arbitrary business rules. Required documentation and unverified model/operational capabilities remain visible gaps. Add design-specific checks to the generated manifest in the product workspace, with explicit scope and provenance.
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.

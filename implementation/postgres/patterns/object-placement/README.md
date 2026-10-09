@@ -11,10 +11,12 @@ platform: postgres
 
 # PostgreSQL: Object Placement
 
-Binding of [Object Placement](../../../../design/patterns/object-placement.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Object Placement](../../../../design/patterns/object-placement.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-Use one dedicated database per product and environment, with exactly six schemas: `memory`, `semantic`, `domain`, `observability`, `search`, `prediction`. This is the declared placement standard for Customer360. Environment differentiation belongs to the database/connection, not logical entity names. Schemas co-locate modules for transactional deployment and join-back.
+`01-schemas.sql.j2` creates only explicitly supplied containers. The input declares a container for every selected module and a consumer access container. Environment placement is supplied by the organisation; names are never inferred from a product prefix.
 
-Deploy Memory and Semantic first, Domain and Observability next, Search and Prediction last. Cross-module discovery, registration and grants follow their dependencies in the same transaction; no partly granted product is exposed. Role names are cluster-wide and therefore must be unique across products/environments; the fixed example role names require a fresh cluster namespace.
+Schema creation does not use IF NOT EXISTS, so accidental reuse fails rather than blending products. The helper orders Memory and Semantic before Domain and Observability, then Search and Prediction. Cross-module views and registration follow dependencies; grants are last within the transactional deployment. Deploying phases separately must preserve the design's staged access sequence.
 
-Consumers resolve deployed names from the registries. `PLACE`, `SEM` and orientation checks cover placement. The builder creates schemas without `IF NOT EXISTS`, so it fails and rolls back on an occupied target. It never drops or replaces a product.
+The example overlays are one possible placement, not required naming conventions. PostgreSQL roles are cluster-wide and must be deliberately provisioned. DuckDB schemas are logical grouping, not security containers. No generated path or placement is a universal organisational standard.
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.

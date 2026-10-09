@@ -1,0 +1,4 @@
+{# Inputs: schemas (explicit resolved placement), platform. No inferred containers. #}
+{% if platform=='postgres' %}CREATE EXTENSION IF NOT EXISTS btree_gist;{% endif %}
+{% for schema in schemas %}CREATE SCHEMA {{ schema|ident }};
+{% endfor %}

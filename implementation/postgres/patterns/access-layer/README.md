@@ -11,12 +11,12 @@ platform: postgres
 
 # PostgreSQL: Access Layer
 
-Binding of [Access Layer](../../../../design/patterns/access-layer.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Access Layer](../../../../design/patterns/access-layer.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-[grants.sql](grants.sql) creates independent NOLOGIN READ, AGENT and ADMIN group roles. Deployment requires CREATEROLE, schema creation and permission to install `btree_gist`. Object ownership stays with the deploying maintainer. Grant membership to real logins separately; no passwords or LOGIN accounts are shipped.
+`01-grants.sql.j2` binds the design's access tiers. PostgreSQL consumes explicit READ, AGENT and ADMIN role names, revokes PUBLIC access to product schemas/tables/functions and grants only declared consumer views. Historical functions are ADMIN-only; registered search functions query consumer views with invoker rights. Runtime USER policies bind to session_user; outcome writes are append-only for AGENT. Object owners and privileged roles remain trusted administrators.
 
-READ and AGENT get SELECT only on registered approved views. AGENT also gets scoped runtime SELECT/INSERT/UPDATE and append-only outcome INSERT. ADMIN gets maintenance DML, sequences and function execution; ownership/DDL remains with the deployer. PUBLIC loses product schema, table and function access. Default function execution is revoked for future functions created by that deployer; future objects need reviewed grants.
+Where role creation is unavailable to the deployer, render this template for the operator and keep that outstanding step visible. The bundled deploy script assumes all required privileges; it does not create LOGIN users, assign passwords or modify existing roles. Do not reuse a cluster role without reviewing its memberships.
 
-RLS permits USER rows only when scope_identifier equals session_user. This identifies the authenticated login even after SET ROLE. Shared scope membership is not implemented. Owners, superusers and BYPASSRLS roles remain trusted administration; never grant them to consumers. Historical functions are ADMIN-only; approved search functions are invoker-rights and query approved views.
+DuckDB emits an explicit enforcement-boundary note rather than simulated GRANT or RLS statements. Authenticated application controls and separate runtime storage are choices the deployment must settle. Read-only connections are not row security.
 
-Integration tests verify view access, denied base/history/runtime reads for READ, denied outcome updates and scope spoofing. The operational access-layer area remains unknown until login provisioning and membership are reviewed. These SQL policies alone do not assess network authentication or pooled application identities.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.

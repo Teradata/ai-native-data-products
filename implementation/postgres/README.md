@@ -1,54 +1,32 @@
 # PostgreSQL implementation
 
-A sibling of [Teradata](../teradata/) and [DuckDB](../duckdb/), binding all six modules and five patterns without changing the platform-neutral design. PostgreSQL **16+** is the target; execution has been verified on **PostgreSQL 18.3 via PGlite 0.5.8**, including the Psycopg wire-protocol client. Native server concurrency, authentication configuration and recovery have not been tested here. Bindings remain draft pending that operational review.
+Reusable bindings for **any conforming data product**, following the module/pattern layout of the Teradata reference. Target: PostgreSQL 16+. These are Jinja templates and binding documents, not a finished deployment.
 
-The [Customer360 example](../../examples/customer360-postgres/) contains synthetic histories, discovery metadata, exact vector search, engineered features, documentation and validation evidence. Python **3.10+** is needed for generation and validation. PostgreSQL's supplied `btree_gist` extension enforces non-overlapping history. No pgvector or model service is required.
+Each module directory contains its binding document and `.sql.j2` templates. Semantic, Memory and Observability also carry `entities.json`: standard-owned metadata structures used by the table templates. Business entities, composition, placement, model dimensions and documentation are supplied by the product design. Temporal macros are shared within this platform.
 
-Use a **new dedicated database**, with a deployment login allowed to create schemas and cluster roles and install `btree_gist`. The fixed `customer360_role_read`, `customer360_role_agent` and `customer360_role_admin` names must be unused in the cluster. Roles are deliberately not silently reused. Keep credentials in PostgreSQL service/password files or environment configuration, not checked-in scripts.
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md), [TEMPLATE_INPUTS.md](TEMPLATE_INPUTS.md), then the selected module/pattern directories. Render using a Jinja FileSystemLoader rooted here and StrictUndefined. The optional [rendering helper](../../tooling/bindings/README.md) validates inputs and supplies identifier/literal filters; it is not a mandatory product compiler.
+
+## Shared example
+
+Use the existing [IT Service Desk brief and CSVs](../../examples/it-service-desk-data-product/) with the [PostgreSQL walkthrough](../../examples/it-service-desk-data-product/postgres/README.md). The Teradata brief and implementation are unchanged. The new overlay distinguishes shared business requirements from the original workflow instructions.
 
 ```sh
-python -m pip install -r examples/customer360-postgres/requirements.txt
-# Set POSTGRES_DSN to the dedicated database connection string.
-python examples/customer360-postgres/build.py
-python implementation/postgres/validate.py
+python -m pip install -r tooling/bindings/requirements.txt
+python tooling/bindings/render.py --platform postgres --context examples/it-service-desk-data-product/bindings/context.json --placement examples/it-service-desk-data-product/postgres/placement.json --output build/itsd-postgres
 ```
 
-In PowerShell, set `$env:POSTGRES_DSN='service=customer360'`; in a POSIX shell use `export POSTGRES_DSN='service=customer360'`, with the service defined in your PostgreSQL connection configuration. The builder creates and validates inside one transaction; any failure rolls back. It never drops or replaces an existing product. Run the validator as the deployment maintainer or ADMIN, not an analytical reader.
+The helper generates into an empty user-selected output directory, never under design/, implementation/ or examples/. It does not connect to a database or execute DDL. Rendered SQL and manifests are not checked into this skill. Legacy Customer360 builders, generated SQL and product-specific validators have been removed; existing user databases are not migrated or deleted.
 
-For SQL-only deployment to an empty target, using psql's normal connection environment:
-
-```sh
-psql -X -v ON_ERROR_STOP=1 -f examples/customer360-postgres/build.sql
-psql -X -v ON_ERROR_STOP=1 -f implementation/postgres/patterns/validation/conformance.sql
-psql -X -v ON_ERROR_STOP=1 -f examples/customer360-postgres/agent_demo.sql
-```
-
-SQL-only deployment initially reports no-evidence/unknown. Conformance SQL returns counts; only the Python validator publishes error-aware evidence. Grant the NOLOGIN group roles to authenticated logins separately. READ and AGENT query approved views; AGENT runtime rows are restricted to its authenticated USER identity. Owners and superusers remain privileged. See [access-layer](patterns/access-layer/README.md).
-
-| Schema | Binding |
-|---|---|
-| domain | Identity keymaps, SCD2 histories, current views and historical functions |
-| semantic | Authored catalogue, live PostgreSQL facts, orientation and bounded join paths |
-| search | Three-dimensional arrays, exact cosine retrieval and content join-back |
-| prediction | Engineered feature history, availability cutoffs and toy scores |
-| observability | Quality, lineage, executions and validation wire schema 2.1 |
-| memory | Versioned design documentation and runtime process state protected by RLS |
-
-Edit `model.py`, `render.py`, `checks.py` and authored SQL fragments, then regenerate. The deployment model is intentionally independent of DuckDB so each binding can evolve without importing another platform's compiler.
+## Verification
 
 ```sh
-python implementation/postgres/render.py
-python implementation/postgres/render.py --check
-python tooling/catalogue/build_catalogue.py
+python -m unittest discover -s tooling/bindings/tests -v
 python tooling/validation/design_lint.py design implementation
-python -m unittest discover -s tooling/validation/tests
-# POSTGRES_TEST_DSN must point to ANOTHER fresh disposable database/cluster namespace.
-python -m unittest discover -s implementation/postgres/tests -v
+python tooling/catalogue/build_catalogue.py --check
+python tooling/skill/verify_skill.py
 ```
 
-Without POSTGRES_TEST_DSN, only generated-file checks run and database tests explicitly skip. The integration suite creates a product and leaves it in the disposable database; mutations roll back individually. It needs a superuser to simulate authenticated users and check RLS. Do not point it at an existing product. The fixture is not a migration engine.
-
-See [platform profile](PLATFORM_PROFILE.md) and [conformance scope](CONFORMANCE.md).
+Install DuckDB for its native tests and Psycopg for PostgreSQL tests. Set POSTGRES_TEST_DSN to a disposable database with role/extension creation privileges. Missing engines are explicitly skipped. The same templates are tested with ITSD and an unrelated smaller laboratory product. See [CONFORMANCE.md](CONFORMANCE.md) for coverage and remaining obligations.
 
 ## Catalogue
 

@@ -25,7 +25,7 @@ ai-native-data-products/
 ├── implementation/
 │   ├── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
 │   ├── duckdb/                 portable file binding and executable conformance
-│   └── postgres/               server binding, native grants and history constraints
+│   └── postgres/               reusable Jinja bindings, native grants and history constraints
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter

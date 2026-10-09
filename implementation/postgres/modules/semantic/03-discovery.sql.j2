@@ -1,0 +1,44 @@
+{# Inputs: containers, modules. Consumers bootstrap at access.data_product_manifest. #}
+CREATE VIEW {{ qualified(containers.access,'column_catalogue') }} AS
+SELECT c.table_schema AS container_name,c.table_name,c.column_name,c.data_type,c.is_nullable,
+ m.business_description,m.is_pii,m.is_sensitive,m.data_classification,
+ 'information_schema.columns' AS declared_type_source,
+ CASE WHEN m.business_description IS NULL THEN 'missing' ELSE 'authored' END AS description_source
+FROM information_schema.columns c LEFT JOIN {{ qualified(containers.semantic,'column_metadata') }} m
+ON m.container_name=c.table_schema AND m.table_name=c.table_name AND m.column_name=c.column_name
+WHERE c.table_schema IN ({% for schema in schemas %}{{ schema|literal }}{% if not loop.last %},{% endif %}{% endfor %});
+CREATE VIEW {{ qualified(containers.access,'data_product_manifest') }} AS
+SELECT p.product_id,p.product_version,p.approved_entrypoint,p.trust_authoritative_producer,
+ o.resource_role,o.object_identity,o.discovery_order,o.is_required
+FROM {{ qualified(containers.semantic,'data_product_registry') }} p
+JOIN {{ qualified(containers.semantic,'data_product_orientation') }} o USING(product_id);
+CREATE VIEW {{ qualified(containers.access,'relationship_edges') }} AS
+SELECT source_entity,source_column,target_entity,target_column FROM {{ qualified(containers.semantic,'table_relationship') }}
+UNION ALL SELECT target_entity,target_column,source_entity,source_column FROM {{ qualified(containers.semantic,'table_relationship') }};
+CREATE VIEW {{ qualified(containers.access,'relationship_paths') }} AS
+WITH RECURSIVE paths AS (
+ SELECT source_entity,target_entity,ARRAY[source_entity::TEXT,target_entity::TEXT] AS visited,
+ source_entity||'.'||source_column||' = '||target_entity||'.'||target_column AS join_path,1 AS hops
+ FROM {{ qualified(containers.access,'relationship_edges') }}
+ UNION ALL
+ SELECT p.source_entity,e.target_entity,array_append(p.visited,e.target_entity),
+ p.join_path||' AND '||e.source_entity||'.'||e.source_column||' = '||e.target_entity||'.'||e.target_column,p.hops+1
+ FROM paths p JOIN {{ qualified(containers.access,'relationship_edges') }} e ON p.target_entity=e.source_entity
+ WHERE p.hops<4 AND NOT (e.target_entity=ANY(p.visited))
+) SELECT * FROM paths;
+
+{% if 'observability' in modules %}
+CREATE VIEW {{ qualified(containers.access,'lineage_graph') }} AS
+SELECT DISTINCT source_table AS source_node,job_name AS target_node,'produces' AS edge_type
+FROM {{ qualified(containers.observability,'data_lineage') }} WHERE is_active
+UNION SELECT DISTINCT job_name,target_table,'produces'
+FROM {{ qualified(containers.observability,'data_lineage') }} WHERE is_active;
+CREATE VIEW {{ qualified(containers.access,'lineage_run_latest') }} AS
+SELECT lineage_id,source_table,target_table,job_name,run_dts,run_status FROM (
+ SELECT d.lineage_id,d.source_table,d.target_table,d.job_name,r.run_dts,r.run_status,
+ row_number() OVER(PARTITION BY d.lineage_id ORDER BY r.run_dts DESC,r.lineage_run_id DESC) AS rank
+ FROM {{ qualified(containers.observability,'data_lineage') }} d
+ LEFT JOIN {{ qualified(containers.observability,'lineage_run') }} r USING(lineage_id)
+ WHERE d.is_active
+) latest WHERE rank=1;
+{% endif %}

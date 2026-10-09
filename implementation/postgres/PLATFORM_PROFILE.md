@@ -10,30 +10,40 @@ platform: postgres
 
 # PostgreSQL platform profile
 
-Target PostgreSQL 16+ with `btree_gist`. The reference has been exercised on embedded PostgreSQL 18.3 (PGlite 0.5.8), not a native production server. Python uses Psycopg 3 and `%s` parameter binding. Generated SQL is also executable directly with psql. All object names in the fixed model are trusted lowercase identifiers; this is not an arbitrary SQL-template input interface.
+## 1. Scope
 
-| Logical concern | Binding | Classification |
-|---|---|---|
-| Identifier / stable allocation | BIGINT identity in permanent natural-key keymaps; atomic upsert | Native |
-| Timestamp / open end | TIMESTAMPTZ, UTC sessions, infinity sentinel | Native |
-| Flag / text / decimal / process JSON | BOOLEAN / VARCHAR / NUMERIC / JSONB | Native |
-| Effective-history integrity | Half-open tstzrange exclusion, partial current uniqueness | Adapted; requires supplied btree_gist extension |
-| Point-in-time reconstruction | STABLE SQL functions with explicit timestamp arguments | Adapted |
-| Rich metadata | COMMENT plus pg_catalog, joined to authored metadata | Native and adapted |
-| Recursive discovery | Bounded recursive CTEs with visited arrays | Native |
-| Access / runtime privacy | NOLOGIN group roles, view grants and USER RLS | Native; login provisioning external |
-| Embed | Reproducible lexical SQL encoder | Demonstration; semantic quality unassessed |
-| NearestNeighbors | Exact cosine over three-element float8 arrays | Adapted; no approximate index |
-| ApproxIndex | Optional pgvector HNSW/IVFFlat | External extension; not deployed |
-| Bitemporal / as-known history | Not selected by this fixture | Unsupported in this example |
-| Backup, HA, external storage, production ML | Operator/service evidence | External; not validated |
+Target PostgreSQL 16+. The module and pattern directories bind platform-neutral contracts through Jinja; no product model is selected by this profile.
 
-PostgreSQL arrays do not enforce a declared dimension; checks must enforce cardinality, shape and element validity. JSONB supports equality/set operations used by conformance queries. `TIMESTAMPTZ` preserves instants, not the original input time-zone label. Python's datetime cannot represent infinity: the temporal writer reads validity ends as text to preserve the sentinel.
+## 2. Type bindings
 
-Sequences may have gaps, including after rollback; permanence, not contiguity, is the identifier contract. Keymaps use sequence allocation starting at 1000 to leave room for fixture ids 1..12. When importing other data, reconcile sequence positions as part of the migration. No destructive rebuild option is provided.
+| Logical type | Physical binding |
+|---|---|
+| Identifier / Reference | BIGINT |
+| NaturalKey / Code / Text | VARCHAR or TEXT |
+| Integer / Decimal | INTEGER / DECIMAL(p,s) |
+| Flag | BOOLEAN |
+| Timestamp / Date | TIMESTAMPTZ / DATE; UTC sessions |
+| Vector[n] | DOUBLE PRECISION[] with explicit dimension checks |
+| Process JSON | JSONB |
 
-Keep small tables unpartitioned. Index measured join and time predicates, maintain statistics and autovacuum, and review constraints before partitioning history. The range constraint is concurrency-safe at the database level; the writer also locks per identity. Native concurrent-writer, durability and recovery testing remains outstanding.
+## 3. Temporal integrity
 
-Runtime RLS uses session_user, not a user-controlled setting. It requires separate authenticated identities; shared application logins cannot distinguish end users. Shared scopes are denied pending a membership policy. Owners, superusers and BYPASSRLS users remain trusted administrators. Public function execution is revoked; historical functions remain administrative, while approved search functions use invoker rights.
+Half-open valid and optional knowledge intervals; infinity is confined to interval boundaries. GiST exclusion with btree_gist enforces non-overlap across both axes. Partial unique indexes enforce one current row. Bitemporal history retains old knowledge; it cannot be replaced with ordinary SCD2 when the design requires correction semantics.
 
-Authoritative references: [range exclusion constraints](https://www.postgresql.org/docs/16/rangetypes.html#RANGETYPES-CONSTRAINT), [row security and bypass boundaries](https://www.postgresql.org/docs/16/ddl-rowsecurity.html), and [function execution/security](https://www.postgresql.org/docs/16/sql-createfunction.html).
+## 4. Physical storage
+
+Start with native storage and unpartitioned small tables. Index and partition only from measured workload requirements; establish backup/restore and operational evidence separately.
+
+## 5. Access boundary
+
+Native roles, view grants and USER RLS are emitted. Identity is session_user; owners/superusers remain privileged. Shared scopes require a separate membership policy.
+
+## 6. Capabilities and gaps
+
+Exact cosine retrieval joins vectors back to Domain. Encoder/model execution and predictive quality require explicit product implementations; approximate indexing is optional. Runtime identity, storage operations and performance are not certified by schema checks. See CONFORMANCE.md.
+
+## 7. SQL Idioms and Driver Constraints
+
+Use quoted identifiers and escaped literals through the documented filters. Use Psycopg %s parameters for data values and savepoints after query errors. Arrays do not enforce declared dimensions without checks. JSONB supports equality used by conformance. Historical surfaces are SQL functions with typed timestamp arguments; bitemporal surfaces take both valid_at and known_at. Render StrictUndefined templates with a loader rooted at this platform directory. Type/constraint expressions are builder-authored SQL, not user data.
+
+Runtime versions tested are recorded in CONFORMANCE.md; a target version is not itself proof of a native execution matrix.

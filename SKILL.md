@@ -46,7 +46,7 @@ design/            platform-agnostic standards: the source of truth for what and
 implementation/
   teradata/        the concrete binding: DDL templates, queries, grants, platform profile
   duckdb/          portable file binding and executable Customer360 example
-  postgres/        server binding, native access controls and executable Customer360 example
+  postgres/        reusable Jinja bindings with native roles and temporal constraints
 tooling/
   validation/      design_lint.py - checks the standards are well formed
   evals/           brief_lint.py  - checks a product design against the standards

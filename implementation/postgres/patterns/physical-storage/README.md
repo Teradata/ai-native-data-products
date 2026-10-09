@@ -11,10 +11,12 @@ platform: postgres
 
 # PostgreSQL: Physical Storage
 
-Binding of [Physical Storage](../../../../design/patterns/physical-storage.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Physical Storage](../../../../design/patterns/physical-storage.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-The baseline stores all data in native PostgreSQL heap tables with WAL-backed transactions. B-tree primary/unique indexes support identity lookup; GiST range exclusion enforces history integrity. `ANALYZE`, autovacuum, connection limits and backup/restore are operator responsibilities. Small fixture tables are deliberately unpartitioned.
+The baseline is native database storage. Small tables are unpartitioned; indexing, statistics, vacuum/checkpoint and storage layout are selected from measured workloads. No external file, object-store mount or approximate vector index is assumed by the templates.
 
-For larger workloads, choose partition keys from measured access patterns and review uniqueness/exclusion behavior across partitions before migration. BRIN can suit append-ordered event time scans; measure with `EXPLAIN (ANALYZE, BUFFERS)` before adding indexes. JSONB runtime context is process metadata, not a substitute for typed Domain columns.
+PostgreSQL uses B-tree identity indexes and GiST history exclusion; review constraint behavior before partitioning. DuckDB uses its native columnar storage and transaction model. File permissions and serving processes are its access boundary.
 
-No object-store extension, foreign table, vector index or external file is required. This example does not prove backup durability, disaster recovery, replication or storage performance; the trust map keeps physical-storage unknown pending operator evidence.
+The validator does not establish backup/restore, durability, replication, disaster recovery or performance. Publish operator evidence separately. Generated database files and deployment packages belong in the user's output location, not this skill.
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.

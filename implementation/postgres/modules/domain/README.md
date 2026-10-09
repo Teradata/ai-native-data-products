@@ -11,10 +11,35 @@ platform: postgres
 
 # PostgreSQL: Domain
 
-Binding of [Domain](../../../../design/modules/domain.md). The design owns the contract; this binding adds platform mechanisms and enforcement limits.
+Binding of [Domain](../../../../design/modules/domain.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-[schema.sql](schema.sql) provides four permanent keymaps and SCD2 histories for Customer, Product, Account and Transaction. Identity sequences allocate keys only in keymaps; a composite foreign key binds each history row to its permanent id and natural key. `allocate_key` in [temporal.py](../../temporal.py) uses atomic upsert; keys are never recycled. Maintainers must retain keymaps for product life.
+`01-tables.sql.j2` accepts arbitrary History, Reference and Association entities. Keymaps are permanent CURRENT_STATE tables; the physical entity references its stable id and natural key. PostgreSQL uses identity allocation; DuckDB uses sequences. `02-key-allocation.sql.j2` returns the permanent id with atomic upsert. DuckDB writers must serialize and retry conflicting transactions.
 
-`CurrentStateFilter` uses explicit `v_*` projections, `is_current`, open validity and non-deletion. `NaturalKeyLookup` queries these views. `PointInTimeReconstruction` uses `at_*(timestamptz)` SQL functions with half-open containment. These full-history functions require ADMIN privileges. `EntityJoinBack` resolves ids to current or as-of Domain; enhancement modules do not copy content. `AccessView` is enforced by grants.
+The temporal pattern supplies canonical fields and comments. SCD2 and bitemporal profiles are separate choices. Default views hide lifecycle/audit columns; historical functions/macros expose approved full history. Business attributes, keys, comments and placement are inputs; no service-desk or customer schema is built into the binding.
 
-`RichMetadata` uses table and column comments. `MetadataCoverageCheck` compares `pg_catalog` facts with authored Semantic metadata. `SemanticRegistration` and `DocumentationCapture` are generated after dependencies deploy. `DOM-KEY`, `JOIN`, `META`, `BOUNDARY` and `TLM` checks cover this fixture; native exclusion constraints reject overlapping versions. Tests exercise boundaries, replay, late changes and rollback. Business-time SCD2 does not provide as-known reconstruction.
+Checks cover expected physical columns and comments, finite timestamps, overlapping intervals and declared current relationships. Stable keymap references are enforced by foreign keys. Historical relationship coverage, domain-specific quality rules and no-content-duplication reviews still require the product's design checks.
+
+## Capability bindings
+
+| Capability | Binding |
+|---|---|
+| `SurrogateKeyAllocation` | Templates and enforcement limits described above. |
+| `CurrentStateFilter` | Templates and enforcement limits described above. |
+| `PointInTimeReconstruction` | Templates and enforcement limits described above. |
+| `NaturalKeyLookup` | Templates and enforcement limits described above. |
+| `EntityJoinBack` | Templates and enforcement limits described above. |
+| `AccessView` | Templates and enforcement limits described above. |
+| `RichMetadata` | Templates and enforcement limits described above. |
+
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+
+## Invariants and checks
+
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-DOMAIN-001` | Per-entity metadata query checks physical comments. |
+| `INV-DOMAIN-002,006` | Shared current/as-of templates; native two-axis reconstruction tests. |
+| `INV-DOMAIN-003,004` | Permanent keymap/FK DDL; supplied identity/natural-key declarations. Retention is operational. |
+| `INV-DOMAIN-005,007` | Review the product field/relationship declarations; no generic semantic duplication detector is claimed. |
+
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal/lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.
