@@ -1,0 +1,5 @@
+{# Minimum documentation is an actual obligation, never satisfied by generated filler. #}
+SELECT m.module_name FROM {{ qualified(containers.access,'v_module_registry') }} m WHERE
+ (SELECT count(*) FROM {{ qualified(containers.access,'v_design_decision') }} d WHERE d.source_module=m.module_name)<3
+ OR (SELECT count(*) FROM {{ qualified(containers.access,'v_business_glossary') }} g WHERE g.source_module=m.module_name)<3
+ OR NOT EXISTS(SELECT 1 FROM {{ qualified(containers.access,'v_query_cookbook') }} q WHERE q.source_module=m.module_name);

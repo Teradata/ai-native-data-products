@@ -1,0 +1,28 @@
+{# Generic physical entity binding. Business fields and identifiers come from entity inputs.
+   Standard-owned metadata entities are declared alongside their module templates.
+   Key allocation uses a sequence named by entity.key_sequence. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+{% macro table(e) -%}
+{% if e.allocation=='keymap' %}
+CREATE SEQUENCE {{ qualified(e.schema,e.key_sequence) }};
+CREATE TABLE {{ qualified(e.schema,e.keymap) }} (
+ {{ e.key|ident }} BIGINT DEFAULT nextval({{ qualified(e.schema,e.key_sequence)|literal }}) PRIMARY KEY,
+ {{ e.natural_key|ident }} VARCHAR NOT NULL UNIQUE,
+ created_dts TIMESTAMPTZ NOT NULL DEFAULT current_timestamp,
+ updated_dts TIMESTAMPTZ NOT NULL DEFAULT current_timestamp,
+ UNIQUE ({{ e.key|ident }},{{ e.natural_key|ident }})
+);
+COMMENT ON TABLE {{ qualified(e.schema,e.keymap) }} IS 'Permanent natural-key allocation; identifiers must never be recycled.';
+{% for name in [e.key,e.natural_key,'created_dts','updated_dts'] %}
+COMMENT ON COLUMN {{ qualified(e.schema,e.keymap) }}.{{ name|ident }} IS {{ ('Permanent keymap field: ' ~ name)|literal }};
+{% endfor %}
+{% elif e.allocation=='inline' %}CREATE SEQUENCE {{ qualified(e.schema,e.key_sequence) }};{% endif %}
+CREATE TABLE {{ e.qualified }} (
+{% for c in e.columns %}    {{ c.name|ident }} {{ c.type }}{% if c.name==e.key and e.allocation=='inline' %} DEFAULT nextval({{ qualified(e.schema,e.key_sequence)|literal }}){% endif %}{% if not c.nullable %} NOT NULL{% endif %}{% if c.check %} CHECK({{ c.check }}){% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}{{ tlm.columns(e) }},
+    PRIMARY KEY ({{ e.key|ident }}{% if e.history %},valid_from_dts{% endif %}{% if e.bitemporal %},transaction_from_dts{% endif %})
+{{ tlm.constraints(e) }}
+{% if e.allocation=='keymap' %}, FOREIGN KEY ({{ e.key|ident }},{{ e.natural_key|ident }}) REFERENCES {{ qualified(e.schema,e.keymap) }} ({{ e.key|ident }},{{ e.natural_key|ident }}){% endif %}
+{% for constraint in e.constraints %}, {{ constraint }}{% endfor %}
+);
+{%- endmacro %}

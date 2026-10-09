@@ -1,27 +1,40 @@
 ---
-title: DuckDB Memory Module Implementation
+title: DuckDB Memory Implementation
 anchor: memory
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: memory
 platform: duckdb
 ---
 
-# DuckDB Memory
+# DuckDB: Memory
 
-Binding of [Memory](../../../../design/modules/memory.md). [schema.sql](schema.sql) implements both facets without mixing their data or access surfaces.
+Binding of [Memory](../../../../design/modules/memory.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+`entities.json` provides the six standard documentation entities and five runtime entities. Documentation uses versioned history. Runtime is optional (`runtime_memory`) and has no public passthrough view. `02-capture.sql.j2` records supplied design decisions and module declarations; it does not fabricate glossary terms, recipes or decisions to satisfy minimum counts.
+
+`validation.sql.j2` checks per-module minimum decisions, glossary and cookbook coverage. Incomplete capture is a reported gap until the builder records the actual design. Runtime stores process context and aggregate counts, not copied business results. Process context uses the DuckDB `JSON` type.
+
+DuckDB has no row-level security or authenticated principals. Runtime rows carry required `scope_level` and `scope_identifier` columns, but nothing in the engine filters by caller, and read-only mode does not hide them. Privacy needs an authenticated serving application that derives scope from identity, or separate protected storage. Direct access to the database file exposes runtime data.
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `DocumentationCapture` | Six versioned documentation entities, with author/source/instant provenance. |
-| `AgentContinuity` | Scoped runtime process state; privacy enforcement is external. |
+| `DocumentationCapture` | Six versioned documentation entities; `02-capture.sql.j2` loads supplied records; `validation.sql.j2` reports minimum-capture gaps. |
+| `AgentContinuity` | Five scoped runtime entities with required scope columns and CHECK-constrained scope levels. Scope enforcement is external to DuckDB. |
 
-Documentation includes module registry, decisions, glossary, cookbook, implementation notes and change log. Each deployed module has at least three decisions, three glossary terms, a recipe and an initial release; every module pair has a cross-module recipe. Required DD-ACCESS-001, DD-DISCOVERY-001 and QC-SEMANTIC-002 are present. Records explain choices and use, rather than copying Semantic's catalogue. Corrections supersede through the shared temporal writer.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
 
-Runtime includes agent_session, agent_interaction, learned_strategy, user_preference and discovered_pattern. All require scope_level and scope_identifier; none is registered agent-consumable or given a public view. They hold process context, SQL patterns and counts, not customer ids from results or business content. User keys are pseudonymous actor identities, not Domain customer joins. Empty learning stores mean no learning evidence, not omitted structures.
+## Invariants and checks
 
-The [access boundary](../../patterns/access-layer/) is essential: a direct file reader can inspect all synthetic runtime records. A real deployment requires authenticated host filtering or a separate protected runtime file. No parameterized SQL filter alone is claimed as identity enforcement. `C360-DOC-*`, runtime scope checks, history tests and cookbook execution verify storage/capture contracts; external privacy remains explicitly unknown.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-MEMORY-001,002,004` | Standard structures separate process and design context; producer payload review remains necessary. |
+| `INV-MEMORY-003` | Required scope columns and no consumer view or agent-consumable registration are tested. Runtime privacy enforcement is a declared gap. |
+| `INV-MEMORY-005` | Shared versioned temporal templates and checks. |
+| `INV-MEMORY-006` | Module minimum decision, glossary and recipe query; complete capture protocol still applies. |
+
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

@@ -1,0 +1,17 @@
+{# Inputs: schemas, entities, searches and modules. DuckDB has no roles, GRANT, REVOKE or row-level security,
+   so this template emits no simulated privilege statements. It states the enforcement boundary in the
+   deployment record and lists the consumer surfaces an authenticated serving application must expose.
+   Read-only connections prevent writes; they do not hide base tables, runtime memory or PII. #}
+-- Access boundary: DuckDB provides no native principals. Authorisation is an external obligation.
+{% for e in entities if not e.runtime %}
+-- Consumer surface: {{ e.view }}
+{% endfor %}
+{% for e in entities if e.runtime %}
+-- Runtime scope (application-enforced, not exposed): {{ e.qualified }}
+{% endfor %}
+{% for s in searches %}
+-- Consumer search macro: {{ qualified(containers.search,s.name) }}
+{% endfor %}
+{% if 'semantic' in modules %}
+-- Discovery entry point: {{ qualified(containers.access,'data_product_manifest') }}
+{% endif %}
