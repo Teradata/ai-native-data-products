@@ -2,21 +2,21 @@
 title: DuckDB Validation Implementation
 anchor: validation
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: validation
 platform: duckdb
 ---
 
-# DuckDB validation evidence
+# DuckDB: Validation
 
-Binding of [validation](../../../../design/patterns/validation.md). [checks.py](../../checks.py) defines executable violation queries with stable test ids, owner scope, category and severity. [validate.py](../../validate.py) executes them and appends `observability.validation_run`, `validation_area` and `validation_check`. The schema is 2.1, with canonical names, producer/profile identity, actual execution instants, authoritative counts and separate status/severity axes.
+Binding of [Validation](../../../../design/patterns/validation.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-The count-only producer leaves readiness scores and optional capped JSON null, and proposes no automatic repairs. Full failing counts and execution errors remain in validation_check. SQL failures become ERROR results rather than disappearing. Run and area publication is transactional; prior evidence is retained. `views.sql` selects latest-per-area deterministically by completed_dts/run_id and uses that area's parent expiry, not the newest unrelated run. Expired evidence becomes unknown with a rerun action. The product names exactly one authoritative producer.
+`01-entity-check.sql.j2` returns physical-metadata defects (read from `duckdb_columns()`) and temporal defects; `02-relationship-check.sql.j2` checks current-surface reference coverage. Module validation templates add inventory and documentation coverage. The helper renders a check manifest for the actual product instead of a fixed test inventory. Each check is a query whose every row is a defect.
 
-Run `python implementation/duckdb/validate.py <database>` for persisted evidence; use [conformance.sql](conformance.sql) for read-only CLI violation counts. A nonzero count or execution error fails the fixture publication gate. This is a build integrity check, **not** a consumer access gate. `agent_use_allowed` is always `go`, retained only for compatibility; consumers do not branch on it.
+`04-trust-map.sql.j2` retains wire-schema 2.1 semantics: designated producer, latest evidence per area, expiry, cautious fallback and no-evidence/unknown. It requires Semantic and Observability. Other compositions can execute checks without persisting evidence; absence of a module must not create dangling SQL.
 
-The profile covers every module, temporal metadata, object placement and validation. External security, external storage operations and embedding quality have explicit no-evidence areas. Scores are not fabricated for unassessed quality. Strong means the defined checks passed, not that all possible operational risks were tested. Table-model allowlists detect new content columns outside Domain; code review must still assess the semantic meaning of newly approved fields.
+`tooling/bindings/validate.py` records errors without treating them as zero defects. DuckDB runs individual checks outside a caller transaction and publishes the run, area and check evidence in one transaction. Summaries are severity aware: failed ERROR or CRITICAL checks give weak confidence, a failed WARNING leaves partial. The shared fixture `tooling/bindings/tests/trust_cases.json` exercises the producer, and the trust-map view consumes the published areas in tests. It is a structural profile, not a certification of arbitrary business rules. Required documentation and unverified model or operational capabilities remain visible gaps. Add design-specific checks to the generated manifest in the product workspace, with explicit scope and provenance.
 
-Producer and consumer tests share [trust_cases.json](../../tests/trust_cases.json), testing empty, partial, warning, error and full coverage plus SQL staleness/producer selection. The module [conformance map](../../CONFORMANCE.md) distinguishes SQL checks, behavioural tests and external obligations. No golden wire 1.0/2.0 importer is shipped: this producer accepts native 2.1 only. Clients ingesting other producers must implement the standard's legacy compatibility and cautious fallback before treating those records as authoritative.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.

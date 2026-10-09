@@ -2,85 +2,84 @@
 title: DuckDB Platform Profile
 anchor: duckdb
 type: platform-profile
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: false
 platform: duckdb
 ---
 
 # DuckDB platform binding
 
-This binds the [design language](../../design/core/DESIGN_LANGUAGE.md) without changing it. Minimum **tested** engine: DuckDB **1.4.3**, pinned by the example. Other versions require the same build gates; no claim of forward compatibility replaces those gates.
+This binds the [design language](../../design/core/DESIGN_LANGUAGE.md) and the [implementation authoring standard](../../design/core/IMPLEMENTATION_AUTHORING.md) without changing them. The module and pattern directories bind platform-neutral contracts through Jinja; no product model is selected by this profile.
 
-## Deployment and lifecycle
+## 1. Engine versions and driver constraints
 
-DuckDB is an embedded analytical engine. The host opens a database file, writes transactions, checkpoints and closes it; clients then open the resulting file. One product owns one file and six module schemas. The file stem becomes the catalogue name: do not name it after a module (especially `memory`). A database can instead be transient; for in-memory experiments attach `':memory:' AS customer360`, select it, and detach the initial empty `memory` catalogue before deploying the Memory schema. The reference builder uses persistent files.
+Target DuckDB 1.4 or later. The suite has been run against DuckDB **1.5.6** through the Python driver; other versions are untested, and a target version is not itself proof of a native execution matrix. Tooling needs Python 3.10+ and Jinja2 3.1. Match client and driver engine versions and test reopening a file after any upgrade. Record the versions tested in [CONFORMANCE.md](CONFORMANCE.md).
 
-Use one writer process. Multiple threads within it can participate in optimistic concurrency; applications must retry conflicts. Multiple independent reader processes open read-only after the writer closes. Do not share a writable file between independent processes or treat a network filesystem as a database server. Promote a closed, checkpointed file to an environment-specific directory; retain an immutable prior release for rollback. Do not copy an active file without a consistent backup protocol. These choices follow DuckDB's [concurrency model](https://duckdb.org/docs/stable/connect/concurrency).
+## 2. Binding settings
 
-Inspect structure through `information_schema`, `duckdb_tables()`, `duckdb_views()`, `duckdb_columns()` and `duckdb_functions()`. Table and column comments carry authored meaning. Schemas/databases cannot be commented, and dependencies can prevent comment changes; apply comments before dependent objects. Semantic stores module descriptions and curated view-column meaning, so it does not depend on PostgreSQL comment behaviour. See [COMMENT ON](https://duckdb.org/docs/current/sql/statements/comment_on).
-
-## Logical type bindings
-
-| Design type | DuckDB type | Semantic constraints |
-|---|---|---|
-| Identifier | BIGINT | Permanent keymap allocation; never regenerate an id per version or recycle it. |
-| Reference | BIGINT | Same physical type as target; generic references include a checked kind discriminator. |
-| NaturalKey | VARCHAR | Required, immutable originating key; unique in keymap. |
-| Code | VARCHAR | Validate against its registered Domain reference set. |
-| ShortText / Text / LongText | VARCHAR | Product chooses limits with CHECK(length(...)); VARCHAR(n) does not enforce n. The demo has no arbitrary display-length cap. |
-| Enum | VARCHAR + CHECK | Closed vocabulary; extend only through a reviewed model migration. |
-| Flag / Boolean | BOOLEAN NOT NULL | Two values; null is not a third state. |
-| Integer | INTEGER | BIGINT for counts that can exceed signed 32-bit; SMALLINT/TINYINT only after range proof. |
-| Decimal(p,s) | DECIMAL(p,s) | Exact precision/scale; max precision 38. Scores add range checks. |
-| Date | DATE | Calendar date, never substituted for a validity instant. |
-| Timestamp | TIMESTAMPTZ | Microsecond instant; UTC session rendering. Stores the instant, not the original zone name. |
-| Explicit zone-naive exception | TIMESTAMP | Only with a recorded decision and assumed zone in entity metadata; not used here. |
-| Json | JSON | Flexible document values; STRUCT for stable typed structures in a specialised binding. |
-| Vector[dim] | FLOAT[dim] | Separate physical table per dimension/model family; validate recorded dimensions and finite, nonzero vectors. |
-
-All validity ends use `'infinity'::TIMESTAMPTZ`; event instants use null until the event occurs. The temporal writer preserves infinity through SQL instead of Python's finite `datetime.max` conversion.
-
-## Capability matrix
-
-Support describes the binding, not a promise that the standalone engine enforces application policy.
-
-| Capability | DuckDB binding | Support | Limits / evidence |
+| Setting | Values | Default | Notes |
 |---|---|---|---|
-| RichMetadata | COMMENT ON plus curated Semantic metadata | adapted | Schema and view-column meanings in explicit registries; META checks. |
-| MetadataCoverageCheck | Catalogue anti-joins against authored columns | native | Checks physical comments and registration. |
-| SurrogateKeyAllocation | Permanent keymaps and transactional serial writer | adapted | Host prevents keymap deletion; arbitrary admin SQL can bypass. |
-| NaturalKeyLookup | Keymap uniqueness + current views | native | Stable identity across all history. |
-| CurrentStateFilter | Explicit views over open validity, current flag and deletion | native | No lifecycle flag substitutes for currency. |
-| PointInTimeReconstruction | Half-open table macros | adapted | Effective SCD2 history; as-known transaction-time correction is not provided. |
-| SoftDelete | Tombstone successor, retained predecessors | adapted | Transactional writer, not automatic triggers. |
-| EntityJoinBack | Identifier joins with checked kind | native | Search and Prediction keep no Domain content. |
-| AccessView | Explicit projections, registered passthroughs/composites | native | A view is an interface, not a security boundary. |
-| SemanticRegistration | Generated deployment inserts from model | adapted | No consumer-time DDL parsing. |
-| DocumentationCapture | Six versioned documentation entities | adapted | Writer + capture minimum and provenance checks. |
-| AgentContinuity | Scoped sessions, interactions, strategies, preferences, patterns | external/application-enforced | Privacy filtering/authentication belongs in host; no unrestricted runtime access surface. |
-| NearestNeighbors / VectorSimilarity | array_cosine_similarity, ORDER BY, LIMIT | native | Exact scan; deterministic ties. |
-| Embed | SQL toy lexical encoder; production model in host | adapted | Demonstrates the contract, not learned semantic quality. |
-| ApproxIndex{IVF\|HNSW} | Optional VSS HNSW | unsupported in baseline | No IVF implementation; persistent HNSW excluded. |
-| ChangeEventCapture | Append table-level change events | external/application-enforced | Writer must emit events; DuckDB has no automatic audit trigger here. |
-| LineageCapture | Flow definitions + separate execution records | adapted | Table grain, independent retention. |
-| AgentOutcomeCapture | Append aggregate outcomes | external/application-enforced | Host supplies actor identity and redacts query parameters. |
-| QualityScore | Independent quality time series | native | No conflation with validation coverage. |
-| ValidationResult | Append run/check/area evidence, wire 2.1 | adapted | Python runner catches execution errors; SQL consumers read published evidence. |
-| ProductRoleAccess | Three logical tier records | external/application-enforced | Native roles/grants and row isolation unsupported. |
-| GraphNativeLineageTraversal | Optional graph-lineage facet | unsupported | Not selected; active tabular edges remain available. |
-| ColumnGrainLineageTraversal | Optional column-lineage facet | unsupported | Not selected; no external Graph Explorer dependency. |
+| containers | One DuckDB schema per selected module plus an access schema | None; required | Supplied by placement. No names are inferred. |
+| roles | Not supported | None | DuckDB has no roles or grants. Supplying `roles` fails the build as an unsupported setting. |
+| key_sequence (per entity) | Identifier-safe name | `<keymap or entity name>_seq` | Resolved by the build tooling. |
+| runtime_memory | true, false | false | Whether the standard Memory runtime tables are rendered. |
 
-## Security and extensions
+## 3. Deployment and lifecycle
 
-The process identity governs file and network access. Read-only mode protects database writes, **not** table confidentiality or all host-side SQL effects. No native role DDL, grants, identity-aware privacy filtering or view-only access is claimed. An authenticated serving application must authorize queries, control external file/network access and append rights, and protect private Memory. Direct-file clients see all synthetic data. See [Access Layer](patterns/access-layer/) and DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview).
+DuckDB is an embedded analytical engine. The host opens a database file, writes transactions, checkpoints and closes it; clients then open the resulting file. One product owns one file and one schema per module plus an access schema. The file stem becomes the catalogue name: do not name it after a module (especially `memory`).
 
-Extensions execute code in the host. Pin and approve packages and repositories; restrict extension installation/loading and external access in a serving process. Baseline SQL neither installs VSS nor downloads models. DuckDB documents [persistent HNSW as experimental](https://duckdb.org/docs/current/core_extensions/vss#persistence); optional acceleration is a separate, rebuildable in-memory cache, never the authoritative file.
+Use one writer process. Multiple threads within it can participate in optimistic concurrency; applications must retry conflicts. Independent reader processes open read-only after the writer closes. Do not share a writable file between processes or treat a network filesystem as a database server. Promote a closed, checkpointed file to an environment-specific directory and keep an immutable prior release for rollback. These choices follow DuckDB's [concurrency model](https://duckdb.org/docs/stable/connect/concurrency).
 
-## Storage and portability
+Structure is inspected through `information_schema`, `duckdb_tables()`, `duckdb_views()`, `duckdb_columns()` and `duckdb_functions()`; always restrict to `current_database()`. Table, view and column comments carry authored meaning. Schemas and databases cannot be commented, and dependencies can block comment changes, so comments are applied after the tables and before dependent objects. Semantic stores module descriptions and curated meaning. See [COMMENT ON](https://duckdb.org/docs/current/sql/statements/comment_on).
 
-Internal columnar storage keeps the example self-contained. DuckDB can read/write Parquet and query remote objects through approved extensions such as httpfs; those assets, credentials and extension versions become external deployment dependencies. Do not assume a view over a Parquet path embeds its data. [Physical storage](patterns/physical-storage/) declares the optional export convention and external validation obligations. Match client/driver engine compatibility and test reopening after upgrades; no Teradata indexes, dictionary queries, locking clauses or database grants are translated.
+## 4. Type bindings
 
-## Settled design questions
+| Logical type | Physical binding | Constraints |
+|---|---|---|
+| Identifier / Reference | BIGINT | Permanent keymap allocation by sequence; never regenerate an id per version or recycle it. |
+| NaturalKey / Code / Text | VARCHAR | VARCHAR(n) does not enforce n; use a CHECK on length where a limit matters. |
+| Enum | VARCHAR plus CHECK | Closed vocabulary declared as an entity column check. |
+| Integer / Decimal | INTEGER / DECIMAL(p,s) | Exact precision and scale; maximum precision 38. |
+| Flag | BOOLEAN | NOT NULL; two values only. |
+| Date | DATE | Calendar date, never a validity instant. |
+| Timestamp | TIMESTAMPTZ | Microsecond instant; UTC sessions (`deploy.sql` sets `TimeZone`). Stores the instant, not a zone name. |
+| Vector[n] | FLOAT[n] | Fixed-size array; one dimension per model family. Compare vectors only within one model space. |
+| Process JSON | JSON | Flexible documents. |
 
-One file/six schemas is the default; private runtime may require a separate protected file. Comments hold compact object/field meaning; explicit Semantic rows hold relationships, roles and orientation. SCD2 uses native timestamps and transactions; the host writer handles late splits and replay. Prediction rejects retrospective corrections instead of claiming bitemporal support. Fixed arrays use one dimension per table. Exact scans are portable; VSS is optional. External storage is an opt-in lifecycle dependency. A small explicit Python model renders checked plain SQL, so deployment requires no template engine. Catalogue generation now discovers platforms; Teradata's comment limit is applied only to that platform. The example captures these choices as Memory decisions, including the security and temporal departures.
+All validity ends use `'infinity'::TIMESTAMPTZ`; event instants are null until the event occurs. The Python driver converts infinity to a finite datetime, so pass open ends as the text `infinity` rather than round-tripping them.
+
+## 5. Temporal integrity
+
+Half-open valid and optional knowledge intervals; infinity is confined to interval boundaries. DuckDB has no exclusion constraints and no partial unique indexes, so non-overlap and "one current row" are checked, not enforced: generated checks detect violations, and writers must be serialized. Bitemporal history retains old knowledge; it cannot be replaced with ordinary SCD2 when the design requires correction semantics. Primary keys include `valid_from_dts` and, for bitemporal, `transaction_from_dts`.
+
+## 6. Physical storage
+
+Native columnar storage in one file. Start unindexed beyond key constraints and choose layout from measured workload. Parquet, httpfs or other extension-based storage is not rendered and, if adopted, is an external dependency with its own version, credential and validation obligations.
+
+## 7. Access boundary
+
+Native roles, grants, view-only access and row isolation are **unsupported**. The process identity governs file and network access. Read-only mode protects writes, not confidentiality. An authenticated serving application must authorise queries, control external access, bound append rights and protect private Memory; direct-file clients see everything. See [Access Layer](patterns/access-layer/README.md) and DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview).
+
+## 8. Extensions
+
+Extensions execute code in the host: pin and approve packages and restrict loading in a serving process. The templates neither install nor load any extension and download no model. DuckDB documents [persistent HNSW as experimental](https://duckdb.org/docs/current/core_extensions/vss#persistence); an optional approximate index would be a separate, rebuildable in-memory cache and is not emitted.
+
+## 9. Capabilities and gaps
+
+| Capability | Binding | Support |
+|---|---|---|
+| Rich metadata | COMMENT ON plus curated Semantic registration | adapted |
+| Surrogate keys | Sequence-backed permanent keymaps; serial writer | adapted |
+| Current state, as-of, soft delete | Explicit views and half-open table macros | native |
+| Exact similarity | `list_cosine_similarity` table macro with Domain join-back | native |
+| Approximate similarity index | Not emitted | unsupported |
+| Embedding and model execution | A separate product implementation | external |
+| Change, outcome and lineage capture | Stores only; producers write them | external |
+| Validation evidence | Wire 2.1 append by `tooling/bindings/validate.py`; SQL trust-map consumer | adapted |
+| Role access and runtime privacy | None in the engine | unsupported |
+| Graph-native and column-grain lineage facets | Not selected | unsupported |
+
+## 10. SQL idioms and driver constraints
+
+Use quoted identifiers and escaped literals through the documented filters. Use `?` parameters for data values through the driver. History surfaces are table macros with untyped parameters; pass typed timestamps. Fixed-size arrays enforce their dimension at insert. Render StrictUndefined templates with a loader rooted at this platform directory. Type and constraint expressions are builder-authored SQL, not user data. Run DuckDB checks in autocommit mode so that one failed query does not poison the following checks.

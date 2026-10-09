@@ -1,0 +1,15 @@
+{# Inputs: entities, containers.access. Runtime intentionally has no public views.
+   DuckDB has no native principals, so the historical table macros are not hidden from
+   anyone who can open the database file; see the access-layer binding. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+{% for e in entities %}
+{% if not e.runtime %}
+CREATE VIEW {{ e.view }} AS SELECT {% for c in e.columns %}{{ c.name|ident }}{% if not loop.last %},{% endif %}{% endfor %}{% if e.history %},valid_from_dts{% endif %}
+FROM {{ e.qualified }} WHERE {{ tlm.current(e) }};
+COMMENT ON VIEW {{ e.view }} IS {{ ('Current consumer surface: ' ~ e.description)|literal }};
+{% endif %}
+{% if e.history %}
+CREATE MACRO {{ qualified(e.schema,e.history_function) }}(valid_at{% if e.bitemporal %},known_at{% endif %}) AS TABLE
+SELECT * FROM {{ e.qualified }} WHERE {{ tlm.at(e) }};
+{% endif %}
+{% endfor %}
