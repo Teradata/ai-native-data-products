@@ -11,11 +11,14 @@ CREATE TABLE {{ product }}_Semantic.access_object (
     access_object_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     database_name VARCHAR(128) NOT NULL,
     object_name VARCHAR(128) NOT NULL,
+    object_type VARCHAR(20) NOT NULL,       -- TABLE, BASE_VIEW, CONSUMER_VIEW, PROCEDURE, FUNCTION: the layer role (STORAGE, ACCESS, CONSUMER)
     access_role VARCHAR(40) NOT NULL,       -- BASE, PASSTHROUGH, COMPOSITE, or an extension value
     represents_entity VARCHAR(128),         -- entity_metadata.entity_name; null for cross-entity composites
     object_grain VARCHAR(200),
     is_agent_consumable BYTEINT NOT NULL DEFAULT 1,
     resolves_to_object VARCHAR(257),        -- container.object for 1:1 passthroughs
+    consumer_audience VARCHAR(10),          -- AGENT, BI, ALL; CONSUMER_VIEW objects only
+    access_semantics VARCHAR(20),           -- FULL_HISTORY, CURRENT_ONLY, POINT_IN_TIME; null when the entity declares no history
     access_note VARCHAR(500),
     is_active BYTEINT NOT NULL DEFAULT 1,
 {{ tlm.columns('CURRENT_STATE', pad=8) }}
@@ -26,6 +29,9 @@ COMMENT ON TABLE {{ product }}_Semantic.access_object IS
 'Registry of consumable objects - which object a consumer queries, what it represents, its grain, and whether an agent should query it directly. Access-layer metadata, not security.';
 COMMENT ON COLUMN {{ product }}_Semantic.access_object.database_name IS 'Container the object is deployed in.';
 COMMENT ON COLUMN {{ product }}_Semantic.access_object.object_name IS 'The queryable object (table or view).';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.object_type IS 'Object role the organisation profile placed the object under: TABLE (STORAGE layer), BASE_VIEW (ACCESS), CONSUMER_VIEW (CONSUMER), PROCEDURE or FUNCTION.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.consumer_audience IS 'Who a CONSUMER_VIEW object is for - AGENT, BI or ALL. Null on every other object type.';
+COMMENT ON COLUMN {{ product }}_Semantic.access_object.access_semantics IS 'Temporal contract of the object - FULL_HISTORY, CURRENT_ONLY or POINT_IN_TIME. Null when the entity declares no history.';
 COMMENT ON COLUMN {{ product }}_Semantic.access_object.access_role IS 'Role in the access layer - open vocabulary; baseline BASE, PASSTHROUGH, COMPOSITE; extensions add.';
 COMMENT ON COLUMN {{ product }}_Semantic.access_object.represents_entity IS 'Entity this object exposes (entity_metadata.entity_name); null for composites spanning entities.';
 COMMENT ON COLUMN {{ product }}_Semantic.access_object.object_grain IS 'Plain-language grain - one row per call.';

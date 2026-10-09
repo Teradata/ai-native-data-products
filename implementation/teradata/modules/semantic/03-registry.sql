@@ -49,7 +49,9 @@ CREATE MULTISET TABLE governance.data_product_registry
    ,approved_entrypoint     VARCHAR(1000)             -- approved first data-access surface
    ,approved_access_mode    VARCHAR(32)               -- VIEW, MCP_TOOL, SEMANTIC_QUERY
    ,trust_authoritative_producer VARCHAR(64)         -- producer_id whose trust map is the product's authoritative one
-   ,is_active               BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+   ,platform_profile        VARCHAR(30)               -- platform the product was built for: an implementation directory name
+   ,standard_version        VARCHAR(20)               -- Master Design version the product was built against
+   ,is_active              BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
     -- Business validity: half-open [valid_from_dts, valid_to_dts)
    ,valid_from_dts          TIMESTAMP(6) WITH TIME ZONE NOT NULL
    ,valid_to_dts            TIMESTAMP(6) WITH TIME ZONE NOT NULL
@@ -90,6 +92,8 @@ COMMENT ON COLUMN governance.data_product_registry.query_cookbook_uri IS 'URI fo
 COMMENT ON COLUMN governance.data_product_registry.approved_entrypoint IS 'Approved first data-access surface (access view, semantic view, MCP tool).';
 COMMENT ON COLUMN governance.data_product_registry.approved_access_mode IS 'VIEW, MCP_TOOL, SEMANTIC_QUERY, or site-defined.';
 COMMENT ON COLUMN governance.data_product_registry.trust_authoritative_producer IS 'producer_id whose validation trust map is this product''s authoritative one; other producers publish evidence. Named at design time - an implicit designation is not readable (validation pattern, VAL-13).';
+COMMENT ON COLUMN governance.data_product_registry.platform_profile IS 'Platform the product was built for (an implementation directory name). Recorded by the build; readers resolve names from the product''s declared layout (Platform Layout Standard).';
+COMMENT ON COLUMN governance.data_product_registry.standard_version IS 'Master Design version the product was built against. Recorded by the build.';
 COMMENT ON COLUMN governance.data_product_registry.is_active IS '1 = current and discoverable, 0 = inactive.';
 COMMENT ON COLUMN governance.data_product_registry.valid_from_dts IS
 'Inclusive start of business validity (UTC). Half-open period.';

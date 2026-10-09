@@ -230,3 +230,24 @@ FROM {{ product }}_Semantic.semantic_synonym AS s
 WHERE s.is_active = 1
 GROUP BY s.object_kind, s.object_name, s.column_name, s.synonym_text
 HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-016: a current product registry row that does not record the platform and standard version
+-- (issue code LAYOUT_NOT_DECLARED; Platform Layout Standard, section 6)
+SELECT r.product_id, 'LAYOUT_NOT_DECLARED' AS issue_code
+FROM governance.data_product_registry AS r
+WHERE r.is_current = 1 AND r.is_deleted = 0 AND r.is_active = 1
+  AND (r.platform_profile IS NULL OR r.standard_version IS NULL);
+
+-- INV-SEMANTIC-017: a consumer view with no audience, or an audience on any other object type
+SELECT a.access_object_id, a.database_name, a.object_name
+FROM {{ product }}_Semantic.access_object AS a
+WHERE a.is_active = 1
+  AND (   (a.object_type = 'CONSUMER_VIEW' AND a.consumer_audience IS NULL)
+       OR (a.object_type <> 'CONSUMER_VIEW' AND a.consumer_audience IS NOT NULL));
+
+-- INV-SEMANTIC-017: two consumer views over one entity that share an audience and access semantics
+SELECT a.represents_entity, a.consumer_audience, a.access_semantics, COUNT(*) AS n
+FROM {{ product }}_Semantic.access_object AS a
+WHERE a.is_active = 1 AND a.object_type = 'CONSUMER_VIEW' AND a.represents_entity IS NOT NULL
+GROUP BY a.represents_entity, a.consumer_audience, a.access_semantics
+HAVING COUNT(*) > 1;
