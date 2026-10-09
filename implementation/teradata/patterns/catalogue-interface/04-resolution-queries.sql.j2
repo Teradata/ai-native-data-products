@@ -5,12 +5,12 @@
 -- How a catalogue integration, or an agent, answers three questions: who owns this
 -- product, which objects am I meant to query, and what changed. Every query resolves its
 -- answer from metadata. None parses a container or object name or assumes a hierarchy.
--- Substitute the product identifier, and where a query reaches into a product's own
--- module, the container name step 1 returned.
+-- Bind the product identifier, and where a query reaches into a product's own module,
+-- render the container name step 1 returned.
 --
--- {semantic_db} is a generic tag for a container name discovered at run time, not a
--- parameter: a container name cannot be bound as one. An MCP server or build script
--- substitutes the value it read in step 1.
+-- {{ semantic_db }} is a template value rather than a query parameter, because a container
+-- name cannot be bound as one. An MCP server or build script renders this template with
+-- the value it read in step 1.
 
 -- ---------------------------------------------------------------------------
 -- 1. Orientation: the product, its contacts, and where its modules are
@@ -31,7 +31,7 @@ SELECT c.product_id
      , c.technical_contact_email
      , c.approved_entrypoint
      , c.approved_access_mode
-FROM governance.data_product_catalogue AS c
+FROM {{ governance_db }}.data_product_catalogue AS c
 WHERE c.product_id = :product_id;
 
 -- Every container the product occupies, under whatever naming the site chose. The names
@@ -41,7 +41,7 @@ SELECT c.module_name
      , c.layer_code
      , c.container_name
      , c.container_role
-FROM governance.data_product_container_current AS c
+FROM {{ governance_db }}.data_product_container_current AS c
 WHERE c.product_id = :product_id
 ORDER BY c.module_name, c.layer_code;
 
@@ -59,7 +59,7 @@ SELECT i.module_name
      , i.object_role
      , i.interface_purpose
      , i.is_primary
-FROM governance.data_product_consumer_interface AS i
+FROM {{ governance_db }}.data_product_consumer_interface AS i
 WHERE i.product_id = :product_id
 ORDER BY i.module_name, i.entity_name, i.is_primary DESC, i.object_name;
 
@@ -70,7 +70,7 @@ ORDER BY i.module_name, i.entity_name, i.is_primary DESC, i.object_name;
 SELECT i.product_id
      , i.product_name
      , COUNT(*) AS consumer_object_count
-FROM governance.data_product_consumer_interface AS i
+FROM {{ governance_db }}.data_product_consumer_interface AS i
 GROUP BY i.product_id, i.product_name
 ORDER BY i.product_id;
 
@@ -78,7 +78,7 @@ ORDER BY i.product_id;
 -- 3. The consumer object list, live from the product's Semantic module
 -- ---------------------------------------------------------------------------
 -- The source the governance feed projects from. A catalogue reads the feed; a conformance
--- check, or an agent already inside the product, reads this. Substitute {semantic_db} with
+-- check, or an agent already inside the product, reads this. {{ semantic_db }} is
 -- the container step 1 returned for module SEMANTIC.
 --
 -- Both catalogues are needed. The view catalogue says which view exposes which base table
@@ -96,12 +96,12 @@ SELECT v.view_database   AS container_name
      , e.module_name
      , p.object_role
      , p.usage_guidance
-FROM {semantic_db}.view_metadata AS v
-LEFT OUTER JOIN {semantic_db}.entity_metadata AS e
+FROM {{ semantic_db }}.view_metadata AS v
+LEFT OUTER JOIN {{ semantic_db }}.entity_metadata AS e
     ON  e.database_name = v.base_database
     AND e.table_name    = v.base_table
     AND e.is_active     = 1
-LEFT OUTER JOIN {semantic_db}.data_product_map_primary_objects AS p
+LEFT OUTER JOIN {{ semantic_db }}.data_product_map_primary_objects AS p
     ON  p.database_name = v.view_database
     AND p.object_name   = v.view_name
     AND p.is_active     = 1
@@ -121,8 +121,8 @@ SELECT p.database_name AS container_name
      , p.object_role
      , p.usage_guidance
      , m.module_name
-FROM {semantic_db}.data_product_map_primary_objects AS p
-INNER JOIN {semantic_db}.data_product_map AS m
+FROM {{ semantic_db }}.data_product_map_primary_objects AS p
+INNER JOIN {{ semantic_db }}.data_product_map AS m
     ON  m.module_id = p.module_id
     AND m.is_active = 1
 WHERE p.is_active   = 1
@@ -133,7 +133,7 @@ ORDER BY m.module_name, p.object_role, p.object_name;
 -- ---------------------------------------------------------------------------
 -- 4. Building the governance interface declaration from the Semantic catalogue
 -- ---------------------------------------------------------------------------
--- What a release runs to stage the interface declaration that 02-lifecycle-dml.sql
+-- What a release runs to stage the interface declaration that 02-lifecycle-dml.sql.j2
 -- section 4 then applies. Keeping the projection in one place is what makes
 -- INV-CATALOGUE-006 checkable.
 --
@@ -143,7 +143,7 @@ ORDER BY m.module_name, p.object_role, p.object_name;
 -- Deriving the layer from the exposure type would be a guess; deriving it from the
 -- container name would be a guess that happens to look right at sites whose containers
 -- are named for their layers.
-INSERT INTO {stage}.interface_declaration
+INSERT INTO {{ stage }}.interface_declaration
       (product_id, container_name, object_name, object_kind, interface_layer
      , exposure_type, module_name, entity_name, interface_purpose, object_role
      , is_primary, is_consumer_facing, is_active)
@@ -160,16 +160,16 @@ SELECT :product_id
      , v.is_primary
      , 1
      , 1
-FROM {semantic_db}.view_metadata AS v
-LEFT OUTER JOIN {semantic_db}.entity_metadata AS e
+FROM {{ semantic_db }}.view_metadata AS v
+LEFT OUTER JOIN {{ semantic_db }}.entity_metadata AS e
     ON  e.database_name = v.base_database
     AND e.table_name    = v.base_table
     AND e.is_active     = 1
-LEFT OUTER JOIN {semantic_db}.data_product_map_primary_objects AS p
+LEFT OUTER JOIN {{ semantic_db }}.data_product_map_primary_objects AS p
     ON  p.database_name = v.view_database
     AND p.object_name   = v.view_name
     AND p.is_active     = 1
-LEFT OUTER JOIN governance.data_product_container AS c
+LEFT OUTER JOIN {{ governance_db }}.data_product_container AS c
     ON  c.product_id     = :product_id
     AND c.container_name  = v.view_database
     AND c.is_current      = 1
@@ -197,7 +197,7 @@ SELECT l.product_id
      , l.is_deleted
      , l.owner_name
      , l.owner_email
-FROM governance.data_product_lifecycle AS l
+FROM {{ governance_db }}.data_product_lifecycle AS l
 WHERE l.version_from_dts > :watermark_dts
 ORDER BY l.version_from_dts, l.product_id;
 
@@ -213,7 +213,7 @@ SELECT i.product_id
      , i.is_active
      , i.is_deleted
      , i.valid_from_dts
-FROM governance.data_product_interface AS i
+FROM {{ governance_db }}.data_product_interface AS i
 WHERE i.valid_from_dts > :watermark_dts
 ORDER BY i.valid_from_dts, i.product_id, i.container_name, i.object_name;
 
@@ -230,7 +230,7 @@ SELECT r.product_id
      , r.owner_name
      , r.owner_email
      , r.is_deleted
-FROM governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_registry AS r
 WHERE r.valid_from_dts <= :as_of_dts
   AND r.valid_to_dts   >  :as_of_dts
 ORDER BY r.product_id;

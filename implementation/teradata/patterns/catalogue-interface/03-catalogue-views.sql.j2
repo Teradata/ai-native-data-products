@@ -18,7 +18,7 @@
 -- What version 1.0 clients expect, with the currency predicate applied. A client filtering
 -- on is_active and is_deleted alone now matches every historical version of every product;
 -- reading this view instead of the table is the one-line migration.
-REPLACE VIEW governance.data_product_current
+REPLACE VIEW {{ governance_db }}.data_product_current
 (
       product_id
     , product_name
@@ -78,12 +78,12 @@ SELECT
     , r.valid_from_dts
     , r.created_dts
     , r.updated_dts
-FROM governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_registry AS r
 WHERE r.is_current = 1
   AND r.is_deleted = 0
   AND r.is_active  = 1;
 
-COMMENT ON VIEW governance.data_product_current IS
+COMMENT ON VIEW {{ governance_db }}.data_product_current IS
 'Default product discovery surface - current, live, consumer-visible products only. Read this rather than the registry table: the currency predicate is applied here.';
 
 -- 2. data_product_catalogue: the enterprise catalogue product feed -----------
@@ -95,7 +95,7 @@ COMMENT ON VIEW governance.data_product_current IS
 -- one (Alation's contactName and contactEmail). Business owner first, technical contact as
 -- fallback, since a catalogue entry is usually read by someone looking for the accountable
 -- owner before an engineer. Both pairs are also exposed unreduced.
-REPLACE VIEW governance.data_product_catalogue
+REPLACE VIEW {{ governance_db }}.data_product_catalogue
 (
       product_id
     , product_name
@@ -155,14 +155,14 @@ SELECT
     , r.valid_from_dts
     , r.deleted_dts
     , r.updated_dts
-FROM governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_registry AS r
 WHERE r.is_current = 1;
 
-COMMENT ON VIEW governance.data_product_catalogue IS
+COMMENT ON VIEW {{ governance_db }}.data_product_catalogue IS
 'Enterprise catalogue product feed - one row per product in its current version, retired products included, with the single resolved contact name and address a catalogue publishes.';
-COMMENT ON COLUMN governance.data_product_catalogue.contact_name IS 'Resolved catalogue contact name: business owner, or technical contact where no business owner is recorded.';
-COMMENT ON COLUMN governance.data_product_catalogue.contact_email IS 'Resolved catalogue contact address, resolved on the same preference as contact_name.';
-COMMENT ON COLUMN governance.data_product_catalogue.retired_dts IS 'Instant the product was retired; NULL while it is not retired.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_catalogue.contact_name IS 'Resolved catalogue contact name: business owner, or technical contact where no business owner is recorded.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_catalogue.contact_email IS 'Resolved catalogue contact address, resolved on the same preference as contact_name.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_catalogue.retired_dts IS 'Instant the product was retired; NULL while it is not retired.';
 
 -- 3. data_product_lifecycle: the transition feed -----------------------------
 -- One row per version of every product, in order, with the state it moved from. A
@@ -172,7 +172,7 @@ COMMENT ON COLUMN governance.data_product_catalogue.retired_dts IS 'Instant the 
 -- prior_status is derived here rather than stored. A stored predecessor state duplicates
 -- what the row order already says, and the two disagree the first time a late correction
 -- is loaded out of sequence.
-REPLACE VIEW governance.data_product_lifecycle
+REPLACE VIEW {{ governance_db }}.data_product_lifecycle
 (
       product_id
     , product_name
@@ -221,18 +221,18 @@ SELECT
     , r.owner_name
     , r.owner_email
     , r.product_description
-FROM governance.data_product_registry AS r;
+FROM {{ governance_db }}.data_product_registry AS r;
 
-COMMENT ON VIEW governance.data_product_lifecycle IS
+COMMENT ON VIEW {{ governance_db }}.data_product_lifecycle IS
 'Product transition feed - every version of every product in order, with the state and version it moved from and a classified transition type. The change feed a catalogue synchronises against.';
-COMMENT ON COLUMN governance.data_product_lifecycle.transition_type IS 'REGISTERED, STATUS_CHANGE, VERSION_RELEASE, RETIRED, or METADATA_CHANGE - derived from the predecessor version.';
-COMMENT ON COLUMN governance.data_product_lifecycle.version_seq IS 'Ordinal of this version within the product, oldest first.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_lifecycle.transition_type IS 'REGISTERED, STATUS_CHANGE, VERSION_RELEASE, RETIRED, or METADATA_CHANGE - derived from the predecessor version.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_lifecycle.version_seq IS 'Ordinal of this version within the product, oldest first.';
 
 -- 4. data_product_consumer_interface: what a consumer may query --------------
 -- The object list for every product at once. Fully qualified names are assembled from the
 -- declared container and object, so a product deployed in any hierarchy under any naming
 -- returns correct identities (INV-CATALOGUE-005).
-REPLACE VIEW governance.data_product_consumer_interface
+REPLACE VIEW {{ governance_db }}.data_product_consumer_interface
 (
       product_id
     , product_name
@@ -270,8 +270,8 @@ SELECT
     , i.interface_purpose
     , i.is_primary
     , i.valid_from_dts
-FROM governance.data_product_interface AS i
-INNER JOIN governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_interface AS i
+INNER JOIN {{ governance_db }}.data_product_registry AS r
     ON  r.product_id = i.product_id
     AND r.is_current = 1
 WHERE i.is_current         = 1
@@ -279,12 +279,12 @@ WHERE i.is_current         = 1
   AND i.is_active          = 1
   AND i.is_consumer_facing = 1;
 
-COMMENT ON VIEW governance.data_product_consumer_interface IS
+COMMENT ON VIEW {{ governance_db }}.data_product_consumer_interface IS
 'Consumer object list - every object a consumer may query, per product, fully qualified from declared names. The table and view list an enterprise catalogue publishes against a product.';
-COMMENT ON COLUMN governance.data_product_consumer_interface.qualified_object_name IS 'Container and object joined for direct use in a query; assembled from declared names, never from a naming convention.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_consumer_interface.qualified_object_name IS 'Container and object joined for direct use in a query; assembled from declared names, never from a naming convention.';
 
 -- 5. data_product_container_current: where the product is deployed -----------
-REPLACE VIEW governance.data_product_container_current
+REPLACE VIEW {{ governance_db }}.data_product_container_current
 (
       product_id
     , product_name
@@ -304,13 +304,13 @@ SELECT
     , c.container_name
     , c.container_role
     , c.valid_from_dts
-FROM governance.data_product_container AS c
-INNER JOIN governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_container AS c
+INNER JOIN {{ governance_db }}.data_product_registry AS r
     ON  r.product_id = c.product_id
     AND r.is_current = 1
 WHERE c.is_current = 1
   AND c.is_deleted = 0
   AND c.is_active  = 1;
 
-COMMENT ON VIEW governance.data_product_container_current IS
+COMMENT ON VIEW {{ governance_db }}.data_product_container_current IS
 'Current container map - every container each product occupies, by module and layer, under whatever hierarchy and naming the site deployed it in.';
