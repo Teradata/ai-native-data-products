@@ -372,6 +372,9 @@ The result is mappable from/to established open formats; `source_format` records
 | VAL-16 | `pass` and `strong` require checks that ran at full coverage; `no-evidence` and `not-validated` carry `confidence` = `unknown`. |
 | VAL-17 | Every entry below `strong` carries `open_gaps` and `recommended_action`. |
 | VAL-18 | Every area a run's profile covers has an entry, including uncovered ones; every failed check's scope resolves to an entry in the same run. |
+| VAL-19 | A producer resolves a product's objects from its declared layout by layer role and binding, never from a suffix, prefix or pattern in a name ([Platform Layout Standard](../core/PLATFORM_LAYOUT.md)). |
+| VAL-20 | A product with no declared layout is reported with the issue code `LAYOUT_NOT_DECLARED` and a repair candidate carrying the inferred declaration; it is neither silently defaulted nor scored as a design failure. |
+| VAL-21 | A check excluded because the product has no binding for the layer it needs is reported with its reason and is not counted in `checks_expected`. |
 
 ---
 
@@ -381,6 +384,7 @@ The result is mappable from/to established open formats; `source_format` records
 - **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)**: both results relations declare profile `EVENT_APPEND_ONLY`; `TLM` blocking rules are canonical CRITICAL/ERROR checks, scoped to that pattern's area.
 - **[Semantic module](../modules/semantic.md)**: its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation publishes the results location and the trust-authoritative producer the specification's `Product:` block names, so the map is read before analytical resource use. Its catalogue is also where an `ENTITY` scope resolves.
 - **`roles/review.md`**: a reviewer builds this same map by hand, in this vocabulary, before a validator exists to publish it. The two are the same artefact at different stages of a product's life.
+- **[Platform Layout Standard](../core/PLATFORM_LAYOUT.md)**: defines the layer roles, the declared layout a producer resolves objects from, the resolution order, and the `LAYOUT_NOT_DECLARED` issue code that `VAL-19` to `VAL-21` rely on.
 - **Implementation**: each platform binding (results relations, catalogue and data checks, wire-schema bindings) lives in `implementation/{platform}/patterns/validation/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
 
 ---

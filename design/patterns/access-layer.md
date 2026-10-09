@@ -141,6 +141,7 @@ The record's `source_module` is `MEMORY`. The Access Layer is a pattern rather t
 - **[Master Design](../core/MASTER_DESIGN.md)**: mandates the Access Layer; this pattern is its full specification. `INV-MASTER-004` fails a consumable composition that omits it.
 - **[Object-placement pattern](object-placement.md)**: owns container naming and the table/view separation this pattern grants against; the implied cross-container grant for the view layer follows from it, computed by the binding from the resolved placement.
 - **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)**: its exposure surfaces (governed full-contract vs default current) are the objects consumers are granted.
+- **[Platform Layout Standard](../core/PLATFORM_LAYOUT.md)**: names the layer roles of the objects this pattern grants on. Its `ACCESS` layer role is the governed one-to-one view, a different thing from this pattern's access tiers.
 - **Modules**: each module defines *what* it contains and registers; the Access Layer defines *who* can read it. Each tier's principal is created for the product once, or bound to an existing principal, as the organisation profile says; a created principal is a product artefact, a bound one is granted to and not owned. Assigning users to principals is an operational event outside these standards.
 
 ---

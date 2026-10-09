@@ -197,6 +197,8 @@ Entity: DataProductRegistry       [kind: Record] [profile: CURRENT_STATE]  // pr
   lineage_uri: ShortText [optional]
   approved_entrypoint: ShortText [required]  // Orientation block: Entrypoint, resolved by the build to the surface it names
   approved_access_mode: Enum{VIEW|MCP_TOOL|SEMANTIC_QUERY} [required]  // Orientation block: Access mode
+  platform_profile: ShortText [optional]  // the platform the product was built for: an implementation directory name; recorded by the build
+  standard_version: ShortText [optional]  // the Master Design version the product was built against; recorded by the build
   is_active: Flag
   is_deleted: Flag [deleted-flag]
   deleted_dts: Timestamp [optional]
@@ -270,6 +272,8 @@ Entity: AccessObject              [kind: Record] [profile: CURRENT_STATE]  // on
   is_agent_consumable: Flag  // whether an agent should query this object directly
   is_primary: Flag  // the canonical consumable object for its entity; at most one per entity
   resolves_to_object: ShortText [optional]  // for 1:1 passthroughs, the object it maps straight through to
+  consumer_audience: Enum{AGENT|BI|ALL} [optional]  // who a consumer-view object is for; absent on other object types
+  access_semantics: Enum{FULL_HISTORY|CURRENT_ONLY|POINT_IN_TIME} [optional]  // the object's temporal contract; absent for an entity that declares no history
   access_note: Text [optional]  // governance, filtering, or usage guidance
   is_active: Flag
 
@@ -287,6 +291,8 @@ Entity: AccessComposition         [kind: Record] [profile: CURRENT_STATE]  // on
 ```
 
 **Consumption contract (normative).** A consumer selecting data resolves through `AccessObject` — it chooses objects marked agent-consumable and reads `represents_entity` — rather than querying base tables directly. A `COMPOSITE` object is presented as a single unit; its internal structure is read from `AccessComposition`, never by parsing a definition or recomputing column lineage at consumption time. Emitted joins target consumable objects (access-resolved, §5), not base tables. **Object names are not a contract:** no consumer infers an object's role, layer, entity, or purpose from its name; the registry is the single source of truth (`INV-SEMANTIC-008`).
+
+**Layout declaration (normative).** `AccessObject` rows, with `EntityMetadata` for the storage object and `DataProductMap` for each module's containers, are the product's declared layout under the [Platform Layout Standard](../core/PLATFORM_LAYOUT.md): `object_type` gives the layer role of every object (`TABLE` is `STORAGE`, `BASE_VIEW` is `ACCESS`, `CONSUMER_VIEW` is `CONSUMER`), and `consumer_audience` and `access_semantics` distinguish several consumer objects over one entity. An evaluator resolves an entity's objects from these rows by layer role, never from a suffix or pattern in a name. `DataProductRegistry.platform_profile` and `standard_version` record the platform and standard version the layout was built for.
 
 **Establishment and ownership (normative).** This metadata is **established once at deployment** by a registration step, defined here by responsibility rather than by tool. The step classifies objects from **verifiable structure** — the dependency graph and object definitions — not from names, and asserts the result in the registry; consumers read it and never recompute it. The concrete role vocabulary beyond the small open baseline, the physical realisation, and the population step are platform concerns (implementation). `AccessObject` is authoritative for object multiplicity per entity and is the module's view catalogue; `EntityMetadata.view_name` is retained as the denormalised pointer to the row marked `is_primary`. A composite comes from the specification's `AccessObject:` block; single-entity objects are registered without one.
 
@@ -310,6 +316,8 @@ Where the product is reached over MCP, the orientation layer is exposed as **res
 **Consumption contract (normative).** A consumer processes resources in ascending `discovery_order`; reads the `TRUST_MAP` resource **before** any analytical resource, and carries the confidence it found there into what it reports (the [validation pattern](../patterns/validation.md)); resolves every `is_required` resource, treating a missing one as a conformance failure; and uses the stored `container.object` (or `resource_uri`) **verbatim**, never deriving object names from conventions (`INV-SEMANTIC-011`).
 
 **The manifest is generated, not authored (normative).** The machine-readable manifest is a **view derived** from `DataProductRegistry` and `DataProductOrientation` — it pivots the ordered resources into named entrypoint columns — so it cannot drift from the metadata it summarises (`INV-SEMANTIC-012`). The registry's serialised `manifest` remains the whole-document form for clients that want it in one read, regenerated from the same authoritative metadata rather than hand-authored to diverge.
+
+**`DD-LAYOUT-001`.** When Semantic is deployed, the build records `DD-LAYOUT-001` in Memory's documentation facet, per the [Platform Layout Standard](../core/PLATFORM_LAYOUT.md). It records the platform, the standard version and the organisation profile behind the product's names, and that readers resolve objects from the declared layout.
 
 **`DD-DISCOVERY-001`.** The specification's `Orientation:` block ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.6) settles one question: *how does an agent that knows only the product's name reach data it is allowed to use?* It states the approved entrypoint and access mode, and a `Decision:` block, `DD-DISCOVERY-001`, records why; the module part of a decision id names the module or concern it belongs to, here discovery. The record explains the choice of entrypoint and access mode and the navigation the manifest recommends. What makes it worth recording rather than inferring is that the answer is a set of choices the deployed metadata cannot explain about itself: an agent can read that an entrypoint is approved, not why that surface was chosen as the approved one, nor what an agent arriving without a product name is expected to do.
 
@@ -362,7 +370,7 @@ Before emitting a query, an agent resolves the object to read through `AccessObj
 | `object-placement` | The organisation profile places the catalogue and its views; this module dictates no placement. |
 | `access-layer` | Consumers are granted read on Semantic's objects in Phase 1.5b, at the grant level the organisation profile sets: the minimum grant that makes a product discoverable. |
 | `temporal-lifecycle-metadata` | Every catalogue entity declares its profile in its header; `EntityMetadata.temporal_pattern` *carries* each entity's profile for the whole product, and `ColumnMetadata.logical_name` lets the pattern's rules resolve canonical columns through the organisation's name mapping. |
-| `validation` | Its primary-object, view, and relationship-completeness checks are canonical STRUCTURAL/SEMANTIC validator checks. |
+| `validation` | Its primary-object, view, and relationship-completeness checks are canonical STRUCTURAL/SEMANTIC validator checks, and resolve objects by the declared layout ([Platform Layout Standard](../core/PLATFORM_LAYOUT.md)). |
 
 ---
 
@@ -417,6 +425,8 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-013`: every registered metric carries a platform-neutral definition and at least one expression derived from it, each in a declared dialect, and no two expressions of one metric declare the same dialect.
 - `INV-SEMANTIC-014`: every dataset a metric names is an entity registered in the same product, and every metric names exactly one dataset in the primary role.
 - `INV-SEMANTIC-015`: every synonym resolves to a registered entity, column or metric; a synonym is unique within the object it resolves to.
+- `INV-SEMANTIC-016`: `DataProductRegistry.platform_profile` and `standard_version` are recorded by the build and never supplied by a designer; `platform_profile` names a platform that has a directory under `implementation/`.
+- `INV-SEMANTIC-017`: `AccessObject.consumer_audience` is present on every `CONSUMER_VIEW` object and absent on every other object type; where an entity has more than one `CONSUMER_VIEW` object, no two share an audience and access semantics.
 
 ---
 
@@ -440,7 +450,8 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - [ ] Consumable objects registered in `AccessObject` and composites recorded in `AccessComposition`; consumers resolve through the registry, not object names (`INV-SEMANTIC-008` to `INV-SEMANTIC-010`).
 - [ ] Every published metric carries a platform-neutral definition, a primary dataset, and an additivity declaration, with its dialect expressions generated from the definition (`INV-SEMANTIC-013`, `INV-SEMANTIC-014`).
 - [ ] Synonyms resolve to registered objects (`INV-SEMANTIC-015`).
-- [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles), and the ERD recipe `QC-SEMANTIC-002`.
+- [ ] The registry records the platform and standard version, and consumer objects record their audience (`INV-SEMANTIC-016`, `INV-SEMANTIC-017`); `DD-LAYOUT-001` is recorded.
+- [ ] Documentation capture completed, including `DD-DISCOVERY-001` when the orientation layer is deployed (see the orientation layer section for what it settles) and `DD-LAYOUT-001`, and the ERD recipe `QC-SEMANTIC-002`.
 - [ ] This document passes the design linter with no ignore directive.
 
 ---
