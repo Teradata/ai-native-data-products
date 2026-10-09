@@ -17,26 +17,26 @@ Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patte
 
 | File | Purpose |
 |------|---------|
-| `access-layer.dcl.sql` | The Phase 1.5a implied grants, then `CREATE ROLE` for the three roles and the phased `GRANT` blocks (schema-neutral tags `{ProductName}_{Module}`). |
-| `dd-access-001.sql` | The mandatory `DD-ACCESS-001` design-decision record inserted into the product's Memory documentation facet. |
+| `access-layer.dcl.sql.j2` | The Phase 1.5a implied grants, then `CREATE ROLE` for the three roles and the phased `GRANT` blocks (container and role names come from the build context: `semantic_db`, `memory_db`, `domain_db`, `observability_db`, `access_db`, `role_read`, `role_agent`, `role_admin`; Search and Prediction grants render only when those modules are in `modules`). |
+| `dd-access-001.sql.j2` | The mandatory `DD-ACCESS-001` design-decision record inserted into the product's Memory documentation facet. |
 
 ## Bindings
 
 | Pattern element | Teradata binding |
 |-----------------|------------------|
-| Role | `CREATE ROLE {ProductName}_ROLE_{TIER}` plus a `COMMENT ON ROLE` of **one short sentence naming the role's consumers**. Never the containers it reaches or the rights it holds (see below). |
-| Read | `GRANT SELECT ON {container} TO {role}`. |
-| Write-back (append) | `GRANT INSERT ON {container} TO {role}` (Memory, Observability; `ROLE_AGENT` only). |
-| Module access container | `{ProductName}_{Module}` (standard placement) or the `_V` view container under `STRICT_SEPARATION` (see [object-placement](../object-placement/)). |
-| Implied grant (Phase 1.5a) | `GRANT SELECT ON {module_container} TO {access_container} WITH GRANT OPTION`. |
+| Role | `CREATE ROLE {{ role_read }}` (and `role_agent`, `role_admin`) plus a `COMMENT ON ROLE` of **one short sentence naming the role's consumers**. Never the containers it reaches or the rights it holds (see below). |
+| Read | `GRANT SELECT ON {{ semantic_db }} TO {{ role_read }}` (one grant per container and tier). |
+| Write-back (append) | `GRANT INSERT ON {{ memory_db }} TO {{ role_agent }}` (Memory, Observability; `ROLE_AGENT` only). |
+| Module access container | The container the build context places for each module (`semantic_db`, `memory_db`, ...), or the view container under `STRICT_SEPARATION` (see [object-placement](../object-placement/)). |
+| Implied grant (Phase 1.5a) | `GRANT SELECT ON {{ semantic_db }} TO {{ access_db }} WITH GRANT OPTION` (one per module container). |
 
 ## What a role comment says
 
 One sentence, naming who the role is for:
 
 ```sql
-COMMENT ON ROLE {ProductName}_ROLE_AGENT IS
-    '{ProductName} data product - AI agent and automated tool role.';
+COMMENT ON ROLE {{ role_agent }} IS
+    '{{ product }} data product - AI agent and automated tool role.';
 ```
 
 Not what it can reach. The comment previously ran to three lines listing the containers, the write-back rights, and the reason `ROLE_AGENT` is separate, and it failed two ways at once.
@@ -45,7 +45,7 @@ It was **rejected on deployment** with `[5550] Comment string is longer than per
 
 More importantly it **published the permission boundary**. `DBC` role comments are readable by principals who cannot read the grants themselves, so enumerating the grant model in one hands out a map of the access design to anyone who can query the catalogue. The grant matrix in the [pattern](../../../../design/patterns/access-layer.md) is the authoritative statement of who reaches what, and `DD-ACCESS-001` already records why the boundary sits where it does, inside the product. The comment was a third copy of both, and the only one exposed this widely.
 
-The product name is the sole variable part, so the rendered length is predictable: keep the descriptor to a handful of words and a long product name still fits.
+The product name is the sole variable part of the text, so the rendered length is predictable: keep the descriptor to a handful of words and a long product name still fits.
 
 ## Privilege split
 
@@ -63,4 +63,4 @@ Where the deploying account does not hold it, emit that block as a separate DBA-
 
 ## Artefact location
 
-In a data product's artefact tree the DCL lives at `00-access/{ProductName}_access_layer.dcl`, the `00-` prefix marking it as a prerequisite alongside the module directories. The roles are product artefacts created once; assigning users/service accounts to them is an operational event, not part of this artefact.
+In a data product's artefact tree the rendered DCL lives under `00-access/`, the `00-` prefix marking it as a prerequisite alongside the module directories. The roles are product artefacts created once; assigning users/service accounts to them is an operational event, not part of this artefact.

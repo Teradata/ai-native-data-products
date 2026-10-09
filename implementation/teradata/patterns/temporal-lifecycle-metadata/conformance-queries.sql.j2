@@ -2,7 +2,7 @@
 -- Implementable checks for the pattern's conformance rules.
 -- ColumnType codes: SZ = TIMESTAMP WITH TIME ZONE, TS = TIMESTAMP, I1 = BYTEINT.
 -- Each catalogue/data query must return ZERO rows for a conforming deployment.
--- :product_db_pattern e.g. '{Product}\_%' ; parameterise data checks per SCD2 table.
+-- :product_db_pattern matches the product's containers, e.g. '{{ product }}\_%'.
 
 -- §1  TLM-04: prohibited generic names on product objects.
 -- Prohibited on every profile.
@@ -24,7 +24,7 @@ WHERE c.DatabaseName LIKE :product_db_pattern
 -- than inferred from a table name.
 SELECT c.DatabaseName, c.TableName, c.ColumnName, e.temporal_pattern
 FROM DBC.ColumnsV AS c
-LEFT JOIN {semantic_db}.entity_metadata AS e
+LEFT JOIN {{ semantic_db }}.entity_metadata AS e
        ON UPPER(TRIM(e.database_name)) = UPPER(TRIM(c.DatabaseName))
       AND UPPER(TRIM(e.table_name))    = UPPER(TRIM(c.TableName))
 WHERE c.DatabaseName LIKE :product_db_pattern
@@ -47,33 +47,33 @@ WHERE c.DatabaseName LIKE :product_db_pattern
   AND LOWER(TRIM(c.ColumnName)) LIKE 'is!_%' ESCAPE '!'
   AND (c.ColumnType <> 'I1' OR c.Nullable = 'Y');
 
--- §4  Data-level invariants (parameterise per SCD2 table; example: agreement)
+-- §4  Data-level invariants (rendered once per SCD2 table: db, governed_view, natural_key)
 
 -- TLM-09: more than one current row per natural key
-SELECT agreement_bk, COUNT(*) AS current_rows
-FROM {db}.v_agreement
+SELECT {{ natural_key }}, COUNT(*) AS current_rows
+FROM {{ db }}.{{ governed_view }}
 WHERE valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
-GROUP BY agreement_bk
+GROUP BY {{ natural_key }}
 HAVING COUNT(*) > 1;
 
 -- TLM-10: flag / validity disagreement
-SELECT agreement_bk, valid_from_dts, is_current, valid_to_dts
-FROM {db}.v_agreement
+SELECT {{ natural_key }}, valid_from_dts, is_current, valid_to_dts
+FROM {{ db }}.{{ governed_view }}
 WHERE (is_current = 1) <> (valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00');
 
 -- TLM-08: overlapping periods per natural key
-SELECT agreement_bk, valid_from_dts, valid_to_dts, next_from
+SELECT {{ natural_key }}, valid_from_dts, valid_to_dts, next_from
 FROM (
-    SELECT agreement_bk, valid_from_dts, valid_to_dts,
+    SELECT {{ natural_key }}, valid_from_dts, valid_to_dts,
            MIN(valid_from_dts) OVER (
-               PARTITION BY agreement_bk ORDER BY valid_from_dts
+               PARTITION BY {{ natural_key }} ORDER BY valid_from_dts
                ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING
            ) AS next_from
-    FROM {db}.v_agreement
+    FROM {{ db }}.{{ governed_view }}
 ) AS t
 WHERE next_from IS NOT NULL AND next_from < valid_to_dts;
 
 -- TLM-11: deletion without deletion time
-SELECT agreement_bk, valid_from_dts
-FROM {db}.v_agreement
+SELECT {{ natural_key }}, valid_from_dts
+FROM {{ db }}.{{ governed_view }}
 WHERE is_deleted = 1 AND deleted_dts IS NULL;

@@ -1,13 +1,14 @@
 -- =============================================================================
--- ACCESS LAYER: {ProductName} Data Product (Teradata)
--- Binding of design/patterns/access-layer.md. File: 00-access/{ProductName}_access_layer.dcl
+-- ACCESS LAYER: {{ product }} Data Product (Teradata)
+-- Binding of design/patterns/access-layer.md. Artefact location: 00-access/ in the product tree.
 --
 -- Phase 1.5a: apply as soon as the containers exist, at the end of Phase 1.
 -- Phase 1.5b: apply after Memory + Semantic are deployed. REQUIRES DBA PRIVILEGE.
 -- Phase 2.5:  apply after Domain + Observability are deployed; add further GRANT
 --             blocks as additional modules deploy.
--- Standard {ProductName}_{Module} placement shown; for STRICT_SEPARATION substitute
--- the _V view containers (see object-placement).
+-- The module containers are those the build context places; under STRICT_SEPARATION the
+-- context supplies the view containers in their place (see object-placement).
+-- Search and Prediction grants render only when those modules are in the composition.
 -- =============================================================================
 
 -- =============================================================================
@@ -23,12 +24,16 @@
 -- object-placement separates views from base tables; under co-located placement
 -- the access container is the module container and there is nothing to grant.
 -- =============================================================================
-GRANT SELECT ON {ProductName}_Semantic      TO {ProductName}_Access WITH GRANT OPTION;
-GRANT SELECT ON {ProductName}_Memory        TO {ProductName}_Access WITH GRANT OPTION;
-GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_Access WITH GRANT OPTION;
-GRANT SELECT ON {ProductName}_Observability TO {ProductName}_Access WITH GRANT OPTION;
--- GRANT SELECT ON {ProductName}_Search      TO {ProductName}_Access WITH GRANT OPTION;
--- GRANT SELECT ON {ProductName}_Prediction  TO {ProductName}_Access WITH GRANT OPTION;
+GRANT SELECT ON {{ semantic_db }}      TO {{ access_db }} WITH GRANT OPTION;
+GRANT SELECT ON {{ memory_db }}        TO {{ access_db }} WITH GRANT OPTION;
+GRANT SELECT ON {{ domain_db }}        TO {{ access_db }} WITH GRANT OPTION;
+GRANT SELECT ON {{ observability_db }} TO {{ access_db }} WITH GRANT OPTION;
+{% if 'search' in modules -%}
+GRANT SELECT ON {{ search_db }}      TO {{ access_db }} WITH GRANT OPTION;
+{% endif -%}
+{% if 'prediction' in modules -%}
+GRANT SELECT ON {{ prediction_db }}  TO {{ access_db }} WITH GRANT OPTION;
+{% endif %}
 
 -- =============================================================================
 -- Phase 1.5b onwards: roles and consumer grants. REQUIRES DBA PRIVILEGE.
@@ -60,53 +65,58 @@ GRANT SELECT ON {ProductName}_Observability TO {ProductName}_Access WITH GRANT O
 -- The length follows from that. These comments previously ran to a paragraph and
 -- were rejected on deployment for exceeding the dictionary limit; one sentence
 -- naming the consumer is both the safe form and the useful one.
-CREATE ROLE {ProductName}_ROLE_READ;
-COMMENT ON ROLE {ProductName}_ROLE_READ IS
-    '{ProductName} data product - analyst and BI consumer role.';
+CREATE ROLE {{ role_read }};
+COMMENT ON ROLE {{ role_read }} IS
+    '{{ product }} data product - analyst and BI consumer role.';
 
-CREATE ROLE {ProductName}_ROLE_AGENT;
-COMMENT ON ROLE {ProductName}_ROLE_AGENT IS
-    '{ProductName} data product - AI agent and automated tool role.';
+CREATE ROLE {{ role_agent }};
+COMMENT ON ROLE {{ role_agent }} IS
+    '{{ product }} data product - AI agent and automated tool role.';
 
-CREATE ROLE {ProductName}_ROLE_ADMIN;
-COMMENT ON ROLE {ProductName}_ROLE_ADMIN IS
-    '{ProductName} data product - owner and data steward role.';
+CREATE ROLE {{ role_admin }};
+COMMENT ON ROLE {{ role_admin }} IS
+    '{{ product }} data product - owner and data steward role.';
 
 -- Phase 1.5b: after Memory + Semantic -----------------------------------------
-GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_READ;
-GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_AGENT;
-GRANT SELECT ON {ProductName}_Semantic TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ semantic_db }} TO {{ role_read }};
+GRANT SELECT ON {{ semantic_db }} TO {{ role_agent }};
+GRANT SELECT ON {{ semantic_db }} TO {{ role_admin }};
 
-GRANT SELECT ON {ProductName}_Memory   TO {ProductName}_ROLE_READ;
-GRANT SELECT ON {ProductName}_Memory   TO {ProductName}_ROLE_AGENT;
-GRANT SELECT ON {ProductName}_Memory   TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ memory_db }}   TO {{ role_read }};
+GRANT SELECT ON {{ memory_db }}   TO {{ role_agent }};
+GRANT SELECT ON {{ memory_db }}   TO {{ role_admin }};
 
 -- Agent write-back to Memory: interactions, learned strategies, design decisions
-GRANT INSERT ON {ProductName}_Memory   TO {ProductName}_ROLE_AGENT;
+GRANT INSERT ON {{ memory_db }}   TO {{ role_agent }};
 
 -- Phase 2.5: after Domain + Observability -------------------------------------
-GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_READ;
-GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_AGENT;
-GRANT SELECT ON {ProductName}_Domain        TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ domain_db }}        TO {{ role_read }};
+GRANT SELECT ON {{ domain_db }}        TO {{ role_agent }};
+GRANT SELECT ON {{ domain_db }}        TO {{ role_admin }};
 
-GRANT SELECT ON {ProductName}_Observability TO {ProductName}_ROLE_READ;
-GRANT SELECT ON {ProductName}_Observability TO {ProductName}_ROLE_AGENT;
-GRANT SELECT ON {ProductName}_Observability TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ observability_db }} TO {{ role_read }};
+GRANT SELECT ON {{ observability_db }} TO {{ role_agent }};
+GRANT SELECT ON {{ observability_db }} TO {{ role_admin }};
 
 -- Agent write-back to Observability: usage events and quality feedback
-GRANT INSERT ON {ProductName}_Observability TO {ProductName}_ROLE_AGENT;
+GRANT INSERT ON {{ observability_db }} TO {{ role_agent }};
 
+{% if 'search' in modules -%}
 -- When Search is deployed ------------------------------------------------------
--- GRANT SELECT ON {ProductName}_Search     TO {ProductName}_ROLE_READ;
--- GRANT SELECT ON {ProductName}_Search     TO {ProductName}_ROLE_AGENT;
--- GRANT SELECT ON {ProductName}_Search     TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ search_db }}     TO {{ role_read }};
+GRANT SELECT ON {{ search_db }}     TO {{ role_agent }};
+GRANT SELECT ON {{ search_db }}     TO {{ role_admin }};
 
+{% endif -%}
+{% if 'prediction' in modules -%}
 -- When Prediction is deployed --------------------------------------------------
--- GRANT SELECT ON {ProductName}_Prediction TO {ProductName}_ROLE_READ;
--- GRANT SELECT ON {ProductName}_Prediction TO {ProductName}_ROLE_AGENT;
--- GRANT SELECT ON {ProductName}_Prediction TO {ProductName}_ROLE_ADMIN;
+GRANT SELECT ON {{ prediction_db }} TO {{ role_read }};
+GRANT SELECT ON {{ prediction_db }} TO {{ role_agent }};
+GRANT SELECT ON {{ prediction_db }} TO {{ role_admin }};
 
--- Assign roles to users/service accounts (operational event; replace placeholders):
--- GRANT {ProductName}_ROLE_AGENT TO {agent_service_account};
--- GRANT {ProductName}_ROLE_READ  TO {analyst_user_or_group_role};
--- GRANT {ProductName}_ROLE_ADMIN TO {product_owner_user};
+{% endif %}
+
+-- Assign roles to users/service accounts (operational event, run by the operator):
+-- GRANT {{ role_agent }} TO {{ agent_service_account }};
+-- GRANT {{ role_read }}  TO {{ analyst_user_or_group_role }};
+-- GRANT {{ role_admin }} TO {{ product_owner_user }};

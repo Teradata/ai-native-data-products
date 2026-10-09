@@ -59,7 +59,7 @@
   TIMESTAMP literal in a CREATE TABLE DEFAULT clause (PLATFORM_PROFILE, SQL idioms and
   driver constraints), and a DEFAULT on a mandatory validity bound reads as though the
   value were optional. Every statement that opens a version states the sentinel; see
-  02-dml-maintenance.sql.
+  02-dml-maintenance.sql.j2.
 
   An unknown profile emits a line that cannot parse as SQL, rather than emitting
   nothing. A table whose temporal block silently came out empty is the failure this
