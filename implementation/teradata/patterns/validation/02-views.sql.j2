@@ -1,10 +1,10 @@
 -- Validation: latest-run view (Teradata). Binding of the run record in design/patterns/validation.md §3.1.
 -- Latest-per-(product, producer) projection. The deterministic tie-break
 -- (completed_dts DESC, run_id DESC) is part of the contract (VAL-09).
--- This is the run-level summary; the per-area trust map a consumer reads is 04-trust-map-views.sql.
--- {db} is a generic tag, e.g. {Product}_Observability.
+-- This is the run-level summary; the per-area trust map a consumer reads is 04-trust-map-views.sql.j2.
+-- Observability container: {{ db }}, as placed by the build context.
 
-REPLACE VIEW {db}.validation_latest
+REPLACE VIEW {{ db }}.validation_latest
 AS
 LOCKING ROW FOR ACCESS
 SELECT
@@ -33,7 +33,7 @@ SELECT
     , failed_checks_json
     , repair_candidates_json
     , evidence_expires_dts
-FROM {db}.validation_run
+FROM {{ db }}.validation_run
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY product_prefix, producer_id
     ORDER BY completed_dts DESC, run_id DESC

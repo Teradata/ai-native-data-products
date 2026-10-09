@@ -3,7 +3,7 @@
 -- permission boundary, and rationale inside the product so agents can read the
 -- access contract at runtime. Delivered with the product's Memory documentation inserts.
 
-INSERT INTO {ProductName}_Memory.Design_Decision
+INSERT INTO {{ memory_db }}.Design_Decision
 (
     decision_id, decision_version, decision_title, decision_description,
     context, alternatives_considered, rationale,
@@ -14,8 +14,8 @@ VALUES
 (
     'DD-ACCESS-001', 1,
     'Three-tier role model for data product access control',
-    'Three roles per product: {ProductName}_ROLE_READ (analysts, BI), _ROLE_AGENT
-     (AI agents and automated tools), _ROLE_ADMIN (owner, steward). All consumer
+    'Three roles per product: {{ role_read }} (analysts, BI), {{ role_agent }}
+     (AI agents and automated tools), {{ role_admin }} (owner, steward). All consumer
      roles receive read on the module access containers. ROLE_AGENT additionally
      receives write-back on Memory (interactions, learned strategies, design
      decisions) and Observability (usage events, quality feedback). ROLE_AGENT does

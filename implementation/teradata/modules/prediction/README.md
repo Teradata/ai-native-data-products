@@ -20,17 +20,17 @@ Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/
 | `01-feature-group.sql.j2` | Wide-format feature group table (dense engineered features, SCD2). |
 | `02-feature-value.sql.j2` | Tall-format feature-value table (sparse/dynamic/mixed-type features, SCD2). |
 | `03-model-prediction.sql.j2` | Model prediction outputs with confidence and reproducibility linkage. |
-| `04-views.sql.j2` | `v_{entity}_features_current` / `_enriched` / `_pit` (`AccessView`). |
+| `04-views.sql.j2` | `v_entity_features_current` / `_enriched` / `_pit` (`AccessView`). |
 | `validation.sql.j2` | Invariant checks (no raw-copy columns; point-in-time columns present). |
 
 ## Capability bindings
 
 | Capability (design) | Teradata binding |
 |---------------------|------------------|
-| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.{Entity}_H ON entity_id`, current-filtered. Prediction cannot deploy without Domain. |
+| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. Prediction cannot deploy without Domain. |
 | `PointInTimeReconstruction` | `observation_dts` + the temporal-lifecycle validity predicate. |
 | `CurrentStateFilter` | `WHERE is_current = 1`. |
-| `AccessView` | `v_{entity}_features_current` / `_enriched` / `_pit`. |
+| `AccessView` | `v_entity_features_current` / `_enriched` / `_pit`. |
 | `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
 | `SemanticRegistration` *(soft)* | Feature *definitions* registered in `{{ product }}_Semantic.column_metadata`; feature *values* here. |
 

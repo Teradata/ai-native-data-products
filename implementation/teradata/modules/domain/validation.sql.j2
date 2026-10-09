@@ -22,7 +22,7 @@ ORDER BY missing DESC;
 
 -- ---------------------------------------------------------------------------
 -- INV-DOMAIN-004 : every history entity exposes the identity shape
---                  (a surrogate {entity}_id and a natural {entity}_key).
+--                  (a surrogate _id column and a natural _key column, each named for the entity).
 -- Any _H table missing either identity column is a violation.
 -- ---------------------------------------------------------------------------
 SELECT t.TableName,
@@ -39,7 +39,7 @@ HAVING has_surrogate = 0 OR has_natural_key = 0;
 
 -- ---------------------------------------------------------------------------
 -- INV-DOMAIN-002 : current, non-deleted records reachable by a predictable filter.
--- Every _H table must have a {Entity}_Current view.
+-- Every _H table must have a matching _Current view.
 -- ---------------------------------------------------------------------------
 SELECT h.TableName AS history_table
 FROM DBC.TablesV h
@@ -54,9 +54,9 @@ WHERE h.DatabaseName = '{{ product }}_Domain'
       );
 
 -- ---------------------------------------------------------------------------
--- INV-DOMAIN-003 : surrogate {entity}_id is stable across versions (keymap-sourced).
--- The {entity}_id column on an _H table must NOT be identity-generated.
--- Any identity-generated {entity}_id on an _H table is a violation.
+-- INV-DOMAIN-003 : the surrogate _id is stable across versions (keymap-sourced).
+-- The _id column on an _H table must NOT be identity-generated.
+-- Any identity-generated _id on an _H table is a violation.
 -- ---------------------------------------------------------------------------
 SELECT TableName, ColumnName
 FROM DBC.ColumnsV

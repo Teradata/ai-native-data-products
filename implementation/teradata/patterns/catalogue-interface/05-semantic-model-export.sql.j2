@@ -6,8 +6,8 @@
 -- and renders the target format; the shaping of the output belongs to the emitter, and the
 -- selection of what is in the model belongs here.
 --
--- Substitute {semantic_db} with the container the container feed declares for module
--- SEMANTIC (04-resolution-queries.sql, step 1), and bind :product_id. Nothing is derived
+-- {{ semantic_db }} is the container the container feed declares for module
+-- SEMANTIC (04-resolution-queries.sql.j2, step 1); bind :product_id. Nothing is derived
 -- from a container or object name.
 --
 -- Every query selects declared rows only. A product with no metrics returns no metric
@@ -30,8 +30,8 @@ SELECT e.entity_name
      , e.temporal_pattern
      , e.table_name                                AS base_table
      , e.database_name                             AS base_container
-FROM {semantic_db}.entity_metadata AS e
-LEFT OUTER JOIN governance.data_product_consumer_interface AS i
+FROM {{ semantic_db }}.entity_metadata AS e
+LEFT OUTER JOIN {{ governance_db }}.data_product_consumer_interface AS i
     ON  i.product_id = :product_id
     AND i.entity_name = e.entity_name
     AND i.is_primary  = 1
@@ -62,8 +62,8 @@ SELECT c.database_name AS base_container
               OR UPPER(c.data_type) LIKE 'TIMESTAMP%'
             THEN 1 ELSE 0
        END AS is_time
-FROM {semantic_db}.column_metadata AS c
-INNER JOIN {semantic_db}.entity_metadata AS e
+FROM {{ semantic_db }}.column_metadata AS c
+INNER JOIN {{ semantic_db }}.entity_metadata AS e
     ON  e.database_name = c.database_name
     AND e.table_name    = c.table_name
     AND e.is_active     = 1
@@ -101,7 +101,7 @@ SELECT r.relationship_name
            WHEN 'ONE_TO_MANY'  THEN 'INVERT'
            ELSE 'REPORT'
        END AS emit_direction
-FROM {semantic_db}.table_relationship AS r
+FROM {{ semantic_db }}.table_relationship AS r
 WHERE r.is_active = 1
 ORDER BY r.relationship_name;
 
@@ -121,15 +121,15 @@ SELECT m.metric_name
      , m.is_additive
      , d.container_name AS primary_container
      , d.table_name     AS primary_table
-FROM {semantic_db}.metric_metadata AS m
-INNER JOIN {semantic_db}.metric_dataset AS d
+FROM {{ semantic_db }}.metric_metadata AS m
+INNER JOIN {{ semantic_db }}.metric_dataset AS d
     ON  d.metric_name  = m.metric_name
     AND d.dataset_role = 'PRIMARY'
     AND d.is_active    = 1
 WHERE m.is_active = 1
   AND EXISTS (
       SELECT 1
-      FROM {semantic_db}.entity_metadata AS e
+      FROM {{ semantic_db }}.entity_metadata AS e
       WHERE e.table_name = d.table_name
         AND e.is_active  = 1
   )
@@ -141,8 +141,8 @@ SELECT d.metric_name
      , d.container_name
      , d.table_name
      , d.dataset_role
-FROM {semantic_db}.metric_dataset AS d
-INNER JOIN {semantic_db}.metric_metadata AS m
+FROM {{ semantic_db }}.metric_dataset AS d
+INNER JOIN {{ semantic_db }}.metric_metadata AS m
     ON  m.metric_name = d.metric_name
     AND m.is_active   = 1
 WHERE d.is_active = 1
@@ -158,8 +158,8 @@ ORDER BY d.metric_name, d.dataset_role, d.table_name;
 SELECT x.metric_name
      , x.sql_dialect
      , x.expression_text
-FROM {semantic_db}.metric_expression AS x
-INNER JOIN {semantic_db}.metric_metadata AS m
+FROM {{ semantic_db }}.metric_expression AS x
+INNER JOIN {{ semantic_db }}.metric_metadata AS m
     ON  m.metric_name = x.metric_name
     AND m.is_active   = 1
 WHERE x.is_active = 1
@@ -176,22 +176,22 @@ SELECT s.object_kind
      , s.object_name
      , s.column_name
      , s.synonym_text
-FROM {semantic_db}.semantic_synonym AS s
+FROM {{ semantic_db }}.semantic_synonym AS s
 WHERE s.is_active = 1
   AND (   (s.object_kind = 'ENTITY'
            AND EXISTS (SELECT 1
-                       FROM {semantic_db}.entity_metadata AS e
+                       FROM {{ semantic_db }}.entity_metadata AS e
                        WHERE e.table_name = s.object_name
                          AND e.is_active  = 1))
        OR (s.object_kind = 'COLUMN'
            AND EXISTS (SELECT 1
-                       FROM {semantic_db}.column_metadata AS c
+                       FROM {{ semantic_db }}.column_metadata AS c
                        WHERE c.table_name  = s.object_name
                          AND c.column_name = s.column_name
                          AND c.is_active   = 1))
        OR (s.object_kind = 'METRIC'
            AND EXISTS (SELECT 1
-                       FROM {semantic_db}.metric_metadata AS m
+                       FROM {{ semantic_db }}.metric_metadata AS m
                        WHERE m.metric_name = s.object_name
                          AND m.is_active   = 1)))
 ORDER BY s.object_kind, s.object_name, s.column_name, s.synonym_text;
@@ -201,7 +201,7 @@ ORDER BY s.object_kind, s.object_name, s.column_name, s.synonym_text;
 -- ---------------------------------------------------------------------------
 -- The second artefact. Identity, contacts and pointers from the product feed; the output
 -- objects from the interface feed. Both are governance-container reads and need no
--- {semantic_db} substitution, which is why a descriptor can be emitted for a product whose
+-- Semantic container reference, which is why a descriptor can be emitted for a product whose
 -- Semantic module is not deployed.
 SELECT c.product_id
      , c.product_name
@@ -226,7 +226,7 @@ SELECT c.product_id
      , c.glossary_uri
      , c.query_cookbook_uri
      , c.version_from_dts
-FROM governance.data_product_catalogue AS c
+FROM {{ governance_db }}.data_product_catalogue AS c
 WHERE c.product_id = :product_id;
 
 SELECT i.entity_name
@@ -237,6 +237,6 @@ SELECT i.entity_name
      , i.object_role
      , i.interface_purpose
      , i.is_primary
-FROM governance.data_product_consumer_interface AS i
+FROM {{ governance_db }}.data_product_consumer_interface AS i
 WHERE i.product_id = :product_id
 ORDER BY i.module_name, i.entity_name, i.is_primary DESC, i.object_name;

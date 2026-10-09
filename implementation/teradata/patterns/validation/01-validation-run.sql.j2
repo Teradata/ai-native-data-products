@@ -1,9 +1,9 @@
 -- Validation: run record (Teradata). Binding of the validation result contract in design/patterns/validation.md.
--- The run-level summary; the per-area trust map is 03-validation-area.sql.
+-- The run-level summary; the per-area trust map is 03-validation-area.sql.j2.
 -- Operational evidence in the Observability module; append-only (EVENT_APPEND_ONLY).
--- {db} is a generic tag bound by object-placement, e.g. {Product}_Observability.
+-- Observability container: {{ db }}, as placed by the build context.
 
-CREATE MULTISET TABLE {db}.validation_run
+CREATE MULTISET TABLE {{ db }}.validation_run
 (
     product_prefix VARCHAR(128) CHARACTER SET LATIN NOT NULL,
 
@@ -60,4 +60,4 @@ COLLECT STATISTICS
     , COLUMN (producer_id)
     , COLUMN (product_prefix, producer_id)
     , COLUMN (product_prefix, completed_dts)
-ON {db}.validation_run;
+ON {{ db }}.validation_run;

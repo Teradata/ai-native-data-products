@@ -7,9 +7,9 @@
 -- Staleness (§11) is evaluated per area against the run that actually produced it, not against
 -- the producer's latest run: two areas in this map can come from different runs, so evaluating
 -- staleness against "the latest run" would grade older evidence by a newer run's clock.
--- {db} is a generic tag, e.g. {Product}_Observability.
+-- Observability container: {{ db }}, as placed by the build context.
 
-REPLACE VIEW {db}.validation_trust_map
+REPLACE VIEW {{ db }}.validation_trust_map
 AS
 LOCKING ROW FOR ACCESS
 SELECT
@@ -59,8 +59,8 @@ FROM (
                     < CURRENT_TIMESTAMP(6)
                THEN 1 ELSE 0
           END AS evidence_is_stale
-    FROM {db}.validation_area AS la
-    INNER JOIN {db}.validation_run AS r
+    FROM {{ db }}.validation_area AS la
+    INNER JOIN {{ db }}.validation_run AS r
             ON  r.product_prefix = la.product_prefix
             AND r.producer_id    = la.producer_id
             AND r.run_id         = la.run_id
@@ -117,7 +117,7 @@ SELECT
     , 'Upgrade the validator to publish validation_area entries at wire schema 2.1.' AS recorded_recommended_action
     , v.completed_dts
     , 'DERIVED' AS map_source
-FROM {db}.validation_latest AS v
+FROM {{ db }}.validation_latest AS v
 -- Scoped to explicit legacy versions (never a lexical '< 2.1', which breaks on a future major
 -- version) and to THIS run: a malformed 2.1 run that published no area rows must fail VAL-18,
 -- not be quietly re-dressed as a legacy product. An older producer's historical 2.1 area rows
@@ -126,16 +126,16 @@ FROM {db}.validation_latest AS v
 WHERE v.payload_schema_version IN ('1.0', '2.0')
   AND NOT EXISTS (
     SELECT 1
-    FROM {db}.validation_area AS a
+    FROM {{ db }}.validation_area AS a
     WHERE a.product_prefix = v.product_prefix
       AND a.producer_id    = v.producer_id
       AND a.run_id         = v.run_id
 );
 
-COMMENT ON VIEW {db}.validation_trust_map IS
+COMMENT ON VIEW {{ db }}.validation_trust_map IS
 'Trust map - latest entry per product, producer and area; coverage and staleness derived on read against the evidence''s own run. Read the areas a query touches, proceed, and disclose confidence and gaps. Nothing here withholds use.';
 
 -- The authoritative map is the set of rows whose producer_id matches the trust-authoritative
 -- producer designated in the product's orientation metadata; other producers' rows are evidence.
 -- Absent a designation, take the most cautious entry per area across producers and say so
--- (see consumer-queries.sql).
+-- (see consumer-queries.sql.j2).

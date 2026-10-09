@@ -11,9 +11,9 @@
 -- change-detection predicate and the transaction boundary are spelled once. Section 1 is
 -- the only thing a caller runs for an existing product.
 --
--- :params are runtime values; {stage} is a generic tag for the container the build stages
--- its release declaration in, following the convention of the temporal pattern's
--- maintenance file. The open-end sentinel is written explicitly at INSERT time, never as a
+-- :params are runtime values; {{ stage }} is the container the build stages its release
+-- declaration in, and {{ governance_db }} is the shared governance container. Both arrive from
+-- the build context. The open-end sentinel is written explicitly at INSERT time, never as a
 -- column default (see the temporal-lifecycle-metadata binding and PLATFORM_PROFILE, SQL
 -- idioms and driver constraints).
 
@@ -39,7 +39,7 @@ BT;
 -- Close the current version. The change-detection predicate makes replay safe
 -- (INV-CATALOGUE-009): re-running a registration whose values already match closes
 -- nothing, so the INSERT below finds its guard satisfied and inserts nothing either.
-UPDATE governance.data_product_registry
+UPDATE {{ governance_db }}.data_product_registry
 SET   valid_to_dts = :event_dts
     , is_current   = 0
     , updated_dts  = CURRENT_TIMESTAMP(6)
@@ -58,7 +58,7 @@ WHERE product_id   = :product_id
 -- ones the event changes, so a transition cannot drop a value nobody passed. That matters
 -- most for the *_uri pointers and approved_entrypoint: an operator sets those, and an
 -- automated registration must not clear them (INV-CATALOGUE-008).
-INSERT INTO governance.data_product_registry
+INSERT INTO {{ governance_db }}.data_product_registry
       (product_id, product_name, product_version, product_domain, product_description
      , product_status, owner_team, owner_name, owner_email
      , technical_contact_name, technical_contact_email
@@ -93,12 +93,12 @@ SELECT r.product_id
      , 1
      , :new_is_deleted
      , CASE WHEN :new_is_deleted = 1 THEN :event_dts ELSE NULL END
-FROM governance.data_product_registry AS r
+FROM {{ governance_db }}.data_product_registry AS r
 WHERE r.product_id    = :product_id
   AND r.valid_to_dts  = :event_dts          -- the row this transaction just closed
   AND NOT EXISTS (                          -- idempotent replay: nothing on a re-run
       SELECT 1
-      FROM governance.data_product_registry AS x
+      FROM {{ governance_db }}.data_product_registry AS x
       WHERE x.product_id     = :product_id
         AND x.valid_from_dts = :event_dts
   );
@@ -112,7 +112,7 @@ ET;
 -- first version of a product. This is the only statement that supplies values outright.
 -- Its guard makes a repeated first registration a no-op rather than a duplicate.
 
-INSERT INTO governance.data_product_registry
+INSERT INTO {{ governance_db }}.data_product_registry
       (product_id, product_name, product_version, product_domain, product_description
      , product_status, owner_team, owner_name, owner_email
      , technical_contact_name, technical_contact_email
@@ -128,7 +128,7 @@ SELECT :product_id, :product_name, :product_version, :product_domain, :product_d
      , :event_dts, TIMESTAMP '9999-12-31 23:59:59.999999+00:00', 1, 0
 WHERE NOT EXISTS (
     SELECT 1
-    FROM governance.data_product_registry AS x
+    FROM {{ governance_db }}.data_product_registry AS x
     WHERE x.product_id = :product_id
 );
 
@@ -137,14 +137,14 @@ WHERE NOT EXISTS (
 -- ---------------------------------------------------------------------------
 -- Declared containers are refreshed the same way: close what the release no longer
 -- declares, open what it newly declares. The build stages the release's own declaration in
--- {stage}.container_declaration, one row per module and layer.
+-- {{ stage }}.container_declaration, one row per module and layer.
 
 BT;
 
 -- Close containers the release no longer declares. Logical deletion, so a container the
 -- product has moved out of stays answerable at any earlier instant.
 UPDATE c
-FROM   governance.data_product_container AS c
+FROM   {{ governance_db }}.data_product_container AS c
 SET   valid_to_dts = :event_dts
     , is_current   = 0
     , updated_dts  = CURRENT_TIMESTAMP(6)
@@ -152,23 +152,23 @@ WHERE c.product_id   = :product_id
   AND c.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
   AND NOT EXISTS (
       SELECT 1
-      FROM {stage}.container_declaration AS s
+      FROM {{ stage }}.container_declaration AS s
       WHERE s.product_id     = c.product_id
         AND s.module_name     = c.module_name
         AND s.layer_code      = c.layer_code
         AND s.container_name  = c.container_name
   );
 
-INSERT INTO governance.data_product_container
+INSERT INTO {{ governance_db }}.data_product_container
       (product_id, module_name, layer_code, container_name, container_role
      , is_active, valid_from_dts, valid_to_dts, is_current, is_deleted)
 SELECT s.product_id, s.module_name, s.layer_code, s.container_name, s.container_role
      , 1, :event_dts, TIMESTAMP '9999-12-31 23:59:59.999999+00:00', 1, 0
-FROM {stage}.container_declaration AS s
+FROM {{ stage }}.container_declaration AS s
 WHERE s.product_id = :product_id
   AND NOT EXISTS (
       SELECT 1
-      FROM governance.data_product_container AS c
+      FROM {{ governance_db }}.data_product_container AS c
       WHERE c.product_id    = s.product_id
         AND c.module_name    = s.module_name
         AND c.layer_code     = s.layer_code
@@ -191,7 +191,7 @@ BT;
 -- The version guard is what makes the refresh replayable. Without it, a re-run closes the
 -- generation it just opened, the insert below finds its NOT EXISTS guard already satisfied
 -- and opens nothing, and the product is left with a consumer surface of no rows at all.
-UPDATE governance.data_product_interface
+UPDATE {{ governance_db }}.data_product_interface
 SET   valid_to_dts = :event_dts
     , is_current   = 0
     , updated_dts  = CURRENT_TIMESTAMP(6)
@@ -199,7 +199,7 @@ WHERE product_id      = :product_id
   AND valid_to_dts    = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
   AND product_version <> :new_version;
 
-INSERT INTO governance.data_product_interface
+INSERT INTO {{ governance_db }}.data_product_interface
       (product_id, product_version, container_name, object_name, object_kind
      , interface_layer, exposure_type, module_name, entity_name, interface_purpose
      , object_role, is_primary, is_consumer_facing, is_active
@@ -210,11 +210,11 @@ SELECT s.product_id, :new_version, s.container_name, s.object_name, s.object_kin
      , :event_dts, TIMESTAMP '9999-12-31 23:59:59.999999+00:00', 1
      , 1 - s.is_active
      , CASE WHEN s.is_active = 0 THEN :event_dts ELSE NULL END
-FROM {stage}.interface_declaration AS s
+FROM {{ stage }}.interface_declaration AS s
 WHERE s.product_id = :product_id
   AND NOT EXISTS (
       SELECT 1
-      FROM governance.data_product_interface AS i
+      FROM {{ governance_db }}.data_product_interface AS i
       WHERE i.product_id     = s.product_id
         AND i.container_name  = s.container_name
         AND i.object_name     = s.object_name
