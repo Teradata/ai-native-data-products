@@ -38,6 +38,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) | `implementation-authoring` | draft | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |
 | [Organisation Profile Standard](core/ORGANISATION_PROFILE.md) | `organisation-profile` | draft | - | - | - |
+| [Platform Layout Standard](core/PLATFORM_LAYOUT.md) | `platform-layout` | draft | - | - | - |
 
 ### Patterns
 
