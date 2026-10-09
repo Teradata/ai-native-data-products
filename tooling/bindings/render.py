@@ -55,9 +55,18 @@ def environment(platform):
     return env
 
 
+def standard_version():
+    """The Master Design version a product is built against, recorded in its registry."""
+    text=(REPO/'design'/'core'/'MASTER_DESIGN.md').read_text(encoding='utf-8')
+    found=re.search(r'^version:\s*"?([^"\s]+)"?\s*$',text.split('\n---',2)[0],re.M)
+    if not found: raise ValueError('design/core/MASTER_DESIGN.md has no version in its frontmatter')
+    return found.group(1)
+
+
 def prepare(raw,platform):
     context=copy.deepcopy(raw)
     context['platform']=platform
+    context['standard_version']=standard_version()
     product=context['product']
     for field in ('id','version','owner','entrypoint','validator'):
         if not product[field]: raise ValueError(f'product.{field} is required')
@@ -214,6 +223,9 @@ def render_product(raw,platform):
         if module in c['modules']:
             checks.append(dict(test_id=module+':coverage',scope_kind='MODULE',scope_id=module,
                                sql=render(f'modules/{module}/validation.sql.j2').rstrip(';\n')))
+    if 'semantic' in c['modules'] and (REPO/'implementation'/platform/'modules/semantic/validation-layout.sql.j2').exists():
+        checks.append(dict(test_id='semantic:layout',scope_kind='MODULE',scope_id='semantic',
+                           sql=render('modules/semantic/validation-layout.sql.j2').rstrip(';\n')))
     manifest=dict(platform=platform,product=c['product'],containers=c['containers'],modules=c['modules'],
                   entities=c['entities'],relationships=c['relationships'],checks=checks)
     files['manifest.json']=json.dumps(manifest,indent=2)+'\n'

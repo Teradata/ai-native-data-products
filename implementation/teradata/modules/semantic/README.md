@@ -19,11 +19,11 @@ Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/se
 |------|---------|
 | `01-catalog-tables.sql.j2` | `entity_metadata`, `column_metadata`, `naming_standard`, `table_relationship`. |
 | `02-discovery-tables.sql.j2` | `data_product_map`, `data_product_map_primary_objects`, `view_metadata`, `view_column_type`. |
-| `03-registry.sql` | `governance.data_product_registry`: the orientation-layer anchor. |
+| `03-registry.sql` | `governance.data_product_registry`: the orientation-layer anchor, including the `platform_profile` and `standard_version` the build records (Platform Layout Standard §5). |
 | `04-path-discovery.sql.j2` | `v_relationship_paths`: recursive multi-hop join-path discovery. |
 | `05-column-catalogue.sql.j2` | `column_catalogue`: live hybrid column catalogue with value provenance. |
 | `06-orientation.md` | MCP resource/tool shapes and the discovery manifest (orientation layer). |
-| `07-access-object.sql.j2` | `access_object`, `access_composition`: the access-object layer (which object a consumer queries, what composites encapsulate). |
+| `07-access-object.sql.j2` | `access_object`, `access_composition`: the access-object layer (which object a consumer queries, what composites encapsulate). `object_type` gives each object its layer role; `consumer_audience` and `access_semantics` tell several consumer objects over one entity apart. |
 | `08-access-relationship-paths.sql.j2` | `v_access_relationship_paths`: relationship paths with endpoints rewritten to consumable objects. |
 | `validation.sql.j2` | Primary-object, view, relationship-completeness, and access-object checks (canonical validator sources). |
 | `09-orientation-manifest.sql.j2` | `data_product_orientation` (ordered resource relation) and `data_product_manifest` (generated view over registry + orientation). |
@@ -62,4 +62,6 @@ New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns
 | `INV-SEMANTIC-009` (consumable objects resolve to a catalogued entity) | `validation.sql.j2`: non-composite with no entity; `represents_entity` / `member_entity` not catalogued. |
 | `INV-SEMANTIC-010` (composite structure recorded, one anchor) | `validation.sql.j2`: COMPOSITE without a composition; composition without exactly one `ANCHOR`. |
 | `INV-SEMANTIC-011` (ordered orientation, trust map first) | `validation.sql.j2`: missing required role, duplicate role, duplicate order, undeployed object, unordered trust map. Also `VAL-13`: the registry names the trust-authoritative producer. |
+| `INV-SEMANTIC-016` (platform and standard version recorded) | `validation.sql.j2`: a current registry row with a null `platform_profile` or `standard_version`, reported as `LAYOUT_NOT_DECLARED`. |
+| `INV-SEMANTIC-017` (consumer objects record their audience) | `validation.sql.j2`: a consumer view with no audience, an audience on another object type, or two consumer views of one entity sharing audience and access semantics. |
 | `INV-SEMANTIC-012` (manifest generated, cannot drift) | `validation.sql.j2`: a manifest entrypoint with no backing active orientation row. |

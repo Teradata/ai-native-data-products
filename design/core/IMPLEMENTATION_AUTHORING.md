@@ -92,7 +92,7 @@ The modes of adoption (referencing an existing object, wrapping it, or migrating
 Each platform directory provides:
 
 - **`README.md`**: supported compositions, deployment order and limitations.
-- **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults, naming limits, and every **binding setting** the organisation profile may supply, with its permitted values and default.
+- **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults, naming limits, a `Layout:` block under a `Layout` heading ([Platform Layout Standard](PLATFORM_LAYOUT.md) §4), and every **binding setting** the organisation profile may supply, with its permitted values and default.
 - **A directory per supported module and pattern**, mirroring `design/` by anchor. Each maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, and lists the build-context fields its templates read.
 - **Templates** for every deployment, access, maintenance, discovery and validation artefact the binding produces, with ordering and dependencies documented.
 

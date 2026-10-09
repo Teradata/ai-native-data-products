@@ -47,3 +47,20 @@ Exact cosine retrieval joins vectors back to Domain. Encoder/model execution and
 Use quoted identifiers and escaped literals through the documented filters. Use Psycopg %s parameters for data values and savepoints after query errors. Arrays do not enforce declared dimensions without checks. JSONB supports equality used by conformance. Historical surfaces are SQL functions with typed timestamp arguments; bitemporal surfaces take both valid_at and known_at. Render StrictUndefined templates with a loader rooted at this platform directory. Type/constraint expressions are builder-authored SQL, not user data.
 
 Runtime versions tested are recorded in CONFORMANCE.md; a target version is not itself proof of a native execution matrix.
+
+## 8. Layout
+
+The platform's part of the [Platform Layout Standard](../../design/core/PLATFORM_LAYOUT.md). Modules are schemas within one database. Readers do not block writers under MVCC, so the governed one-to-one view adds no isolation here: it is an interface layer only, and is still emitted while the [Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md) requires a `base_view` role. No profile pack exists for this platform, so no platform-specific physical checks are declared.
+
+```
+Layout: -
+  Container term:     SCHEMA
+  Qualification:      schema.object: two levels within one database
+  Grant boundary:     SCHEMA
+  Access layer:       optional
+  Access rationale:   MVCC readers do not block writers, so a one-to-one view adds an interface layer and no isolation.
+  Consumer container: may-share
+  Catalogue source:   information_schema.tables, information_schema.columns, pg_catalog
+  Dialect:            PostgreSQL SQL
+  Physical checks:    none
+```

@@ -7,6 +7,8 @@ CREATE TABLE semantic.data_product_registry (
     trust_authoritative_producer VARCHAR NOT NULL,
     approved_entrypoint VARCHAR NOT NULL,
     approved_access_mode VARCHAR NOT NULL,
+    platform_profile VARCHAR,
+    standard_version VARCHAR,
     max_evidence_age_days INTEGER NOT NULL,
     created_dts TIMESTAMPTZ NOT NULL,
     updated_dts TIMESTAMPTZ NOT NULL,
@@ -20,10 +22,12 @@ COMMENT ON COLUMN semantic.data_product_registry.owner_team IS 'Team responsible
 COMMENT ON COLUMN semantic.data_product_registry.trust_authoritative_producer IS 'Validator whose latest area evidence defines the trust map.';
 COMMENT ON COLUMN semantic.data_product_registry.approved_entrypoint IS 'Fully qualified approved initial business surface.';
 COMMENT ON COLUMN semantic.data_product_registry.approved_access_mode IS 'VIEW for this embedded binding.';
+COMMENT ON COLUMN semantic.data_product_registry.platform_profile IS 'Platform the product was built for: an implementation directory name.';
+COMMENT ON COLUMN semantic.data_product_registry.standard_version IS 'Master Design version the product was built against.';
 COMMENT ON COLUMN semantic.data_product_registry.max_evidence_age_days IS 'Maximum evidence age before confidence becomes unknown.';
 COMMENT ON COLUMN semantic.data_product_registry.created_dts IS 'Instant this physical row was created.';
 COMMENT ON COLUMN semantic.data_product_registry.updated_dts IS 'Instant this physical row was last changed.';
-CREATE VIEW semantic.v_data_product_registry AS SELECT product_id, product_version, product_status, owner_team, trust_authoritative_producer, approved_entrypoint, approved_access_mode, max_evidence_age_days FROM semantic.data_product_registry;
+CREATE VIEW semantic.v_data_product_registry AS SELECT product_id, product_version, product_status, owner_team, trust_authoritative_producer, approved_entrypoint, approved_access_mode, platform_profile, standard_version, max_evidence_age_days FROM semantic.data_product_registry;
 COMMENT ON VIEW semantic.v_data_product_registry IS 'Consumer contract: Product-first discovery anchor; one row per portable product.';
 
 CREATE TABLE semantic.data_product_map (
@@ -143,27 +147,35 @@ COMMENT ON VIEW semantic.v_table_relationship IS 'Consumer contract: Registered 
 
 CREATE TABLE semantic.access_object (
     object_identity VARCHAR NOT NULL,
+    object_type VARCHAR NOT NULL,
     access_role VARCHAR NOT NULL,
     represents_entity VARCHAR,
     object_grain VARCHAR NOT NULL,
     is_agent_consumable BOOLEAN NOT NULL,
     resolves_to_object VARCHAR,
+    consumer_audience VARCHAR,
+    access_semantics VARCHAR,
     access_note VARCHAR NOT NULL,
     created_dts TIMESTAMPTZ NOT NULL,
     updated_dts TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (object_identity)
+    PRIMARY KEY (object_identity),
+    CHECK (consumer_audience IN ('AGENT','BI','ALL')),
+    CHECK (access_semantics IN ('FULL_HISTORY','CURRENT_ONLY','POINT_IN_TIME'))
 );
 COMMENT ON TABLE semantic.access_object IS 'Authoritative access classification established from generated view structure.';
 COMMENT ON COLUMN semantic.access_object.object_identity IS 'Exact qualified consumable object.';
+COMMENT ON COLUMN semantic.access_object.object_type IS 'Object role: TABLE, BASE_VIEW or CONSUMER_VIEW, giving the STORAGE, ACCESS or CONSUMER layer.';
 COMMENT ON COLUMN semantic.access_object.access_role IS 'BASE, PASSTHROUGH or COMPOSITE.';
 COMMENT ON COLUMN semantic.access_object.represents_entity IS 'Entity represented; null for composite objects.';
 COMMENT ON COLUMN semantic.access_object.object_grain IS 'One row represents this unit.';
 COMMENT ON COLUMN semantic.access_object.is_agent_consumable IS 'Whether this is a public analytical surface.';
 COMMENT ON COLUMN semantic.access_object.resolves_to_object IS 'Base object exposed by a passthrough.';
+COMMENT ON COLUMN semantic.access_object.consumer_audience IS 'AGENT, BI or ALL on CONSUMER_VIEW objects; null on every other object type.';
+COMMENT ON COLUMN semantic.access_object.access_semantics IS 'FULL_HISTORY, CURRENT_ONLY or POINT_IN_TIME; null when the entity declares no history.';
 COMMENT ON COLUMN semantic.access_object.access_note IS 'Filtering and safe-use guidance.';
 COMMENT ON COLUMN semantic.access_object.created_dts IS 'Instant this physical row was created.';
 COMMENT ON COLUMN semantic.access_object.updated_dts IS 'Instant this physical row was last changed.';
-CREATE VIEW semantic.v_access_object AS SELECT object_identity, access_role, represents_entity, object_grain, is_agent_consumable, resolves_to_object, access_note FROM semantic.access_object;
+CREATE VIEW semantic.v_access_object AS SELECT object_identity, object_type, access_role, represents_entity, object_grain, is_agent_consumable, resolves_to_object, consumer_audience, access_semantics, access_note FROM semantic.access_object;
 COMMENT ON VIEW semantic.v_access_object IS 'Consumer contract: Authoritative access classification established from generated view structure.';
 
 CREATE TABLE semantic.access_composition (

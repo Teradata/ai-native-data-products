@@ -47,6 +47,7 @@ Where an object lives determines who can reach it. This pattern makes container 
 | **Parent / Child container** | A parent allocates space or organises children but holds no objects; a child holds objects. |
 | **Structural container** | Exists solely to organise administrative scope or namespace; holds no data objects. |
 | **Access principal** | An identity that can be granted rights: a role, a user, a group, or a policy. |
+| **Layer role** | The platform-neutral name for an object role that is a relation: `table` is `STORAGE`, `base_view` is `ACCESS`, `consumer_view` is `CONSUMER`. A product declares which object serves each ([Platform Layout Standard](../core/PLATFORM_LAYOUT.md)). |
 | **Separation policy** | The rule governing whether object roles are co-located or separated. |
 | **Derivation function** | The deterministic algorithm computing the target container and object name for an object. |
 | **Implied grant** | A permission not granted to end users directly but required for the separation architecture to work (e.g. cross-container rights for a view to reference its source). |

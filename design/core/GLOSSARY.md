@@ -83,6 +83,10 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Knowledge Store**: Design-time knowledge that guides *how* to build a product (modelling standards, naming conventions, industry reference models). This is distinct from the runtime knowledge *about* a product, which lives in the Semantic module.
 
+**Layer role**: The platform-neutral name for the part a relational object plays in a product: `STORAGE` (the base table), `ACCESS` (the optional governed one-to-one view) or `CONSUMER` (the governed interface for agents and tools). Each is a name for an object role the **organisation profile** places, so a layer role is derived and never recorded separately. See the [Platform Layout Standard](PLATFORM_LAYOUT.md).
+
+**Layout declaration**: What a product records in its Semantic module so a reader can resolve its physical names from the product itself: the platform it was built for, the standard version, and the container and object that serve each layer. Distinct from the **platform layout**, which says what is possible. See the [Platform Layout Standard](PLATFORM_LAYOUT.md).
+
 **Logical name**: A name the standards own (a standard-owned relation such as `ValidationRun`, a canonical attribute such as `created_dts`, an **access tier**). An organisation may map it to a physical name of its own in its **organisation profile**; the mapping is registered in the product's Semantic metadata, so consumers resolve through metadata rather than assume a name.
 
 **Module**: A self-contained, independently deployable component responsible for a distinct capability. The six standard modules are Domain, Search, Prediction, Observability, Semantic, and Memory. Modules integrate through join-back and cross-module reference patterns.
@@ -95,7 +99,9 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Platform binding**: A platform's implementation of the standards: the `implementation/{platform}/` tree of templates, binding documents and **platform profile**. It reads only the **build context**. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
-**Platform profile**: A platform binding's `PLATFORM_PROFILE.md`. It declares the engine versions the binding supports, its naming limits and the **binding settings** an organisation may set, which are normative for the binding; and it records physical-design defaults (key strategy, partitioning, indexing, compression, statistics), which a workload with different needs may depart from. Distinct from an **organisation profile**.
+**Platform layout**: The `Layout:` block of a **platform profile**: the container model of a platform, which **layer roles** are worth having on it, and how its catalogue is read. It states what is possible, as the **layout declaration** states what a product chose. See the [Platform Layout Standard](PLATFORM_LAYOUT.md).
+
+**Platform profile**: A platform binding's `PLATFORM_PROFILE.md`. It declares the engine versions the binding supports, its naming limits, its **platform layout** and the **binding settings** an organisation may set, which are normative for the binding; and it records physical-design defaults (key strategy, partitioning, indexing, compression, statistics), which a workload with different needs may depart from. Distinct from an **organisation profile**.
 
 **Point-in-Time (PIT)**: Reconstructing data as it existed at a specific past moment. This is what makes ML features reproducible without leakage. Realised by the `PointInTimeReconstruction` capability.
 

@@ -176,6 +176,25 @@ The last row has a boundary worth keeping straight: `:param` is correct for a **
 
 ---
 
+## 9. Layout
+
+The platform's part of the [Platform Layout Standard](../../design/core/PLATFORM_LAYOUT.md). A database is both the grant boundary and the space boundary, which is why separating consumer objects from storage is worth doing here, and why the governed one-to-one view is recommended: read-lock-free (access-locked) views keep readers from blocking loads.
+
+```
+Layout: -
+  Container term:     DATABASE
+  Qualification:      database.object: two levels, container then object
+  Grant boundary:     DATABASE
+  Access layer:       recommended
+  Access rationale:   Access-locked one-to-one views stop readers blocking writers, and a database is the grant and space boundary.
+  Consumer container: may-share
+  Catalogue source:   DBC.TablesV, DBC.ColumnsV, DBC.StatsV
+  Dialect:            Teradata SQL
+  Physical checks:    statistics, AMP skew, primary index, access-locked view contract
+```
+
+---
+
 ## Related
 
 - Time-zone / UTC persistence and the SCD2 sentinel: [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/).

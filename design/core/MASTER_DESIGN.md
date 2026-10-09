@@ -149,6 +149,8 @@ Each data product is **self-contained and independently deployable**. Whatever s
 
 Because many products may share one platform, a product's names must not collide with another's, and its objects must be attributable to their module through metadata. How names achieve that, and whether modules occupy separate containers or share one, is the organisation's choice, stated in its organisation profile under the [object-placement pattern](../patterns/object-placement.md); object names are not a contract (§7). Object names are **environment-agnostic**: promotion substitutes the container, never renames the object (`INV-MASTER-006`).
 
+Because names differ between products, a product **declares its layout**: which platform it was built for, and which container and object serve each layer. Anything that reads a product resolves names from that declaration and never assumes a convention. The layer roles, the platform and product declarations, and the order names are resolved in are the [Platform Layout Standard](PLATFORM_LAYOUT.md).
+
 ---
 
 ## 9. Access Layer
@@ -194,7 +196,7 @@ The framework is split along one boundary, defined by the [Design Language](DESI
 - **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Every platform is a sibling directory held to the same [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md); adding one changes no design document.
 - **Organisation profile**: organisation-specific. Placement, naming, access principals, classification and existing structures, supplied at build time, so neither tree encodes one organisation's conventions.
 
-A platform binding *is* an `implementation/{platform}/` tree, and its `PLATFORM_PROFILE.md` declares what the binding supports and which settings an organisation may set: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
+A platform binding *is* an `implementation/{platform}/` tree, and its `PLATFORM_PROFILE.md` declares what the binding supports, which layers are possible on the platform (its layout) and which settings an organisation may set: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
 
 ---
 
@@ -235,6 +237,7 @@ Product-level rules every conforming composition satisfies. Several are **condit
 
 - [Design Language](DESIGN_LANGUAGE.md): the notation every design document is written in, including the composition mechanism.
 - [Glossary](GLOSSARY.md): shared vocabulary.
+- [Platform Layout Standard](PLATFORM_LAYOUT.md): how a product declares its layout and how readers resolve names from it.
 - Module standards: [Domain](../modules/domain.md), [Search](../modules/search.md), [Prediction](../modules/prediction.md), [Observability](../modules/observability.md), [Semantic](../modules/semantic.md), [Memory](../modules/memory.md).
 - Patterns: [object-placement](../patterns/object-placement.md), [physical-storage](../patterns/physical-storage.md), [temporal-lifecycle-metadata](../patterns/temporal-lifecycle-metadata.md), [validation](../patterns/validation.md), [access-layer](../patterns/access-layer.md).
 

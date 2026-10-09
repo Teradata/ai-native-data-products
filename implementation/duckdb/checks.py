@@ -62,6 +62,10 @@ def profile():
         WHERE a.object_identity=v.schema_name||'.'||v.view_name AND a.is_agent_consumable))""", category="SEMANTIC")
     add("semantic", "SEM-017", """SELECT a.composite_object FROM semantic.access_composition a LEFT JOIN semantic.entity_metadata e
         ON e.entity_name=a.member_entity WHERE e.entity_name IS NULL""")
+    add("semantic", "SEM-018", """SELECT product_id AS object_identity FROM semantic.data_product_registry
+        WHERE platform_profile IS NULL OR standard_version IS NULL
+        UNION ALL SELECT object_identity FROM semantic.access_object WHERE object_type='CONSUMER_VIEW' AND consumer_audience IS NULL
+        UNION ALL SELECT object_identity FROM semantic.access_object WHERE object_type<>'CONSUMER_VIEW' AND consumer_audience IS NOT NULL""")
     # Declared tables/columns, authored descriptions and physical comments, profiles,
     # full/current surfaces, temporal types and actual interval semantics.
     for index, e in enumerate(ENTITIES):

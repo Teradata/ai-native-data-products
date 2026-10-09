@@ -10,6 +10,7 @@ The native [profile](checks.py) contains executable violation queries. `conforma
 | INV-SEMANTIC-001..002 | Explicit object-level model, table/content allowlists and model review | No instance catalogue is generated. |
 | INV-SEMANTIC-003..012 | SEM/REL checks, orientation/resource resolution, bidirectional access paths and name-only agent demo | Bootstrap registry and orientation are the only consumer conventions. |
 | INV-SEMANTIC-013..015 | Metric/expression/dataset/synonym checks | One DuckDB dialect and one additive metric in the example. |
+| INV-SEMANTIC-016..017 | SEM-018: registry records platform and standard version; consumer views carry an audience and no other object type does | One consumer view per entity, so the duplicate-audience rule is not exercised. No `ACCESS` layer object exists in this binding. |
 | INV-SEARCH-001..005 | SEARCH, JOIN, BOUNDARY, temporal checks; live join-back and reopened vector query tests | Toy embedding quality unassessed; VSS omitted. |
 | INV-PRED-001..005 | PRED/JOIN/BOUNDARY checks, engineered-value tests and point-in-time cutoffs | SCD2 effective history only; retrospective feature correction rejected. Definitions live in Semantic, monitoring in Observability. |
 | INV-OBS-001..006 | BOUNDARY, OBS, VAL checks; active-edge mutation and appended evidence tests | Host supplies events; no automatic trigger/audit guarantee. |

@@ -1,0 +1,9 @@
+{# INV-SEMANTIC-016 and INV-SEMANTIC-017: the registry records the platform and standard version, and consumer objects record their audience. #}
+SELECT p.product_id AS object_identity,'LAYOUT_NOT_DECLARED' AS issue_code FROM {{ qualified(containers.semantic,'data_product_registry') }} p
+WHERE p.platform_profile IS NULL OR p.standard_version IS NULL
+UNION ALL
+SELECT a.object_identity,'CONSUMER_AUDIENCE_MISSING' FROM {{ qualified(containers.semantic,'access_object') }} a
+WHERE a.object_type='CONSUMER_VIEW' AND a.consumer_audience IS NULL
+UNION ALL
+SELECT a.object_identity,'AUDIENCE_ON_NON_CONSUMER' FROM {{ qualified(containers.semantic,'access_object') }} a
+WHERE a.object_type<>'CONSUMER_VIEW' AND a.consumer_audience IS NOT NULL;

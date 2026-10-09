@@ -153,6 +153,13 @@ python tooling/evals/spec_lint.py path/to/design_specification.md
 python tooling/catalogue/build_catalogue.py
 ```
 
+`tooling/build/platform_layout.py` checks that every platform profile declares its layout under the [Platform Layout Standard](design/core/PLATFORM_LAYOUT.md), and exports the declarations as JSON for evaluators to load:
+
+```bash
+python tooling/build/platform_layout.py
+python tooling/build/platform_layout.py --json
+```
+
 `tooling/skill/verify_skill.py` checks that the repository is a well-formed agent skill: frontmatter, the `SKILL.md` and role-file line budgets, and that every path the routing names actually exists.
 
 ```bash

@@ -15,6 +15,8 @@ An **organisation profile** is how an organisation configures the standards for 
 
 A profile is a markdown document whose rules live in notation blocks, as in a [design specification](DESIGN_SPECIFICATION.md). The build-context resolver, `tooling/build/build_context.py`, reads the tables in this document, validates a profile against them, and executes its rules; a table here is the rule, not a description of it. Prose in a profile explains its choices and is never read by a build.
 
+**A profile decides names; the product declares them.** The names a profile derives are recorded in the product's Semantic module as its layout declaration, and readers resolve names from that record, never by applying the profile's templates ([Platform Layout Standard](PLATFORM_LAYOUT.md)). Each object role below is also a layer role there: `table` is `STORAGE`, `base_view` is `ACCESS` and `consumer_view` is `CONSUMER`.
+
 **One profile per platform.** A profile targets one platform. An organisation building on two platforms keeps two profiles; naming and classification policy may be identical in both.
 
 **A profile is the organisation's object-placement implementation.** Its first eight sections carry the eight required sections of the [object-placement pattern](../patterns/object-placement.md), under the headings that pattern requires, with their rules stated in blocks the resolver executes rather than in prose an agent interprets.
