@@ -144,6 +144,26 @@ class EntityNotationRule(unittest.TestCase):
         findings = [f for f in find_sql_violations(doc, "x.md") if f.rule == "unknown-type"]
         self.assertEqual(findings, [])
 
+    def test_a_field_named_entity_does_not_open_an_entity_block(self):
+        """`Embedding:` and `Model:` blocks carry `Entity:`/`Subject:` fields whose values
+        are entity names, not types."""
+        doc = ("```\nEmbedding: notes\n  Entity: Ticket\n  Source: Ticket.notes\n```\n"
+               "```\nModel: m\n  Subject: Ticket\n  Features: TicketFeatureSet\n```\n")
+        findings = [f for f in find_sql_violations(doc, "x.md") if f.rule == "unknown-type"]
+        self.assertEqual(findings, [])
+
+    def test_section_lines_inside_an_entity_are_not_attributes(self):
+        doc = ("```\nEntity: F [kind: History]\n  f_id : Identifier\n"
+               "  Features:\n    subject: Ticket\n    as of:   Ticket.opened_dts\n```\n")
+        findings = [f for f in find_sql_violations(doc, "x.md") if f.rule == "unknown-type"]
+        self.assertEqual(findings, [])
+
+    def test_an_entity_block_still_closes_at_the_next_block(self):
+        doc = ("```\nEntity: E [kind: History]\n  e_id : Identifier\n"
+               "Metric: M\n  Dataset: E\n```\n")
+        findings = [f for f in find_sql_violations(doc, "x.md") if f.rule == "unknown-type"]
+        self.assertEqual(findings, [])
+
 
 class ProhibitedTemporalNames(unittest.TestCase):
     """TLM-04, read from the pattern that declares it rather than hard-coded here."""

@@ -2,7 +2,7 @@
 
 This directory holds worked data products that exercise the standards end to end. They also serve as a learning aid.
 
-Each example supplies the inputs a full design, build and review cycle needs: a reference brief with every decision pre-settled, a conforming placement standard, and seed data. Running one produces a deployed product plus its design brief, DDL, and trust map. Those outputs belong in a product repository of their own rather than in this directory. What lives here is the fixed starting point, which is what makes a run repeatable and two runs comparable.
+Each example supplies the inputs a full design, build and review cycle needs: a reference brief with every decision pre-settled, an organisation profile, and seed data. Running one produces a deployed product plus its design brief, DDL, and trust map. Those outputs belong in a product repository of their own rather than in this directory. What lives here is the fixed starting point, which is what makes a run repeatable and two runs comparable.
 
 | Example | Composition | Platform | What it exercises |
 |---|---|---|---|
@@ -28,8 +28,8 @@ The second reason is teaching. The standards are written as contracts, which is 
 
 | | `customer-orders.md` | `examples/` |
 |---|---|---|
-| What it is | A minimal design brief, six entities | A complete product: brief, placement standard, seed data |
-| What runs it | `brief_lint`, on every test run | A full agent-driven cycle, by hand |
+| What it is | A minimal design specification, six entities | A complete product: reference brief, reference specification, organisation profiles, seed data |
+| What runs it | `spec_lint`, on every test run | A full agent-driven cycle, by hand |
 | What it proves | A conforming design still passes after a change to `design/` | The standards produce a working product |
 | Cost to run | Milliseconds | A working session per phase |
 | When it fails | The build is broken | The standards permitted something they should not |
@@ -45,7 +45,7 @@ An example earns its place by covering something the existing ones do not: a dif
 Supply at minimum:
 
 - A reference brief with every catalogued decision answered, and a stated reason for any departure from the advocated option. The seven catalogued decisions are in [`design/core/ADVOCATED_STANDARDS.md`](../design/core/ADVOCATED_STANDARDS.md).
-- A placement standard conforming to the [object-placement pattern](../design/patterns/object-placement.md), since the build starter refuses to invent containers.
+- An [organisation profile](../design/core/ORGANISATION_PROFILE.md), which is also the object-placement implementation, since the build refuses to invent containers. A second, contrasting profile lets the example test portability.
 - Seed data small enough to load quickly and varied enough to exercise the invariants. Include nulls where the model permits them, at least one entity with no children, and referential edges worth validating.
 
 Keep the brief's column names canonical. A brief is an input the design agent is told not to re-open, so a non-canonical name in it propagates into the product, and the run then reports a defect the fixture introduced instead of one the standards permitted.
