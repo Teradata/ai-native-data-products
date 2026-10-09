@@ -84,3 +84,20 @@ Internal columnar storage keeps the example self-contained. DuckDB can read/writ
 ## Settled design questions
 
 One file/six schemas is the default; private runtime may require a separate protected file. Comments hold compact object/field meaning; explicit Semantic rows hold relationships, roles and orientation. SCD2 uses native timestamps and transactions; the host writer handles late splits and replay. Prediction rejects retrospective corrections instead of claiming bitemporal support. Fixed arrays use one dimension per table. Exact scans are portable; VSS is optional. External storage is an opt-in lifecycle dependency. A small explicit Python model renders checked plain SQL, so deployment requires no template engine. Catalogue generation now discovers platforms; Teradata's comment limit is applied only to that platform. The example captures these choices as Memory decisions, including the security and temporal departures.
+
+## Layout
+
+The platform's part of the [Platform Layout Standard](../../design/core/PLATFORM_LAYOUT.md). Modules are schemas in one file, so there is no native grant boundary below the file. The governed one-to-one view adds no isolation, is still emitted while the [Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md) requires a `base_view` role, and no profile pack exists for this platform.
+
+```
+Layout: -
+  Container term:     SCHEMA
+  Qualification:      catalogue.schema.object: three levels, the catalogue being the database file
+  Grant boundary:     file
+  Access layer:       optional
+  Access rationale:   A single-file engine has no reader blocking and no native grants, so a one-to-one view is an interface layer only.
+  Consumer container: may-share
+  Catalogue source:   duckdb_tables(), duckdb_columns(), duckdb_views()
+  Dialect:            DuckDB SQL
+  Physical checks:    none
+```
