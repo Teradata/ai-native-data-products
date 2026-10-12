@@ -176,6 +176,73 @@ The last row has a boundary worth keeping straight: `:param` is correct for a **
 
 ---
 
+## Binding declarations
+
+The declarations the build-context resolver reads for this platform ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §5.1): quoting, the object roles this binding emits beyond tables and views, its physical type for each logical type, and its SQL for each expression function. A function with no line is not rendered by this binding; an expression that uses one is carried unrendered and reported as a gap.
+
+```
+Binding: -
+  Identifier quote: "
+  Literal quote:    '
+  Principals:       native
+```
+
+```
+Types: -
+  Identifier: BIGINT
+  Reference:  BIGINT
+  NaturalKey: VARCHAR(100)
+  Code:       VARCHAR(50)
+  ShortText:  VARCHAR(200)
+  Text:       VARCHAR(4000)
+  LongText:   CLOB
+  Json:       JSON
+  Enum:       VARCHAR(50)
+  Integer:    INTEGER
+  Decimal:    DECIMAL({p},{s})
+  Timestamp:  TIMESTAMP(6) WITH TIME ZONE
+  Date:       DATE
+  Flag:       BYTEINT
+  Vector:     VECTOR
+```
+
+```
+Functions: -
+  sum: SUM({0})
+  avg: AVG({0})
+  min: MIN({0})
+  max: MAX({0})
+  count: COUNT({0})
+  count_distinct: COUNT(DISTINCT {0})
+  count_rows: COUNT(*)
+  ratio: ({0}) / NULLIF({1}, 0)
+  completeness/1: AVG(CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END)
+  completeness/2: AVG(CASE WHEN {1} THEN CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END END)
+  validity: AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)
+  consistency: AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)
+  map/2: CASE {0} {cases} ELSE NULL END
+  map case: WHEN {key} THEN {value}
+  when: CASE WHEN {0} THEN {1} ELSE {2} END
+  coalesce: COALESCE({args})
+  is_null: ({0} IS NULL)
+  is_not_null: ({0} IS NOT NULL)
+  null: NULL
+  concat/2: TRIM(COALESCE({0}, '') || ' ' || COALESCE({1}, ''))
+  concat/3: TRIM(COALESCE({0}, '') || ' ' || COALESCE({1}, '') || ' ' || COALESCE({2}, ''))
+  length: CHARACTER_LENGTH({0})
+  hour_of_day: EXTRACT(HOUR FROM {0} AT TIME ZONE 'GMT')
+  day_of_week: ((TD_DAY_OF_WEEK(CAST({0} AS DATE)) + 5) MOD 7)
+  as_flag: CASE WHEN {0} THEN 1 ELSE 0 END
+  duration: INTERVAL '{n}' {unit}
+  true: 1
+  false: 0
+  flag test: ({0} = 1)
+```
+
+`hours_between` and `days_between` are not declared: Teradata's interval arithmetic overflows for spans a design cannot bound in advance, so expressions using them are reported as gaps until a bounded form is chosen.
+
+---
+
 ## Related
 
 - Time-zone / UTC persistence and the SCD2 sentinel: [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/).

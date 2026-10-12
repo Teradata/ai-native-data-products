@@ -81,6 +81,8 @@ class Standard:
     profiles: Set[str] = field(default_factory=set)
     kind_defaults: Dict[str, Set[str]] = field(default_factory=dict)
     canonical_attributes: Set[str] = field(default_factory=set)
+    canonical_meaning: Dict[str, str] = field(default_factory=dict)
+    module_entity_defs: Dict[str, Dict[str, "Entity"]] = field(default_factory=dict)
     conditional_prohibited: Dict[str, str] = field(default_factory=dict)  # name -> profile
     module_entities: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
     patterns: Set[str] = field(default_factory=set)
@@ -203,6 +205,7 @@ def load_standard(design_root: Path) -> Standard:
                 std.implicit_relations[key] = imp
             elif heading == "Entity sections":
                 std.section_kinds[key] = (["feature-group"] if "feature group" in cell
+                                          else ["*"] if cell.strip() == "every entity"
                                           else BACKTICK.findall(cell))
 
     for m in re.finditer(r"with the `([a-z]+:[a-z-]+)` facet also requires ((?:an? `\w+` block(?: and )?)+)",
@@ -226,6 +229,7 @@ def load_standard(design_root: Path) -> Standard:
         module_text = p.read_text(encoding="utf-8")
         spec = parse_specification(module_text, std=None)
         std.module_entities[p.stem] = {e.name: set(e.attributes) for e in spec.entities}
+        std.module_entity_defs[p.stem] = {e.name: e for e in spec.entities}
         # Entities under an `Entity Model: <X> Facet` heading belong to that facet.
         facet, lines = None, module_text.split("\n")
         starts = {e.line: e.name for e in spec.entities}
@@ -256,6 +260,7 @@ def _load_temporal(std: Standard, path: Path) -> None:
             for name in BACKTICK.findall(cells[0]):
                 if "<" not in name:
                     std.canonical_attributes.add(name)
+                    std.canonical_meaning[name] = re.sub(r"\*\*|`", "", cells[1]).strip()
         elif heading.startswith("Prohibited generic names") and len(cells) >= 3:
             scope = cells[2]
             if "except on" in scope:
@@ -286,6 +291,7 @@ class Attribute:
     type: str
     qualifiers: Dict[str, str]  # flag qualifiers map to ""
     line: int
+    description: str = ""  # the trailing `// ...` text
 
 
 @dataclass
@@ -357,7 +363,7 @@ def _parse_attribute(line: str, lineno: int) -> Optional[Attribute]:
     t = LOGICAL_TYPE.match(rest)
     if not t:
         return None
-    quals, _ = split_qualifiers(rest[t.end():])
+    quals, description = split_qualifiers(rest[t.end():])
     parsed = {}
     for q in quals:
         if q.startswith("->"):
@@ -367,7 +373,7 @@ def _parse_attribute(line: str, lineno: int) -> Optional[Attribute]:
             parsed[key.strip()] = value.strip()
         else:
             parsed[q] = ""
-    return Attribute(name, t.group(1), parsed, lineno)
+    return Attribute(name, t.group(1), parsed, lineno, description)
 
 
 def parse_specification(text: str, std: Optional[Standard]) -> Specification:

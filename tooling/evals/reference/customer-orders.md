@@ -87,6 +87,8 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
 
+  Description: A customer who orders from the business, as the ordering system knows them.
+
   Keys:
     surrogate: customer_id
 
@@ -115,6 +117,8 @@ Entity: Product                   [kind: History] [profile: SCD2_BITEMPORAL]
   description      : Text [optional]                   // the text Search embeds
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
+
+  Description: A product the business sells, identified by its SKU.
 
   Keys:
     surrogate: product_id
@@ -146,6 +150,8 @@ Entity: Order                     [kind: History] [profile: SCD2_BITEMPORAL]
   change_event_id  : Reference [optional] [-> ChangeEvent]  // per DEC-COLUMN-STRATEGY: reference
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
+
+  Description: A customer's order, with its status, value and the time it was placed.
 
   Keys:
     surrogate: order_id
@@ -179,6 +185,8 @@ Entity: OrderLine                 [kind: Relationship] [profile: ASSOCIATION_SCD
   line_value       : Decimal(12,2) [required]          // extended line value
   is_current       : Flag [current-flag]               // current version marker
 
+  Description: One product on an order, with the quantity and value ordered.
+
   Keys:
     surrogate: order_line_id
     natural:   order_id, product_id
@@ -207,6 +215,8 @@ Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY] [all
   long_description : Text [optional]                   // definition and usage guidance
   is_current       : Flag [current-flag]               // marks the current version of the code
   sort_order       : Integer [optional]                // display sequence
+
+  Description: The controlled vocabulary of order statuses and their labels.
 
   Keys:
     surrogate: order_status_id
@@ -242,6 +252,8 @@ Entity: CustomerKeymap          [kind: Keymap] [profile: CURRENT_STATE] [allocat
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
 
+  Description: Allocates each customer's stable identifier from their account number, once.
+
   Keys:
     surrogate: customer_id
     natural:   customer_key
@@ -262,6 +274,8 @@ Entity: ProductKeymap           [kind: Keymap] [profile: CURRENT_STATE] [allocat
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
 
+  Description: Allocates each product's stable identifier from its SKU, once.
+
   Keys:
     surrogate: product_id
     natural:   product_key
@@ -281,6 +295,8 @@ Entity: OrderKeymap             [kind: Keymap] [profile: CURRENT_STATE] [allocat
   order_key        : NaturalKey [required] [unique]    // order number from the ordering system
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
+
+  Description: Allocates each order's stable identifier from its order number, once.
 
   Keys:
     surrogate: order_id
@@ -416,6 +432,8 @@ Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY] [modul
   embedding_dimensions : Integer [required]            // dimensionality, for reproducibility
   is_current           : Flag [current-flag]           // current embedding for this product
 
+  Description: A vector embedding of a product's description, for similarity search.
+
   Keys:
     surrogate: product_embedding_id
     natural:   product_id, embedding_model
@@ -463,6 +481,8 @@ Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY] [modul
   reorder_propensity  : Decimal(5,4) [optional] [derive: count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)]  // share of the last year's orders placed in the last 90 days
   observation_dts     : Timestamp [required]           // as-at instant for the feature
   is_current          : Flag [current-flag]            // current feature version
+
+  Description: Engineered features about a customer's ordering, as at an observation instant.
 
   Keys:
     surrogate: customer_feature_id

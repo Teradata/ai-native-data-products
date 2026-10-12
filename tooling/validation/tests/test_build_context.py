@@ -261,7 +261,8 @@ class Portability(unittest.TestCase):
         """Strip what a profile controls; what is left is the product, and must match."""
         def logical(ctx):
             return [(e["name"], e["module"], e["profile"], e["identity"],
-                     [(a["name"], a["type"], a["required"], a["derive"]) for a in e["attributes"]])
+                     [(a["name"], a["type"], a["required"], a["derive"] and a["derive"]["text"])
+                      for a in e["attributes"]])
                     for e in ctx["entities"]]
         a, b = Resolved(profile=PROFILE_A).context, Resolved(profile=PROFILE_B).context
         self.assertEqual(logical(a), logical(b))
@@ -358,7 +359,7 @@ class ResolutionRules(unittest.TestCase):
 
     def test_lineage_views_follow_the_profile(self):
         views = {x["name"]: x["objects"]["base_view"] for x in Resolved().context["relations"]
-                 if x["kind"] == "view"}
+                 if x["relation"] == "view"}
         self.assertEqual(views["LineageGraph"], {"container": "ITSD_SEM", "name": "lineage_graph"})
 
     def test_personal_data_bound_enforced(self):

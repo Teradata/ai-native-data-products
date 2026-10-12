@@ -45,12 +45,31 @@ from org_profile import (  # noqa: E402
     parse_profile,
     render,
 )
+from binding import load_binding  # noqa: E402
+from expressions import ExpressionError, Node, Unrenderable, functions_used, parse as parse_expression  # noqa: E402
+from expressions import references as expression_references, render as render_expression  # noqa: E402
+from org_profile import _snake  # noqa: E402
 from spec_lint import Corpus, _keys, facet_names, lint_spec, standard  # noqa: E402
 from spec_notation import entity_module, parse_specification  # noqa: E402
 
 SCHEMA_VERSION = "1.0"
 VIEW_PATTERN = "access-layer"
 SENSITIVITY_MARKERS = ("pii", "pii-incidental")
+DEFAULT_VERSION = "0.1.0"
+
+# The canonical columns each temporal profile carries (temporal-lifecycle-metadata §4, §7).
+# Every profile carries the audit pair; versioned profiles add the validity pair and the
+# currency flag; the bitemporal profile adds the transaction-time pair; deletion support
+# adds the deletion pair. Tests check every name here is a canonical column of the pattern.
+VERSIONED = ("SCD2_HISTORY", "ASSOCIATION_SCD2", "SCD2_BITEMPORAL")
+PROFILE_COLUMNS = {
+    "SCD2_HISTORY": ["valid_from_dts", "valid_to_dts", "is_current"],
+    "ASSOCIATION_SCD2": ["valid_from_dts", "valid_to_dts", "is_current"],
+    "SCD2_BITEMPORAL": ["valid_from_dts", "valid_to_dts", "transaction_from_dts",
+                        "transaction_to_dts", "is_current"],
+}
+AUDIT_COLUMNS = ["created_dts", "updated_dts"]
+DELETION_COLUMNS = ["is_deleted", "deleted_dts"]
 
 
 class Resolution:
@@ -89,7 +108,7 @@ def _fields(block) -> dict:
 
 
 def resolve(spec_path: Path, profile_path: Path, environment: str = None,
-            design_root: Path = None) -> Tuple[dict, List[Finding]]:
+            design_root: Path = None, version: str = None) -> Tuple[dict, List[Finding]]:
     design_root = design_root or (REPO_ROOT / "design")
     r = Resolution(str(spec_path), str(profile_path))
 
@@ -97,8 +116,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
     pstd = load_profile_standard(design_root)
     profile = parse_profile(profile_path.read_text(encoding="utf-8"), pstd, str(profile_path))
     profile_findings = check_profile(profile, pstd)
-    if spec_findings or profile_findings:
-        return {}, spec_findings + profile_findings
+    binding, binding_findings = (load_binding(profile.frontmatter["platform"], design_root.parent)
+                                 if profile.frontmatter.get("platform") else (None, []))
+    if spec_findings or profile_findings or binding_findings:
+        return {}, spec_findings + profile_findings + binding_findings
 
     text = spec_path.read_text(encoding="utf-8")
     fm, _ = parse_frontmatter(text)
@@ -111,6 +132,9 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
     variables = {"product_code": code, "product": str(fm["product"])}
     settled = {d.get("id"): d.get("choice") for d in (fm.get("decisions") or []) if isinstance(d, dict)}
 
+    if not version:
+        version = DEFAULT_VERSION
+        r.default("product.version", version, "build_context --version")
     phases = [p.strip() for p in profile.field("Environments", "Phases", "").split(",")]
     if environment and environment not in phases:
         r.fail("unknown-environment", f"environment '{environment}' is not one of {phases}")
@@ -180,6 +204,89 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         ranked = [c for c in classes if c in scheme]
         return max(ranked, key=scheme.index) if ranked else default_class
 
+    def bound(logical, where):
+        physical = binding.physical_type(logical)
+        if physical is None:
+            r.fail("unsupported-type", f"{where}: the {binding.platform} binding declares no physical "
+                                       f"type for {logical}", "spec")
+        return physical
+
+    def shape_attribute(entity_name, a):
+        cls, prot = classify(a.qualifiers)
+        target = a.qualifiers.get("->")
+        out = {
+            "name": a.name,
+            "physical_name": physical_attribute(entity_name, a.name),
+            "type": a.type,
+            "physical_type": bound(a.type, f"{entity_name}.{a.name}"),
+            "description": a.description,
+            "required": "required" in a.qualifiers,
+            "unique": "unique" in a.qualifiers,
+            "references": [t.strip() for t in target.split("|")] if target else [],
+            "discriminator": a.qualifiers.get("discriminator"),
+            "derive": a.qualifiers.get("derive"),
+            "synonyms": [s.strip() for s in a.qualifiers.get("synonyms", "").split(",") if s.strip()],
+            "flags": [q for q in ("current-flag", "deleted-flag") if q in a.qualifiers],
+            "canonical": a.name in std.canonical_attributes,
+            "classification": cls,
+            "protection": prot,
+        }
+        if a.type.startswith("Enum{"):
+            out["members"] = [m.strip() for m in a.type[5:-1].split("|")]
+        vector = re.fullmatch(r"Vector\[(\d+)\]", a.type)
+        if vector:
+            out["dimensions"] = int(vector.group(1))
+        return out
+
+    def temporal_columns(entity_name, profile_name, attribute_names, deletion):
+        names = PROFILE_COLUMNS.get(profile_name, []) + AUDIT_COLUMNS + (DELETION_COLUMNS if deletion else [])
+        out = []
+        for name in names:
+            if name in attribute_names:
+                continue  # the specification declared it; it is the canonical column, not a second one
+            logical = "Timestamp" if name.endswith("_dts") else "Flag"
+            out.append({"name": name, "physical_name": standard_names.get(name, name),
+                        "type": logical, "physical_type": bound(logical, f"{entity_name}.{name}"),
+                        "required": name != "deleted_dts",
+                        "description": std.canonical_meaning.get(name, "")})
+        return out
+
+    def shape(e, module, allocation, keys, standard_owned=False):
+        attributes = [shape_attribute(e.name, a) for a in e.attributes.values()]
+        names = {a["name"] for a in attributes}
+        profile_name = e.header.get("profile")
+        deletion = (any("deleted-flag" in a["flags"] or a["name"] == "is_deleted" for a in attributes)
+                    or (settled.get("DEC-DELETE-STRATEGY") == "soft-delete" and profile_name in VERSIONED
+                        and not standard_owned))
+        description = str(e.sections.get("Description") or "").strip()
+        if not description:
+            description = f"{e.name}, as the {module} module standard defines it."
+        surrogate = keys.get("surrogate") or [a.name for a in e.attributes.values() if a.type == "Identifier"][:1]
+        return {
+            "name": e.name, "kind": e.kind, "module": module, "profile": profile_name,
+            "description": description,
+            "history": profile_name in VERSIONED,
+            "bitemporal": profile_name == "SCD2_BITEMPORAL",
+            "supports_deletion": bool(deletion),
+            "identity": {"allocation": allocation, "surrogate": surrogate,
+                         "natural": keys.get("natural", []),
+                         "keymap": keymap_of.get(e.name), "allocates": e.header.get("allocates")},
+            "attributes": attributes,
+            "temporal": temporal_columns(e.name, profile_name, names, deletion),
+        }
+
+    def emitted(item, role_kind, module, name, kind, cls=None, standard_owned=False):
+        """Place the extra roles the binding emits for this entity (sequences, functions)."""
+        out = {}
+        allocation = item["identity"]["allocation"]
+        if "sequence" in binding.emits and (
+                (kind == "Keymap" and "keymap" in binding.emits["sequence"])
+                or (allocation and allocation in binding.emits["sequence"] and allocation != "keymap")):
+            out["sequence"] = place("sequence", module, name, kind, standard_owned, cls)
+        if "function" in binding.emits and item["profile"] in binding.emits["function"]:
+            out["function"] = place("function", module, name, kind, standard_owned, cls)
+        return out
+
     # Standard-owned names never land on a specification attribute's name.
     spec_attributes = {a for e in spec.entities for a in e.attributes}
     for logical, physical in standard_names.items():
@@ -209,24 +316,8 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                 r.default(f"entities.{e.name}.allocation", allocation, "DEC-SURROGATE-ALLOCATION")
             if allocation == "external-allocator":
                 allocators.append(e.name)
-        attributes = []
-        for a in e.attributes.values():
-            cls, prot = classify(a.qualifiers)
-            target = a.qualifiers.get("->")
-            attributes.append({
-                "name": a.name,
-                "physical_name": physical_attribute(e.name, a.name),
-                "type": a.type,
-                "required": "required" in a.qualifiers,
-                "unique": "unique" in a.qualifiers,
-                "references": [t.strip() for t in target.split("|")] if target else [],
-                "discriminator": a.qualifiers.get("discriminator"),
-                "derive": a.qualifiers.get("derive"),
-                "synonyms": [s.strip() for s in a.qualifiers.get("synonyms", "").split(",") if s.strip()],
-                "flags": [q for q in ("current-flag", "deleted-flag") if q in a.qualifiers],
-                "classification": cls,
-                "protection": prot,
-            })
+        item = shape(e, module, allocation, keys)
+        attributes = item["attributes"]
         entity_class = most_sensitive(a["classification"] for a in attributes)
         patterns = [x.lstrip("- ").strip() for x in e.sections.get("Applies patterns", []) or []]
         objects = {}
@@ -239,15 +330,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         if VIEW_PATTERN in patterns:
             objects["base_view"] = place("base_view", module, e.name, e.kind, cls=entity_class)
             objects["consumer_view"] = place("consumer_view", module, e.name, e.kind, cls=entity_class)
+        objects.update(emitted(item, "entity", module, e.name, e.kind, entity_class))
         entities.append({
-            "name": e.name, "kind": e.kind, "module": module,
-            "profile": e.header.get("profile"),
-            "identity": {"allocation": allocation, "surrogate": keys.get("surrogate", []),
-                         "natural": keys.get("natural", []),
-                         "keymap": keymap_of.get(e.name),
-                         "allocates": e.header.get("allocates")},
+            **item,
             "classification": entity_class,
-            "attributes": attributes,
             "volume": e.sections.get("Volume"), "features": e.sections.get("Features"),
             "synonyms": [s.strip() for s in str(e.sections.get("Synonyms", "")).split(",") if s.strip()],
             "patterns": patterns,
@@ -276,13 +362,29 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
             names = [n for n in std.module_entities.get(module, {})
                      if std.entity_facets.get((module, n)) in enabled]
         tables = names + imp.tables + (imp.tall if tall else [])
+        defs = std.module_entity_defs.get(module, {})
         for name in tables:
             if name in declared or "<" in name:
                 continue
-            relations.append({"name": name, "module": module, "kind": "table",
-                              "objects": {"table": place("table", module, name, standard_owned=True)}})
+            definition = defs.get(name)
+            item = (shape(definition, module, "inline", _keys(definition), standard_owned=True)
+                    if definition else {"name": name, "module": module, "kind": "Record",
+                                        "profile": None, "description": f"{name}, as its pattern defines it.",
+                                        "history": False, "bitemporal": False, "supports_deletion": False,
+                                        "identity": {"allocation": None, "surrogate": [], "natural": [],
+                                                     "keymap": None, "allocates": None},
+                                        "attributes": [], "temporal": []})
+            objects = {"table": place("table", module, name, standard_owned=True)}
+            objects.update(emitted(item, "relation", module, name, item["kind"], standard_owned=True))
+            relations.append({**item, "relation": "table", "defined": bool(definition), "objects": objects})
         for name in imp.views:
-            relations.append({"name": name, "module": module, "kind": "view",
+            relations.append({"name": name, "module": module, "kind": "View", "relation": "view",
+                              "defined": False, "profile": None,
+                              "description": f"The {name} discovery view the {module} module defines.",
+                              "history": False, "bitemporal": False, "supports_deletion": False,
+                              "identity": {"allocation": None, "surrogate": [], "natural": [],
+                                           "keymap": None, "allocates": None},
+                              "attributes": [], "temporal": [],
                               "objects": {"base_view": place("base_view", module, name,
                                                              standard_owned=True)}})
 
@@ -366,13 +468,136 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
             decisions[d["id"]] = {"choice": d.get("choice"), "because": d.get("because"),
                                   "advocated": bool(options.get(d.get("choice")))}
 
-    product = {"name": variables["product"], "code": code, **(single("Product") or {})}
+    # ---- relationships, from every reference ------------------------------------------
+    by_name = {x["name"]: x for x in relations + entities}
+    physical = {(x["name"], a["name"]): a["physical_name"] for x in entities + relations
+                for a in x["attributes"]}
+    physical.update({(x["name"], t["name"]): t["physical_name"] for x in entities + relations
+                     for t in x["temporal"]})
+
+    def identity_column(target):
+        ident = target["identity"]
+        names = ident["surrogate"] or ident["natural"]
+        return [physical.get((target["name"], n), n) for n in names]
+
+    relationships = []
+    for x in entities:
+        for a in x["attributes"]:
+            for target_name in a["references"]:
+                target = by_name.get(target_name)
+                if target is None:
+                    continue  # a module entity this composition does not include
+                relationships.append({
+                    "source": x["name"], "source_attribute": a["name"],
+                    "source_column": a["physical_name"], "target": target_name,
+                    "target_columns": identity_column(target), "mandatory": a["required"],
+                    "discriminator": a["discriminator"],
+                    "discriminator_value": target_name.upper() if a["discriminator"] else None})
+
+    # ---- expressions, rendered in the binding's dialect ---------------------------------
+    measures = {b.name: b.fields.get("Measure") for b in spec.blocks_of("Metric")}
+
+    def expand(node, seen=()):
+        """Inline metric('Name') with that metric's own measure."""
+        if node.kind == "call" and node.value == "metric" and node.args and node.args[0].kind == "string":
+            name = node.args[0].value
+            if name in seen or name not in measures:
+                return node
+            return expand(parse_expression(measures[name]), seen + (name,))
+        node.args = [expand(a, seen) for a in node.args]
+        node.pairs = [(k, expand(v, seen)) for k, v in node.pairs]
+        return node
+
+    def ref_sql(entity, attribute):
+        alias = binding.ident(_snake(entity))
+        if attribute is None:
+            return alias
+        return alias + "." + binding.ident(physical.get((entity, attribute), attribute))
+
+    types = {(x["name"], a["name"]): a["type"] for x in entities + relations for a in x["attributes"]}
+    types.update({(x["name"], t["name"]): t["type"] for x in entities + relations for t in x["temporal"]})
+
+    def is_flag(entity, attribute):
+        return types.get((entity, attribute)) == "Flag"
+
+    def expression(text, condition=False):
+        if not text:
+            return None
+        try:
+            node = expand(parse_expression(text))
+        except ExpressionError as exc:
+            r.fail("invalid-expression", f"'{text}': {exc}", "spec")
+            return None
+        out = {"text": text, "ast": node.to_dict(),
+               "references": [{"entity": e, "attribute": a,
+                               "physical_name": physical.get((e, a), a) if a else None}
+                              for e, a in expression_references(node)],
+               "sql": None, "unsupported": []}
+        try:
+            out["sql"] = render_expression(node, binding.functions, ref_sql, binding.literal,
+                                           is_flag, condition)
+        except Unrenderable as exc:
+            out["unsupported"] = [str(exc)]
+        return out
+
+    for x in entities:
+        for a in x["attributes"]:
+            if a["derive"]:
+                a["derive"] = expression(a["derive"])
+
+    embeddings = blocks("Embedding")
+    for b in embeddings:
+        b["source"] = expression(b.get("source"))
+        b["where"] = expression(b.get("where"), condition=True)
+    metrics = blocks("Metric")
+    for b in metrics:
+        b["measure"] = expression(b.get("measure"))
+        b["filter"] = expression(b.get("filter"), condition=True)
+
+    quality = single("Quality")
+    if quality:
+        rules = []
+        for line in quality.get("rules") or []:
+            body = line[2:] if line.startswith("- ") else line
+            depth, close = 0, len(body)
+            for i, ch in enumerate(body):
+                depth += ch == "("
+                depth -= ch == ")"
+                if ch == ")" and depth == 0:
+                    close = i
+                    break
+            check = expression(body[:close + 1])
+            thresholds = body[close + 1:].lstrip()[1:].strip()
+            fn = check["ast"]["value"] if check else None
+            rules.append({"rule": line, "function": fn, "check": check,
+                          "arguments": [expression_arg for expression_arg in
+                                        ([] if not check else check["ast"].get("args", []))],
+                          "thresholds": thresholds})
+        quality["rules"] = rules
+        quality["weights"] = {k.strip(): int(v.strip().rstrip("%")) for k, v in
+                              (w.split(":", 1) for w in quality.get("weights") or [])}
+
+    orientation = single("Orientation")
+    if orientation:
+        role = "consumer_view" if orientation.get("entrypoint") == "access-layer" else "table"
+        module = "semantic" if role == "table" else "domain"
+        try:
+            orientation["entrypoint_container"] = derive(profile, role, module, "Entry", None,
+                                                         variables, environment)[0]
+        except KeyError:
+            r.fail("unplaceable", "the profile cannot place the orientation entrypoint")
+
+    product = {"name": variables["product"], "code": code, "version": version,
+               **(single("Product") or {})}
     context = {
         "schema_version": SCHEMA_VERSION,
         "inputs": {"specification": spec_path.as_posix(), "profile": profile_path.as_posix()},
         "product": product,
         "organisation": profile.frontmatter.get("organisation"),
         "platform": platform,
+        "binding": {"platform": binding.platform, "principals": binding.principals,
+                    "emits": binding.emits, "identifier_quote": binding.identifier_quote,
+                    "literal_quote": binding.literal_quote},
         "environment": {"name": environment, "phases": phases,
                         "isolation": profile.field("Environments", "Isolation")},
         "composition": fm.get("composition"),
@@ -387,16 +612,17 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         "allocator": allocator,
         "entities": entities,
         "relations": relations,
+        "relationships": relationships,
         "standard_names": standard_names,
         "classification": {"scheme": scheme, "default": default_class, "markers": markers,
                            "protection": protection},
-        "embeddings": blocks("Embedding"),
+        "embeddings": embeddings,
         "models": blocks("Model"),
-        "metrics": blocks("Metric"),
+        "metrics": metrics,
         "access_objects": blocks("AccessObject"),
         "glossary": blocks("Glossary"),
-        "orientation": single("Orientation"),
-        "quality": single("Quality"),
+        "orientation": orientation,
+        "quality": quality,
         "lineage": single("Lineage"),
         "retention": retention,
         "runtime": single("Runtime"),
@@ -416,9 +642,11 @@ def main(argv: List[str]) -> int:
     parser.add_argument("specification", type=Path)
     parser.add_argument("profile", type=Path)
     parser.add_argument("--environment")
+    parser.add_argument("--version", help="the product version being built")
     parser.add_argument("--out", type=Path, help="write the context here instead of stdout")
     args = parser.parse_args(argv)
-    context, findings = resolve(args.specification, args.profile, args.environment)
+    context, findings = resolve(args.specification, args.profile, args.environment,
+                                version=args.version)
     if findings:
         for f in findings:
             print(str(f))

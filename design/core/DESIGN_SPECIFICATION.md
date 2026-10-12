@@ -102,10 +102,11 @@ Every reference target must resolve to an entity declared in the specification o
 
 ### 3.5 Entity sections
 
-`Synonyms:` is a single line of terms. `Volume:` and `Features:` hold indented fields.
+`Description:` and `Synonyms:` are single lines. `Volume:` and `Features:` hold indented fields. Every attribute also carries its business meaning as a trailing `// description`; the build records both as the objects' metadata (`RichMetadata`).
 
 | Section | Required on |
 |---|---|
+| `Description` | every entity |
 | `Volume` | every entity of kind `History`, `Reference` or `Relationship` |
 | `Features` | every feature group: an entity a `Model:` reads |
 | `Synonyms` | none |

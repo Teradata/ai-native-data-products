@@ -83,3 +83,71 @@ Extensions execute code in the host: pin and approve packages and restrict loadi
 ## 10. SQL idioms and driver constraints
 
 Use quoted identifiers and escaped literals through the documented filters. Use `?` parameters for data values through the driver. History surfaces are table macros with untyped parameters; pass typed timestamps. Fixed-size arrays enforce their dimension at insert. Render StrictUndefined templates with a loader rooted at this platform directory. Type and constraint expressions are builder-authored SQL, not user data. Run DuckDB checks in autocommit mode so that one failed query does not poison the following checks.
+
+---
+
+## Binding declarations
+
+The declarations the build-context resolver reads for this platform ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §5.1): quoting, the object roles this binding emits beyond tables and views, its physical type for each logical type, and its SQL for each expression function. A function with no line is not rendered by this binding; an expression that uses one is carried unrendered and reported as a gap.
+
+```
+Binding: -
+  Identifier quote: "
+  Literal quote:    '
+  Principals:       unsupported
+  Emits:
+    sequence: keymap, inline
+    function: SCD2_HISTORY, ASSOCIATION_SCD2, SCD2_BITEMPORAL
+```
+
+```
+Types: -
+  Identifier: BIGINT
+  Reference:  BIGINT
+  NaturalKey: VARCHAR
+  Code:       VARCHAR
+  ShortText:  VARCHAR
+  Text:       VARCHAR
+  LongText:   VARCHAR
+  Json:       JSON
+  Enum:       VARCHAR
+  Integer:    INTEGER
+  Decimal:    DECIMAL({p},{s})
+  Timestamp:  TIMESTAMPTZ
+  Date:       DATE
+  Flag:       BOOLEAN
+  Vector:     FLOAT[{dim}]
+```
+
+```
+Functions: -
+  sum: SUM({0})
+  avg: AVG({0})
+  min: MIN({0})
+  max: MAX({0})
+  count: COUNT({0})
+  count_distinct: COUNT(DISTINCT {0})
+  count_rows: COUNT(*)
+  ratio: ({0}) / NULLIF({1}, 0)
+  completeness/1: AVG(CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END)
+  completeness/2: AVG(CASE WHEN {1} THEN CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END END)
+  validity: AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)
+  consistency: AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)
+  map/2: CASE {0} {cases} ELSE NULL END
+  map case: WHEN {key} THEN {value}
+  when: CASE WHEN {0} THEN {1} ELSE {2} END
+  coalesce: COALESCE({args})
+  is_null: ({0} IS NULL)
+  is_not_null: ({0} IS NOT NULL)
+  null: NULL
+  concat: CONCAT_WS(' ', {args})
+  length: length({0})
+  hours_between: date_diff('second', {0}, {1}) / 3600.0
+  days_between: date_diff('second', {0}, {1}) / 86400.0
+  hour_of_day: hour(timezone('UTC', {0}))
+  day_of_week: (isodow(timezone('UTC', {0})) - 1)
+  as_flag: ({0})
+  duration: INTERVAL '{n} {unit}'
+  true: TRUE
+  false: FALSE
+```

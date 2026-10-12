@@ -98,6 +98,36 @@ Each platform directory provides:
 
 Unsupported capabilities, compositions, profile settings and adoption modes are declared explicitly. An absent binding, a skipped check or an unexecuted engine test is never reported as conformance. Support for a minimal composition does not imply support for every module.
 
+### 5.1 Binding declarations
+
+A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when it builds a context for that platform. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. Each block opens `<Block>: -` in a fenced code block, as in an organisation profile.
+
+#### `Binding:`
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `Identifier quote` | yes | text | The character that quotes an identifier. |
+| `Literal quote` | yes | text | The character that quotes a text literal; it is doubled inside one. |
+| `Principals` | yes | enum | `native` or `unsupported`: whether the platform grants to principals. |
+| `Emits` | no | mappings | Object roles the binding emits beyond `table`, `base_view` and `consumer_view`, each with the entities it emits them for: `sequence: <allocations>` or `function: <profiles>`. |
+| `Settings` | no | mappings | Each binding setting an organisation profile may set, with its permitted values and default, as `<setting>: <values>; default <value>`. |
+
+#### `Types:`
+
+One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension. A logical type with no line is unsupported, and a context that needs it fails with a reported gap.
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `*` | yes | text | One line per logical type. |
+
+#### `Functions:`
+
+One field per function of the [Design Specification Standard](DESIGN_SPECIFICATION.md)'s expression vocabulary the binding can render, as a SQL fragment in which `{0}`, `{1}` ... stand for rendered arguments and `{args}` for all of them, comma-separated. A name may carry an arity, `name/2`, for a form that differs by argument count. `duration` renders a duration from `{n}` and `{unit}`; `map case` renders one `{key}`/`{value}` pair of a `map`; `true`, `false` and `null` render literals; and `flag test`, on a platform with no boolean type, renders a `Flag` that stands as a condition. A function with no line is unsupported: expressions using it carry no rendered SQL, and the binding reports the gap.
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `*` | yes | text | One line per function. |
+
 ## 6. Template rules
 
 - **Jinja is the only template language.** Every platform artefact a binding maintains is a Jinja template. No other substitution convention (format placeholders, angle-bracket or brace tokens, find-and-replace markers) appears in a binding.

@@ -115,6 +115,8 @@ Entity: Ticket                    [kind: History] [profile: SCD2_BITEMPORAL]
   is_current         : Flag [current-flag]                 // current version marker
   is_deleted         : Flag [deleted-flag]                 // soft-delete marker
 
+  Description: A request or incident raised with the service desk, through its lifecycle to closure.
+
   Keys:
     surrogate: ticket_id
 
@@ -152,6 +154,8 @@ Entity: Agent                     [kind: History] [profile: SCD2_BITEMPORAL]
   is_current : Flag [current-flag]                 // current version marker
   is_deleted : Flag [deleted-flag]                 // soft-delete marker
 
+  Description: A service desk agent who works tickets.
+
   Keys:
     surrogate: agent_id
 
@@ -187,6 +191,8 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   is_current          : Flag [current-flag]                        // current version marker
   is_deleted          : Flag [deleted-flag]                        // soft-delete marker
 
+  Description: A customer organisation the service desk supports.
+
   Keys:
     surrogate: customer_id
 
@@ -221,6 +227,8 @@ Entity: Category                  [kind: Reference] [profile: CURRENT_STATE] [al
   effective_date     : Date [optional]                      // first day the category may be assigned
   expiration_date    : Date [optional]                      // last day the category may be assigned
 
+  Description: The two-level taxonomy tickets are classified by.
+
   Keys:
     surrogate: category_id
     natural:   category_code
@@ -246,6 +254,8 @@ Entity: TicketKeymap              [kind: Keymap] [profile: CURRENT_STATE] [alloc
   ticket_key    : NaturalKey [required] [unique]   // source ticket identifier
   source_system : ShortText [optional]             // system that introduced the key
 
+  Description: Allocates each ticket's stable identifier from its source ticket id, once.
+
   Keys:
     surrogate: ticket_id
     natural:   ticket_key
@@ -265,6 +275,8 @@ Entity: AgentKeymap               [kind: Keymap] [profile: CURRENT_STATE] [alloc
   agent_key     : NaturalKey [required] [unique]   // source agent identifier; the agent's email is not used as a key
   source_system : ShortText [optional]             // system that introduced the key
 
+  Description: Allocates each agent's stable identifier from its source agent id, once.
+
   Keys:
     surrogate: agent_id
     natural:   agent_key
@@ -283,6 +295,8 @@ Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE] [alloc
   customer_id   : Identifier                       // allocated once per natural key; never reused
   customer_key  : NaturalKey [required] [unique]   // source customer identifier
   source_system : ShortText [optional]             // system that introduced the key
+
+  Description: Allocates each customer's stable identifier from its source customer id, once.
 
   Keys:
     surrogate: customer_id
@@ -475,6 +489,8 @@ Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [alloc
   generated_dts           : Timestamp [required]               // when the vector was generated
   is_current              : Flag [current-flag]                // current embedding per ticket and source
 
+  Description: Vector embeddings of ticket text, one per ticket and embedded source.
+
   Keys:
     surrogate: embedding_id
     natural:   entity_id, source_attribute, embedding_model
@@ -573,6 +589,8 @@ Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [modul
   feature_group_version : ShortText [optional]                // feature logic version
   is_current            : Flag [current-flag]                 // current feature row per ticket
 
+  Description: Engineered features about a ticket, as at an observation instant, for SLA breach prediction.
+
   Keys:
     surrogate: feature_group_id
     natural:   entity_id
@@ -615,6 +633,8 @@ Entity: ModelPrediction           [kind: History] [profile: SCD2_HISTORY] [alloc
   prediction_dts          : Timestamp [required]              // when scored
   feature_observation_dts : Timestamp [optional]              // the feature row scored
   is_current              : Flag [current-flag]               // latest score per ticket
+
+  Description: Scores the SLA breach model produces for tickets, one version per scoring event.
 
   Keys:
     surrogate: prediction_id

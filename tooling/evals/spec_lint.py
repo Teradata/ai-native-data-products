@@ -638,8 +638,12 @@ def check_entity_notation(ctx: NotationContext, path) -> List[Finding]:
             findings.append(Finding(path, e.line, "misplaced-entity",
                                     f"{where} holds a Vector in module '{module}'; embeddings "
                                     f"belong to search (declare [module: search])"))
+        for a in e.attributes.values():
+            if not a.description:
+                findings.append(Finding(path, a.line, "missing-description",
+                                        f"{where}.{a.name} has no // description"))
         for section, kinds in std.section_kinds.items():
-            needed = e.kind in kinds or ("feature-group" in kinds and feature_group)
+            needed = e.kind in kinds or "*" in kinds or ("feature-group" in kinds and feature_group)
             if needed and section not in e.sections:
                 findings.append(Finding(path, e.line, "missing-section",
                                         f"{where} has no '{section}:' section"))

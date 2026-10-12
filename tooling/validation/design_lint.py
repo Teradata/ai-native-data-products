@@ -90,6 +90,8 @@ LOGICAL_TYPES = {
 RESERVED_ENTITY_LABELS = {
     "Entity", "Keys", "surrogate", "natural", "kind",
     "Applies patterns", "Requires capabilities", "Invariants",
+    # Entity sections a design specification adds (Design Specification Standard §3.5).
+    "Description", "Synonyms", "Volume", "Features",
 }
 
 # Frontmatter vocabulary (authoritative companion to the Frontmatter section).

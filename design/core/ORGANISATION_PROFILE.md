@@ -84,7 +84,7 @@ Names are written as templates: literal text with `{variable}` placeholders, eac
 
 ## 5. Object roles
 
-Every object a build creates has one of these roles. A naming template and a placement rule exist for each role marked required.
+Every object a build creates has one of these roles. A naming template and a placement rule exist for each role marked required, and for every optional role the target binding declares it emits.
 
 | Role | Required | Created for |
 |---|---|---|
@@ -92,7 +92,8 @@ Every object a build creates has one of these roles. A naming template and a pla
 | `base_view` | yes | The governed one-to-one view over a table. |
 | `consumer_view` | yes | The access-layer view consumers are granted. |
 | `procedure` | no | A stored procedure a binding emits. |
-| `function` | no | A user-defined function a binding emits. |
+| `function` | no | A user-defined function a binding emits, such as a point-in-time accessor. |
+| `sequence` | no | A key-allocation sequence a binding emits. |
 
 ## 6. Blocks
 
