@@ -9,9 +9,9 @@ Three registered data products under three unrelated naming schemes, and the ful
 | 1 | [`01-seed-registry.sql`](01-seed-registry.sql) | Registers three products. `CustExp` as `DRAFT`, `CredExp` and `ITSD` as `ACTIVE` with their consumer surfaces. |
 | 2 | [`02-lifecycle-walk.sql`](02-lifecycle-walk.sql) | Takes `CustExp` through four transitions: publication, a `1.1.0` release, deprecation, retirement. |
 | 3 | [`03-verification-queries.sql`](03-verification-queries.sql) | The reads, each with its expected result. |
-| 4 | `conformance-queries.sql` (in the binding) | Every invariant, expected to return zero rows. |
+| 4 | `conformance-queries.sql.j2` (in the binding) | Every invariant, expected to return zero rows. |
 
-You need the amended registry from [`modules/semantic/03-registry.sql`](../../implementation/teradata/modules/semantic/03-registry.sql), the two feed tables, and the five views. Step 2 also writes to `CustExp_SEM_STD_T` and `CustExp_OBS_STD_T`, which needs the product's own tables to exist; skip those statements if they don't, and nothing else is affected.
+You need the amended registry from [`modules/semantic/03-registry.sql.j2`](../../implementation/teradata/modules/semantic/03-registry.sql.j2), the two feed tables, and the five views. Step 2 also writes to `CustExp_SEM_STD_T` and `CustExp_OBS_STD_T`, which needs the product's own tables to exist; skip those statements if they don't, and nothing else is affected.
 
 Every instant is a literal, so results are identical between runs and the verification queries can state exact row counts.
 
@@ -79,4 +79,4 @@ Two of these are why the work was needed. `contactName` and `contactEmail` had n
 
 ## Known divergence in automated registration
 
-A registration generator written against the version 1.0 registry emits a `MERGE` keyed on `product_id` alone, writes `updated_at`, and may derive per-module container columns by matching container names against a naming pattern. All three are incompatible with this interface; the binding's [README](../../implementation/teradata/patterns/catalogue-interface/README.md) sets out what each should become. Until it is updated, take the registration statements from `02-lifecycle-dml.sql` and treat the generated script as a template.
+A registration generator written against the version 1.0 registry emits a `MERGE` keyed on `product_id` alone, writes `updated_at`, and may derive per-module container columns by matching container names against a naming pattern. All three are incompatible with this interface; the binding's [README](../../implementation/teradata/patterns/catalogue-interface/README.md) sets out what each should become. Until it is updated, take the registration statements from `02-lifecycle-dml.sql.j2` and treat the generated script as a template.

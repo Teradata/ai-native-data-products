@@ -1,6 +1,6 @@
 # Emitter specification
 
-Two renderers that turn the extraction in `05-semantic-model-export.sql` into the artefacts an enterprise catalogue ingests. This document is the contract they implement; it is supporting material for the [catalogue-interface binding](README.md), not a design document.
+Two renderers that turn the extraction in `05-semantic-model-export.sql.j2` into the artefacts an enterprise catalogue ingests. This document is the contract they implement; it is supporting material for the [catalogue-interface binding](README.md), not a design document.
 
 The renderers belong with whatever release packaging tooling already builds a product's deployment package and emits its per-catalogue metadata bundles. They are pure projections of a neutral product-metadata model, with no live connectivity and nothing fabricated, which is the rule the catalogue renderers beside them follow.
 

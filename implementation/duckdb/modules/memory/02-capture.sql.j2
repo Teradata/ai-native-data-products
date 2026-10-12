@@ -1,0 +1,14 @@
+{# Inputs: documentation records from the approved design, modules and product.
+   Do not fabricate decisions or fill required capture counts with placeholders. #}
+{% for m in modules %}
+INSERT INTO {{ qualified(containers.memory,'module_registry') }}
+ (module_name,container_name,deployment_status,module_version,module_purpose,authored_by,source_artifact,authored_dts,
+ valid_from_dts,valid_to_dts,is_current,created_dts,updated_dts,is_deleted,deleted_dts)
+VALUES ({{ m|literal }},{{ containers[m]|literal }},'DEPLOYED',{{ product.version|literal }},{{ ('Declared ' ~ m ~ ' capability')|literal }},{{ product.owner|literal }},'Approved design',current_timestamp,current_timestamp,'infinity',true,current_timestamp,current_timestamp,false,NULL);
+{% endfor %}
+{% for doc in documentation %}
+INSERT INTO {{ qualified(containers.memory,'design_decision') }}
+ (decision_id,decision_version,decision_title,context,alternatives,rationale,consequences,decision_status,decision_category,source_module,authored_by,source_artifact,authored_dts,
+ valid_from_dts,valid_to_dts,is_current,created_dts,updated_dts,is_deleted,deleted_dts)
+VALUES ({{ doc.id|literal }},1,{{ doc.title|literal }},{{ doc.context|literal }},{{ doc.alternatives|literal }},{{ doc.rationale|literal }},{{ doc.consequences|literal }},'ACCEPTED',{{ doc.category|literal }},{{ doc.module|literal }},{{ product.owner|literal }},{{ doc.source|literal }},current_timestamp,current_timestamp,'infinity',true,current_timestamp,current_timestamp,false,NULL);
+{% endfor %}

@@ -34,7 +34,7 @@ Import paths are written relative to that root (`patterns/temporal-lifecycle-met
 
 `StrictUndefined` is worth keeping. Without it a variable the template expects and the caller forgets renders as an empty string, and a `CREATE TABLE` missing a column name fails at the database with an error that points nowhere near the cause.
 
-What this buys is that the cross-cutting columns are defined once. A table's temporal and lifecycle block comes from the [temporal pattern's macros](patterns/temporal-lifecycle-metadata/), the same way a design document references a pattern rather than restating it. Every template that renders is exercised by `tooling/validation/tests/test_templates_render.py`.
+What this buys is that the cross-cutting columns are defined once. A table's temporal and lifecycle block comes from the [temporal pattern's macros](patterns/temporal-lifecycle-metadata/), the same way a design document references a pattern rather than restating it. Every template is rendered by `tooling/validation/tests/test_templates_render.py`, which fails when a template has no case, and `tooling/validation/tests/test_teradata_templates.py` asserts the template rules: Jinja is the only substitution convention, no container literal, missing values fail. The context variables the templates read are listed in [`TEMPLATE_INPUTS.md`](TEMPLATE_INPUTS.md).
 
 ## Catalogue
 
@@ -76,7 +76,7 @@ Two kinds of artifact, distinguished by extension:
 | Artifact | Extension | Contents |
 |----------|-----------|----------|
 | **Binding document** | `.md` | Prose. How this platform satisfies the design contract: physical model, type bindings, failure modes, deviations. Human-readable, never executed. |
-| **Template** | `.sql.j2` | Jinja-templated DDL/DCL rendered at build time. Mostly-static SQL with placeholders for the part that varies per product. |
+| **Template** | `.sql.j2` | Jinja-templated DDL/DCL/DML and query artefacts rendered at build time. Mostly-static SQL; every name that varies per product or organisation arrives from the build context. There is no plain `.sql` in this binding. |
 
 Most anchors need a binding document. Only some need a template. An anchor whose platform behaviour is fully described in prose does not need a `.sql.j2` file, and one should not be created speculatively.
 

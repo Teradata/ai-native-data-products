@@ -1,0 +1,12 @@
+{# Inputs: searches, each declaring source/embedding entities, model, dimensions and content fields.
+   Embeddings come from a declared external or in-database encoder. No toy encoder is substituted.
+   Exact scan over current vectors; callers validate shape, finiteness and nonzero norm at the encoder boundary. #}
+{% for s in searches %}
+CREATE MACRO {{ qualified(containers.search,s.name) }}(query_vector,result_limit) AS TABLE
+SELECT e.entity_id,list_cosine_similarity(e.{{ s.vector_column|ident }},query_vector) AS similarity
+{% for name in s.content_columns %},d.{{ name|ident }}{% endfor %}
+FROM {{ s.embedding_entity.view }} e JOIN {{ s.source_entity.view }} d ON e.entity_id=d.{{ s.source_entity.key|ident }}
+WHERE e.entity_kind={{ s.entity_kind|literal }} AND e.embedding_model={{ s.model|literal }} AND e.embedding_model_version={{ s.model_version|literal }}
+ AND e.source_attribute={{ s.source_attribute|literal }}
+ORDER BY similarity DESC,e.entity_id LIMIT greatest(0,least(result_limit,1000));
+{% endfor %}

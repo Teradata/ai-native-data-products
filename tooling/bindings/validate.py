@@ -19,17 +19,25 @@ except ImportError:
 
 
 def summarize(expected,results):
+    """Wire-schema 2.1 area summary. A result may carry a severity (default ERROR); only
+    ERROR and CRITICAL failures are counted as such, so a failed WARNING leaves partial confidence."""
     counts=dict(passed_count=0,failed_count=0,error_count=0,critical_failure_count=0,error_failure_count=0)
     for r in results:
         counts[{'PASSED':'passed_count','FAILED':'failed_count','ERROR':'error_count'}[r['status']]]+=1
-        if r['status']!='PASSED': counts['error_failure_count']+=1
+        severity=r.get('severity','ERROR')
+        if r['status']!='PASSED' and severity in ('ERROR','CRITICAL'):
+            counts['error_failure_count' if severity=='ERROR' else 'critical_failure_count']+=1
     ran=len(results);bad=counts['failed_count']+counts['error_count']
-    return dict(counts,checks_expected=expected,checks_ran=ran,
-                area_status='no-evidence' if expected==0 else 'fail' if bad else 'pass' if ran==expected else 'partial',
-                confidence='unknown' if expected==0 else 'weak' if bad else 'strong' if ran==expected else 'partial')
+    if expected==0: status,confidence='no-evidence','unknown'
+    elif ran==0: status,confidence='not-validated','unknown'
+    else:
+        status='fail' if bad else 'pass' if ran==expected else 'partial'
+        confidence=('weak' if counts['critical_failure_count']+counts['error_failure_count'] or ran/expected<0.5
+                    else 'partial' if bad or ran<expected else 'strong')
+    return dict(counts,checks_expected=expected,checks_ran=ran,area_status=status,confidence=confidence)
 
 
-def validate(con,manifest):
+def validate(con,manifest,run_id=None):
     postgres=manifest['platform']=='postgres'
     started=datetime.now(timezone.utc)
     results=[]
@@ -41,9 +49,10 @@ def validate(con,manifest):
         except Exception as exc:
             count=0;status='ERROR';error=str(exc)
         results.append(dict(test_id=check['test_id'],scope_kind=check['scope_kind'],scope_id=check['scope_id'],
-                            category='STRUCTURAL',severity='ERROR',status=status,row_count=count,error_message=error))
+                            category=check.get('category','STRUCTURAL'),severity=check.get('severity','ERROR'),
+                            status=status,row_count=count,error_message=error))
     if 'observability' not in manifest['modules']: return results
-    now=datetime.now(timezone.utc);run_id=uuid.uuid4().hex
+    now=datetime.now(timezone.utc);run_id=run_id or uuid.uuid4().hex
     product=manifest['product'];schema=manifest['containers']['observability']
     groups=defaultdict(list)
     entity_modules={e['identity']:e['module'] for e in manifest['entities']}
@@ -67,7 +76,7 @@ def validate(con,manifest):
             names=('passed_count','failed_count','error_count','critical_failure_count','error_failure_count')
             insert('validation_run',dict(product_prefix=product['id'],producer_id=product['validator'],run_id=run_id,
                 producer_version='2.0',profile_id='rendered-binding',profile_version='1.0',source_format='NATIVE',payload_schema_version='2.1',
-                started_dts=started,completed_dts=now,trust_status='UNTRUSTED' if totals['error_failure_count'] else 'DEGRADED',
+                started_dts=started,completed_dts=now,trust_status='UNTRUSTED' if totals['error_count']+totals['critical_failure_count']+totals['error_failure_count'] else 'DEGRADED',
                 agent_use_allowed='go',total_checks=len(results),**{n:totals[n] for n in names},
                 data_product_trust_score=None,performance_readiness_score=None,operational_readiness_score=None,
                 repair_candidate_count=0,failed_checks_json=None,repair_candidates_json=None,evidence_expires_dts=now+timedelta(days=product['evidence_days'])))

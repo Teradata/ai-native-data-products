@@ -1,28 +1,41 @@
 ---
-title: DuckDB Semantic Module Implementation
+title: DuckDB Semantic Implementation
 anchor: semantic
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: semantic
 platform: duckdb
 ---
 
-# DuckDB Semantic
+# DuckDB: Semantic
 
-Binding of [Semantic](../../../../design/modules/semantic.md). [schema.sql](schema.sql) defines the authored registry; [discovery.sql](discovery.sql) defines live catalogue, orientation, lineage and path projections.
+Binding of [Semantic](../../../../design/modules/semantic.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+`entities.json` declares standard-owned catalogue entities; it is not a business model. `01-tables.sql.j2` uses the same physical and temporal macros as other modules. `02-registration.sql.j2` registers the supplied entities, keymaps, relationships, profiles, comments and consumer surfaces. `03-discovery.sql.j2` publishes a manifest, hybrid column catalogue and bounded relationship paths (a recursive view using DuckDB list functions).
+
+Registration uses explicit placement and declared relationships, never name inference. Structural facts come from `information_schema` restricted to the product's database; business meanings come from authored metadata. Relationship paths describe base-entity joins and must be resolved through access_object before consumer SQL is issued. Object registries contain datasets, never business instances. Because DuckDB cannot comment on schemas, module descriptions live in Semantic rows rather than in catalogue comments.
+
+`validation.sql.j2` detects unregistered persisted tables in the supplied module containers. Per-entity checks verify column existence and comments. Metric, synonym, primary-object and model registrations are standard-owned schemas ready for product capture; the helper does not invent their content or certify semantic completeness. The earlier DuckDB reference's fixed catalogue-consistency checks (for example metric and synonym reference checks) are not carried; see [conformance scope](../../CONFORMANCE.md).
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `SemanticRegistration` | Explicit model-derived inserts at deployment. |
+| `SemanticRegistration` | Generated registration inserts for modules, entities, columns, access objects, relationships and orientation. No consumer-time DDL parsing. |
+| `RichMetadata` | `COMMENT ON` for physical objects, plus curated column and entity metadata in explicit registries. |
 
-Bootstrap is `semantic.data_product_registry` followed by `semantic.data_product_orientation`. The manifest is generated as a view over those sources; trust comes before analytical resources. The [agent demo](../../../../examples/customer360-duckdb/agent_demo.py) takes only the product name and these bootstrap conventions, then uses stored identities verbatim.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
 
-Every table, column, module and canonical public projection is registered. Access roles come from the compiler's verifiable structure: explicit single-table projections are PASSTHROUGH, joined Search/Prediction surfaces are COMPOSITE with one ANCHOR. Private runtime has BASE records only and is not agent-consumable. No runtime DDL parsing, suffix inference or fake grants are used. The live column catalogue joins schema/object/column facts to curated descriptions and marks each value's provenance. Comments cannot describe schemas, so module meaning is stored here.
+## Invariants and checks
 
-Relationships include generated history-to-keymap edges for every reference target, intra-Domain joins, cross-module references and infrastructure links. Unconnected registries have explicit standalone rationale. Bidirectional recursive paths stop at four hops, exclude cycles, retain the complete join chain, and have a separate access-resolved projection which omits private endpoints. Metric expressions, dataset roles and resolver synonyms are separate from glossary definitions. Feature and model computation definitions live here, never in feature rows.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-SEMANTIC-001,002` | Standard-owned catalogue schema; no business-instance registration. |
+| `INV-SEMANTIC-003,006` | Deployment registration plus unregistered-table check, mutation-tested. |
+| `INV-SEMANTIC-004,011,012` | Derived manifest and explicit orientation; consumer workflow verification remains required. |
+| `INV-SEMANTIC-005,007..010` | Declared relationships and access rows; completeness, standalone and composite review remains required. |
+| `INV-SEMANTIC-013..015` | Schemas support metrics and synonyms; product registration and reference checks remain required. |
 
-`C360-SEM-*`, `REL-*`, `META-*` and discovery tests verify inventory, metadata, orientation, paths, roles, metric datasets, synonyms and physical resolution. Documentation records DD-DISCOVERY-001, trust authority and the ERD cookbook recipe.
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

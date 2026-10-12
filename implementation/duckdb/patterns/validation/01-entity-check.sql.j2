@@ -1,0 +1,19 @@
+{# Inputs: entity, check_kind, containers. Every returned row is a defect. #}
+{% set e=entity %}
+{% if check_kind=='metadata' %}
+SELECT expected.name FROM (VALUES {% for c in e.all_columns %}({{ c.name|literal }}){% if not loop.last %},{% endif %}{% endfor %}) expected(name)
+LEFT JOIN duckdb_columns() actual ON actual.database_name=current_database() AND actual.schema_name={{ e.schema|literal }} AND actual.table_name={{ e.name|literal }} AND actual.column_name=expected.name
+WHERE actual.column_name IS NULL OR nullif(actual.comment,'') IS NULL
+{% else %}
+SELECT a.{{ e.key|ident }} FROM {{ e.qualified }} a WHERE
+{% if e.history %}a.valid_from_dts>=a.valid_to_dts OR a.is_current<>(a.valid_to_dts='infinity'::TIMESTAMPTZ{% if e.bitemporal %} AND a.transaction_to_dts='infinity'::TIMESTAMPTZ{% endif %}){% if e.bitemporal %} OR a.transaction_from_dts>=a.transaction_to_dts{% endif %}
+OR EXISTS(SELECT 1 FROM {{ e.qualified }} b WHERE a.{{ e.key|ident }}=b.{{ e.key|ident }}
+ AND (a.valid_from_dts{% if e.bitemporal %},a.transaction_from_dts{% endif %})<>(b.valid_from_dts{% if e.bitemporal %},b.transaction_from_dts{% endif %})
+ AND a.valid_from_dts<b.valid_to_dts AND b.valid_from_dts<a.valid_to_dts
+{% if e.bitemporal %} AND a.transaction_from_dts<b.transaction_to_dts AND b.transaction_from_dts<a.transaction_to_dts{% endif %})
+{% else %}FALSE{% endif %}
+{% if e.supports_deletion %} OR a.is_deleted<>(a.deleted_dts IS NOT NULL){% endif %}
+{% for c in e.all_columns if c.name.endswith('_dts') and c.name not in ['valid_from_dts','valid_to_dts','transaction_from_dts','transaction_to_dts'] %}
+OR (a.{{ c.name|ident }} IS NOT NULL AND NOT isfinite(a.{{ c.name|ident }}))
+{% endfor %}
+{% endif %}

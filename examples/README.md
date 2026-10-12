@@ -6,7 +6,7 @@ Each example supplies the inputs a full design, build and review cycle needs: a 
 
 | Example | Composition | Platform | What it exercises |
 |---|---|---|---|
-| [`customer360-duckdb/`](customer360-duckdb/) | AI-Native (all six modules, Memory both facets) | DuckDB | Checked SQL build, portable file, automated discovery, temporal and conformance tests; explicit external security boundary. |
+| [`it-service-desk-data-product/duckdb/`](it-service-desk-data-product/duckdb/) | AI-Native (all six modules, Memory both facets) | DuckDB | The same ITSD inputs and Jinja workflow into a portable single file, with an explicit external security boundary. |
 | [`it-service-desk-data-product/postgres/`](it-service-desk-data-product/postgres/) | AI-Native (all six modules, Memory both facets) | PostgreSQL | The same ITSD inputs and Jinja workflow, with native roles and bitemporal exclusion constraints. |
 | [`it-service-desk-data-product/`](it-service-desk-data-product/) | AI-Native (all six modules, Memory both facets) | Teradata | The full pipeline, including a deliberate departure from an advocated option and a `STRICT_SEPARATION` placement standard. |
 

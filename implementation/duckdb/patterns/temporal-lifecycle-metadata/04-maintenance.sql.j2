@@ -1,0 +1,20 @@
+{# Inputs: entity, stable_key, effective_at, recorded_at, replacement_rows.
+This is a transaction BODY; caller controls BEGIN/COMMIT and must run conformance before commit.
+replacement_rows supplies complete non-overlapping business intervals for the affected identity.
+For bitemporal changes it is the COMPLETE new known timeline, including unaffected segments.
+The planner must detect unchanged replay BEFORE rendering, use a finite increasing recorded_at,
+and preserve stable natural-key mapping. DuckDB requires an exclusive serialized writer: one
+process, one writing connection, retrying on a transaction conflict.
+Parameter values are SQL literals; replacement_rows must not contain SQL expressions. #}
+{% set e=entity %}
+{% if e.bitemporal %}
+UPDATE {{ e.qualified }} SET transaction_to_dts={{ recorded_at|literal }}::TIMESTAMPTZ,is_current=false,updated_dts=current_timestamp
+WHERE {{ e.key|ident }}={{ stable_key|literal }} AND transaction_to_dts='infinity'::TIMESTAMPTZ;
+{% else %}
+UPDATE {{ e.qualified }} SET valid_to_dts={{ effective_at|literal }}::TIMESTAMPTZ,is_current=false,updated_dts=current_timestamp
+WHERE {{ e.key|ident }}={{ stable_key|literal }} AND valid_from_dts<{{ effective_at|literal }}::TIMESTAMPTZ AND {{ effective_at|literal }}::TIMESTAMPTZ<valid_to_dts;
+{% endif %}
+{% for row in replacement_rows %}
+INSERT INTO {{ e.qualified }} ({% for c in e.all_columns %}{{ c.name|ident }}{% if not loop.last %},{% endif %}{% endfor %})
+VALUES ({% for c in e.all_columns %}{{ row[c.name]|literal }}{% if not loop.last %},{% endif %}{% endfor %});
+{% endfor %}

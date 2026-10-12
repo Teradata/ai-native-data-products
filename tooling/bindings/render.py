@@ -74,6 +74,8 @@ def prepare(raw,platform):
     if platform=='postgres':
         for tier in ('read','agent','admin'): ident(context['roles'][tier])
         if len(set(context['roles'].values()))!=3: raise ValueError('Role tiers must be distinct')
+    elif context.get('roles'):
+        raise ValueError(f'Unsupported setting: the {platform} binding has no native roles; remove roles from the placement input')
     supplied=context.get('entities',[])
     entities=[]
     for module in ORDER:
@@ -112,12 +114,17 @@ def prepare(raw,platform):
             ident(e['keymap'])
             if not e['natural_key']: raise ValueError('Keymap requires a natural key')
         elif e['allocation'] not in ('inline','supplied'): raise ValueError('Unknown allocation mode')
+        if e['allocation'] in ('keymap','inline'):
+            # Resolved name of the allocator object for platforms that need one (a sequence); others ignore it.
+            e.setdefault('key_sequence',(e['keymap'] if e['allocation']=='keymap' else e['name'])+'_seq')
+            ident(e['key_sequence'])
         names=[]
         for col in e['columns']:
             ident(col['name']); names.append(col['name'])
             if not col['comment'].strip(): raise ValueError('Every column needs authored meaning')
             if col['name'] in TEMPORAL: raise ValueError('Temporal columns are supplied by the shared pattern')
             col.setdefault('nullable',False); col.setdefault('check',None)
+            col.setdefault('pii',False); col.setdefault('classification','INTERNAL')
             vector=re.fullmatch(r'VECTOR\((\d+)\)',col['type'])
             if vector:
                 dim=int(vector[1])
@@ -135,7 +142,7 @@ def prepare(raw,platform):
         if e['history']:
             temporal=['valid_from_dts','valid_to_dts']+(['transaction_from_dts','transaction_to_dts'] if e['bitemporal'] else [])+['is_current']+temporal
         if e['supports_deletion']: temporal+=['is_deleted','deleted_dts']
-        e['temporal_columns']=[dict(name=n,type=TEMPORAL[n][0],nullable=n=='deleted_dts',comment=TEMPORAL[n][1]) for n in temporal]
+        e['temporal_columns']=[dict(name=n,type=TEMPORAL[n][0],nullable=n=='deleted_dts',comment=TEMPORAL[n][1],pii=False,classification='INTERNAL') for n in temporal]
         e['all_columns']=e['columns']+e['temporal_columns']
     views=[e['current_view'] for e in entities if not e['runtime']]
     if len(views)!=len(set(views)): raise ValueError('Consumer view names must be unique in the access schema')

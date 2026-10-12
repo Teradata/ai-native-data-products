@@ -248,7 +248,7 @@ WHERE r.relationship_name = 'interaction_resolution_channel';
 -- ---------------------------------------------------------------------------
 -- 9. Conformance
 -- ---------------------------------------------------------------------------
--- Run implementation/teradata/patterns/catalogue-interface/conformance-queries.sql against
+-- Run implementation/teradata/patterns/catalogue-interface/conformance-queries.sql.j2 against
 -- the seeded example. Every check returns zero rows except one:
 --
 --   INV-CATALOGUE-005 (b), the dictionary check, returns every declared object. The example

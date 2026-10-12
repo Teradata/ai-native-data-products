@@ -39,8 +39,8 @@ from td_sqlite import (  # noqa: E402
     ts,
 )
 
-CONFORMANCE = VALIDATION / "conformance-queries.sql"
-CONSUMER = VALIDATION / "consumer-queries.sql"
+CONFORMANCE = VALIDATION / "conformance-queries.sql.j2"
+CONSUMER = VALIDATION / "consumer-queries.sql.j2"
 SEMANTIC_CHECKS = SEMANTIC / "validation.sql.j2"
 
 PRODUCT = "CALLCENTRE"
@@ -327,9 +327,7 @@ class TrustRoleIsCanonicalised(unittest.TestCase):
     def setUp(self):
         self.fx = Fixture()
         self.addCleanup(self.fx.close)
-        self.query = statement_from(
-            SEMANTIC_CHECKS, self.ROLE_CHECK,
-            substitutions={"{{ product }}_Semantic.": ""})
+        self.query = statement_from(SEMANTIC_CHECKS, self.ROLE_CHECK)
 
     def add_role(self, role, order, product="CALLCENTRE"):
         self.fx.db.execute(

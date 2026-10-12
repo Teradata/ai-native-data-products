@@ -11,8 +11,9 @@ stdlib `sqlite3`. That buys the tests teeth at the cost of one obvious risk: a t
 can quietly mistranslate, and a test over a mistranslation is worse than no test. Two
 things hold that risk down.
 
-  * **The SQL is read from the shipped files**, never retyped here. Reverting a fix in
-    `04-trust-map-views.sql` fails these tests, which is the whole point.
+  * **The SQL is the shipped templates**, rendered by `td_context.render` and never
+    retyped here. Reverting a fix in
+    `04-trust-map-views.sql.j2` fails these tests, which is the whole point.
   * **The translator refuses to guess.** Every rewrite is explicit and narrow, and
     `_assert_translated` raises `UntranslatedSql` if any Teradata construct survives it.
     A new construct in the shipped SQL breaks the harness loudly rather than being
@@ -22,19 +23,30 @@ What this does *not* test is Teradata's own semantics: `QUALIFY` becomes a wrapp
 `ROW_NUMBER`, an `INTERVAL` becomes `datetime(...)`, and a zone-qualified timestamp
 becomes ISO text. Those are faithful for the comparisons the trust map makes and are not
 faithful in general. Conformance against the real platform stays the deployed
-`conformance-queries.sql`; this is the regression net underneath it.
+`conformance-queries.sql.j2`; this is the regression net underneath it.
 
 Timestamps are ISO `YYYY-MM-DD HH:MM:SS` UTC text, which SQLite's `CURRENT_TIMESTAMP`
 also produces, so the pattern's `<` comparisons sort correctly as strings.
 """
 import re
 import sqlite3
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from td_context import CONTEXT, REPO_ROOT, render  # noqa: E402
+
 VALIDATION = REPO_ROOT / "implementation" / "teradata" / "patterns" / "validation"
 SEMANTIC = REPO_ROOT / "implementation" / "teradata" / "modules" / "semantic"
+
+# The container prefixes the rendered SQL carries. SQLite has no containers, so the
+# translator removes them; they come from the render context, so the harness cannot drift
+# from the names the templates are actually given.
+CONTAINER_PREFIXES = tuple(
+    CONTEXT[k] + "." for k in ("db", "semantic_db")
+) + (CONTEXT["product"] + "_Semantic.",)
 
 TS_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -125,7 +137,7 @@ def split_statements(text):
     """Split a .sql file into statements, each keeping the comments that precede it.
 
     The leading comments are the only stable handle on an individual query in
-    `conformance-queries.sql`, which is a flat sequence of checks identified by the
+    `conformance-queries.sql.j2`, which is a flat sequence of checks identified by the
     `-- VAL-nn` line above each one.
     """
     statements = []
@@ -294,8 +306,8 @@ def _rewrite_qualify(sql):
 _UNTRANSLATED = (
     "QUALIFY", "LOCKING", "MULTISET", "PRIMARY INDEX", "COLLECT STATISTICS",
     "CHARACTER SET", "INTERVAL", "BYTEINT", "SMALLINT", "POSITION(", "SUBSTRING(",
-    "DECIMAL(", "WITH TIME ZONE", "GENERATED ALWAYS", "REPLACE VIEW", "{db}", "{sem}",
-)
+    "DECIMAL(", "WITH TIME ZONE", "GENERATED ALWAYS", "REPLACE VIEW",
+) + CONTAINER_PREFIXES
 
 
 def _assert_translated(sql):
@@ -321,7 +333,8 @@ def translate(sql):
     if re.match(r"^\s*(COLLECT STATISTICS|COMMENT ON)\b", s, re.I):
         return None
 
-    s = s.replace("{db}.", "").replace("{sem}.", "")
+    for prefix in CONTAINER_PREFIXES:
+        s = s.replace(prefix, "")
     s = re.sub(r"\bLOCKING ROW FOR ACCESS\b", "", s, flags=re.I)
     s = re.sub(r"\bREPLACE VIEW\b", "CREATE VIEW", s, flags=re.I)
     s = re.sub(r"\bCREATE MULTISET TABLE\b", "CREATE TABLE", s, flags=re.I)
@@ -357,7 +370,7 @@ _STAND_INS = (
     "CREATE TABLE data_product_orientation ("
     " product_id TEXT, resource_role TEXT, discovery_order INTEGER, is_active INTEGER)",
     # Populated by the consumer per request, not deployed by the product, so it has no
-    # shipped DDL of its own (consumer-queries.sql query 1).
+    # shipped DDL of its own (consumer-queries.sql.j2 query 1).
     "CREATE TABLE requested_validation_scope (scope_kind TEXT, scope_id TEXT)",
 )
 
@@ -388,8 +401,8 @@ AREA_DEFAULTS = dict(
 class Fixture:
     """An in-memory deployment of the validation pattern's shipped relations."""
 
-    FILES = ("01-validation-run.sql", "03-validation-area.sql",
-             "02-views.sql", "04-trust-map-views.sql")
+    FILES = ("01-validation-run.sql.j2", "03-validation-area.sql.j2",
+             "02-views.sql.j2", "04-trust-map-views.sql.j2")
 
     def __init__(self):
         self.db = sqlite3.connect(":memory:")
@@ -403,7 +416,7 @@ class Fixture:
         self.db.close()
 
     def load(self, path):
-        for raw in split_statements(path.read_text(encoding="utf-8")):
+        for raw in split_statements(render(path)):
             translated = translate(raw)
             if translated is None:
                 continue
@@ -463,17 +476,14 @@ class Fixture:
         return self.rows("SELECT * FROM validation_trust_map WHERE " + where, filters)
 
 
-def statement_from(path, marker, substitutions=None):
+def statement_from(path, marker):
     """The translated statement whose leading comments contain `marker`.
 
-    `substitutions` is applied to the file text first, for the one template in scope
-    here (`modules/semantic/validation.sql.j2`) whose only Jinja is `{{ product }}`
-    interpolation. A plain replace is exact for that; it is not a Jinja renderer, and a
-    template that grows a `{% %}` block needs the real thing instead.
+    The template is rendered under StrictUndefined with the shared test context
+    (`td_context.CONTEXT`), exactly as a build would render it; the translator then
+    removes the container prefixes the context supplied.
     """
-    text = path.read_text(encoding="utf-8")
-    for old, new in (substitutions or {}).items():
-        text = text.replace(old, new)
+    text = render(path)
     matches = [s for s in split_statements(text) if marker in s]
     if not matches:
         raise AssertionError(
