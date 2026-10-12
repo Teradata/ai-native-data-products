@@ -1,0 +1,21 @@
+{# Input: normalised entity; profiles and field meanings defined by the temporal pattern.
+   temporal_columns contains only canonical fields selected for this entity's profile. #}
+{% macro columns(e) -%}
+{% for c in e.temporal_columns %},
+    {{ c.name|ident }} {{ c.type }}{% if not c.nullable %} NOT NULL{% endif %}
+{% endfor %}
+{%- endmacro %}
+{% macro current(e,alias='') -%}
+{% if e.history %}{{ alias }}is_current AND {{ alias }}valid_to_dts='infinity'::TIMESTAMPTZ{% if e.bitemporal %} AND {{ alias }}transaction_to_dts='infinity'::TIMESTAMPTZ{% endif %}{% else %}TRUE{% endif %}{% if e.supports_deletion %} AND NOT {{ alias }}is_deleted{% endif %}
+{%- endmacro %}
+{% macro at(e,alias='') -%}
+{{ alias }}valid_from_dts<=valid_at AND valid_at<{{ alias }}valid_to_dts{% if e.bitemporal %} AND {{ alias }}transaction_from_dts<=known_at AND known_at<{{ alias }}transaction_to_dts{% endif %}{% if e.supports_deletion %} AND NOT {{ alias }}is_deleted{% endif %}
+{%- endmacro %}
+{% macro constraints(e) -%}
+{% if e.history %},
+    CHECK(valid_from_dts<valid_to_dts),
+    CHECK(is_current=(valid_to_dts='infinity'::TIMESTAMPTZ{% if e.bitemporal %} AND transaction_to_dts='infinity'::TIMESTAMPTZ{% endif %}))
+{% if e.bitemporal %}, CHECK(transaction_from_dts<transaction_to_dts){% endif %}
+{% endif %}
+{% if e.supports_deletion %}, CHECK(is_deleted=(deleted_dts IS NOT NULL)){% endif %}
+{%- endmacro %}

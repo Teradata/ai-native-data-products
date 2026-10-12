@@ -33,8 +33,11 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 |---|---|---|---|---|---|
 | [Advocated Standards Decision Catalogue](core/ADVOCATED_STANDARDS.md) | `advocated-standards` | draft | - | - | - |
 | [Design Language](core/DESIGN_LANGUAGE.md) | `design-language` | standard | - | - | - |
+| [Design Specification Standard](core/DESIGN_SPECIFICATION.md) | `design-specification` | draft | - | - | - |
 | [Glossary](core/GLOSSARY.md) *(advisory)* | `glossary` | standard | - | - | - |
+| [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) | `implementation-authoring` | draft | - | - | - |
 | [Master Design](core/MASTER_DESIGN.md) | `master-design` | standard | - | - | - |
+| [Organisation Profile Standard](core/ORGANISATION_PROFILE.md) | `organisation-profile` | draft | - | - | - |
 
 ### Patterns
 
@@ -45,7 +48,7 @@ Generated from document frontmatter by [`tooling/catalogue`](../tooling/catalogu
 | [Object Placement Pattern](patterns/object-placement.md) | `object-placement` | standard | - | - | - |
 | [Physical Storage Pattern](patterns/physical-storage.md) | `physical-storage` | standard | - | - | - |
 | [Temporal Lifecycle Metadata Pattern](patterns/temporal-lifecycle-metadata.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | `RichMetadata`, `SemanticRegistration` | - |
-| [Validation Pattern](patterns/validation.md) | `validation` | standard | `QualityScore` | `RichMetadata` | - |
+| [Validation Pattern](patterns/validation.md) | `validation` | standard | - | `RichMetadata` | - |
 
 ### Modules
 
@@ -72,12 +75,12 @@ Nothing under `design/` may contain a SQL keyword, a vendor data type, a catalog
 
 `design/` and `implementation/{platform}/` share **anchor names**: the basename of a module or pattern. Given an anchor, either path is computable without a lookup table:
 
-| Design | Teradata implementation |
+| Design | Platform implementation |
 |--------|-------------------------|
-| `design/modules/{anchor}.md` | `implementation/teradata/modules/{anchor}/` |
-| `design/patterns/{anchor}.md` | `implementation/teradata/patterns/{anchor}/` |
+| `design/modules/{anchor}.md` | `implementation/{platform}/modules/{anchor}/` |
+| `design/patterns/{anchor}.md` | `implementation/{platform}/patterns/{anchor}/` |
 
-The implementation side is a **directory** per anchor rather than a single file, because one binding is often more than one artifact: a design document plus one or more templates. See [`implementation/teradata/README.md`](../implementation/teradata/README.md) for what those directories contain.
+The implementation side is a **directory** per anchor rather than a single file, because one binding is often more than one artifact: a design document plus one or more templates. Each platform's `implementation/{platform}/README.md` describes what its directories contain, and the [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) defines what every platform must provide.
 
 `design/core/` has no implementation counterpart: it is architecture-level material with nothing to bind.
 

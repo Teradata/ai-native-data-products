@@ -26,7 +26,7 @@ Teradata binding of [`design/modules/observability.md`](../../../../design/modul
 
 ### Graph-lineage facet (optional)
 
-Binds this module's lineage and access records to the external **Teradata Graph Explorer** data contract, so a product can opt in to opening its lineage in Graph Explorer, tracing it, and visualising it as a graph, in addition to the `lineage_graph` discovery view above. Read [`design/modules/observability.md`](../../../../design/modules/observability.md) §4.1/§5.1 first. Replace `{{ graph_key }}` (this graph's unique catalogue key, e.g. `LIN_DEMO` — see `DEC-GRAPH-SCOPE`: one graph per data product, never shared). This facet's package must declare the shared `graph-platform` package as an external parent; it creates neither.
+This binding's graph consumer contract (design §5.1) is the external **Teradata Graph Explorer** data contract, `docs/graph-data-contract.md` in the `teradata-graph-explorer` repository. It is normative for the consumer surface, fixes the `Graphs_<KEY>_*` object names and the catalogue table definitions, and supplies the quality procedures; this repository does not redefine it. Binding to it lets a product opt in to opening its lineage in Graph Explorer, tracing it, and visualising it as a graph, in addition to the `lineage_graph` discovery view above. Read [`design/modules/observability.md`](../../../../design/modules/observability.md) §4.1/§5.1 first. Replace `{{ graph_key }}` (this graph's unique catalogue key, e.g. `LIN_DEMO` — see `DEC-GRAPH-SCOPE`: one graph per data product, never shared). This facet's package must declare the shared `graph-platform` package as an external parent; it creates neither.
 
 | File | Purpose |
 |------|---------|

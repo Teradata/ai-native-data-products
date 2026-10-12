@@ -1,0 +1,5 @@
+{# Inputs: module_entities, each with columns, keys, placement and declared temporal profile.
+   Import the shared pattern with context so platform-specific types/constraints are preserved. #}
+{% import 'patterns/temporal-lifecycle-metadata/01-entity.sql.j2' as ddl with context %}
+{% for entity in module_entities %}{{ ddl.table(entity) }}
+{% endfor %}

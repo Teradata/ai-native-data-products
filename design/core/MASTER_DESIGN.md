@@ -35,8 +35,10 @@ The standards are **platform-agnostic**. Everything here holds on every deployme
 | ---------------------------------------- | ------------------------------------ |
 | The module library and how it composes | Which composition it uses |
 | Integration and discovery patterns | Its actual entity names |
-| Capabilities modules provide and require | Its database names |
-| Principles and framework invariants | Its business-specific attributes |
+| Capabilities modules provide and require | Its business-specific attributes |
+| Principles and framework invariants | Its settled decisions |
+
+What neither supplies, the organisation does: its container and object names, principals, classification and environments come from its [organisation profile](ORGANISATION_PROFILE.md), so the same product design builds under any organisation's conventions.
 
 ---
 
@@ -135,7 +137,7 @@ When a composition includes the Semantic module, it is the **map** an agent uses
 2. **Entity discovery**: which entities exist in each module, and their keys and structure.
 3. **Relationship discovery**: how entities relate, including multi-hop join paths.
 
-**Bootstrap convention.** An agent is given only the product name, locates the Semantic module by naming convention, reads the module registry, then explores entities and relationships: and is autonomous from there. The discovery entities and the naming convention are defined in the [Semantic module standard](../modules/semantic.md); the platform queries live in `implementation/`. In a composition without Semantic (e.g. a Data Asset), discovery degrades to the platform catalogue plus `RichMetadata`.
+**Bootstrap.** An agent is given only the product's name or code, resolves where its discovery entry point lives through the organisation's catalogue ([catalogue-interface pattern](../patterns/catalogue-interface.md)), reads the module registry, then explores entities and relationships: and is autonomous from there. It never derives a location from a naming convention: names are the organisation's, and differ between organisations and environments. The discovery entities are defined in the [Semantic module standard](../modules/semantic.md). In a composition without Semantic (e.g. a Data Asset), the catalogue entry points at the product's objects directly and discovery degrades to `RichMetadata` on them.
 
 **Consumable-object metadata.** Entity and relationship discovery answer *what exists and how it connects*; they do not, on their own, answer *which object a consumer should actually query*. A platform's security model may expose one entity through several objects (locking, business, current views), and a product may publish composite ("enriched") objects that join several entities into one consumable unit. Which object to query, what it represents, and what a composite encapsulates are **access-layer** facts, carried by the Semantic module's access-object metadata so a consumer resolves a queryable object to its meaning **once, from metadata**, never by parsing definitions or recomputing lineage at query time. Two principles govern it: **object names are not a contract** (role, layer, and entity are asserted in metadata, never inferred from a name), and the registry is **established once, at deployment**, from verifiable structure. This is discovery metadata, distinct from the security [Access Layer](#9-access-layer) that governs roles and grants; the schema and consumption contract are in the [Semantic module standard](../modules/semantic.md).
 
@@ -143,9 +145,9 @@ When a composition includes the Semantic module, it is the **map** an agent uses
 
 ## 8. Self-Containment and Naming
 
-Each data product is **self-contained and independently deployable**. Whatever stores it includes live within the product, discovery metadata in its own Semantic store, documentation in its own Memory store, with no shared cross-product database (`INV-MASTER-003`).
+Each data product is **self-contained and independently deployable**. Whatever stores it includes live within the product, discovery metadata in its own Semantic store, documentation in its own Memory store, with no shared cross-product database (`INV-MASTER-003`). The one organisation-level exception is the catalogue registry of the [catalogue-interface pattern](../patterns/catalogue-interface.md): it holds registrations *about* products, never product data, and a product registers into it rather than owning it.
 
-Because many products may share one platform, container names must be unique per product and must signal the owning module. The *principle*, unique, module-signalling, product-scoped names with clear module boundaries, is fixed here. The concrete naming scheme, and whether modules occupy separate containers or share one, is governed by the [object-placement pattern](../patterns/object-placement.md) and bound per platform. Object names are **environment-agnostic**: promotion substitutes the container, never renames the object (`INV-MASTER-006`).
+Because many products may share one platform, a product's names must not collide with another's, and its objects must be attributable to their module through metadata. How names achieve that, and whether modules occupy separate containers or share one, is the organisation's choice, stated in its organisation profile under the [object-placement pattern](../patterns/object-placement.md); object names are not a contract (§7). Object names are **environment-agnostic**: promotion substitutes the container, never renames the object (`INV-MASTER-006`).
 
 ---
 
@@ -153,15 +155,15 @@ Because many products may share one platform, container names must be unique per
 
 A composition deployed for consumption **must** include an Access Layer. Without it a correctly deployed product is operationally invisible: every consumer is denied access no matter how complete the modules are (`INV-MASTER-004`).
 
-Three standard roles are created per product, named `{ProductName}_ROLE_{TIER}`:
+Three standard access tiers are defined per product. The tier names are logical; the organisation profile supplies the physical principal for each, created for the product or bound to one the organisation already has:
 
-| Role | Consumers | Purpose |
-| -------------------------- | -------------------------------- | ---------------------------------------------------------------- |
-| `{ProductName}_ROLE_READ` | Analysts, BI tools, ad-hoc users | Read access to module containers. |
-| `{ProductName}_ROLE_AGENT` | AI agents, automated tools | Read access, kept separate for independent lifecycle management. |
-| `{ProductName}_ROLE_ADMIN` | Product owner, data steward | Read access across all containers. |
+| Tier | Consumers | Purpose |
+| ------------ | -------------------------------- | ---------------------------------------------------------------- |
+| `ROLE_READ` | Analysts, BI tools, ad-hoc users | Read access to module containers. |
+| `ROLE_AGENT` | AI agents, automated tools | Read access, kept separate for independent lifecycle management. |
+| `ROLE_ADMIN` | Product owner, data steward | Read access across all containers. |
 
-The roles are product artefacts owned by the product team; assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the [access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
+A principal created for the product is a product artefact owned by the product team; one bound from the organisation is granted to, not owned. Assigning users is an operational event. Where a product separates base tables from views, consumers are granted the view layer only. The role model and grant timing are defined by the [access-layer pattern](../patterns/access-layer.md); the grant syntax lives in `implementation/`.
 
 ---
 
@@ -175,7 +177,7 @@ Modules deploy in dependency order: but only those the composition includes. Whe
 | -------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | **1. Infrastructure** | Memory, then Semantic | Memory hosts documentation; Semantic hosts the discovery map. Both, when present, precede other modules. |
 | **1.5a. Implied grants** | The cross-container rights the access layer needs to compile views | A build dependency, not an operational one: it needs only ownership of the containers, and everything downstream fails without it. |
-| **1.5b. Access (initial)** | Create the three roles; grant read on the deployed infrastructure stores | Minimum grant for agents and tools to discover and read. Usually needs elevated privilege, so it is kept separable. |
+| **1.5b. Access (initial)** | Establish the three access tiers (creating the principals the organisation profile asks for); grant read on the deployed infrastructure stores | Minimum grant for agents and tools to discover and read. Usually needs elevated privilege, so it is kept separable. |
 | **2. Foundation** | Domain, then Observability | Domain is the entity foundation; Observability begins monitoring immediately. |
 | **2.5. Access (extend)** | Extend grants to Domain + Observability | Consumers can now reach the foundation. |
 | **3. Enhancement** | Search, Prediction | Both hard-require Domain to embed / featurise; grants extended as each deploys. |
@@ -186,12 +188,13 @@ A composition that omits a module simply omits its phase. A Data Asset runs Phas
 
 ## 11. Design Standards and Platform Implementation
 
-The framework is split along one boundary, defined by the [Design Language](DESIGN_LANGUAGE.md):
+The framework is split along one boundary, defined by the [Design Language](DESIGN_LANGUAGE.md), and configured per organisation by a third input:
 
 - **`design/`**: platform-agnostic. This document, the module standards, and the patterns. Written in logical types, capabilities, and invariants; no platform SQL (enforced by the linter).
-- **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Teradata is the current reference; new platforms (Postgres, DuckDB) are added as sibling directories, changing no design document.
+- **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Every platform is a sibling directory held to the same [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md); adding one changes no design document.
+- **Organisation profile**: organisation-specific. Placement, naming, access principals, classification and existing structures, supplied at build time, so neither tree encodes one organisation's conventions.
 
-A platform "profile" *is* an `implementation/{platform}/` tree: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
+A platform binding *is* an `implementation/{platform}/` tree, and its `PLATFORM_PROFILE.md` declares what the binding supports and which settings an organisation may set: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
 
 ---
 
@@ -199,7 +202,7 @@ A platform "profile" *is* an `implementation/{platform}/` tree: platform capabil
 
 Every design decision a product makes is **recorded as part of designing it**, not reconstructed afterwards. The obligation applies to every module and every design task, so it is stated once here.
 
-**What is captured.** The settled decisions (each catalogued decision the composition raised, the option chosen, and, where it was not the advocated one, the reason), the module registry entry and version, the business-glossary terms the design introduces, at least one query-cookbook recipe per module, and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION`, `OPERATIONAL`.
+**What is captured.** The settled decisions (each catalogued decision the composition raised, the option chosen, and, where it was not the advocated one, the reason), the module registry entry and version, the business-glossary terms the design introduces (the specification's `Glossary:` blocks), at least one query-cookbook recipe per module (generated by the binding from the specification's metrics, access objects and relationships, so the design never holds query text), and a change-log entry. Decisions carry the id convention `DD-<MODULE>-<NNN>` and one of the standard categories: `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION`, `OPERATIONAL`.
 
 **Where the record goes** depends on the composition. Whether it is written does not:
 
@@ -220,8 +223,8 @@ Product-level rules every conforming composition satisfies. Several are **condit
 
 - `INV-MASTER-001`: no module duplicates content owned by another; cross-module references are by `Identifier` with join-back.
 - `INV-MASTER-002`: *when a Semantic module is present*, every other deployed module registers its entities, columns, and relationships in it; *when Memory's documentation facet is present*, every module records its documentation there.
-- `INV-MASTER-003`: a product is self-contained. Whatever discovery and documentation stores it includes live within the product, and there is no shared cross-product database.
-- `INV-MASTER-004`: a composition deployed for consumption includes an Access Layer (the three roles); without it the product is operationally invisible.
+- `INV-MASTER-003`: a product is self-contained. Whatever discovery and documentation stores it includes live within the product, and there is no shared cross-product database, except the organisation's catalogue registry, which holds registrations about products and no product data.
+- `INV-MASTER-004`: a composition deployed for consumption includes an Access Layer (the three access tiers); without it the product is operationally invisible.
 - `INV-MASTER-005`: structural standards are platform-neutral; every platform specific lives in `implementation/{platform}/` and changes no design document.
 - `INV-MASTER-006`: object names are environment-agnostic; promotion substitutes the container and never renames the object.
 - `INV-MASTER-007`: a composition is valid only if every `[hard]` capability requirement is satisfied within it (or by the platform); unmet `[soft]` requirements disable dependent features but do not invalidate the composition.

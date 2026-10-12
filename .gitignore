@@ -3,6 +3,10 @@
 # Python
 __pycache__/
 *.py[cod]
+.duckdb-deps/
+*.duckdb
+*.duckdb.wal
+/build/
 
 # Generated skills (see issue #44)
 /skills/

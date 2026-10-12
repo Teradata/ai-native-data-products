@@ -142,9 +142,9 @@ def main(argv: List[str]) -> int:
     design, implementation = REPO_ROOT / "design", REPO_ROOT / "implementation"
     targets = [
         (design / "README.md", collect([design]), design),
-        (implementation / "teradata" / "README.md",
-         collect([implementation / "teradata"]), implementation / "teradata"),
     ]
+    targets.extend((platform / "README.md", collect([platform]), platform)
+                   for platform in sorted(implementation.iterdir()) if platform.is_dir())
 
     stale = []
     for readme, docs, base in targets:

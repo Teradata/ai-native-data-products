@@ -1,0 +1,21 @@
+{# Inputs: entities, containers.access. Runtime intentionally has no public views.
+   Historical functions expose the governed contract; PostgreSQL grants them only to ADMIN. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+{% for e in entities %}
+{% if not e.runtime %}
+CREATE VIEW {{ e.view }} AS SELECT {% for c in e.columns %}{{ c.name|ident }}{% if not loop.last %},{% endif %}{% endfor %}{% if e.history %},valid_from_dts{% endif %}
+FROM {{ e.qualified }} WHERE {{ tlm.current(e) }};
+COMMENT ON VIEW {{ e.view }} IS {{ ('Current consumer surface: ' ~ e.description)|literal }};
+{% endif %}
+{% if e.history %}
+{% if platform=='postgres' %}
+CREATE FUNCTION {{ qualified(e.schema,e.history_function) }}(valid_at TIMESTAMPTZ{% if e.bitemporal %},known_at TIMESTAMPTZ{% endif %})
+RETURNS SETOF {{ e.qualified }} LANGUAGE SQL STABLE AS $body$
+SELECT * FROM {{ e.qualified }} WHERE {{ tlm.at(e) }};
+$body$;
+{% else %}
+CREATE MACRO {{ qualified(e.schema,e.history_function) }}(valid_at{% if e.bitemporal %},known_at{% endif %}) AS TABLE
+SELECT * FROM {{ e.qualified }} WHERE {{ tlm.at(e) }};
+{% endif %}
+{% endif %}
+{% endfor %}

@@ -24,9 +24,9 @@ normative: true
 | **Module home** | [Observability](../modules/observability.md): validation results are operational evidence |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
 | **Wire schema** | 2.1 (canonical, additive over 2.0); 1.0 registered as a legacy binding |
-| **Implementations** | [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/) |
+| **Implementations** | `implementation/{platform}/patterns/validation/`, one per platform |
 
-This pattern defines the **validation result contract** and the **trust map** an agent reads before using a product. Each module and pattern contributes *conformance checks*, its invariants, the temporal `TLM-01..17` rules, the Semantic primary-object validations, which validators execute and publish as results in this contract. Results are append-only operational evidence in the Observability module (temporal profile `EVENT_APPEND_ONLY`).
+This pattern defines the **validation result contract** and the **trust map** an agent reads before using a product. Each module and pattern contributes *conformance checks*, its invariants, the temporal `TLM-01..18` rules, the Semantic primary-object validations, which validators execute and publish as results in this contract. Results are append-only operational evidence in the Observability module (temporal profile `EVENT_APPEND_ONLY`).
 
 ---
 
@@ -44,11 +44,9 @@ An agent needs published validation *evidence*, resolved per area, so it can jud
 
 ## 2. Capabilities
 
-**Provides:**
+**Provides:** no capability from the catalogue. It provides a contract: the validation result, the per-area trust map, and the readiness scores and status vocabularies defined over validation evidence, made available to agents and reviewers.
 
-| Capability | Made available to |
-|------------|-------------------|
-| `QualityScore` | Agents and reviewers, as the per-area trust map, the readiness scores, and the status vocabularies this pattern defines over validation evidence. |
+It does not provide `QualityScore`. That capability, a `0.00`-`1.00` score per entity instance or set decomposed by rule category ([Design Language](../core/DESIGN_LANGUAGE.md)), is the [Observability module](../modules/observability.md)'s. The rules a product's `Quality:` block declares run as checks under this pattern and publish their outcomes here (§5.1); the score itself is not part of this contract, and the readiness scores of §6 are not a substitute for it.
 
 **Requires:**
 
@@ -64,13 +62,15 @@ Two related records: one **run** record summarising the whole run, and one **are
 
 ### 3.1 The run record
 
-The result entity is **`ValidationRun`**, bound to `validation_run`. The name is part of the contract, not a designer's choice: the standard conformance queries and the latest-run projection resolve it by name, so a product that names it something else does not fail loudly. The queries find no rows, count no failures, and report clean. A design brief that proposes a different name is corrected rather than accommodated.
+The result entity is **`ValidationRun`**, and that entity name is its logical name. It is a standard-owned relation ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.1): a build creates it for the Observability module without the specification declaring it, and its logical name is part of the contract, not a designer's choice. A design specification that proposes a different name is corrected rather than accommodated.
+
+Its physical name is the organisation's. The organisation profile may map the logical name to a physical name of its own (`Naming:` `Standard names`, mapping it to `validation_run`, say), and the binding registers the logical-to-physical mapping in Semantic. The standard conformance queries and the latest-run projection resolve the physical relation through that registration, never through a literal. A query that used a literal would not fail loudly where the organisation's name differs: it would find no rows, count no failures, and report clean.
 
 One logical record per product per producer per run; consumers read the **latest** per (product, producer).
 
 | Field | Meaning |
 |-------|---------|
-| `product_prefix` | Product identity the run evaluated |
+| `product_code` | Product identity the run evaluated: the specification's `product_code` |
 | `producer_id`, `producer_version` | Identity and version of the producing validator/harness |
 | `profile_id`, `profile_version` | Check profile evaluated: which checks it defines, and their scopes (nullable for simple harnesses) |
 | `source_format` | Provenance: `NATIVE`, or the interchange format it was ingested from |
@@ -92,11 +92,11 @@ A simple test harness populates the identity, status, and count fields and leave
 
 ### 3.2 The area record
 
-The trust-map entity is **`ValidationArea`**, bound to `validation_area`. One logical record per run per area; consumers read the **latest** per (product, producer, area). Its name is part of the contract for the same reason `validation_run` is.
+The trust-map entity is **`ValidationArea`**, and that entity name is its logical name. One logical record per run per area; consumers read the **latest** per (product, producer, area). Its logical name is part of the contract, and its physical name comes from the organisation profile and is resolved through Semantic, on the same terms as `ValidationRun`.
 
 | Field | Meaning |
 |-------|---------|
-| `product_prefix`, `producer_id`, `run_id` | Parentage: the run this entry belongs to |
+| `product_code`, `producer_id`, `run_id` | Parentage: the run this entry belongs to |
 | `scope_kind`, `scope_id` | The area this entry describes (§4.1) |
 | `checks_expected` | How many checks the profile defines for this area; `0` means none is defined |
 | `checks_ran` | How many of them executed in this run |
@@ -128,7 +128,7 @@ An **area** is the unit the map resolves trust to. Its key is (`scope_kind`, `sc
 | `ENTITY` | The catalogued entity, qualified by its module anchor | `domain.Ticket` |
 | `PATTERN` | The pattern anchor | `temporal-lifecycle-metadata` |
 | `CAPABILITY` | The capability name from the catalogue | `NearestNeighbors` |
-| `PRODUCT` | The product prefix: whole-product entries that belong to no narrower area | `CALLCENTRE` |
+| `PRODUCT` | The product code: whole-product entries that belong to no narrower area | `CALLCENTRE` |
 
 Identities come from the corpus and the product's own Semantic catalogue, never from a convention applied to an object name. Areas may overlap by design: an `ENTITY` entry says something narrower than the `MODULE` entry above it, and a consumer reading both takes the narrowest entry that covers what it is about to query.
 
@@ -194,6 +194,18 @@ Two independent axes:
 
 Both axes are counted twice over: once for the whole run on the run record, and once per area on that area's entry. `WARNING`/`INFO` failures feed `failed_count` but not the severity counts: they can hold an area at `partial` confidence, never drive it to `weak`. Producers whose native format carries no severity default failed checks to `ERROR`. The counts are **authoritative**; the JSON blobs are capped and must never be counted by consumers.
 
+### 5.1 Quality rules as checks
+
+A product's `Quality:` block declares rules and their thresholds, and the [Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.7 maps those thresholds onto this pattern's check outcomes. Each rule runs as a `DATA_QUALITY` check scoped to the entity it reads, and in this pattern's vocabulary:
+
+| The rule's value | Status | Severity |
+|------------------|--------|----------|
+| Meets `pass` | `PASSED` | - |
+| Meets only `warn` | `FAILED` | `WARNING` |
+| Meets neither; or any count under `fail on any` | `FAILED` | `ERROR` |
+
+For `freshness`, an age past `warn after` but not past `fail after` is the warning outcome, and an age past `fail after` the failing one. A producer's profile may tighten a failing rule to `CRITICAL`, toward caution, but never loosen either outcome. A warning therefore holds the entity's area at `partial` confidence at worst; a failure takes it to `weak`.
+
 ---
 
 ## 6. Readiness Scores
@@ -256,6 +268,8 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 }
 ```
 
+`sql` is a wire-schema field carrying the producer's proposed repair text, in the platform's own dialect, as evidence. It is not design: this pattern neither defines nor reads its content, and a consumer treats it as part of the proposal it belongs to.
+
 `mode` ∈ `detect` | `proposal` | `safe-auto`. `requires_approval = true` candidates must never be executed autonomously: a candidate is a proposal, not an instruction; a consumer executing repair does so under its own change-management controls. Optional when no repairs are proposed.
 
 ---
@@ -269,11 +283,13 @@ Rules: the check-level identifier is **`test_id`** (`issue_code` exists only ins
 3. **Proceed.** Nothing in this contract withholds use, at any confidence.
 4. **Disclose, proportionally.** State the confidence for every area used. An area at `weak`, or any CRITICAL/ERROR failure in an area used, is surfaced with its consequence and its `recommended_action`. An area at `unknown` is reported as unknown: never as sound, never silently. An answer drawn only from `strong` areas says that too, because the consumer has earned the right to say it.
 
-**Trust authority.** Multiple producers may publish for one product. Each product **designates exactly one trust-authoritative producer** in its orientation metadata; that producer's latest entries are *the* map. Other producers' results are **evidence**: surfaced, especially where they disagree, but not map-defining. Absent a designation, consumers take the most cautious entry per area across producers and say that they did so, because a product with two maps and no designation has not told anyone which one it means.
+**Trust authority.** Multiple producers may publish for one product. Each product **designates exactly one trust-authoritative producer**, published through its orientation metadata; that producer's latest entries are *the* map. Other producers' results are **evidence**: surfaced, especially where they disagree, but not map-defining. Absent a designation, consumers take the most cautious entry per area across producers and say that they did so, because a product with two maps and no designation has not told anyone which one it means.
 
 **The designation is made at design time.** Everything above is written from the consumer's side, and a consumer can only read a designation that already exists. VAL-13 is checked at runtime; the fact it checks has to be established while the product is being designed, because by deploy time the manifest is already written. So it is a designer's obligation, stated here rather than left to be inferred from the consumer rule:
 
-> Name the producer whose trust map is the product's authoritative one. Record it as a design decision, and carry it into the orientation manifest as `trust_authoritative_producer` (the [Semantic module](../modules/semantic.md) owns the field). Where the product has exactly one producer it is authoritative by definition, and must still be named: an implicit designation is not readable.
+> Name the producer whose trust map is the product's authoritative one, as `Trust producer` in the design specification's `Product:` block ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.12). Where the product has exactly one producer it is authoritative by definition, and must still be named: an implicit designation is not readable.
+
+The `Product:` block is required for every product, so a product without the Semantic module, a Domain and Observability composition for instance, still names its producer: the designation is a design fact whichever modules are present. Where Semantic is present, the build carries it into the orientation manifest as `trust_authoritative_producer` (the [Semantic module](../modules/semantic.md) owns the field).
 
 **Further consumer rules.** Never re-derive a status or a confidence, and never recount capped blobs: only a validator computes trust. Treat unknown JSON keys as additive extension (ignore, don't fail). Apply the staleness rules (§11).
 
@@ -287,6 +303,8 @@ Every record carries `payload_schema_version`; the canonical version is **`2.1`*
 
 **Wire schema `2.1`** adds the area record, the `scope_kind` / `scope_id` keys on failed-check items, and the deprecation of `agent_use_allowed`. It is additive: a 2.0 reader parses a 2.1 run record unchanged.
 
+**Product identity.** The product identity field is the specification's `product_code`. Records at wire schema 2.1 and earlier carry it under the name `product_prefix`; a reader treats the two as one field, so the naming of the design does not break a published record.
+
 **Reading a 2.0 or 1.0 producer.** A producer that publishes no area records still has a readable map: consumers project its run record as one `PRODUCT`-scope entry, with `checks_expected` and `checks_ran` both taken from `total_checks` and the §4.3 rules applied to the run counts. A derived entry is **capped at `partial` confidence**, because a run-level pass says nothing about which areas it covered, and it is marked as derived rather than published so a consumer can tell the difference. The map then covers one area, the whole product, which is exactly as much as such a producer knows.
 
 **Selecting records by version.** `payload_schema_version` is a version string, not an ordered number, so a reader must never select records by comparing it lexically. `'10.0'` sorts below `'2.1'`, so a reader written as "at least 2.1" silently stops covering the schema it was written for the moment a two-digit major version exists. **Registered legacy versions are enumerated explicitly**, and every other version is canonical-or-later by exclusion: a new major version is then covered by every check the day it appears, and registering a new legacy binding is a single edit per reader. This binds consumers and conformance checks alike.
@@ -299,7 +317,7 @@ Every record carries `payload_schema_version`; the canonical version is **`2.1`*
 
 Age and absence are **coverage facts**: they change what the map claims, not whether the product may be read.
 
-1. **Evidence window.** A producer may declare per-record expiry; a product may declare a maximum evidence age in orientation. Absent both, the default window is **7 days** from `completed_dts`.
+1. **Evidence window.** A producer may declare per-record expiry; a product may declare a maximum evidence age, as `Maximum evidence age` in its design specification's `Quality:` block ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.7), which the build publishes with the product's orientation. Absent both, the default window is **7 days** from `completed_dts`.
 2. **Stale evidence** (past expiry / older than window): every entry from that run reads at `confidence` = `unknown`, whatever it recorded, because a passed check proves the state of a product as it was. Consumers surface the staleness and its date, and `recommended_action` is to re-run the validator.
 3. **No evidence**: the area is *unvalidated* rather than sound. An area with no published entry reads as `no-evidence` / `unknown`, and a product with no published run has a map of one such entry.
 4. **Incomplete evidence** (`total_checks = 0` or unparseable): treat as no evidence.
@@ -310,10 +328,10 @@ Staleness can only downgrade confidence, never raise it. It does not block: an a
 
 ## 12. Check Identity and Categories
 
-- **`test_id` scheme:** `{PRODUCT-PREFIX}-{FAMILY}-{NNN}` (e.g. `CALLCENTRE-SEM-008`); parameterised checks may extend the suffix. Stable across runs. Ingested results map their native identity into this scheme deterministically.
+- **`test_id` scheme:** `{PRODUCT-CODE}-{FAMILY}-{NNN}` (e.g. `CALLCENTRE-SEM-008`); parameterised checks may extend the suffix. Stable across runs. Ingested results map their native identity into this scheme deterministically.
 - **Categories** (drive score families): `STRUCTURAL`, `SEMANTIC`, `QUERY`, `CAPABILITY`, `PERFORMANCE`, `OPERATIONAL`, `DATA_QUALITY`, `FREE_TEXT`.
 - **Scope** (drives the map): every check belongs to exactly one area. **By ownership, a check's scope is the module or pattern that owns it** — the checks shipped under a module's own directory are that module's area, and a pattern's conformance queries are that pattern's — so an existing check suite acquires its scope without being rewritten. A check that resolves a single entity or a single capability declares the narrower scope instead, and a check about the product as a whole declares `PRODUCT`. A category is what a check tests; a scope is what it tests *about*, and the two are independent: one `STRUCTURAL` check can belong to Domain and the next to Search.
-- Validators prove the product's **self-describing metadata** (semantic catalogue, orientation manifest, relationships, cookbook) against what is physically deployed. The temporal pattern's `TLM-01..17` rules (blocking → CRITICAL/ERROR) and the Semantic module's primary-object validations lift directly into validator profiles: as do each module's own `INV-*` invariant checks. Each lifts with the scope of the document that states it.
+- Validators prove the product's **self-describing metadata** (semantic catalogue, orientation manifest, relationships, cookbook) against what is physically deployed. The temporal pattern's `TLM-01..18` rules (blocking → CRITICAL/ERROR) and the Semantic module's primary-object validations lift directly into validator profiles: as do each module's own `INV-*` invariant checks. Each lifts with the scope of the document that states it.
 
 ---
 
@@ -361,9 +379,9 @@ The result is mappable from/to established open formats; `source_format` records
 
 - **[Observability module](../modules/observability.md)**: the module home for the run record and the trust map, alongside its other run/event evidence.
 - **[Temporal & lifecycle metadata pattern](temporal-lifecycle-metadata.md)**: both results relations declare profile `EVENT_APPEND_ONLY`; `TLM` blocking rules are canonical CRITICAL/ERROR checks, scoped to that pattern's area.
-- **[Semantic module](../modules/semantic.md)**: its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation declares the results location and the trust-authoritative producer, so the map is read before analytical resource use. Its catalogue is also where an `ENTITY` scope resolves.
+- **[Semantic module](../modules/semantic.md)**: its primary-object validations are canonical STRUCTURAL/SEMANTIC checks; product orientation publishes the results location and the trust-authoritative producer the specification's `Product:` block names, so the map is read before analytical resource use. Its catalogue is also where an `ENTITY` scope resolves.
 - **`roles/review.md`**: a reviewer builds this same map by hand, in this vocabulary, before a validator exists to publish it. The two are the same artefact at different stages of a product's life.
-- **Implementation**: the Teradata binding (results table, DBC/data checks, wire-schema bindings) lives in [`implementation/teradata/patterns/validation/`](../../implementation/teradata/patterns/validation/).
+- **Implementation**: each platform binding (results relations, catalogue and data checks, wire-schema bindings) lives in `implementation/{platform}/patterns/validation/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
 
 ---
 

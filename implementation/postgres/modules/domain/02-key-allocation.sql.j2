@@ -1,0 +1,7 @@
+{# Inputs: entity (normalised keymap entity owner), natural_value.
+Caller opens a transaction. DuckDB callers serialize writers and retry conflicts.
+Allocation is permanent; never delete/recycle a keymap row. #}
+INSERT INTO {{ qualified(entity.schema,entity.keymap) }} ({{ entity.natural_key|ident }},created_dts,updated_dts)
+VALUES ({{ natural_value|literal }},current_timestamp,current_timestamp)
+ON CONFLICT ({{ entity.natural_key|ident }}) DO UPDATE SET {{ entity.natural_key|ident }}=excluded.{{ entity.natural_key|ident }}
+RETURNING {{ entity.key|ident }};

@@ -1,0 +1,4 @@
+{# All persisted tables in declared module containers must be registered, including keymaps. #}
+SELECT t.table_schema,t.table_name FROM information_schema.tables t
+LEFT JOIN {{ qualified(containers.semantic,'entity_metadata') }} e ON e.container_name=t.table_schema AND e.table_name=t.table_name
+WHERE t.table_type='BASE TABLE' AND t.table_schema IN ({% for m in modules %}{{ containers[m]|literal }}{% if not loop.last %},{% endif %}{% endfor %}) AND e.entity_name IS NULL;

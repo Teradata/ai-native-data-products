@@ -1,0 +1,769 @@
+[
+  {
+    "name": "module_registry",
+    "key": "module_name",
+    "natural_key": "module_name",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: module registry.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "module_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module whose design is documented."
+      },
+      {
+        "name": "container_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Deployment schema."
+      },
+      {
+        "name": "deployment_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Deployment decision."
+      },
+      {
+        "name": "module_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Release version."
+      },
+      {
+        "name": "module_purpose",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Why the module is included."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "design_decision",
+    "key": "decision_id",
+    "natural_key": "decision_id",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: design decision.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "decision_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable decision reference."
+      },
+      {
+        "name": "decision_version",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Decision revision."
+      },
+      {
+        "name": "decision_title",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Question settled."
+      },
+      {
+        "name": "context",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Constraints motivating this decision."
+      },
+      {
+        "name": "alternatives",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Other choices considered."
+      },
+      {
+        "name": "rationale",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Reason for the selected choice."
+      },
+      {
+        "name": "consequences",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Limits and obligations of this choice."
+      },
+      {
+        "name": "decision_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Approval state."
+      },
+      {
+        "name": "decision_category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Decision concern."
+      },
+      {
+        "name": "source_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module whose design this affects."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "business_glossary",
+    "key": "term",
+    "natural_key": "term",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: business glossary.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "term",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Business term being defined."
+      },
+      {
+        "name": "term_category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Kind of term."
+      },
+      {
+        "name": "definition",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Business definition and usage."
+      },
+      {
+        "name": "source_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module owning the definition."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "query_cookbook",
+    "key": "recipe_id",
+    "natural_key": "recipe_id",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: query cookbook.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "recipe_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable recipe identity."
+      },
+      {
+        "name": "recipe_title",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Question the recipe answers."
+      },
+      {
+        "name": "use_case",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Intended consumer use."
+      },
+      {
+        "name": "target_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module or CROSS composition."
+      },
+      {
+        "name": "query_template",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Executable platform SQL SQL, never result data."
+      },
+      {
+        "name": "complexity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Expected query complexity."
+      },
+      {
+        "name": "is_batch",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether intended for batch only."
+      },
+      {
+        "name": "source_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module responsible for recipe correctness."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "implementation_note",
+    "key": "note_id",
+    "natural_key": "note_id",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: implementation note.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "note_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable operational note identity."
+      },
+      {
+        "name": "note_title",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Operational concern."
+      },
+      {
+        "name": "note_content",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "How to operate within this constraint."
+      },
+      {
+        "name": "note_category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Type of guidance."
+      },
+      {
+        "name": "source_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module affected."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "change_log",
+    "key": "change_id",
+    "natural_key": "change_id",
+    "profile": "SCD2_HISTORY",
+    "description": "Versioned design memory: change log.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "change_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable change identity."
+      },
+      {
+        "name": "version_number",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Product release."
+      },
+      {
+        "name": "change_title",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "What changed and why."
+      },
+      {
+        "name": "change_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Release change category."
+      },
+      {
+        "name": "source_module",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module affected."
+      },
+      {
+        "name": "related_decision_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Decision explaining the change."
+      },
+      {
+        "name": "authored_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Accountable design author."
+      },
+      {
+        "name": "source_artifact",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Source design or deployment artefact."
+      },
+      {
+        "name": "authored_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Instant this documentation revision was authored."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": true,
+    "allocation": "supplied"
+  },
+  {
+    "name": "agent_session",
+    "key": "session_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Private runtime process metadata: agent session.",
+    "runtime": true,
+    "columns": [
+      {
+        "name": "session_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying session; never recycled."
+      },
+      {
+        "name": "session_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "External session identity."
+      },
+      {
+        "name": "agent_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Executing agent."
+      },
+      {
+        "name": "user_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Pseudonymous user identity."
+      },
+      {
+        "name": "session_start_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Session start."
+      },
+      {
+        "name": "session_end_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": true,
+        "comment": "Session end; null while active."
+      },
+      {
+        "name": "session_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "ACTIVE, COMPLETED or ABANDONED."
+      },
+      {
+        "name": "session_goal",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Process goal, never query results."
+      },
+      {
+        "name": "session_context",
+        "type": "JSONB",
+        "nullable": true,
+        "comment": "Process context only."
+      },
+      {
+        "name": "scope_level",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Privacy boundary kind, enforced by the serving application.",
+        "check": "scope_level IN ('USER','TEAM','ORGANIZATION','AGENT')"
+      },
+      {
+        "name": "scope_identifier",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owner identity within the declared privacy boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "agent_interaction",
+    "key": "interaction_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Private runtime process metadata: agent interaction.",
+    "runtime": true,
+    "columns": [
+      {
+        "name": "interaction_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying interaction; never recycled."
+      },
+      {
+        "name": "session_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying memory.agent_session; never recycled."
+      },
+      {
+        "name": "interaction_seq",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Ordering within session."
+      },
+      {
+        "name": "interaction_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Interaction occurred."
+      },
+      {
+        "name": "interaction_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "QUERY, ACTION, DECISION or EXPLANATION."
+      },
+      {
+        "name": "referenced_tables",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Table-level references only."
+      },
+      {
+        "name": "query_executed",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "SQL performed; parameter values must be redacted."
+      },
+      {
+        "name": "query_result_count",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Aggregate result count only."
+      },
+      {
+        "name": "outcome_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Execution result status."
+      },
+      {
+        "name": "scope_level",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Privacy boundary kind, enforced by the serving application.",
+        "check": "scope_level IN ('USER','TEAM','ORGANIZATION','AGENT')"
+      },
+      {
+        "name": "scope_identifier",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owner identity within the declared privacy boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "learned_strategy",
+    "key": "strategy_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Private runtime process metadata: learned strategy.",
+    "runtime": true,
+    "columns": [
+      {
+        "name": "strategy_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying strategy; never recycled."
+      },
+      {
+        "name": "strategy_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Reusable process strategy."
+      },
+      {
+        "name": "strategy_category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Type of process learning."
+      },
+      {
+        "name": "strategy_pattern",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Approach, without business content."
+      },
+      {
+        "name": "success_rate",
+        "type": "DECIMAL(5,4)",
+        "nullable": true,
+        "comment": "Observed success fraction.",
+        "check": "success_rate BETWEEN 0 AND 1"
+      },
+      {
+        "name": "times_used",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Observed usage count."
+      },
+      {
+        "name": "is_validated",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether strategy has supporting evidence."
+      },
+      {
+        "name": "scope_level",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Privacy boundary kind, enforced by the serving application.",
+        "check": "scope_level IN ('USER','TEAM','ORGANIZATION','AGENT')"
+      },
+      {
+        "name": "scope_identifier",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owner identity within the declared privacy boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "user_preference",
+    "key": "preference_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Private runtime process metadata: user preference.",
+    "runtime": true,
+    "columns": [
+      {
+        "name": "preference_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying preference; never recycled."
+      },
+      {
+        "name": "user_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Pseudonymous preference owner."
+      },
+      {
+        "name": "preference_category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Presentation or analysis preference kind."
+      },
+      {
+        "name": "preference_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Preference setting."
+      },
+      {
+        "name": "preference_value",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Preference value, never Domain content."
+      },
+      {
+        "name": "scope_level",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Privacy boundary kind, enforced by the serving application.",
+        "check": "scope_level IN ('USER','TEAM','ORGANIZATION','AGENT')"
+      },
+      {
+        "name": "scope_identifier",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owner identity within the declared privacy boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "discovered_pattern",
+    "key": "pattern_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Private runtime process metadata: discovered pattern.",
+    "runtime": true,
+    "columns": [
+      {
+        "name": "pattern_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying pattern; never recycled."
+      },
+      {
+        "name": "pattern_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Observed process pattern."
+      },
+      {
+        "name": "pattern_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Pattern class."
+      },
+      {
+        "name": "pattern_definition",
+        "type": "JSONB",
+        "nullable": true,
+        "comment": "Table-level pattern metadata."
+      },
+      {
+        "name": "sample_size",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Aggregate count analysed."
+      },
+      {
+        "name": "involved_tables",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Table-level references only."
+      },
+      {
+        "name": "is_validated",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether evidence supports the pattern."
+      },
+      {
+        "name": "scope_level",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Privacy boundary kind, enforced by the serving application.",
+        "check": "scope_level IN ('USER','TEAM','ORGANIZATION','AGENT')"
+      },
+      {
+        "name": "scope_identifier",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owner identity within the declared privacy boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  }
+]

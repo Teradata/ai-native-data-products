@@ -3,7 +3,7 @@ title: Advocated Standards Decision Catalogue
 anchor: advocated-standards
 type: core
 status: draft
-version: 2.0
+version: 2.1
 normative: true
 ---
 
@@ -37,7 +37,7 @@ This is why the decisions live in the document body rather than a header: a head
 
 ### 1.3 Scope
 
-This catalogue covers **logical** decisions: the shape of the data and where responsibility sits. It is deliberately silent on where objects are placed, how containers are named, and how access is granted: those are governed by the `object-placement` pattern, which prescribes structure where this document recommends practice. Physical-design decisions belong to each platform's profile.
+This catalogue covers **logical** decisions: the shape of the data and where responsibility sits. It is deliberately silent on where objects are placed, how containers are named, and how access is granted: those belong to the organisation, which states them in its [organisation profile](ORGANISATION_PROFILE.md) under the `object-placement` pattern. Physical-design choices belong to the platform binding's declared settings, which the organisation profile may set. A product's answers are recorded in its [design specification](DESIGN_SPECIFICATION.md): catalogued decisions in its frontmatter, and the graph decisions in its `Graph:` block.
 
 ---
 
@@ -149,7 +149,8 @@ Decision: DEC-SURROGATE-ALLOCATION
     Implies:      capability SurrogateKeyAllocation required from external
     Acceptable when: the organisation already operates such a mechanism and it
                   guarantees stability across versions.
-    Requires:     a recorded reason naming the mechanism.
+    Requires:     a recorded reason, and the mechanism named as the `Allocator`
+                  in the organisation profile's `Adoption:` block.
 
   Option: inline
     Summary:      The Identifier is allocated by the entity itself as rows are
@@ -236,8 +237,10 @@ Decision: DEC-TIMESTAMP-ZONE
     Acceptable when: the data is genuinely single-zone and will remain so, a
                   regulation mandates a specific local zone, or a legacy
                   interface requires it.
-    Requires:     a recorded reason **and** the assumed zone recorded in
-                  metadata, so a consumer can interpret the value correctly.
+    Requires:     a recorded reason **and** the assumed zone, given as
+                  `Assumed zone` in the specification's `Product:` block and
+                  recorded by the build in entity metadata, so a consumer can
+                  interpret the value correctly.
 ```
 
 **Why zone-aware is advocated.** A wall-clock reading without a zone is not a point in time: it is a point in time *plus an assumption held somewhere else*. As long as the assumption is universal and remembered, nothing goes wrong. Neither condition survives contact with a second region, a daylight-saving boundary, or a consumer who was not told.
@@ -302,7 +305,9 @@ Decision: DEC-AUDIT-RETENTION
                   immediately queryable, older history retained but archived,
                   deletion records held longest, and high-risk entities held
                   indefinitely.
-    Implies:      capability ChangeEventCapture; INV-OBS-004
+    Implies:      capability ChangeEventCapture; INV-OBS-004; retention
+                  stated in two tiers (queryable, archived) or as
+                  `indefinite` for high-risk entities
     Acceptable when: always.
     Note:         whichever option is taken, this decision governs execution
                   records only. Definitional lineage is retained for the life
@@ -334,7 +339,62 @@ Retention of definitional lineage is governed separately by `INV-OBS-004`: defin
 
 ---
 
-## 9. Applying the catalogue
+## 9. `DEC-GRAPH-SESSION-NODES`
+
+Settled only by a product that enables the Observability module's `graph-lineage` facet, in its specification's `Graph:` block.
+
+```
+Decision: DEC-GRAPH-SESSION-NODES
+  Question:   Does the lineage graph carry a node per agent session, or stop
+              at the agent?
+  Applies to: the observability module's graph-lineage facet
+
+  Option: omit                                         [advocated]
+    Summary:      Agents are the finest consumer node; sessions are not
+                  modelled in the graph.
+    Implies:      no query_session category
+    Acceptable when: always.
+
+  Option: include
+    Summary:      Each agent session is a node, so access can be traced to the
+                  session that made it.
+    Implies:      the query_session node category and the queried_in edge type
+    Acceptable when: session-level access traversal is actually queried.
+    Requires:     a recorded reason naming the query that needs it.
+```
+
+**Why omission is advocated.** Session nodes multiply the graph by the number of sessions while adding a level most traversals never reach. Agent-level access answers who touched the data; session level is worth its size only when a real question asks for it.
+
+---
+
+## 10. `DEC-GRAPH-LOAD-CADENCE`
+
+Settled only by a product that enables the `graph-lineage` facet, in its specification's `Graph:` block.
+
+```
+Decision: DEC-GRAPH-LOAD-CADENCE
+  Question:   When is the lineage graph reloaded from its source entities?
+  Applies to: the observability module's graph-lineage facet
+
+  Option: with-lineage                                 [advocated]
+    Summary:      The graph reloads whenever lineage or agent outcomes are
+                  captured, so it is never behind its sources.
+    Implies:      the load runs in the capture path
+    Acceptable when: always.
+
+  Option: scheduled
+    Summary:      The graph reloads on a schedule, independent of capture.
+    Implies:      the Graph block's Schedule field
+    Acceptable when: capture is frequent and graph consumers tolerate staleness
+                  up to the schedule interval.
+    Requires:     a recorded reason and the schedule.
+```
+
+**Why loading with lineage is advocated.** A graph behind its sources answers impact questions with yesterday's flows, and nothing in the result says so.
+
+---
+
+## 11. Applying the catalogue
 
 This catalogue holds the options and the reasoning in one place. Each module names, under Designer Responsibilities, which of them its designers must settle. A product's design records the answers.
 
@@ -350,6 +410,7 @@ Three properties follow, and they are the reason this material is expressed as d
 
 | Version | Change |
 |---|---|
+| 2.1 | Added `DEC-GRAPH-SESSION-NODES` and `DEC-GRAPH-LOAD-CADENCE`; placement, naming and physical design deferred to the organisation profile and binding settings; zone-naive and external-allocator requirements given structured homes. |
 | 2.0 | Restructured from advisory prose into a decision catalogue expressed in the design language. Physical-design guidance moved to the Teradata platform profile; access-layer and object-placement material moved to their patterns; temporal column contracts moved to the temporal-lifecycle-metadata pattern. |
 | 1.6 | Added the access-layer section, deferring placement and naming to the Object Placement Standard. |
 | 1.5 | Established platform neutrality; Teradata physical design identified as a platform profile. |

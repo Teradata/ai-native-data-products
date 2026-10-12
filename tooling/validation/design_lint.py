@@ -142,6 +142,7 @@ GLOSSARY_BOLD_RE = re.compile(r"^\*\*([^*]+)\*\*(.*)$")
 GLOSSARY_SEPARATOR = ": "
 INVARIANT_CANDIDATE_RE = re.compile(r"\bINV-[A-Za-z0-9]+-[A-Za-z0-9]+\b")
 INVARIANT_STRICT_RE = re.compile(r"^INV-[A-Z][A-Z0-9]*-\d{3}$")
+TOP_LEVEL_BLOCK_RE = re.compile(r"^[A-Z][A-Za-z]*:")
 ATTRIBUTE_LINE_RE = re.compile(r"^\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s*:\s*(\S.*)$")
 FENCE_RE = re.compile(r"^\s*```(\S*)")
 
@@ -365,8 +366,13 @@ def find_sql_violations(text: str, path: str = "<text>") -> List[Finding]:
                     path, lineno, "sql-statement",
                     f"SQL statement '{first}' inside a code block belongs in implementation/",
                 ))
-            if raw.strip().startswith("Entity:"):
+            # An entity block opens at a column-0 `Entity:` and closes at the next
+            # column-0 block (`Metric:`, `Embedding:` ...): a field *named* Entity inside
+            # another block is not the start of one.
+            if raw.startswith("Entity:"):
                 in_entity_block = True
+            elif TOP_LEVEL_BLOCK_RE.match(raw):
+                in_entity_block = False
 
         # Rule 3: vendor / platform-type tokens, anywhere (prose or code).
         for pattern, label in VENDOR_TOKEN_PATTERNS:
@@ -386,6 +392,10 @@ def find_sql_violations(text: str, path: str = "<text>") -> List[Finding]:
 def _check_entity_attribute(raw: str, lineno: int, path: str) -> List[Finding]:
     m = ATTRIBUTE_LINE_RE.match(raw)
     if not m:
+        return []
+    # Attributes sit two spaces in; deeper lines belong to a section (Keys:, Volume:,
+    # Features:) and carry values, not types.
+    if len(raw) - len(raw.lstrip(" ")) >= 4:
         return []
     key = m.group(1).strip()
     if key in RESERVED_ENTITY_LABELS:
@@ -814,7 +824,10 @@ def lint_paths(paths: List[str]) -> List[Finding]:
     for sql in sql_artifacts:
         sql_text = sql.read_text(encoding="utf-8")
         findings += find_prohibited_name_violations(sql_text, str(sql), prohibited)
-        findings += find_comment_length_violations(sql_text, str(sql))
+        # The 255-character limit is a Teradata platform constraint, not a
+        # platform-neutral RichMetadata requirement.
+        if "teradata" in sql.parts:
+            findings += find_comment_length_violations(sql_text, str(sql))
     return sorted(findings, key=lambda f: (f.path, f.line, f.rule))
 
 

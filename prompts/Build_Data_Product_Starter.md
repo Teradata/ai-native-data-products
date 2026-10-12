@@ -25,14 +25,14 @@ satisfy every capability and invariant the design declares.
 
 ### Intake
 
-- **Target platform:** [teradata, the current reference, or another platform's implementation
-  tree]
-- **Product name:** [used for container names, e.g. `Customer360`]
-- **Design input:** [attach/paste the design brief from the Design starter, or point to it]
-- **Object Placement Standard:** [path to your organisation's conforming implementation,
-  required before any object is generated]
+- **Target platform:** [a directory under `implementation/`]
+- **Design input:** [attach/paste the design specification from the Design starter, or point to it]
+- **Organisation profile:** [path to your organisation's profile for this platform
+  (`design/core/ORGANISATION_PROFILE.md`), required before any object is generated; it
+  supplies placement, naming and principals, so container names come from it and the
+  specification's `product_code`]
 - **Object storage in use?** [if yes, provide the Physical Storage Standard implementation
   too]
 
-Drive one deployment phase at a time. Confirm the placement standard before writing any DDL,
+Drive one deployment phase at a time. Resolve the build context before writing any DDL,
 and tell me early if the deploying account cannot create roles.

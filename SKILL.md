@@ -45,9 +45,11 @@ design/            platform-agnostic standards: the source of truth for what and
                    validation · access-layer
 implementation/
   teradata/        the concrete binding: DDL templates, queries, grants, platform profile
+  duckdb/          portable file binding and executable Customer360 example
+  postgres/        reusable Jinja bindings with native roles and temporal constraints
 tooling/
   validation/      design_lint.py - checks the standards are well formed
-  evals/           brief_lint.py  - checks a product design against the standards
+  evals/           spec_lint.py   - checks a design specification against the standards
 examples/          worked products: fixed inputs for an end-to-end run
 roles/             the four working procedures
 ```
@@ -66,7 +68,7 @@ Every capability named in a design document has a binding there, and every invar
 check.
 
 **Never invent a container, database, or object name.** Placement comes from the
-object-placement standard at build time and from the product's own registries at access
+organisation profile, through the resolved build context, at build time and from the product's own registries at access
 time. A name derived from a convention will either fail loudly or, worse, resolve to a
 different object than you meant.
 
@@ -79,5 +81,5 @@ this conversation, their repo, or an MCP resource - based on what you can actual
 
 **The product is its own artifact store.** Once built, design decisions live in Memory
 (documentation facet), structure in Semantic, and validation evidence in Observability. The
-next role reads them from there. The one transient artifact is the pre-build design brief,
+next role reads them from there. The one transient artifact is the pre-build design specification,
 because Memory does not exist yet to hold it.

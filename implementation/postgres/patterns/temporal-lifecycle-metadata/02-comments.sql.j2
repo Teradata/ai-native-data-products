@@ -1,0 +1,7 @@
+{# Inputs: entities. Apply and verify metadata after DDL, before granting access. #}
+{% for e in entities %}
+COMMENT ON TABLE {{ e.qualified }} IS {{ e.description|literal }};
+{% for c in e.all_columns %}
+COMMENT ON COLUMN {{ e.qualified }}.{{ c.name|ident }} IS {{ c.comment|literal }};
+{% endfor %}
+{% endfor %}
