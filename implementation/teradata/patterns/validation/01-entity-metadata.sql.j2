@@ -1,0 +1,14 @@
+{# Rendered per persisted relation, with `entity`. Every returned row is a defect: a column
+   the build context places that the table lacks, or one with no description. Teradata has
+   no table constructor and rejects a FROM-less SELECT in a union, so each expected column is
+   one row of the dictionary's single-row version view. #}
+{% set x = entity %}{% set t = x.objects.table %}
+SELECT expected.column_name FROM (
+{%- for col in x.columns %}
+    SELECT CAST({{ col.physical_name|literal }} AS VARCHAR(128)) AS column_name FROM DBC.DBCInfoV WHERE InfoKey = 'VERSION'{% if not loop.last %} UNION ALL{% endif %}
+{%- endfor %}
+) AS expected
+LEFT JOIN DBC.ColumnsV actual
+  ON TRIM(actual.DatabaseName) = {{ t.container|literal }} AND TRIM(actual.TableName) = {{ t.name|literal }}
+ AND TRIM(actual.ColumnName) = expected.column_name
+WHERE actual.ColumnName IS NULL OR COALESCE(TRIM(actual.CommentString), '') = ''

@@ -1,0 +1,6 @@
+{# Teradata commits each DDL statement on its own, so the deploy script is the phases in
+   order; a failure stops the script and leaves what ran, which a redeploy replaces. #}
+{% for phase in phases %}
+-- {{ phase.file }}
+{{ phase.sql }}
+{% endfor %}

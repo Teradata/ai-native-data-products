@@ -1,0 +1,12 @@
+{# Containers the build context places objects in, parents first. A parent database holds
+   no objects and allocates its children's space; adopted containers already exist and are
+   not created. Space comes from the `Container space` setting, per container that holds
+   objects. #}
+{% set space = settings['Container space']|int %}
+{% for c in containers if not c.parent and not c.adopted %}
+{% set children = containers|selectattr('parent', 'equalto', c.name)|list %}
+CREATE DATABASE {{ c.name|ident }} AS PERM = {{ space * ([children|length, 1]|max if not c.holds_objects else children|length + 1) }};
+{%- endfor %}
+{% for c in containers if c.parent and not c.adopted %}
+CREATE DATABASE {{ c.name|ident }} FROM {{ c.parent|ident }} AS PERM = {{ space }};
+{%- endfor %}

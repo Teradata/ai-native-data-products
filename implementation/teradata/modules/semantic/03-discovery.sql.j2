@@ -1,0 +1,94 @@
+{# The standard-owned discovery views (Design Specification Standard §4.1): Semantic's column
+   catalogue, manifest and relationship paths, and Observability's lineage views. Each is
+   created only where the composition places it. Teradata views take no ORDER BY, and a
+   union's text widths come from its first branch, so every text column is cast. #}
+{% set colmeta = named('ColumnMetadata') %}{% set catalogue = named('ColumnCatalogue') %}
+{% if catalogue and colmeta %}{% set c = colmeta.column_names %}
+REPLACE VIEW {{ catalogue.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT TRIM(col.DatabaseName) AS container_name, TRIM(col.TableName) AS table_name,
+       TRIM(col.ColumnName) AS column_name, col.ColumnType AS data_type, col.Nullable AS is_nullable,
+       m.{{ c.logical_name|ident }} AS logical_name, m.{{ c.business_description|ident }} AS business_description,
+       m.{{ c.is_pii|ident }} AS is_pii, m.{{ c.sensitivity_marker|ident }} AS sensitivity_marker,
+       m.{{ c.data_classification|ident }} AS data_classification, m.{{ c.declared_type|ident }} AS declared_type,
+       'DBC.ColumnsV' AS structural_source,
+       CASE WHEN m.{{ c.business_description|ident }} IS NULL THEN 'missing' ELSE 'authored' END AS description_source
+FROM DBC.ColumnsV col
+LEFT JOIN {{ colmeta.objects.table|qualified }} m
+  ON m.{{ c.container_name|ident }} = TRIM(col.DatabaseName) AND m.{{ c.table_name|ident }} = TRIM(col.TableName)
+ AND m.{{ c.column_name|ident }} = TRIM(col.ColumnName)
+WHERE TRIM(col.DatabaseName) IN ({% for k in containers if k.holds_objects %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %});
+{% endif %}
+{% set registry = named('DataProductRegistry') %}{% set orient = named('DataProductOrientation') %}
+{% set manifest = named('DataProductManifest') %}
+{% if manifest and registry and orient %}{% set p = registry.column_names %}{% set o = orient.column_names %}
+REPLACE VIEW {{ manifest.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT r.{{ p.product_id|ident }} AS product_id, r.{{ p.product_name|ident }} AS product_name,
+       r.{{ p.product_version|ident }} AS product_version, r.{{ p.product_status|ident }} AS product_status,
+       r.{{ p.approved_entrypoint|ident }} AS approved_entrypoint,
+       r.{{ p.approved_access_mode|ident }} AS approved_access_mode,
+       r.{{ p.trust_authoritative_producer|ident }} AS trust_authoritative_producer
+{%- for res in orientation.resources %},
+       MAX(CASE WHEN o.{{ o.resource_role|ident }} = {{ res.role|literal }} THEN o.{{ o.container_name|ident }} || '.' || o.{{ o.object_name|ident }} END) AS {{ res.role|lower|ident }}
+{%- endfor %}
+FROM {{ registry.objects.table|qualified }} r
+JOIN {{ orient.objects.table|qualified }} o ON o.{{ o.product_id|ident }} = r.{{ p.product_id|ident }}
+WHERE r.{{ p.is_active|ident }} = 1 AND r.{{ p.is_deleted|ident }} = 0 AND o.{{ o.is_active|ident }} = 1
+GROUP BY 1, 2, 3, 4, 5, 6, 7;
+{% endif %}
+{% set rel = named('TableRelationship') %}{% set paths = named('RelationshipPaths') %}
+{% if paths and rel %}{% set t = rel.column_names %}
+{% set edges -%}
+(SELECT CAST(COALESCE({{ t.source_container|ident }} || '.', '') || {{ t.source_table|ident }} AS VARCHAR(400)) AS from_object,
+        CAST({{ t.source_column|ident }} AS VARCHAR(400)) AS from_column,
+        CAST(COALESCE({{ t.target_container|ident }} || '.', '') || {{ t.target_table|ident }} AS VARCHAR(400)) AS to_object,
+        CAST({{ t.target_column|ident }} AS VARCHAR(400)) AS to_column
+ FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }} = 1
+ UNION ALL
+ SELECT CAST(COALESCE({{ t.target_container|ident }} || '.', '') || {{ t.target_table|ident }} AS VARCHAR(400)),
+        CAST({{ t.target_column|ident }} AS VARCHAR(400)),
+        CAST(COALESCE({{ t.source_container|ident }} || '.', '') || {{ t.source_table|ident }} AS VARCHAR(400)),
+        CAST({{ t.source_column|ident }} AS VARCHAR(400))
+ FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }} = 1)
+{%- endset %}
+{% macro hop(a, b) -%}{{ a }}.from_object || '.' || {{ a }}.from_column || ' = ' || {{ a }}.to_object || '.' || {{ a }}.to_column{%- endmacro %}
+REPLACE VIEW {{ paths.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT e1.from_object, e1.to_object, CAST({{ hop('e1') }} AS VARCHAR(4000)) AS join_path, 1 AS hops
+FROM {{ edges }} e1
+UNION ALL
+SELECT e1.from_object, e2.to_object, CAST({{ hop('e1') }} || ' AND ' || {{ hop('e2') }} AS VARCHAR(4000)), 2
+FROM {{ edges }} e1 JOIN {{ edges }} e2 ON e2.from_object = e1.to_object
+WHERE e2.to_object <> e1.from_object
+UNION ALL
+SELECT e1.from_object, e3.to_object, CAST({{ hop('e1') }} || ' AND ' || {{ hop('e2') }} || ' AND ' || {{ hop('e3') }} AS VARCHAR(4000)), 3
+FROM {{ edges }} e1 JOIN {{ edges }} e2 ON e2.from_object = e1.to_object
+JOIN {{ edges }} e3 ON e3.from_object = e2.to_object
+WHERE e2.to_object <> e1.from_object AND e3.to_object NOT IN (e1.from_object, e2.from_object);
+{% endif %}
+{% set lineage = named('DataLineage') %}{% set graph_view = named('LineageGraph') %}
+{% if graph_view and lineage %}{% set d = lineage.column_names %}
+REPLACE VIEW {{ graph_view.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT DISTINCT CAST(COALESCE({{ d.source_container|ident }} || '.', '') || COALESCE({{ d.source_table|ident }}, {{ d.source_system|ident }}) AS VARCHAR(400)) AS source_node,
+       CAST({{ d.job_name|ident }} AS VARCHAR(400)) AS target_node, CAST('produces' AS VARCHAR(20)) AS edge_type
+FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} = 1 AND {{ d.job_name|ident }} IS NOT NULL
+UNION
+SELECT DISTINCT CAST({{ d.job_name|ident }} AS VARCHAR(400)),
+       CAST(COALESCE({{ d.target_container|ident }} || '.', '') || {{ d.target_table|ident }} AS VARCHAR(400)), 'produces'
+FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} = 1 AND {{ d.job_name|ident }} IS NOT NULL;
+{% endif %}
+{% set run = named('LineageRun') %}{% set latest = named('LineageRunLatest') %}
+{% if latest and lineage and run %}{% set d = lineage.column_names %}{% set r = run.column_names %}
+REPLACE VIEW {{ latest.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT d.{{ d.lineage_id|ident }} AS lineage_id, d.{{ d.source_table|ident }} AS source_table,
+       d.{{ d.target_table|ident }} AS target_table, d.{{ d.job_name|ident }} AS job_name,
+       r.{{ r.run_dts|ident }} AS run_dts, r.{{ r.run_status|ident }} AS run_status
+FROM {{ lineage.objects.table|qualified }} d
+LEFT JOIN {{ run.objects.table|qualified }} r ON r.{{ r.lineage_id|ident }} = d.{{ d.lineage_id|ident }}
+WHERE d.{{ d.is_active|ident }} = 1
+QUALIFY ROW_NUMBER() OVER (PARTITION BY d.{{ d.lineage_id|ident }}
+                           ORDER BY r.{{ r.run_dts|ident }} DESC, r.{{ r.lineage_run_id|ident }} DESC) = 1;
+{% endif %}
