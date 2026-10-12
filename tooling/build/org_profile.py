@@ -38,7 +38,7 @@ EXAMPLE = re.compile(
     r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)\.(\S+)$")
 PATH_EXAMPLE = re.compile(
     r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)$")
-PRINCIPAL = re.compile(r"^(create|existing)\s+(\S.*)$")
+PRINCIPAL = re.compile(r"^(create|existing|outside)\s+(\S.*)$")
 PROTECTION = re.compile(r"^(none|(mask|exclude) for (.+))$")
 
 

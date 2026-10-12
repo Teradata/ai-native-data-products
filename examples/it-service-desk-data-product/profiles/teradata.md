@@ -13,7 +13,7 @@ below are that standard, with each rule stated in a block the build-context reso
 executes. Validate it with:
 
 ```bash
-python tooling/build/org_profile.py examples/it-service-desk-data-product/organisation-profile.md
+python tooling/build/org_profile.py examples/it-service-desk-data-product/profiles/teradata.md
 ```
 
 Nothing here is specific to the IT Service Desk product: every name is derived from the
@@ -40,7 +40,8 @@ Platform: -
 ## Section 2. Container Model
 
 Child containers only: one database per module, plus a views-only access database and the
-organisation's shared `governance` database, which holds the cross-product registry.
+organisation's shared `governance` database, where the catalogue registration of every
+product lives (catalogue-interface pattern).
 Environments are separate Teradata systems, so container names carry no environment marker.
 
 ```
@@ -89,9 +90,10 @@ Naming: -
 ## Section 4. Object Placement Rules
 
 Tables, governed views and procedures sit in their module's database; every consumer view
-sits in the access database; functions sit with Domain. The product's registry row lives
-in the shared governance database because its purpose is cross-product discovery. The lineage
-discovery views sit with Semantic, so agents find lineage where they find everything else.
+sits in the access database; functions sit with Domain. The product's own registry stays in
+its Semantic database like every other discovery relation; the shared governance database
+holds only the catalogue's registration, a projection of it. The lineage discovery views sit
+with Semantic, so agents find lineage where they find everything else.
 
 ```
 Placement: -
@@ -101,7 +103,6 @@ Placement: -
     consumer_view: access
     procedure: module
     function: domain
-    DataProductRegistry: governance
     LineageGraph: semantic
     LineageRunLatest: semantic
 ```
@@ -133,7 +134,7 @@ Derivation: -
     - table search EntityEmbedding History -> ITSD_SCH.EntityEmbedding
     - table domain Category Reference -> ITSD_DOM.Category
     - table memory AgentSession -> ITSD_MEM.AgentSession
-    - table semantic DataProductRegistry -> governance.DataProductRegistry
+    - table semantic DataProductRegistry -> ITSD_SEM.DataProductRegistry
     - table observability ValidationRun -> ITSD_OBS.validation_run
 ```
 

@@ -37,6 +37,8 @@ When adding a platform or changing its binding, read the [Platform Implementatio
 
    ```bash
    python tooling/build/build_context.py design_specification.md organisation-profile.md --out build_context.json
+   # or, for a binding that declares its phases, resolve and render in one step:
+   python tooling/bindings/render.py design_specification.md organisation-profile.md --output build/
    ```
 
    Every container, object and principal name comes from that context; if object storage is

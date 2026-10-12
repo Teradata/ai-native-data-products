@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import Counter
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -87,6 +88,38 @@ class Resolution:
 
     def default(self, where: str, value, source: str):
         self.defaults.append({"field": where, "value": value, "source": source})
+
+
+# Validation pattern §10: the registered legacy wire-schema versions, whose runs publish no
+# area records and are projected as one PRODUCT entry.
+LEGACY_WIRE_VERSIONS = ("1.0", "2.0")
+
+# Semantic, the orientation relation: role, serving relation, required. Trust map second,
+# before every analytical resource.
+ORIENTATION_RESOURCES = [
+    ("MANIFEST", "DataProductManifest", True),
+    ("TRUST_MAP", "TrustMap", True),
+    ("MODULE_MAP", "DataProductMap", True),
+    ("OBJECT_CATALOGUE", "AccessObject", True),
+    ("ENTITY_CATALOGUE", "EntityMetadata", True),
+    ("COLUMN_CATALOGUE", "ColumnCatalogue", True),
+    ("RELATIONSHIP_CATALOGUE", "TableRelationship", True),
+    ("RELATIONSHIP_PATHS", "RelationshipPaths", False),
+    ("LINEAGE", "LineageGraph", False),
+    ("QUERY_COOKBOOK", "QueryCookbook", False),
+    ("GLOSSARY", "BusinessGlossary", False),
+    ("DESIGN_DECISIONS", "DesignDecision", False),
+    ("QUALITY", "DataQualityMetric", False),
+]
+
+
+def _module_scope(design_root: Path, module: str) -> Optional[str]:
+    """A module's purpose, as its standard's Document Control states its scope."""
+    path = design_root / "modules" / f"{module}.md"
+    if not path.is_file():
+        return None
+    m = re.search(r"^\|\s*\*\*Scope\*\*\s*\|\s*(.+?)\s*\|\s*$", path.read_text(encoding="utf-8"), re.M)
+    return m.group(1) if m else None
 
 
 def _duration_days(value: str) -> float:
@@ -228,14 +261,13 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
             "synonyms": [s.strip() for s in a.qualifiers.get("synonyms", "").split(",") if s.strip()],
             "flags": [q for q in ("current-flag", "deleted-flag") if q in a.qualifiers],
             "canonical": a.name in std.canonical_attributes,
+            "marker": next((m for m in SENSITIVITY_MARKERS if m in a.qualifiers), None),
             "classification": cls,
             "protection": prot,
         }
-        if a.type.startswith("Enum{"):
-            out["members"] = [m.strip() for m in a.type[5:-1].split("|")]
+        out["members"] = [m.strip() for m in a.type[5:-1].split("|")] if a.type.startswith("Enum{") else None
         vector = re.fullmatch(r"Vector\[(\d+)\]", a.type)
-        if vector:
-            out["dimensions"] = int(vector.group(1))
+        out["dimensions"] = int(vector.group(1)) if vector else None
         return out
 
     def temporal_columns(entity_name, profile_name, attribute_names, deletion):
@@ -262,8 +294,31 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         if not description:
             description = f"{e.name}, as the {module} module standard defines it."
         surrogate = keys.get("surrogate") or [a.name for a in e.attributes.values() if a.type == "Identifier"][:1]
+        temporal = temporal_columns(e.name, profile_name, names, deletion)
+        columns = [dict(a, origin="attribute") for a in attributes] + [
+            dict(t, origin="temporal", members=None, dimensions=None, marker=None, canonical=True,
+                 unique=False, references=[], synonyms=[], flags=[], derive=None, discriminator=None,
+                 classification=default_class,
+                 protection=protection.get(default_class, "none")) for t in temporal]
+        column_names = {c["name"]: c["physical_name"] for c in columns}
+        surrogate_names = keys.get("surrogate") or [a.name for a in e.attributes.values()
+                                                    if a.type == "Identifier"][:1]
+        natural_names = keys.get("natural") or ([] if surrogate_names else [a.name for a in e.attributes.values()
+                                                                        if a.type == "NaturalKey"][:1])
+        stable = allocation in ("keymap", "external-allocator") or e.kind == "Keymap"
+        key = surrogate_names or natural_names
+        version = (surrogate_names if stable and surrogate_names else natural_names or surrogate_names)
         return {
             "name": e.name, "kind": e.kind, "module": module, "profile": profile_name,
+            "relation": "table", "alias": _snake(e.name),
+            "runtime": std.entity_facets.get((module, e.name)) == "runtime",
+            "columns": columns, "column_names": column_names,
+            "key_columns": [column_names.get(n, n) for n in key],
+            "surrogate_columns": [column_names.get(n, n) for n in surrogate_names],
+            "natural_columns": [column_names.get(n, n) for n in natural_names],
+            "version_columns": [column_names.get(n, n) for n in version],
+            "generated_key": (allocation in ("inline",) or e.kind == "Keymap") and bool(surrogate_names)
+                             and len(key) == 1 and key == surrogate_names,
             "description": description,
             "history": profile_name in VERSIONED,
             "bitemporal": profile_name == "SCD2_BITEMPORAL",
@@ -279,7 +334,7 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         """Place the extra roles the binding emits for this entity (sequences, functions)."""
         out = {}
         allocation = item["identity"]["allocation"]
-        if "sequence" in binding.emits and (
+        if "sequence" in binding.emits and item.get("generated_key") and (
                 (kind == "Keymap" and "keymap" in binding.emits["sequence"])
                 or (allocation and allocation in binding.emits["sequence"] and allocation != "keymap")):
             out["sequence"] = place("sequence", module, name, kind, standard_owned, cls)
@@ -423,8 +478,15 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
     principals = {}
     for tier in TIERS:
         m = PRINCIPAL.match(profile.field("Principals", tier))
+        if m.group(1) == "outside":
+            principals[tier] = {"name": None, "create": False, "outside": m.group(2)}
+            continue
+        if binding.principals == "unsupported":
+            r.fail("unsupported-principal", f"Principals: {tier} is '{m.group(1)}', but the "
+                   f"{binding.platform} binding grants to no principals; declare it 'outside <how>'")
+            continue
         name = render(m.group(2), variables) if m.group(1) == "create" else m.group(2)
-        principals[tier] = {"name": name, "create": m.group(1) == "create"}
+        principals[tier] = {"name": name, "create": m.group(1) == "create", "outside": None}
         check_name(name, "principal")
 
     # ---- product blocks ---------------------------------------------------------------
@@ -496,6 +558,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                     continue  # a module entity this composition does not include
                 relationships.append({
                     "source": x["name"], "source_attribute": a["name"],
+                    "source_module": x["module"], "target_module": target["module"],
+                    "source_table": x["objects"].get("table"), "target_table": target["objects"].get("table"),
+                    "source_view": x["objects"].get("consumer_view"),
+                    "target_view": target["objects"].get("consumer_view"),
                     "source_column": a["physical_name"], "target": target_name,
                     "target_columns": identity_column(target), "mandatory": a["required"],
                     "discriminator": a["discriminator"],
@@ -557,8 +623,20 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         b["source"] = expression(b.get("source"))
         b["where"] = expression(b.get("where"), condition=True)
         b["objects"] = {}
-        if "embedding" in binding.emits.get("function", []):
-            b["objects"]["function"] = place("function", "search", b["name"])
+        # where the vectors live: the Search entity holding a vector of the declared dimension
+        store = next((x for x in entities if x["module"] == "search" and any(
+            a["type"] == f"Vector[{b.get('dimensions')}]" for a in x["attributes"])), None)
+        subject = next((x for x in entities if x["name"] == b.get("entity")), None)
+        if store is None or subject is None:
+            r.fail("embedding-store", f"Embedding '{b['name']}' has no Search entity holding a "
+                   f"Vector[{b.get('dimensions')}] for '{b.get('entity')}'", source="spec")
+        else:
+            b["store"] = store["name"]
+            b["vector_column"] = next(a["physical_name"] for a in store["attributes"]
+                                      if a["type"] == f"Vector[{b.get('dimensions')}]")
+        for role in ("function", "procedure"):
+            if "embedding" in binding.emits.get(role, []):
+                b["objects"][role] = place(role, "search", b["name"])
     metrics = blocks("Metric")
     for b in metrics:
         b["measure"] = expression(b.get("measure"))
@@ -587,6 +665,31 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         quality["weights"] = {k.strip(): int(v.strip().rstrip("%")) for k, v in
                               (w.split(":", 1) for w in quality.get("weights") or [])}
 
+    # ---- binding settings: the binding's defaults, as the profile sets them ---------------
+    settings = {}
+    chosen = dict(profile.blocks["Settings"].fields) if "Settings" in profile.blocks else {}
+    for name, declared in binding.settings.items():
+        values, _, default = declared.partition("; default ")
+        if name in chosen:
+            settings[name] = chosen[name]
+        else:
+            settings[name] = default.strip() or None
+            r.default(f"settings.{name}", settings[name], f"the {binding.platform} binding's declaration")
+    for name in chosen:
+        if name not in binding.settings:
+            r.fail("unsupported-setting", f"Settings: '{name}' is not a setting the {binding.platform} "
+                                          f"binding declares")
+
+    # ---- the evidence window the trust map applies (Validation pattern, evidence window) ----
+    quality = quality or {}
+    age = quality.get("maximum_evidence_age")
+    if not age:
+        age = "7 days"
+        r.default("quality.maximum_evidence_age", age, "Validation pattern, evidence window")
+    quality["evidence_window_days"] = _duration_days(age)
+    # Validation pattern §10: legacy wire versions are enumerated, never compared lexically.
+    quality["legacy_wire_versions"] = list(LEGACY_WIRE_VERSIONS)
+
     orientation = single("Orientation")
     if orientation:
         role = "consumer_view" if orientation.get("entrypoint") == "access-layer" else "table"
@@ -596,6 +699,195 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                                                          variables, environment)[0]
         except KeyError:
             r.fail("unplaceable", "the profile cannot place the orientation entrypoint")
+
+    # ---- the orientation resources (Semantic, the orientation relation) ----------------
+    # Each baseline role, in canonical order, resolved to the placed view that serves it;
+    # a role whose relation is not in the composition is not published.
+    resources = []
+    for role, name, required in ORIENTATION_RESOURCES:
+        x = next((x for x in entities + relations if x["name"] == name), None)
+        view = x and x["objects"].get("consumer_view")
+        if view:
+            resources.append({"role": role, "relation": name, "required": required,
+                              "order": len(resources) + 1, "object": view})
+    if orientation is not None or resources:
+        orientation = orientation or {}
+        orientation["resources"] = resources
+
+    # ---- primary-object roles (Semantic §3.4), derived, never designed ---------------
+    lineage = {"DataLineage", "LineageRun", "LineageGraph", "LineageRunLatest"}
+    entrypoint = {"DataProductManifest", "DataProductRegistry"}
+    for x in entities + relations:
+        view = x["objects"].get("consumer_view")
+        if not view:
+            continue
+        if x["name"] in entrypoint:
+            role = "AGENT_ENTRYPOINT"
+        elif x["name"] in lineage:
+            role = "LINEAGE_EVIDENCE"
+        elif x["module"] == "observability":
+            role = "OPERATIONAL_METRIC"
+        elif x["kind"] == "Reference" or x["module"] in ("semantic", "memory"):
+            role = "REFERENCE_LOOKUP"
+        elif x["kind"] in ("Relationship", "Keymap"):
+            role = "RELATIONSHIP_BRIDGE"
+        else:
+            role = "ANALYTICAL_QUERY"
+        view["primary_role"] = role
+    for x in entities + relations:
+        table = x["objects"].get("table")
+        if table:
+            table["primary_role"] = ("WRITE_TARGET" if x.get("runtime") or x["name"] == "AgentOutcome"
+                                     else "INTERNAL_SUPPORT")
+
+    module_containers = []
+    for x in entities + relations:
+        for role_name, obj in x["objects"].items():
+            if not obj:
+                continue
+            row = {"module": x["module"], "role": role_name, "container": obj["container"]}
+            if row not in module_containers:
+                module_containers.append(row)
+
+    # ---- what the build captures into Memory (Memory §5.2) ---------------------------
+    # Every record and its id is settled here, once, for every binding; a binding only
+    # writes the rows and renders each cookbook recipe's query in its own dialect.
+    spec_decisions = [(b.name, _fields(b)) for b in spec.blocks_of("Decision")]
+
+    def short_form(module):
+        """The module's short form in record ids, as the specification's own ids use it."""
+        used = Counter(m.group(1) for name, f in spec_decisions if f.get("module") == module
+                       for m in [re.match(r"DD-([A-Z]+)-\d+$", name)] if m)
+        return used.most_common(1)[0][0] if used else module.upper()
+
+    def next_id(prefix, module, taken):
+        stem = f"{prefix}-{short_form(module)}-"
+        n = max([int(t[len(stem):]) for t in taken if t.startswith(stem) and t[len(stem):].isdigit()] or [0])
+        taken.add(f"{stem}{n + 1:03d}")
+        return f"{stem}{n + 1:03d}"
+
+    taken = {name for name, _ in spec_decisions}
+    settled = {(f.get("module"), f.get("settles")) for _, f in spec_decisions if f.get("settles")}
+    capture_decisions = []
+    for module in modules:
+        for dec in corpus.modules.get(module, {}).get("decisions", []):
+            if dec in decisions and (module, dec) not in settled:
+                d = decisions[dec]
+                capture_decisions.append({
+                    "decision_id": next_id("DD", module, taken), "module": module, "settles": dec,
+                    "title": f"{dec}: {d['choice']}", "category": "ARCHITECTURE",
+                    "context": f"The {module} module raises {dec}.",
+                    "rationale": d.get("because") or f"{d['choice']} is the option the standard advocates.",
+                    "alternatives": None})
+    for name, f in spec_decisions:
+        capture_decisions.append({
+            "decision_id": name, "module": f.get("module"), "settles": f.get("settles"),
+            "title": f.get("title"), "category": f.get("category"), "context": f.get("context"),
+            "rationale": f.get("rationale"), "alternatives": f.get("alternatives")})
+
+    metric_names = {b["name"] for b in metrics}
+    entity_names = {x["name"].lower() for x in entities}
+    glossary = []
+    for g in blocks("Glossary"):
+        term = g["name"]
+        category = ("METRIC" if term in metric_names else
+                    "ENTITY" if term.replace(" ", "").lower() in entity_names else "BUSINESS_RULE")
+        glossary.append(dict({"term": term, "category": category},
+                             **{k: v for k, v in g.items() if k != "name"}))
+
+    # the cookbook: one recipe per deployed module and one per deployed pair (Memory §5.2)
+    placed = {x["name"]: x for x in entities + relations}
+
+    def viewable(name):
+        return name in placed and "consumer_view" in placed[name]["objects"]
+
+    def module_recipe(module):
+        if module == "domain":
+            m = next((b for b in metrics if placed.get(b.get("dataset"), {}).get("module") == "domain"
+                      and b["measure"] and b["measure"]["sql"]), None)
+            if m:
+                return {"kind": "metric", "metric": m["name"], "title": f"Compute {m['name']}",
+                        "use_case": m.get("description") or m["name"]}
+        if module == "search":
+            b = next((b for b in embeddings if {"function", "procedure"} & set(b["objects"])), None)
+            if b:
+                return {"kind": "similarity", "embedding": b["name"], "join": False,
+                        "title": f"Find {b['entity']} records similar by {b['name']}",
+                        "use_case": f"Similarity search over the {b['name']} embedding."}
+        anchors = {"semantic": "DataProductManifest", "observability": "TrustMap",
+                   "memory": "DesignDecision"}
+        name = anchors.get(module)
+        if not (name and viewable(name)):
+            name = next((x["name"] for x in entities if x["module"] == module and viewable(x["name"])
+                         and x["kind"] != "Keymap"), None)
+        if name:
+            return {"kind": "entity", "relation": name, "title": f"Read {name}",
+                    "use_case": placed[name]["description"]}
+        return None
+
+    cookbook, cookbook_gaps, recipe_ids = [], [], set()
+    for module in modules:
+        recipe = module_recipe(module)
+        if recipe is None:
+            cookbook_gaps.append(f"no recipe source for module '{module}'")
+            continue
+        cookbook.append(dict(recipe, recipe_id=next_id("QC", module, recipe_ids), target_module=module,
+                             source_module=module,
+                             complexity="SIMPLE" if recipe["kind"] == "entity" else "MODERATE"))
+        if module == "semantic" and viewable("TableRelationship"):
+            cookbook.append({"kind": "entity", "relation": "TableRelationship",
+                             "recipe_id": next_id("QC", module, recipe_ids),
+                             "title": "Draw the entity-relationship diagram",
+                             "use_case": "Every relationship between the product's relations, as ERD edges.",
+                             "target_module": "semantic", "source_module": "semantic", "complexity": "SIMPLE"})
+    for i, a in enumerate(modules):
+        for b in modules[i + 1:]:
+            rel = next((n for n, r in enumerate(relationships)
+                        if {r["source_module"], r["target_module"]} == {a, b}
+                        and r["source_view"] and r["target_view"]), None)
+            emb = next((e for e in embeddings if {"function", "procedure"} & set(e["objects"])
+                        and {a, b} == {"search", placed.get(e["entity"], {}).get("module")}), None)
+            if rel is not None:
+                recipe = {"kind": "join", "relationship": rel,
+                          "title": f"Join {relationships[rel]['source']} to {relationships[rel]['target']}"}
+            elif emb:
+                recipe = {"kind": "similarity", "embedding": emb["name"], "join": True,
+                          "title": f"Similar {emb['entity']} records with their current detail"}
+            elif viewable("EntityMetadata"):
+                recipe = {"kind": "catalogue", "modules": [a, b],
+                          "title": f"What the {a} and {b} modules hold"}
+            else:
+                cookbook_gaps.append(f"no cross-module recipe source for '{a}' and '{b}'")
+                continue
+            cookbook.append(dict(recipe, recipe_id=next_id("QC", a, recipe_ids), target_module="CROSS",
+                                 source_module=a, use_case=recipe["title"] + ".", complexity="MODERATE"))
+
+    notes, note_ids = [], set()
+    for x in entities:
+        for a in x["attributes"]:
+            if a["marker"] == "pii-incidental":
+                notes.append({"note_id": next_id("IN", x["module"], note_ids), "module": x["module"],
+                              "title": f"Incidental personal data in {x['name']}.{a['name']}",
+                              "content": f"{x['name']}.{a['name']} may hold personal data incidentally; "
+                                         f"it is classified {a['classification']} and protected as "
+                                         f"'{a['protection']}'.",
+                              "category": "SECURITY", "severity": "MEDIUM"})
+
+    capture = {
+        "modules": [{"module": m,
+                     "container": next((c["container"] for c in module_containers
+                                        if c["module"] == m and c["role"] == "table"), None),
+                     "purpose": _module_scope(design_root, m),
+                     "key_entities": [x["name"] for x in entities if x["module"] == m]}
+                    for m in modules],
+        "decisions": capture_decisions,
+        "glossary": glossary,
+        "cookbook": cookbook,
+        "change_log": [{"change_id": f"CL-{short_form(m)}-001", "module": m, "version": version,
+                        "title": "Initial release", "type": "INITIAL_RELEASE"} for m in modules],
+        "notes": notes,
+        "gaps": cookbook_gaps,
+    }
 
     product = {"name": variables["product"], "code": code, "version": version,
                **(single("Product") or {})}
@@ -624,6 +916,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         "entities": entities,
         "relations": relations,
         "relationships": relationships,
+        "module_containers": module_containers,
+        "capture": capture,
+        "naming": {"objects": profile.mapping("Naming", "Objects"),
+                   "attributes": attribute_template, "standard_names": standard_names},
         "standard_names": standard_names,
         "classification": {"scheme": scheme, "default": default_class, "markers": markers,
                            "protection": protection},
@@ -642,7 +938,7 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         "storage": {kind.lower(): _fields(profile.blocks[kind])
                     for kind in ("Storage", "Files", "Partitioning", "Lifecycle", "StorageAccess")
                     if kind in profile.blocks} or None,
-        "settings": dict(profile.blocks["Settings"].fields) if "Settings" in profile.blocks else {},
+        "settings": settings,
         "defaults_applied": r.defaults,
     }
     return (context if not r.findings else {}), r.findings

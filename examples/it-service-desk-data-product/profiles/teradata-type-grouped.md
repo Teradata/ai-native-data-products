@@ -7,16 +7,16 @@ platform_version: "20.00"
 # Organisation Profile: contrasting example (Teradata)
 
 A second organisation profile for the IT Service Desk example, deliberately unlike
-[`organisation-profile.md`](organisation-profile.md) in every respect a profile controls:
+[`teradata.md`](teradata.md) in every respect a profile controls:
 placement (type-grouped rather than one container per module), object and column naming,
 principals (one bound to an existing group), classification and protection, retention
 bounds, environment isolation, and an adopted entity. Building the same
-[design specification](design-output/design_specification.md) under both profiles is the
+[design specification](../design-output/design_specification.md) under both profiles is the
 portability test of the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md)
 §8: the products must differ only where the profiles do.
 
 ```bash
-python tooling/build/org_profile.py examples/it-service-desk-data-product/organisation-profile-type-grouped.md
+python tooling/build/org_profile.py examples/it-service-desk-data-product/profiles/teradata-type-grouped.md
 ```
 
 ---
@@ -86,7 +86,6 @@ Placement: -
     consumer_view: views
     procedure: data
     function: data
-    DataProductRegistry: governance
 ```
 
 ## Section 5. Separation Policy
@@ -107,7 +106,7 @@ Derivation: -
     - table domain Ticket History -> dp_itsd_data.ticket
     - base_view domain Ticket History -> dp_itsd_views.ticket_cur
     - consumer_view domain TicketFeatureSet History -> dp_itsd_views.ticket_feature_set
-    - table semantic DataProductRegistry -> enterprise_catalogue.data_product_registry
+    - table semantic DataProductRegistry -> dp_itsd_data.data_product_registry
     - table observability ValidationRun -> dp_itsd_data.validation_run
 ```
 

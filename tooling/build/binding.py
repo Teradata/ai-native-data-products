@@ -32,10 +32,12 @@ class Binding:
     identifier_quote: str = '"'
     literal_quote: str = "'"
     principals: str = "native"
+    runtime_scope: str = "unsupported"
     emits: Dict[str, List[str]] = field(default_factory=dict)
     settings: Dict[str, str] = field(default_factory=dict)
     phases: Dict[str, str] = field(default_factory=dict)
     checks: Dict[str, str] = field(default_factory=dict)
+    deploy: Optional[str] = None
     types: Dict[str, str] = field(default_factory=dict)
     functions: Dict[str, str] = field(default_factory=dict)
     path: str = ""
@@ -102,6 +104,10 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     b.identifier_quote = fields.get("Identifier quote", '"')
     b.literal_quote = fields.get("Literal quote", "'")
     b.principals = fields.get("Principals", "native")
+    b.runtime_scope = fields.get("Runtime scope", "unsupported")
+    if b.runtime_scope not in ("enforced", "unsupported"):
+        findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
+                                f"Binding: Runtime scope '{b.runtime_scope}' is not enforced or unsupported"))
     if b.principals not in ("native", "unsupported"):
         findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
                                 f"Binding: Principals '{b.principals}' is not native or unsupported"))
@@ -110,8 +116,14 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     b.settings = _mapping(fields.get("Settings"))
     b.phases = _mapping(fields.get("Phases"))
     b.checks = _mapping(fields.get("Checks"))
+    b.deploy = fields.get("Deploy")
+    for key in b.checks:
+        scope = key.split(" ")[0]
+        if scope not in ("entity", "relationship", "module") or len(key.split(" ")) != 2:
+            findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
+                                    f"Binding: check '{key}' is not '<entity|relationship|module> <check>'"))
     templates = root / "implementation" / platform
-    for name in list(b.phases.values()) + list(b.checks.values()):
+    for name in list(b.phases.values()) + list(b.checks.values()) + ([b.deploy] if b.deploy else []):
         if not (templates / name).is_file():
             findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
                                     f"Binding: template '{name}' does not exist"))

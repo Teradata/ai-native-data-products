@@ -13,33 +13,40 @@ platform: duckdb
 
 Binding of [Domain](../../../../design/modules/domain.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-`01-tables.sql.j2` accepts arbitrary History, Reference and Association entities. Keymaps are permanent CURRENT_STATE tables; the physical entity references its stable id and natural key by composite foreign key. Allocation uses a DuckDB sequence named by the build context (`key_sequence`). `02-key-allocation.sql.j2` is an upsert that returns the permanent identifier of an existing mapping or allocates a new one. A replayed allocation can consume a sequence value, so identifiers are unique and never reused but not contiguous. DuckDB writers must run on one writing connection, serialize transactions and retry a transaction conflict.
+## Templates
 
-The temporal pattern supplies canonical fields and comments. SCD2 and bitemporal profiles are separate choices. Default views hide lifecycle and audit columns; historical table macros expose the approved full history. Business attributes, keys, comments and placement are inputs; no service-desk, laboratory or customer schema is built into the binding.
+`01-tables.sql.j2` calls `module_tables('domain')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). It emits one `CREATE TABLE` per persisted Domain relation in the context's `entities` and `relations`, keymaps first so references to them resolve, and skips any the context marks `adopted` or not `defined`. It reads each relation's `objects.table`, `objects.sequence`, `columns` (physical name and type, `required`, `unique`, `members`), `key_columns`, `version_columns`, `column_names`, `history`, `bitemporal`, `supports_deletion` and `identity.keymap`.
 
-Checks cover expected physical columns and comments, finite timestamps, overlapping intervals and declared current relationships. Stable keymap references are enforced by foreign keys. Historical relationship coverage, domain-specific quality rules and no-content-duplication reviews still require the product's design checks.
+- A relation with an `objects.sequence` (a keymap, or an inline-keyed table such as a Reference entity) gets `CREATE SEQUENCE` with the name and schema the profile places, and its key column defaults to `nextval` of it.
+- An entity with a keymap gets a foreign key from its key columns to the keymap's table.
+- An Enum attribute gets a `CHECK` over its members.
+- A history table's primary key is its version columns plus `valid_from_dts` (and `transaction_from_dts` when bitemporal). DuckDB has no partial unique indexes or exclusion constraints, so one open version per identity and non-overlapping intervals are proved by the `entity temporal` check, not enforced by the engine.
+
+`02-key-allocation.sql.j2` is caller-rendered with `keymap` (a Keymap entity from the context) and `natural_value`. It inserts the natural value and returns the stable identifier; an existing natural value returns its existing identifier unchanged through `ON CONFLICT`. Only the first natural-key attribute (`identity.natural[0]`) is used. The caller opens the transaction on the single writing connection and retries a transaction conflict. An allocation that meets an existing mapping can still consume a sequence value, so identifiers are unique and never reused but not contiguous.
+
+Comments, consumer views and point-in-time table macros come from the temporal pattern; registration from Semantic; checks from Validation.
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `SurrogateKeyAllocation` | Permanent keymap with sequence default; `02-key-allocation.sql.j2` returns the stable id. Serial writer; arbitrary administrative SQL can bypass it. |
-| `CurrentStateFilter` | Explicit access views over open validity, current flag and deletion state. |
-| `PointInTimeReconstruction` | Half-open table macros `(valid_at)` or `(valid_at, known_at)`, selected by profile. |
-| `NaturalKeyLookup` | Unique natural key in each keymap; current views carry the stable id. |
-| `EntityJoinBack` | Identifier joins from Search and Prediction to the Domain consumer views. |
-| `AccessView` | Explicit projections; a view is an interface, not a security boundary. |
-| `RichMetadata` | `COMMENT ON` for every table and column, applied by `02-comments.sql.j2`, plus Semantic registration. |
+| `SurrogateKeyAllocation` | Sequence default on each keymap or inline-keyed table; `02-key-allocation.sql.j2` returns the permanent identifier. Serial writer; administrative SQL can bypass it. |
+| `CurrentStateFilter` | Consumer view over current, undeleted rows. |
+| `PointInTimeReconstruction` | Table macro `(valid_at)` or `(valid_at, known_at)` per relation the context gives a `function` object. |
+| `NaturalKeyLookup` | Unique natural key on each keymap; consumer views carry the stable identifier. |
+| `EntityJoinBack` | Search and Prediction rows carry the Domain identifier; consumers join to the Domain consumer view. |
+| `AccessView` | One consumer view per relation with a `consumer_view` object; an interface, not a security boundary. |
+| `RichMetadata` | `COMMENT ON` for every table and column, plus Semantic registration. |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## Invariants and checks
 
 | Invariant | Evidence or outstanding check |
 |---|---|
-| `INV-DOMAIN-001` | Per-entity metadata query checks physical comments through `duckdb_columns()`. |
-| `INV-DOMAIN-002,006` | Shared current/as-of templates; native half-open and two-axis reconstruction tests. |
-| `INV-DOMAIN-003,004` | Permanent keymap and foreign-key DDL; allocation test. Retention is operational. |
-| `INV-DOMAIN-005,007` | Review the product field and relationship declarations; no generic semantic-duplication detector is claimed. |
+| `INV-DOMAIN-001` | `entity metadata` check: every placed column exists and carries a comment in `duckdb_columns()`. |
+| `INV-DOMAIN-002,006` | Current and point-in-time macros; `entity temporal` check; engine test of a bitemporal correction read at two knowledge times. |
+| `INV-DOMAIN-003,004` | Permanent keymap with foreign key; allocation test. Retention is operational. |
+| `INV-DOMAIN-005,007` | Review the specification's attributes and relationships; no generic duplication detector is claimed. |
 
-Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

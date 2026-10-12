@@ -479,7 +479,7 @@ ticket discriminated by `source_attribute`. Absence is no row, never a null vect
 ```
 Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [allocation: inline]
   embedding_id            : Identifier                         // surrogate for the embedding record
-  entity_id               : Reference [required] [-> Ticket]   // the embedded ticket; key only
+  entity_id               : Reference [required] [-> Ticket] [discriminator: entity_kind]  // the embedded ticket; key only
   entity_kind             : Enum{TICKET} [required]            // always TICKET in this product
   source_attribute        : ShortText [required]               // which embedding: the Embedding block name
   embedding               : Vector[384] [required]             // dense text embedding
@@ -493,7 +493,7 @@ Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [alloc
 
   Keys:
     surrogate: embedding_id
-    natural:   entity_id, source_attribute, embedding_model
+    natural:   entity_kind, entity_id, source_attribute
 
   Volume:
     initial: 250
@@ -922,7 +922,7 @@ organisation profile.
 Decision: DD-ACCESS-001
   Title:      Three access tiers, with agent write-back append-only
   Category:   SECURITY
-  Module:     access-layer
+  Module:     memory
   Context:    The access-layer pattern requires the role model to be recorded so agents can read the access contract from Memory.
   Rationale:  ROLE_READ serves analysts, managers and BI; ROLE_AGENT serves agents and automated tools with the same read scope plus append-only write-back to Memory's runtime entities and Observability's usage and quality events; ROLE_ADMIN serves the product owner and data steward. Analysts and read-only users need identical grants, and separating agent write-back keeps the agent lifecycle independently manageable.
   Alternatives: Two tiers (read and write), rejected because agent write-back must be manageable on its own; four tiers adding an analyst tier, rejected because analysts need no grant read-only users lack.

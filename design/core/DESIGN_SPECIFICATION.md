@@ -269,7 +269,7 @@ A product design decision, recorded once here and captured into Memory's `Design
 |---|---|---|---|
 | `Title` | yes | text | One line. |
 | `Category` | yes | enum | `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION` or `OPERATIONAL`, as Memory's `DesignDecision` defines them. |
-| `Module` | yes | module | The module or pattern the decision belongs to. |
+| `Module` | yes | module | The module the decision is recorded against, one of the product's `modules`. A pattern's decision names the module whose behaviour it governs, and a decision governing several modules is one block per module ([Memory](../modules/memory.md) §5.2). |
 | `Applies to` | no | text | The entity or block the decision concerns. |
 | `Settles` | no | text | The catalogued decision this record settles for its module, when it records one. |
 | `Context` | yes | text | What prompted it. |

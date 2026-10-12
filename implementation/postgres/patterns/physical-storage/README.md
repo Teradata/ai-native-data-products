@@ -13,10 +13,8 @@ platform: postgres
 
 Binding of [Physical Storage](../../../../design/patterns/physical-storage.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-The baseline is native database storage. Small tables are unpartitioned; indexing, statistics, vacuum/checkpoint and storage layout are selected from measured workloads. No external file, object-store mount or approximate vector index is assumed by the templates.
+This pattern has no template. The baseline is native, unpartitioned storage. The only indexes emitted are those the shared table macro creates: primary keys, unique keys, and for each history table a partial unique index on the current row and a GiST exclusion constraint over its intervals. Further indexing, statistics, vacuum and checkpoint settings, partitioning and storage layout are chosen from measured workloads; review the exclusion constraints before partitioning a history table. No external file, foreign table, object-store mount or approximate vector index is emitted.
 
-PostgreSQL uses B-tree identity indexes and GiST history exclusion; review constraint behavior before partitioning. DuckDB uses its native columnar storage and transaction model. File permissions and serving processes are its access boundary.
+The validator does not establish backup and restore, durability, replication, disaster recovery or performance. Publish operator evidence separately. Rendered SQL and deployment packages belong in the user's output location, not this repository.
 
-The validator does not establish backup/restore, durability, replication, disaster recovery or performance. Publish operator evidence separately. Generated database files and deployment packages belong in the user's output location, not this skill.
-
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

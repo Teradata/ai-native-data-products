@@ -97,7 +97,7 @@ Every object a build creates has one of these roles. A naming template and a pla
 
 ## 6. Blocks
 
-Each block opens with `<Block>: -` in a fenced code block. Fields are indented two spaces; a field of type `templates`, `mappings` or `examples` puts its lines below it, indented four. Field types are those of the [Design Specification Standard](DESIGN_SPECIFICATION.md) §2, plus `template`, `templates` (lines `<key>: <template>`), `mappings` (lines `<key>: <value>`), `principal` (`create <template>`, or `existing <name>` to bind an existing principal) `examples` (lines `- <role> <module> <entity> [<Kind>] -> <container>.<object>`, where the kind is given when a naming template depends on it) and `path-examples` (the same, ending `-> <path>`).
+Each block opens with `<Block>: -` in a fenced code block. Fields are indented two spaces; a field of type `templates`, `mappings` or `examples` puts its lines below it, indented four. Field types are those of the [Design Specification Standard](DESIGN_SPECIFICATION.md) §2, plus `template`, `templates` (lines `<key>: <template>`), `mappings` (lines `<key>: <value>`), `principal` (`create <template>`, `existing <name>` to bind an existing principal, or `outside <how>` where the platform grants to no principals and the tier is enforced outside it, as stated) `examples` (lines `- <role> <module> <entity> [<Kind>] -> <container>.<object>`, where the kind is given when a naming template depends on it) and `path-examples` (the same, ending `-> <path>`).
 
 ### 6.1 `Platform:`
 

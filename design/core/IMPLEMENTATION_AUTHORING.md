@@ -109,10 +109,12 @@ A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when i
 | `Identifier quote` | yes | text | The character that quotes an identifier. |
 | `Literal quote` | yes | text | The character that quotes a text literal; it is doubled inside one. |
 | `Principals` | yes | enum | `native` or `unsupported`: whether the platform grants to principals. |
-| `Emits` | no | mappings | Object roles the binding emits beyond `table` and `consumer_view`, each with what it emits them for: `base_view: all`, `sequence: <allocations>`, or `function: <profiles>` and `embedding` for a similarity function per `Embedding:` block. |
+| `Runtime scope` | yes | enum | `enforced` or `unsupported`: whether the binding restricts runtime Memory records to the requesting identity's scope at the access surface ([access-layer](../patterns/access-layer.md) §4). `unsupported` is reported as a gap in every build with runtime relations. |
+| `Emits` | no | mappings | Object roles the binding emits beyond `table` and `consumer_view`, each with what it emits them for: `base_view: all`, `sequence: <allocations>`, or `function: <profiles>`; and `embedding` under `function` or `procedure` for one similarity search object per `Embedding:` block, as the platform can express it. |
 | `Settings` | no | mappings | Each binding setting an organisation profile may set, with its permitted values and default, as `<setting>: <values>; default <value>`. |
 | `Phases` | no | mappings | The deployment phases in order, each as `<file>: <template>`. A template that renders nothing for a composition emits no file. |
-| `Checks` | no | mappings | The validation checks a build manifest carries, each as `<scope>: <template>`, where the scope is `entity`, `relationship` or `module:<anchor>`. |
+| `Deploy` | no | text | The template that joins the rendered phases into one deployable script. It reads `phases`, the rendered files in order, each with its `file` and `sql`. |
+| `Checks` | no | mappings | The validation checks a build manifest carries, each as `<scope> <check>: <template>`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
 
 #### `Types:`
 

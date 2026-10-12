@@ -1,8 +1,9 @@
-{# Inputs: entity (normalised keymap entity owner), natural_value.
-Caller opens a transaction on the single writing connection and retries a transaction conflict.
-Allocation is permanent; never delete/recycle a keymap row. An existing mapping returns its identifier
-and leaves it unchanged. #}
-INSERT INTO {{ qualified(entity.schema,entity.keymap) }} AS k ({{ entity.natural_key|ident }},created_dts,updated_dts)
-VALUES ({{ natural_value|literal }},current_timestamp,current_timestamp)
-ON CONFLICT ({{ entity.natural_key|ident }}) DO UPDATE SET updated_dts=k.updated_dts
-RETURNING {{ entity.key|ident }};
+{# Caller-rendered, with: keymap (a Keymap entity from the build context) and natural_value.
+   The caller opens the transaction on the single writing connection and retries a conflict.
+   Allocation is permanent: a keymap row is never deleted or recycled. An existing mapping
+   returns its identifier unchanged. #}
+{% set natural = keymap.identity.natural[0] %}{% set n = keymap.column_names[natural] %}{% set u = keymap.column_names.updated_dts %}
+INSERT INTO {{ keymap.objects.table|qualified }} AS k ({{ n|ident }}, {{ keymap.column_names.created_dts|ident }}, {{ u|ident }})
+VALUES ({{ natural_value|literal }}, current_timestamp, current_timestamp)
+ON CONFLICT ({{ n|ident }}) DO UPDATE SET {{ u|ident }} = k.{{ u|ident }}
+RETURNING {{ keymap.key_columns[0]|ident }};

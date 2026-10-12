@@ -13,28 +13,37 @@ platform: duckdb
 
 Binding of [Search](../../../../design/modules/search.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-`01-tables.sql.j2` consumes the design's embedding entity: identifiers, vectors and provenance, never source content. Declare the vector as `VECTOR(n)` in the helper input; it binds to a fixed-size `FLOAT[n]` array, with one dimension per model family. `02-similarity.sql.j2` emits a table macro per declared search. It takes the source entity, model and version, source facet, content projection and dimension; exact `list_cosine_similarity` ranking over current vectors joins back to the Domain consumer view, with ties broken by identifier and the result limit capped.
+## Templates
 
-`Embed` requires a separately selected encoder and reproducible model provenance. No lexical toy is substituted for a real semantic model. Approximate indexing is optional and not emitted: the VSS extension and its HNSW index are excluded from the baseline, and its persistent form is documented by DuckDB as experimental. Tests assert the rendered product installs and loads no extension.
+`01-tables.sql.j2` calls `module_tables('search')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The embedding store holds identifiers, vectors and provenance, never source content. A `Vector` column binds to a fixed-size `FLOAT[n]` array, which rejects a vector of the wrong dimension on insert.
 
-Tests exercise different dimensions, authoritative join-back after a Domain update, and a reopened read-only database file. Structural conformance does not establish encoder quality, model compatibility or retrieval recall; publish those as missing evidence until measured. The macro does not validate the query vector: validate shape, finite elements and nonzero norm at the encoder and query boundary.
+`02-similarity.sql.j2` emits one table macro per `Embedding:` block in the context's `embeddings` that has an `objects.function`. It reads the block's `store` (through `named`), `vector_column`, `dimensions`, `similarity`, `threshold`, `name` and, where present, `model`. The macro `(query_vector, result_limit)`:
+
+- casts the query vector to `FLOAT[n]` of the declared dimension, so a vector of another length is an error;
+- reads the store's consumer view, so only current vectors are ranked, restricted to rows whose source attribute is the block's name (and to its model, where the block names one);
+- scores by the declared similarity: `array_cosine_similarity`, `array_inner_product`, or `1 / (1 + distance)` for euclidean (`array_distance`) and manhattan;
+- keeps scores at or above the declared threshold and returns `(entity_id, similarity)` ordered by score, then identifier, with the limit clamped to 0..1000.
+
+The macro returns identifiers only. Join-back to Domain is the caller's: the cookbook's similarity recipes join the macro to the entity's consumer view.
+
+Vectors come from the encoder the specification declares, outside the database; no encoder is substituted. The templates install and load no extension; the VSS extension and its HNSW index are not emitted, and DuckDB documents its persistent form as experimental. Validate query vectors for finite elements and nonzero norm at the encoder and query boundary.
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `NearestNeighbors` | Table macro with exact cosine ranking over current vectors of the declared model, version and facet. |
-| `EntityJoinBack` | Macro joins vectors to the Domain consumer view on the stable identifier; no content is persisted in Search. |
-| `CurrentStateFilter` | Search reads the current consumer view of the embedding entity. |
+| `NearestNeighbors` | Exact ranking over current vectors by the declared similarity and threshold. |
+| `EntityJoinBack` | Results carry the Domain identifier; recipes join to the Domain consumer view. |
+| `CurrentStateFilter` | The macro reads the store's consumer view. |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## Invariants and checks
 
 | Invariant | Evidence or outstanding check |
 |---|---|
-| `INV-SEARCH-001,003` | Review declared embedding fields and model provenance; dimension contract checked at render time. |
-| `INV-SEARCH-002,004` | Search template joins to the declared Domain current view; native join-back test. |
-| `INV-SEARCH-005` | Shared temporal DDL and as-of surfaces; generic overlap checks. |
+| `INV-SEARCH-001,003` | Review the declared embedding and model provenance; engine test that the fixed-size array rejects the wrong dimension. |
+| `INV-SEARCH-002,004` | Engine test that the macro ranks current vectors of its embedding and applies the threshold. |
+| `INV-SEARCH-005` | Shared temporal macros and the `entity temporal` check. |
 
-Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

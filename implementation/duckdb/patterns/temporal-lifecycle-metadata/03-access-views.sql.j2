@@ -1,15 +1,17 @@
-{# Inputs: entities, containers.access. Runtime intentionally has no public views.
-   DuckDB has no native principals, so the historical table macros are not hidden from
-   anyone who can open the database file; see the access-layer binding. #}
-{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
-{% for e in entities %}
-{% if not e.runtime %}
-CREATE VIEW {{ e.view }} AS SELECT {% for c in e.columns %}{{ c.name|ident }}{% if not loop.last %},{% endif %}{% endfor %}{% if e.history %},valid_from_dts{% endif %}
-FROM {{ e.qualified }} WHERE {{ tlm.current(e) }};
-COMMENT ON VIEW {{ e.view }} IS {{ ('Current consumer surface: ' ~ e.description)|literal }};
-{% endif %}
-{% if e.history %}
-CREATE MACRO {{ qualified(e.schema,e.history_function) }}(valid_at{% if e.bitemporal %},known_at{% endif %}) AS TABLE
-SELECT * FROM {{ e.qualified }} WHERE {{ tlm.at(e) }};
-{% endif %}
+{# The consumer view of every relation that has one: current rows only, with every column but
+   the open interval ends, which are always open on this surface. A specification's
+   expressions read the same columns through it as through the table. Then
+   the point-in-time table macro of every versioned relation the binding emits one for. Runtime
+   relations have no consumer view. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.consumer_view is defined %}
+CREATE VIEW {{ x.objects.consumer_view|qualified }} AS
+SELECT {{ m.cols(x.columns|rejectattr('name', 'in', ('valid_to_dts', 'transaction_to_dts'))|map(attribute='physical_name')) }}
+FROM {{ x.objects.table|qualified }}
+WHERE {{ m.current(x) }};
+COMMENT ON VIEW {{ x.objects.consumer_view|qualified }} IS {{ ('Current consumer surface: ' ~ x.description)|literal }};
+{% endfor %}
+{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.function is defined %}
+CREATE MACRO {{ x.objects.function|qualified }}(valid_at{% if x.bitemporal %}, known_at{% endif %}) AS TABLE
+SELECT * FROM {{ x.objects.table|qualified }} WHERE {{ m.at(x) }};
 {% endfor %}

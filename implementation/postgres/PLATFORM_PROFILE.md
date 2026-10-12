@@ -59,8 +59,32 @@ Binding: -
   Identifier quote: "
   Literal quote:    '
   Principals:       native
+  Runtime scope:    enforced
   Emits:
-    function: SCD2_HISTORY, ASSOCIATION_SCD2, SCD2_BITEMPORAL
+    function: SCD2_HISTORY, ASSOCIATION_SCD2, SCD2_BITEMPORAL, embedding
+  Phases:
+    00-containers.sql: patterns/object-placement/01-containers.sql.j2
+    01-memory.sql: modules/memory/01-tables.sql.j2
+    02-semantic.sql: modules/semantic/01-tables.sql.j2
+    03-domain.sql: modules/domain/01-tables.sql.j2
+    04-observability.sql: modules/observability/01-tables.sql.j2
+    05-search.sql: modules/search/01-tables.sql.j2
+    06-prediction.sql: modules/prediction/01-tables.sql.j2
+    07-comments.sql: patterns/temporal-lifecycle-metadata/02-comments.sql.j2
+    08-views.sql: patterns/temporal-lifecycle-metadata/03-access-views.sql.j2
+    09-similarity.sql: modules/search/02-similarity.sql.j2
+    10-registration.sql: modules/semantic/02-registration.sql.j2
+    11-discovery.sql: modules/semantic/03-discovery.sql.j2
+    12-trust.sql: patterns/validation/04-trust-map.sql.j2
+    13-documentation.sql: modules/memory/02-capture.sql.j2
+    14-access.sql: patterns/access-layer/01-grants.sql.j2
+  Deploy: deploy.sql.j2
+  Checks:
+    entity metadata: patterns/validation/01-entity-metadata.sql.j2
+    entity temporal: patterns/validation/02-entity-temporal.sql.j2
+    relationship reference: patterns/validation/03-relationship-reference.sql.j2
+    module semantic: modules/semantic/validation.sql.j2
+    module memory: modules/memory/validation.sql.j2
 ```
 
 ```

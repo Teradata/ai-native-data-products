@@ -30,8 +30,8 @@ from org_profile import (  # noqa: E402
 EXAMPLE = REPO_ROOT / "examples" / "it-service-desk-data-product"
 ITSD_SPEC = EXAMPLE / "design-output" / "design_specification.md"
 ORDERS_SPEC = REPO_ROOT / "tooling" / "evals" / "reference" / "customer-orders.md"
-PROFILE_A = EXAMPLE / "organisation-profile.md"
-PROFILE_B = EXAMPLE / "organisation-profile-type-grouped.md"
+PROFILE_A = EXAMPLE / "profiles" / "teradata.md"
+PROFILE_B = EXAMPLE / "profiles" / "teradata-type-grouped.md"
 SCHEMA = json.loads((REPO_ROOT / "tooling" / "build" / "build_context.schema.json")
                     .read_text(encoding="utf-8"))
 PSTD = load_profile_standard(REPO_ROOT / "design")
@@ -102,6 +102,11 @@ def broken(path, old, new, *more):
         text = text.replace(o, n, 1)
     return text
 
+
+
+def placed(obj):
+    """Where an object is placed and what it is called, without what it is registered as."""
+    return {k: obj[k] for k in ("container", "name")}
 
 class Resolved:
     """Resolve, optionally with modified inputs written to a temporary directory."""
@@ -240,11 +245,14 @@ class ContextsResolve(unittest.TestCase):
     def test_matches_the_examples_placement(self):
         ctx = Resolved().context
         ticket = next(e for e in ctx["entities"] if e["name"] == "Ticket")
-        self.assertEqual(ticket["objects"]["table"], {"container": "ITSD_DOM", "name": "Ticket_History"})
-        self.assertEqual(ticket["objects"]["consumer_view"], {"container": "ITSD_ACC", "name": "Ticket"})
+        self.assertEqual(placed(ticket["objects"]["table"]), {"container": "ITSD_DOM", "name": "Ticket_History"})
+        self.assertEqual(placed(ticket["objects"]["consumer_view"]), {"container": "ITSD_ACC", "name": "Ticket"})
         registry = next(x for x in ctx["relations"] if x["name"] == "DataProductRegistry")
-        self.assertEqual(registry["objects"]["table"]["container"], "governance")
-        self.assertEqual(ctx["principals"]["ROLE_AGENT"], {"name": "ITSD_ROLE_AGENT", "create": True})
+        # The product's own registry is discovery metadata in its own Semantic store
+        # (Master Design §4); the shared governance database holds only the catalogue's
+        # registration, a projection of it.
+        self.assertEqual(registry["objects"]["table"]["container"], "ITSD_SEM")
+        self.assertEqual(ctx["principals"]["ROLE_AGENT"], {"name": "ITSD_ROLE_AGENT", "create": True, "outside": None})
 
     def test_defaults_are_recorded(self):
         fields = {d["field"] for d in Resolved().context["defaults_applied"]}
@@ -360,7 +368,7 @@ class ResolutionRules(unittest.TestCase):
     def test_lineage_views_follow_the_profile(self):
         views = {x["name"]: x["objects"]["consumer_view"] for x in Resolved().context["relations"]
                  if x["relation"] == "view"}
-        self.assertEqual(views["LineageGraph"], {"container": "ITSD_SEM", "name": "lineage_graph"})
+        self.assertEqual(placed(views["LineageGraph"]), {"container": "ITSD_SEM", "name": "lineage_graph"})
 
     def test_personal_data_bound_enforced(self):
         r = Resolved(profile=PROFILE_B, spec_text=broken(ITSD_SPEC, "LearnedStrategy:   2 years", "LearnedStrategy:   5 years"))
@@ -390,8 +398,8 @@ class ResolutionRules(unittest.TestCase):
         ctx = Resolved(profile=PROFILE_B).context
         customer = next(e for e in ctx["entities"] if e["name"] == "Customer")
         self.assertTrue(customer["adopted"])
-        self.assertEqual(customer["objects"]["table"], {"container": "crm", "name": "customer_master"})
-        self.assertEqual(ctx["principals"]["ROLE_ADMIN"], {"name": "dba_data_stewards", "create": False})
+        self.assertEqual(placed(customer["objects"]["table"]), {"container": "crm", "name": "customer_master"})
+        self.assertEqual(ctx["principals"]["ROLE_ADMIN"], {"name": "dba_data_stewards", "create": False, "outside": None})
 
     def test_container_isolation_renames_containers_not_objects(self):
         dev = Resolved(profile=PROFILE_B, environment="dev").context
@@ -399,8 +407,9 @@ class ResolutionRules(unittest.TestCase):
         ticket = lambda c: next(e for e in c["entities"] if e["name"] == "Ticket")["objects"]["table"]
         self.assertEqual(ticket(dev)["container"], "dp_itsd_data_dev")
         self.assertEqual(ticket(dev)["name"], ticket(prod)["name"])
-        catalogue = next(c for c in dev["containers"] if c["name"] == "enterprise_catalogue")
-        self.assertTrue(catalogue["adopted"])
+        adopted = [c["name"] for c in dev["containers"] if c["adopted"]]
+        self.assertTrue(adopted)  # the adopted entity's existing container
+        self.assertFalse(any(name.endswith("_dev") for name in adopted))
 
     def test_unknown_environment_flagged(self):
         self.assertIn("unknown-environment", Resolved(environment="staging").rules)
@@ -438,6 +447,61 @@ class ResolutionRules(unittest.TestCase):
         r = Resolved(spec_text=broken(ITSD_SPEC, "product_code: ITSD\n", ""))
         self.assertEqual(r.context, {})
         self.assertIn("spec-frontmatter", r.rules)
+
+
+DUCKDB_PROFILE = EXAMPLE / "profiles" / "duckdb.md"
+POSTGRES_PROFILE = EXAMPLE / "profiles" / "postgres.md"
+
+
+class SharedBuildDecisions(unittest.TestCase):
+    """What the resolver settles once so that every binding writes the same product."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ctx = Resolved(profile=POSTGRES_PROFILE).context
+
+    def test_orientation_publishes_the_trust_map_before_analytical_resources(self):
+        resources = self.ctx["orientation"]["resources"]
+        self.assertEqual([r["role"] for r in resources[:2]], ["MANIFEST", "TRUST_MAP"])
+        self.assertEqual([r["order"] for r in resources], list(range(1, len(resources) + 1)))
+        self.assertTrue(all(r["object"]["name"] for r in resources))
+
+    def test_capture_ids_follow_the_memory_conventions(self):
+        decisions = self.ctx["capture"]["decisions"]
+        ids = [d["decision_id"] for d in decisions]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertTrue(all(re.fullmatch(r"DD-[A-Z]+-\d{3}", i) for i in ids), ids)
+        modules = set(self.ctx["modules"])
+        self.assertTrue(all(d["module"] in modules for d in decisions))
+        for module in modules:
+            self.assertGreaterEqual(sum(d["module"] == module for d in decisions), 3, module)
+        self.assertEqual(len(self.ctx["capture"]["change_log"]), len(modules))
+        self.assertEqual(self.ctx["capture"]["gaps"], [])
+
+    def test_evidence_window_defaults_to_the_validation_pattern(self):
+        self.assertEqual(self.ctx["quality"]["evidence_window_days"], 7)
+        self.assertIn("quality.maximum_evidence_age", {d["field"] for d in self.ctx["defaults_applied"]})
+
+    def test_each_embedding_names_where_its_vectors_live(self):
+        for b in self.ctx["embeddings"]:
+            self.assertEqual((b["store"], b["vector_column"]), ("EntityEmbedding", "embedding"))
+            self.assertIn("function", b["objects"])
+
+    def test_sequences_only_where_a_key_is_generated(self):
+        ctx = Resolved(profile=DUCKDB_PROFILE).context
+        for x in ctx["entities"] + ctx["relations"]:
+            if "sequence" in x["objects"]:
+                self.assertTrue(x["generated_key"], x["name"])
+        registry = next(x for x in ctx["relations"] if x["name"] == "DataProductRegistry")
+        self.assertNotIn("sequence", registry["objects"])
+
+    def test_tiers_are_enforced_outside_a_platform_without_principals(self):
+        ctx = Resolved(profile=DUCKDB_PROFILE).context
+        self.assertTrue(all(p["name"] is None and p["outside"] for p in ctx["principals"].values()))
+        r = Resolved(profile=DUCKDB_PROFILE, profile_text=broken(
+            DUCKDB_PROFILE, "ROLE_READ:   outside read-only file access to the database",
+            "ROLE_READ:   create {product_code|lower}_reader"))
+        self.assertIn("unsupported-principal", r.rules)
 
 
 if __name__ == "__main__":

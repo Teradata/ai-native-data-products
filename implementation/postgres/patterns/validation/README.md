@@ -13,10 +13,32 @@ platform: postgres
 
 Binding of [Validation](../../../../design/patterns/validation.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-`01-entity-check.sql.j2` returns physical-metadata and temporal defects; `02-relationship-check.sql.j2` checks current-surface reference coverage. Module validation templates add inventory and documentation coverage. The helper renders a check manifest for the actual product instead of a fixed test inventory.
+## Checks
 
-`04-trust-map.sql.j2` retains wire-schema 2.1 semantics: designated producer, latest evidence per area, expiry, cautious fallback and no-evidence/unknown. It requires Semantic and Observability. Other compositions can execute checks without persisting evidence; absence of a module must not create dangling SQL.
+Each check is a query whose every row is a defect. The `Checks:` block of [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations) names them, and [`render.py`](../../../../tooling/bindings/README.md) renders them into the manifest with test ids `{PRODUCT_CODE}-{CHECK}-{NNN}`:
 
-`tooling/bindings/validate.py` records errors without treating them as zero defects. PostgreSQL uses savepoints; DuckDB runs individual checks outside a caller transaction and publishes evidence in a separate transaction. It is a structural profile, not a certification of arbitrary business rules. Required documentation and unverified model/operational capabilities remain visible gaps. Add design-specific checks to the generated manifest in the product workspace, with explicit scope and provenance.
+| Check | Template | Rendered for | Returns |
+|---|---|---|---|
+| `entity metadata` | `01-entity-metadata.sql.j2` | each persisted relation (`entity`) | each placed column the table lacks or that has no comment, from `information_schema.columns` and `col_description` |
+| `entity temporal` | `02-entity-temporal.sql.j2` | each persisted relation (`entity`) | identities with an empty interval, a current flag that disagrees with the open ends, overlapping versions (both axes when bitemporal), a deletion flag without its instant, or a non-finite timestamp outside the interval ends |
+| `relationship reference` | `03-relationship-reference.sql.j2` | each entry in `relationships` (`relationship`) | current source references with no current target, read through the consumer views (the tables where no view is placed); an optional reference may be null |
+| `module semantic` | [`modules/semantic/validation.sql.j2`](../../modules/semantic/README.md) | the Semantic module | unregistered base tables |
+| `module memory` | [`modules/memory/validation.sql.j2`](../../modules/memory/README.md) | the Memory module | modules below the capture floor |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+The reference check is current-surface coverage, not historical proof, and compares the first target column only.
+
+## Trust map
+
+`04-trust-map.sql.j2` is a phase, not a check. Where the product places `TrustMap`, `ValidationRun`, `ValidationArea` and the product registry, it creates one `TrustMap` view:
+
+- evidence is the area records joined to their run, plus one PRODUCT entry for each run with no area records, at `partial` confidence (or `no-evidence` and `unknown` if the run had no checks);
+- the registry's designated producer, where one is set, is the only producer read;
+- the latest entry per producer and area wins; it is read at `unknown` confidence once past the run's `evidence_expires_dts`, or, without one, past its completion plus the product's evidence window (`quality.evidence_window_days`, which the resolver defaults to 7 days);
+- where no producer is designated, the most cautious producer's entry stands for each area;
+- a product with no evidence at all reads `no-evidence` and `unknown`.
+
+## Validator
+
+[`validate.py`](../../../../tooling/bindings/README.md) connects through `POSTGRES_DSN`, runs each check in its own savepoint and records an erroring check as `ERROR`, never as zero defects. Where the manifest places `ValidationRun` and `ValidationArea`, it appends one run and one area record per entity, module and the product (wire schema 2.1). Failed `ERROR` or `CRITICAL` checks give weak confidence; a failed `WARNING` leaves partial. The gaps the manifest reports cap the PRODUCT area at partial. This is a structural profile, not a certification of business rules; add design-specific checks in the product workspace with explicit scope and provenance.
+
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

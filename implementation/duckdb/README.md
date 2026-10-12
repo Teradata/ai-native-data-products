@@ -1,42 +1,62 @@
 # DuckDB implementation
 
-Reusable bindings for **any conforming data product**, following the module and pattern layout of the other platforms. Target: DuckDB 1.4 or later, tested on 1.5.6 (see [CONFORMANCE.md](CONFORMANCE.md)). These are Jinja templates and binding documents, not a finished deployment or a compiler.
+Reusable binding for **any conforming data product**, following the module and pattern layout of the other platforms. Target: DuckDB 1.4 or later; tested on 1.5 (see [CONFORMANCE.md](CONFORMANCE.md)). These are Jinja templates and binding documents, not a finished deployment or a compiler. There is no plain SQL, Python or JSON in this directory: rendering, validation and the tests live under [`tooling/`](../../tooling/bindings/README.md), shared with the other Jinja bindings.
 
-Each module directory contains its binding document and `.sql.j2` templates. Semantic, Memory and Observability also carry `entities.json`: standard-owned metadata structures used by the table templates. Business entities, composition, placement, model dimensions and documentation are supplied by the product design. Temporal macros are shared within this platform. There is no plain SQL, Python compiler, checker or validator in this directory: rendering, validation and the tests live under [`tooling/bindings`](../../tooling/bindings/README.md), shared with the other Jinja bindings.
+## How a build reads this binding
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md), [TEMPLATE_INPUTS.md](TEMPLATE_INPUTS.md), then the selected module and pattern directories. Render using a Jinja FileSystemLoader rooted here and StrictUndefined. The optional [rendering helper](../../tooling/bindings/README.md) validates inputs and supplies identifier and literal filters; it is not a mandatory product compiler.
+A build has three inputs: a **design specification** (the product, platform-agnostic), an **organisation profile** (placement, naming, access tiers and classification for one organisation on DuckDB) and this **binding**. [`tooling/build/build_context.py`](../../tooling/build/README.md) resolves the specification, the profile and the binding's declarations into one build context, whose shape is fixed by [`build_context.schema.json`](../../tooling/build/build_context.schema.json) ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3).
 
-## Shared example
+The templates read only the build context, and derive no names: every container, object, sequence and column name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
 
-Use the existing [IT Service Desk brief and CSVs](../../examples/it-service-desk-data-product/) with the [DuckDB walkthrough](../../examples/it-service-desk-data-product/duckdb/README.md). The placement input declares only containers: DuckDB has no roles.
+DuckDB has no principals. The binding declares `Principals: unsupported`, so the organisation profile declares each access tier as `outside <how it is enforced>`, the resolver rejects a tier the profile says to `create` or bind to an `existing` principal, and there is no grants template and no access phase.
+
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the module and pattern directories; each README says what its templates emit and which build-context fields they read.
+
+| Directory | Templates |
+|---|---|
+| [patterns/object-placement](patterns/object-placement/README.md) | Schemas |
+| [patterns/temporal-lifecycle-metadata](patterns/temporal-lifecycle-metadata/README.md) | Shared macros, comments, consumer views, point-in-time table macros, caller-rendered maintenance |
+| [modules/*](modules/) | Each module's sequences and tables; Domain key allocation; Search similarity; Semantic registration and discovery; Memory capture |
+| [patterns/validation](patterns/validation/README.md) | Metadata, temporal and reference checks; the trust-map view |
+| [patterns/access-layer](patterns/access-layer/README.md) | None: the access boundary is outside the engine |
+
+## Render, deploy and validate
+
+The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) with its [DuckDB profile](../../examples/it-service-desk-data-product/profiles/duckdb.md). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under the same profile.
 
 ```sh
-python -m pip install -r tooling/bindings/requirements.txt duckdb
-python tooling/bindings/render.py --platform duckdb --context examples/it-service-desk-data-product/bindings/context.json --placement examples/it-service-desk-data-product/duckdb/placement.json --output build/itsd-duckdb
-```
-
-The helper generates into an empty user-selected output directory, never under design/, implementation/ or examples/. It does not connect to a database or execute DDL. Rendered SQL and manifests are not checked into this repository. The earlier hand-written DuckDB SQL, its Python model compiler, temporal writer and validator, and the generated Customer360 example have been removed; existing database files are not migrated or deleted.
-
-To deploy, open a **new empty** database file and run `deploy.sql`. The file stem becomes the catalogue name: do not name it after a module (especially `memory`). Use one writing process; close and checkpoint the file before opening readers with `read_only`.
-
-```sh
+python -m pip install -r tooling/bindings/requirements.txt duckdb pytz
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/duckdb.md --output build/itsd-duckdb
 duckdb build/itsd.duckdb < build/itsd-duckdb/deploy.sql
 python tooling/bindings/validate.py build/itsd-duckdb/manifest.json --database build/itsd.duckdb
 ```
 
-A freshly deployed product reports no evidence for every trust area until the validator publishes wire-schema 2.1 evidence. **Direct access to the file exposes all data**: views and read-only mode are not access control.
+The profile names the platform. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
+
+- one SQL file per declared phase that renders something for this composition;
+- `deploy.sql`, every phase in one transaction with the session time zone set to UTC;
+- `manifest.json`: the checks, each with a test id `{PRODUCT_CODE}-{CHECK}-{NNN}`, where validation evidence is placed, the gaps the binding reports and the defaults the resolver applied;
+- `context.json`, the resolved build context.
+
+Rendering does not connect to a database. Rendered SQL is not checked into this repository.
+
+Deploy into a **new, empty** database file. The file stem becomes the catalogue name: do not name it after a module (especially `memory`). Use one writing process; close and checkpoint the file before opening readers with `read_only`.
+
+The validator needs an existing file (`--database`). It runs every check in autocommit, so one failing query does not affect the next, and where the product places `ValidationRun` and `ValidationArea` it appends one run and its area records (wire schema 2.1) in a single transaction. `--producer` publishes under a producer id other than the product's designated one. The manifest contains trusted generated SQL: never run one from an untrusted source. Gaps the manifest reports, such as an expression using a function this binding has no fragment for or a composite access object, cap the PRODUCT area at `partial`. A freshly deployed product reads `no-evidence` in the trust map until the validator has published.
+
+**Direct access to the file exposes all data**: views and read-only mode are not access control.
 
 ## Verification
 
 ```sh
-python -m pip install jinja2 duckdb
+python -m pip install jinja2 duckdb pytz
 python -m unittest discover -s tooling/bindings/tests -v
-python -m pytest tooling implementation -q
+python -m unittest discover -s tooling/validation/tests -v
 python tooling/validation/design_lint.py design implementation
 python tooling/catalogue/build_catalogue.py --check
 ```
 
-The same templates are tested with ITSD and an unrelated smaller laboratory product, in several module compositions, on an actual DuckDB engine. Tests skip only if the `duckdb` driver is missing, and a skip is a gap. See [CONFORMANCE.md](CONFORMANCE.md) for coverage and declared gaps.
+The DuckDB engine tests need the `duckdb` and `pytz` packages. Without `duckdb` they skip, and a skip is a gap. See [CONFORMANCE.md](CONFORMANCE.md) for coverage and declared gaps.
 
 ## Catalogue
 

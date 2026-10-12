@@ -185,6 +185,7 @@ Binding: -
   Identifier quote: "
   Literal quote:    '
   Principals:       native
+  Runtime scope:    unsupported
   Emits:
     base_view: all
 ```

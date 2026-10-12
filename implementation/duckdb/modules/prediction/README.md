@@ -13,28 +13,28 @@ platform: duckdb
 
 Binding of [Prediction](../../../../design/modules/prediction.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-`01-tables.sql.j2` renders the approved FeatureGroup, tall FeatureValue or ModelPrediction entities supplied by the design. Features, keys, profiles, model identifiers and score types are inputs. Definitions belong to Semantic; monitoring belongs to Observability. Domain context is obtained by identity join-back, not copied into feature or prediction records.
+## Templates
 
-The temporal macros provide SCD2 and bitemporal historical surfaces as DuckDB table macros. Product feature SQL must apply both effective and knowledge-time cutoffs to each source, and respect observation and availability time. A wide feature group and tall values are choices, not mandatory duplicate stores.
+`01-tables.sql.j2` calls `module_tables('prediction')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). It creates the feature and prediction entities the specification assigns to Prediction, with the columns, keys, sequences and temporal profile the context resolves for each. The temporal pattern adds their consumer views and point-in-time table macros.
 
-Generic checks validate the declared temporal structure; they cannot certify leakage freedom, model calibration or feature correctness. Supply product-specific engineering, training and scoring checks. ITSD inputs describe its ten features and breach probability, but neither trained scores nor retrospective source history are fabricated. The earlier DuckDB reference's bespoke point-in-time training function and retrospective-rewrite guard are not carried by this binding; see [conformance scope](../../CONFORMANCE.md).
+No template computes features or scores. Product feature SQL must apply both effective and knowledge-time cutoffs to each source and respect observation and availability time. Definitions belong to Semantic and monitoring to Observability; Domain context is reached by identifier join-back, not copied into feature or prediction rows. Prediction tables begin empty: no score or model quality is fabricated. A point-in-time training function and a retrospective-rewrite guard are not rendered; see [conformance scope](../../CONFORMANCE.md).
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `PointInTimeReconstruction` | Half-open table macros over feature and prediction history. Cutoff correctness is a product obligation. |
-| `CurrentStateFilter` | Current views over open validity, current flag and deletion state. |
-| `AccessView` | Explicit consumer projections hiding lifecycle and audit fields. |
+| `PointInTimeReconstruction` | Point-in-time table macro per versioned feature or prediction relation. Cutoff correctness is a product obligation. |
+| `CurrentStateFilter` | Consumer view over current, undeleted rows. |
+| `AccessView` | One consumer view per relation with a `consumer_view` object. |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## Invariants and checks
 
 | Invariant | Evidence or outstanding check |
 |---|---|
-| `INV-PRED-001,003` | Product feature design review; only engineered values and Domain identifiers belong here. |
-| `INV-PRED-002` | Temporal templates support reconstruction; product feature pipeline must prove cutoff correctness. |
-| `INV-PRED-004,005` | Standard metadata and monitoring stores are separate; product capture and lineage checks remain required. |
+| `INV-PRED-001,003` | Review the specification's features; only engineered values and Domain identifiers belong here. |
+| `INV-PRED-002` | Point-in-time macros support reconstruction; the product's feature pipeline must prove cutoff correctness. |
+| `INV-PRED-004,005` | Semantic and Observability stores are separate; product capture and lineage checks remain required. |
 
-Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

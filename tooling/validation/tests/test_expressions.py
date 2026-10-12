@@ -26,7 +26,7 @@ from spec_notation import load_standard  # noqa: E402
 PLATFORMS = sorted(p.name for p in (REPO_ROOT / "implementation").iterdir() if p.is_dir())
 EXAMPLE = REPO_ROOT / "examples" / "it-service-desk-data-product"
 ITSD_SPEC = EXAMPLE / "design-output" / "design_specification.md"
-TERADATA_PROFILE = EXAMPLE / "organisation-profile.md"
+TERADATA_PROFILE = EXAMPLE / "profiles" / "teradata.md"
 
 
 def sql(text, platform, **kw):
