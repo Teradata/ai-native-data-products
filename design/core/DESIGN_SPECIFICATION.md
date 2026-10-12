@@ -149,15 +149,15 @@ Every specification also requires a `Product` block. A product with the `memory:
 
 #### Standard-owned relations
 
-Relations a build creates for an included module without the specification declaring them, placed and named through the organisation profile. A specification entity of the same name replaces the standard's.
+Relations a build creates for an included module without the specification declaring them, placed and named through the organisation profile and shaped by the entity definitions of the module or pattern that owns them. A specification entity of the same name replaces the standard's. Every relation outside the Memory runtime facet has a consumer view; the views listed are consumer views a binding defines over the relations.
 
 | Owner | Relations |
 |---|---|
 | `domain` | `none`: the specification declares every Domain entity. |
 | `search` | `none`: the specification declares its embedding entities. |
 | `prediction` | `none`: the specification declares its feature groups and prediction entities; `FeatureValue` is created when a feature group declares `storage: tall`. |
-| `semantic` | `all` the module's entities. |
-| `observability` | `all` the module's entities; the validation pattern's `ValidationRun` and `ValidationArea`; and the discovery views `LineageGraph` and `LineageRunLatest`. |
+| `semantic` | `all` the module's entities, and the discovery views `ColumnCatalogue`, `DataProductManifest` and `RelationshipPaths`. |
+| `observability` | `all` the module's entities; the validation pattern's `ValidationRun` and `ValidationArea`; and the discovery views `LineageGraph`, `LineageRunLatest` and `TrustMap`. |
 | `memory` | `by facet`: the entities of each enabled facet. |
 
 ### 4.2 `Embedding:`

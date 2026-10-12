@@ -179,7 +179,7 @@ class ProfileRules(unittest.TestCase):
 
     def test_required_role_without_a_template_flagged(self):
         self.assertIn("missing-field", profile_rules(
-            broken(PROFILE_A, "    base_view: {entity}_Current\n", "")))
+            broken(PROFILE_A, "    consumer_view: {entity}\n", "")))
 
     def test_rule_to_an_unknown_container_flagged(self):
         self.assertIn("invalid-value", profile_rules(
@@ -358,7 +358,7 @@ class ResolutionRules(unittest.TestCase):
         self.assertFalse(any(a["type"] == "NaturalKey" for a in ticket["attributes"]))
 
     def test_lineage_views_follow_the_profile(self):
-        views = {x["name"]: x["objects"]["base_view"] for x in Resolved().context["relations"]
+        views = {x["name"]: x["objects"]["consumer_view"] for x in Resolved().context["relations"]
                  if x["relation"] == "view"}
         self.assertEqual(views["LineageGraph"], {"container": "ITSD_SEM", "name": "lineage_graph"})
 

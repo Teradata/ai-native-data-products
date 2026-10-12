@@ -185,6 +185,8 @@ Binding: -
   Identifier quote: "
   Literal quote:    '
   Principals:       native
+  Emits:
+    base_view: all
 ```
 
 ```

@@ -83,6 +83,7 @@ class Standard:
     canonical_attributes: Set[str] = field(default_factory=set)
     canonical_meaning: Dict[str, str] = field(default_factory=dict)
     module_entity_defs: Dict[str, Dict[str, "Entity"]] = field(default_factory=dict)
+    pattern_entity_defs: Dict[str, "Entity"] = field(default_factory=dict)
     conditional_prohibited: Dict[str, str] = field(default_factory=dict)  # name -> profile
     module_entities: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
     patterns: Set[str] = field(default_factory=set)
@@ -225,6 +226,9 @@ def load_standard(design_root: Path) -> Standard:
 
     _load_temporal(std, design_root / "patterns" / "temporal-lifecycle-metadata.md")
     std.patterns = {p.stem for p in (design_root / "patterns").glob("*.md")}
+    for p in sorted((design_root / "patterns").glob("*.md")):
+        defined = parse_specification(p.read_text(encoding="utf-8"), std=None).entities
+        std.pattern_entity_defs.update({e.name: e for e in defined})
     for p in sorted((design_root / "modules").glob("*.md")):
         module_text = p.read_text(encoding="utf-8")
         spec = parse_specification(module_text, std=None)

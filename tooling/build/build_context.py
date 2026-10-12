@@ -164,10 +164,10 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         if name.upper() in reserved:
             r.fail("reserved-name", f"{what} name '{name}' is a reserved word")
 
-    def place(role, module, entity, kind=None, standard_owned=False, cls=None):
+    def place(role, module, entity, kind=None, standard_owned=False, cls=None, relation_rule=None):
         try:
             container, obj = derive(profile, role, module, entity, kind, variables,
-                                    environment, standard_owned, cls)
+                                    environment, standard_owned, cls, relation_rule)
             path = derive_path(profile, role, module, entity, kind, variables, environment,
                                standard_owned, cls) if role == "table" else None
         except KeyError as exc:
@@ -328,7 +328,8 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         else:
             objects["table"] = place("table", module, e.name, e.kind, cls=entity_class)
         if VIEW_PATTERN in patterns:
-            objects["base_view"] = place("base_view", module, e.name, e.kind, cls=entity_class)
+            if "base_view" in binding.emits:
+                objects["base_view"] = place("base_view", module, e.name, e.kind, cls=entity_class)
             objects["consumer_view"] = place("consumer_view", module, e.name, e.kind, cls=entity_class)
         objects.update(emitted(item, "entity", module, e.name, e.kind, entity_class))
         entities.append({
@@ -366,7 +367,7 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         for name in tables:
             if name in declared or "<" in name:
                 continue
-            definition = defs.get(name)
+            definition = defs.get(name) or std.pattern_entity_defs.get(name)
             item = (shape(definition, module, "inline", _keys(definition), standard_owned=True)
                     if definition else {"name": name, "module": module, "kind": "Record",
                                         "profile": None, "description": f"{name}, as its pattern defines it.",
@@ -375,6 +376,12 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                                                      "keymap": None, "allocates": None},
                                         "attributes": [], "temporal": []})
             objects = {"table": place("table", module, name, standard_owned=True)}
+            if std.entity_facets.get((module, name)) != "runtime":
+                if "base_view" in binding.emits:
+                    objects["base_view"] = place("base_view", module, name, item["kind"],
+                                                 standard_owned=True, relation_rule=False)
+                objects["consumer_view"] = place("consumer_view", module, name, item["kind"],
+                                                 standard_owned=True, relation_rule=False)
             objects.update(emitted(item, "relation", module, name, item["kind"], standard_owned=True))
             relations.append({**item, "relation": "table", "defined": bool(definition), "objects": objects})
         for name in imp.views:
@@ -385,8 +392,8 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                               "identity": {"allocation": None, "surrogate": [], "natural": [],
                                            "keymap": None, "allocates": None},
                               "attributes": [], "temporal": [],
-                              "objects": {"base_view": place("base_view", module, name,
-                                                             standard_owned=True)}})
+                              "objects": {"consumer_view": place("consumer_view", module, name,
+                                                                 standard_owned=True)}})
 
     # ---- containers and principals ---------------------------------------------------
     adopted_names = set(profile.mapping("Adoption", "Containers").values())
@@ -549,6 +556,9 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
     for b in embeddings:
         b["source"] = expression(b.get("source"))
         b["where"] = expression(b.get("where"), condition=True)
+        b["objects"] = {}
+        if "embedding" in binding.emits.get("function", []):
+            b["objects"]["function"] = place("function", "search", b["name"])
     metrics = blocks("Metric")
     for b in metrics:
         b["measure"] = expression(b.get("measure"))
@@ -597,7 +607,8 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         "platform": platform,
         "binding": {"platform": binding.platform, "principals": binding.principals,
                     "emits": binding.emits, "identifier_quote": binding.identifier_quote,
-                    "literal_quote": binding.literal_quote},
+                    "literal_quote": binding.literal_quote, "phases": binding.phases,
+                    "checks": binding.checks},
         "environment": {"name": environment, "phases": phases,
                         "isolation": profile.field("Environments", "Isolation")},
         "composition": fm.get("composition"),

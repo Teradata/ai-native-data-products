@@ -34,6 +34,8 @@ class Binding:
     principals: str = "native"
     emits: Dict[str, List[str]] = field(default_factory=dict)
     settings: Dict[str, str] = field(default_factory=dict)
+    phases: Dict[str, str] = field(default_factory=dict)
+    checks: Dict[str, str] = field(default_factory=dict)
     types: Dict[str, str] = field(default_factory=dict)
     functions: Dict[str, str] = field(default_factory=dict)
     path: str = ""
@@ -106,6 +108,13 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     b.emits = {k: [x.strip() for x in v.split(",") if x.strip()]
                for k, v in _mapping(fields.get("Emits")).items()}
     b.settings = _mapping(fields.get("Settings"))
+    b.phases = _mapping(fields.get("Phases"))
+    b.checks = _mapping(fields.get("Checks"))
+    templates = root / "implementation" / platform
+    for name in list(b.phases.values()) + list(b.checks.values()):
+        if not (templates / name).is_file():
+            findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
+                                    f"Binding: template '{name}' does not exist"))
     b.types = dict(blocks["Types"].fields)
     b.functions = dict(blocks["Functions"].fields)
     for name in b.types:
