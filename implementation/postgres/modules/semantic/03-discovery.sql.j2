@@ -26,7 +26,7 @@ FROM {{ qualified(containers.semantic,'data_product_registry') }} p
 JOIN {{ qualified(containers.semantic,'data_product_orientation') }} o USING(product_id);
 COMMENT ON VIEW {{ qualified(containers.access,'data_product_manifest') }} IS {{ 'Bootstrap manifest: the approved entrypoint, trust producer and ordered discovery resources of the data product.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_id IS {{ 'Identifier of the data product.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_version IS {{ 'Version of the data product standard and design the deployment implements.'|literal }};
+COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_version IS {{ 'Published contract version of the data product.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.approved_entrypoint IS {{ 'Consumer object an agent should start from.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.trust_authoritative_producer IS {{ 'Validation producer whose evidence is authoritative for trust.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.resource_role IS {{ 'Role the listed resource plays in discovery, for example MANIFEST or TRUST_MAP.'|literal }};
