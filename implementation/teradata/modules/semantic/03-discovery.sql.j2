@@ -52,20 +52,24 @@ GROUP BY 1, 2, 3, 4, 5, 6, 7;
         CAST({{ t.source_column|ident }} AS VARCHAR(400))
  FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }} = 1)
 {%- endset %}
-{% macro hop(a, b) -%}{{ a }}.from_object || '.' || {{ a }}.from_column || ' = ' || {{ a }}.to_object || '.' || {{ a }}.to_column{%- endmacro %}
+{% macro hop(a) -%}{{ a }}.from_object || '.' || {{ a }}.from_column || ' = ' || {{ a }}.to_object || '.' || {{ a }}.to_column{%- endmacro %}
+{#- Teradata views take no recursion, so each path length up to the standard's bound is its
+    own branch; a path never returns to an entity it has passed through. -#}
 REPLACE VIEW {{ paths.objects.consumer_view|qualified }} AS
 LOCKING ROW FOR ACCESS
-SELECT e1.from_object, e1.to_object, CAST({{ hop('e1') }} AS VARCHAR(4000)) AS join_path, 1 AS hops
+{%- for n in range(1, paths.max_hops + 1) %}
+SELECT e1.from_object, e{{ n }}.to_object,
+       CAST({% for k in range(1, n + 1) %}{{ hop('e' ~ k) }}{% if not loop.last %} || ' AND ' || {% endif %}{% endfor %} AS VARCHAR(8000)) AS join_path,
+       {{ n }} AS hops
 FROM {{ edges }} e1
+{%- for k in range(2, n + 1) %}
+JOIN {{ edges }} e{{ k }} ON e{{ k }}.from_object = e{{ k - 1 }}.to_object
+ AND e{{ k }}.to_object NOT IN ({% for j in range(1, k + 1) %}e{{ j }}.from_object{% if not loop.last %}, {% endif %}{% endfor %})
+{%- endfor %}
+{%- if not loop.last %}
 UNION ALL
-SELECT e1.from_object, e2.to_object, CAST({{ hop('e1') }} || ' AND ' || {{ hop('e2') }} AS VARCHAR(4000)), 2
-FROM {{ edges }} e1 JOIN {{ edges }} e2 ON e2.from_object = e1.to_object
-WHERE e2.to_object <> e1.from_object
-UNION ALL
-SELECT e1.from_object, e3.to_object, CAST({{ hop('e1') }} || ' AND ' || {{ hop('e2') }} || ' AND ' || {{ hop('e3') }} AS VARCHAR(4000)), 3
-FROM {{ edges }} e1 JOIN {{ edges }} e2 ON e2.from_object = e1.to_object
-JOIN {{ edges }} e3 ON e3.from_object = e2.to_object
-WHERE e2.to_object <> e1.from_object AND e3.to_object NOT IN (e1.from_object, e2.from_object);
+{%- endif %}
+{%- endfor %};
 {% endif %}
 {% set lineage = named('DataLineage') %}{% set graph_view = named('LineageGraph') %}
 {% if graph_view and lineage %}{% set d = lineage.column_names %}

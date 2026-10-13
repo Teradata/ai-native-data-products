@@ -2,29 +2,54 @@
 title: Teradata Observability Module Implementation
 anchor: observability
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: observability
 platform: teradata
 ---
 
-# Teradata: Observability Module Implementation
+# Teradata: Observability
 
-Teradata binding of [`design/modules/observability.md`](../../../../design/modules/observability.md). Operational evidence: events, metrics, lineage, and the home of validation results. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Observability`, the lineage discovery views deploy into `{{ product }}_Semantic`.
+Binding of [Observability](../../../../design/modules/observability.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Purpose |
-|------|---------|
-| `01-event-tables.sql.j2` | `change_event`, `data_quality_metric`, `model_performance`, `agent_outcome`. |
-| `02-lineage-tables.sql.j2` | `data_lineage` (definitional) and `lineage_run` (operational). `data_lineage` carries optional `source_column`/`target_column` for column-level flows, consumed by the `graph-lineage`/`column-lineage` facets (below) if enabled. |
-| `03-lineage-views.sql.j2` | `lineage_graph` and `lineage_run_latest`: deployed into the Semantic container. |
-| `04-openlineage.md` | OpenLineage entity/column mapping and RunEvent construction. |
+`01-tables.sql.j2` calls `module_tables('observability')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The relations are those the Observability standard defines and the resolver places: change events, quality metrics, lineage definitions and runs, model performance, agent outcomes, and the validation relations `ValidationRun` and `ValidationArea`. Event relations are append-only by profile; lineage definitions are current-state. Each gets a governed and a consumer view from the temporal pattern.
 
-**Validation results.** The `validation_run` and `validation_area` tables and their `validation_latest` / `validation_trust_map` views are defined by the [validation pattern implementation](../../patterns/validation/) and deployed into this module's `{{ product }}_Observability` container. This module does not redefine them.
+The module's views are rendered elsewhere: `LineageGraph` and `LineageRunLatest` by [Semantic discovery](../semantic/README.md), and `TrustMap` by [Validation](../../patterns/validation/README.md).
 
-### Graph-lineage facet (optional)
+Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. No trigger or synthetic quality score is emitted. The [access-layer template](../../patterns/access-layer/README.md) grants the agent tier `INSERT` on agent outcomes, the write target the context marks; validation evidence is written by [`validate.py`](../../../../tooling/bindings/README.md) using the placement the manifest carries. Privileged administration can bypass append-only intent. Retention is a settled design decision and an operator-managed process; no template deletes records.
+
+## Capability bindings
+
+| Capability | Binding |
+|---|---|
+| `ChangeEventCapture` | Append-only change-event table; the writer must emit events. |
+| `AgentOutcomeCapture` | Append-only agent-outcome table; the agent tier may insert. |
+| `LineageCapture` | Separate definition and run tables, with the lineage graph and latest-run views over active definitions. |
+| `QualityScore` | Quality-metric time series, separate from validation evidence. |
+| `GraphNativeLineageTraversal` | Not rendered: see below. A specification enabling `observability:graph-lineage` has it reported as a gap. |
+
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+
+## Invariants and checks
+
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-OBS-001,002` | Standard-owned event structures hold table-level references and counts; producer payload review required. |
+| `INV-OBS-003,006` | Separate definition and run tables; lineage views read active definitions only. |
+| `INV-OBS-004` | Retention is a settled decision; operators prove enforcement. |
+| `INV-OBS-005` | Wire 2.1 run and area records appended by the validator; engine tests of failures, errors, staleness, legacy runs and producer selection. |
+| `INV-OBS-007..009` | Optional graph-native facet not rendered; no graph identity guarantee claimed. |
+
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+
+## Graph-lineage facet: not migrated
+
+The graph-lineage templates below were written for the old flat template context, before the build context, and no phase renders them. Whether they are ported onto the build context or retired is an open decision; until it is made they are kept unchanged, as written, and a product that enables the facet has the exposure reported as a gap. What follows describes them as they were designed.
+
+### The graph-lineage facet's templates
 
 This binding's graph consumer contract (design §5.1) is the external **Teradata Graph Explorer** data contract, `docs/graph-data-contract.md` in the `teradata-graph-explorer` repository. It is normative for the consumer surface, fixes the `Graphs_<KEY>_*` object names and the catalogue table definitions, and supplies the quality procedures; this repository does not redefine it. Binding to it lets a product opt in to opening its lineage in Graph Explorer, tracing it, and visualising it as a graph, in addition to the `lineage_graph` discovery view above. Read [`design/modules/observability.md`](../../../../design/modules/observability.md) §4.1/§5.1 first. Replace `{{ graph_key }}` (this graph's unique catalogue key, e.g. `LIN_DEMO` — see `DEC-GRAPH-SCOPE`: one graph per data product, never shared). This facet's package must declare the shared `graph-platform` package as an external parent; it creates neither.
 
@@ -39,30 +64,6 @@ This binding's graph consumer contract (design §5.1) is the external **Teradata
 
 **Column-lineage facet (optional, requires `graph-lineage`).** `data_lineage.source_column`/`.target_column` (`02-lineage-tables.sql.j2`) are optional and NULL for table-level flows. Enable by passing `column_lineage_enabled=true` to `08-catalogue-seed.sql.j2` and `09-load-lineage.sql.j2` only if `DEC-GRAPH-COLUMN-LINEAGE` is settled toward column-grain tracing for this product; the flag gates the `COLUMN` role and `derives_column` relationship/trace-leg registration in the catalogue seed and the `COLUMN` node / `derives_column` edge population in the load path together, so `ColumnGrainLineageTraversal` is only ever advertised when it is actually populated.
 
-## Capability bindings
-
-| Capability (design) | Teradata binding |
-|---------------------|------------------|
-| Outcome & quality evidence | `agent_outcome`, `data_quality_metric`: read by Memory's closed-loop learning. |
-| Validation results home | Hosts the validation pattern's `validation_run` and `validation_area` (the trust map). |
-| Lineage | `data_lineage` + `lineage_run`, exposed via `lineage_graph` / `lineage_run_latest` in Semantic. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
-| `access-layer` write-back | `ROLE_AGENT` holds `INSERT` here (Phase 2.5). |
-| `GraphNativeLineageTraversal` | `graph-lineage` facet only: `Graphs_{{ graph_key }}_ACL_0_V.*`, registered in `Graphs_CAT_STD_0_T.graph_registry`. |
-| `ColumnGrainLineageTraversal` | `column-lineage` facet only: `COLUMN` role and `derives_column` relationship in `Graphs_CAT_STD_0_T.graph_role`/`.graph_relationship`, populated by `09-load-lineage.sql.j2` when `column_lineage_enabled`. |
-
-## Invariants → checks
-
-| Invariant | How enforced |
-|-----------|--------------|
-| `INV-OBS-002` (table-level, aggregate) | Schema: `records_affected` count, `table_name` only: no instance-key columns. |
-| `INV-OBS-003` (lineage split) | Two tables: `data_lineage` (one row per flow) + `lineage_run` (one row per execution, FK to definition). |
-| `INV-OBS-005` (validation home) | `validation_run` and `validation_area` deployed here (validation pattern), profile `EVENT_APPEND_ONLY`. |
-| `INV-OBS-006` (stable graph) | `lineage_graph` reads `data_lineage WHERE is_active = 1` only; `09-load-lineage.sql.j2` filters `dl.is_active = 1` the same way. |
-| `INV-OBS-007` (read-only, identifiers only) | `09-load-lineage.sql.j2` only ever `SELECT`s from this module's own tables; every `INSERT` targets `Graphs_{{ graph_key }}_STD_0_T`; `graph_nodes`/`graph_edges` carry natural keys and labels only, no Domain columns. |
-| `INV-OBS-008` (one graph per product) | One `graph_key` per product in `08-catalogue-seed.sql.j2`; `community` is left NULL for the shared analysis engine, never set from a product identifier. |
-| `INV-OBS-009` (stable node identity) | `graph_nodes.node_id` is `GENERATED ALWAYS AS IDENTITY`; the load path only ever `INSERT`s a new natural key, never updates or renumbers an existing one. |
-
-## Naming note: `created_dts` (graph-lineage facet)
+### Naming note: `created_dts` (graph-lineage facet)
 
 Earlier versions of the external graph-explorer contract (< 2.0.0) recommended the singular `created_dt`, which collided with this repository's own `temporal-lifecycle-metadata` naming (TLM-04 prohibits it as an audit-column name). That collision was resolved upstream, in the contract itself: as of contract version 2.0.0 the recommended provenance column is `created_dts`, matching this repository's convention exactly, so `07-graph-acl-views.sql.j2` carries the name through unchanged from the base table. If this facet is ever pointed at a pre-2.0.0 graph-explorer deployment, the ACL view's `created_dts` column will need renaming back to `created_dt` for that deployment only — do not make that change here by default.

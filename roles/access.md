@@ -86,10 +86,9 @@ And the standing rules:
 - **`design/patterns/validation.md`** - the trust map, per the table above.
 - **`design/modules/semantic.md`** - what the orientation manifest, entity catalogue, column
   catalogue and path-discovery surfaces contain, and what each field means.
-- **`implementation/{platform}/modules/semantic/06-orientation.md`** - the concrete
-  orientation surface on this platform.
-- **`implementation/{platform}/modules/semantic/04-path-discovery.sql.j2`** - the concrete
-  multi-hop path discovery query.
+- **`implementation/{platform}/modules/semantic/README.md`** - how this platform realises the
+  orientation manifest and the multi-hop path-discovery surface. The product's own manifest
+  names the objects to read; never assume a name.
 
 You do not need `design/core/` or any of `implementation/{platform}/modules/domain/` to
 consume a product. The product describes itself; that is the point of it.

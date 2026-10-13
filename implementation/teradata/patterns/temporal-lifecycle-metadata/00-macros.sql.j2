@@ -29,7 +29,12 @@
 {%- endmacro %}
 
 {% macro unicode(col) -%}
-{%- if col.physical_type.startswith('VARCHAR') or col.physical_type.startswith('CLOB') or col.physical_type == 'JSON' %} CHARACTER SET UNICODE{% endif -%}
+{%- if 'CHARACTER SET' not in col.physical_type and (col.physical_type.startswith('VARCHAR') or col.physical_type.startswith('CLOB') or col.physical_type == 'JSON') %} CHARACTER SET UNICODE{% endif -%}
+{%- endmacro %}
+
+{#- A Vector is held as a JSON array of numbers; the check holds it to its declared dimension. -#}
+{% macro vector_pattern(dimensions) -%}
+\[ *-?[0-9.]+([eE][-+]?[0-9]+)?( *, *-?[0-9.]+([eE][-+]?[0-9]+)?){{ '{' ~ (dimensions - 1) ~ '}' }} *\]
 {%- endmacro %}
 
 {% macro column(x, col) -%}
@@ -39,6 +44,7 @@
 {%- if col.unique and required(col) == 'True' and not x.history and col.physical_name not in x.key_columns and not (x.kind == 'Keymap' and col.physical_name in x.natural_columns) %} UNIQUE{% endif %}
 {%- if col.members %} CHECK ({{ col.physical_name|ident }} IN ({% for m in col.members %}{{ m|literal }}{% if not loop.last %}, {% endif %}{% endfor %})){% endif %}
 {%- if col.type == 'Flag' %} CHECK ({{ col.physical_name|ident }} IN (0, 1)){% endif %}
+{%- if col.dimensions %} CHECK (REGEXP_SIMILAR({{ col.physical_name|ident }}, {{ vector_pattern(col.dimensions)|literal }}) = 1){% endif %}
 {%- endmacro %}
 
 {#- The uniqueness the profile implies, beyond the primary index: one row per version of an

@@ -319,7 +319,7 @@ This decision is bounded by the product. Discovery *across* products depends on 
 
 ## 5. Multi-Hop Path Discovery
 
-`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to a bounded number of hops, and returns the join conditions to use. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
+`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to **four hops**, and returns the join conditions to use. A path never revisits an entity. The bound is the standard's, so every platform's surface returns the same paths for the same relationships. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
 
 **Completeness requirement (`INV-SEMANTIC-005`).** `TableRelationship` must register **every** relationship an agent is expected to traverse: not only those with physical foreign keys:
 

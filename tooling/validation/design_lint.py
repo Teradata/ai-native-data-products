@@ -156,8 +156,8 @@ FENCE_RE = re.compile(r"^\s*```(\S*)")
 # the Semantic entity metadata, not in the file being linted. A name carrying a
 # parenthetical qualifier is skipped for the same reason: `created_date` is prohibited
 # *as audit* and legal as a day-grain event column, and nothing in a `CREATE TABLE`
-# says which it is. Both are left to the catalogue check that can resolve them
-# (`conformance-queries.sql.j2` §1b), which is why this set matches that file's §1 exactly.
+# says which it is. Both are left to review against the entity's declared profile: no
+# check that resolves them ships yet.
 TEMPORAL_PATTERN_ANCHOR = "temporal-lifecycle-metadata"
 PROHIBITED_ROW_RE = re.compile(r"^\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 ALL_PROFILES_SCOPE = "all profiles"
@@ -185,7 +185,7 @@ SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2", ".dcl", ".dcl.j2")
 #
 # A literal containing Jinja control flow is skipped: its static length is the sum of
 # every branch, not what any deployment sees. Those are measured after rendering, by
-# tooling/validation/tests/test_templates_render.py, which is also where a simple
+# tooling/bindings/tests/test_teradata_dialect.py, which is also where a simple
 # {{ placeholder }} gets its real width.
 COMMENT_LIMIT = 255
 COMMENT_RE = re.compile(r"COMMENT ON [A-Z]+ ([^\n]+?) IS\s*'(.*?)';", re.S)
@@ -502,9 +502,8 @@ def mask_sql_noise(text: str) -> str:
 
     Comments and string literals are replaced with spaces, newlines preserved, so line
     numbers still point at the source. This is what lets the rule be stated without
-    exceptions: `conformance-queries.sql.j2` scans *for* the prohibited names and
-    `10-documentation-tables.sql.j2` explains in its header which spellings it replaced,
-    and neither is a column named that way. A prohibited name inside SQL embedded in a
+    exceptions: a check may scan *for* the prohibited names, and a template header may
+    explain which spellings it replaced, and neither is a column named that way. A prohibited name inside SQL embedded in a
     string literal (a stored `Query_Cookbook` recipe) is invisible here, which is the
     accepted cost of not needing an allowlist.
     """

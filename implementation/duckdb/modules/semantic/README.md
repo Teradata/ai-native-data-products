@@ -36,7 +36,7 @@ Composite access objects (`access_objects`) are not registered; the manifest rep
 
 - `ColumnCatalogue`: `information_schema.columns` for the product's schemas, left-joined to column metadata, with `description_source` `authored` or `missing`;
 - `DataProductManifest`: the active registry row with one column per orientation resource role;
-- `RelationshipPaths`: a recursive view, using DuckDB list functions, over active table relationships in both directions, up to four hops without revisiting a table. Paths join base tables; resolve them through the access objects before issuing consumer SQL;
+- `RelationshipPaths`: a recursive view, using DuckDB list functions, over active table relationships in both directions, up to the Semantic standard's bound of four hops (the context's `max_hops`) without revisiting a table. Paths join base tables; resolve them through the access objects before issuing consumer SQL;
 - `LineageGraph` and `LineageRunLatest` over Observability's active lineage definitions and their runs.
 
 `validation.sql.j2` is the `module semantic` check: every base table in a schema the product places objects in, keymaps included, is registered in entity metadata.

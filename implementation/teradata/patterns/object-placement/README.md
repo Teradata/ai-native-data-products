@@ -2,55 +2,25 @@
 title: Teradata Object Placement Pattern Implementation
 anchor: object-placement
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: object-placement
 platform: teradata
 ---
 
-# Teradata: Object Placement (conforming reference implementation)
+# Teradata: Object Placement
 
-A conforming Teradata implementation of the [`object-placement`](../../../../design/patterns/object-placement.md) interface spec. This is a **reference**: an organisation adapts the naming pattern and separation policy to its standards; the eight sections below are what any conforming implementation must declare.
+Binding of [Object Placement](../../../../design/patterns/object-placement.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Section 1: Platform Declaration
-Teradata (v17.20+). Container = `DATABASE`. Access principal = `ROLE` (and `USER`). Flat namespace (`database.object`). Max container name 30 chars. Avoid reserved words and non-alphanumeric except `_`.
+## Template
 
-## Section 2: Container Model
-Parent + child. A parent database allocates `PERM` space and owns child databases but holds no data objects; child databases hold objects. Two levels (parent → child). Development and production may be separate systems; agents must not assume cross-system connectivity.
+`01-containers.sql.j2` is the first phase. It creates one database for each entry in the context's `containers` that is not adopted: parents first, then each child `FROM` its parent. Adopted containers already exist and are never created. A database that holds objects gets the `Container space` binding setting as permanent space (the organisation profile's `Settings:`, or the binding's declared default of 1 GB, recorded in `defaults_applied`); a parent that holds no objects gets enough to allocate its children. `CREATE DATABASE` fails on an existing name, so accidental reuse fails rather than blending two products.
 
-## Section 3: Naming Pattern
-The product name, an underscore and the module name for base containers; the same with a `_V` suffix for the view layer under `STRICT_SEPARATION`. Separator `_`. Example: `Customer360_Domain`, `Customer360_Domain_V`. Object names are environment-agnostic: only the container changes between environments (`INV-MASTER-006`).
+Every database name, and the database of every object, comes from the organisation profile through the resolver: the profile is the organisation's object-placement implementation ([Organisation Profile Standard](../../../../design/core/ORGANISATION_PROFILE.md) §1). No name is inferred from a product prefix, and the example profiles are two possible placements, not a required convention.
 
-## Section 4: Object Placement Rules
-| Object type | Container |
-|-------------|-----------|
-| Persistent table | Base container (product, underscore, module) |
-| View | View container (base container plus `_V`) |
-| Stored procedure / function | Base container |
-| Temporary/volatile | not persisted in a named container |
+A view in one database that reads another compiles only once its database holds `SELECT WITH GRANT OPTION` on the database it reads. Those implied grants are the second phase, computed from the placement ([access-layer](../access-layer/README.md)); the profile never declares them.
 
-Rule A (container-discriminated): the container is the sole type discriminator; object names are identical across the base and view containers; type markers (`v_`, `_vw`) are prohibited. View-tier architecture, in two tiers. A **governed** view (1:1 over its base table, may reference the base container) and **access** views (reference the governed view only).
+The phase order in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations) creates databases, the implied grants, then Memory, Semantic, Domain, Observability, Search and Prediction tables, then comments, views, registration, discovery, the trust map, documentation capture, statistics and, last, roles and grants. Teradata commits each DDL statement on its own, so deploying phase files separately must keep that order, and a failed deployment is cleared by dropping its databases.
 
-## Section 5: Separation Policy
-`STRICT_SEPARATION`. Tables and views live in separate databases so that consumers granted the view database cannot reach the base tables. Exception: temporary/volatile objects.
-
-## Section 6: Derivation Function
-```
-derive_container(object_type, {product, module}, classification):
-    base = product || '_' || module
-    if object_type == VIEW: return base || '_V'
-    else:                   return base
-```
-Examples: `derive_container(TABLE, {Customer360, Domain})` → `Customer360_Domain`; `derive_container(VIEW, {Customer360, Domain})` → `Customer360_Domain_V`; `derive_container(PROCEDURE, {Customer360, Memory})` → `Customer360_Memory`.
-
-## Section 7: Access Model
-Role-based, granted at the container level. The product's `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN` roles (see [access-layer](../access-layer/)). Consumers are granted the view database only. **Implied grant:** the view-owning database requires cross-database rights on the base database before any view compiles, provisioned before view creation, in the standard sequence.
-
-## Section 8: Validation Procedure
-Agent-executable `DBC` checks (halt and report on any row returned):
-- Objects exist in their intended databases (`DBC.TablesV` by `DatabaseName`/`TableKind`).
-- No tables in `_V` databases; no views in base databases.
-- No objects in parent databases.
-- Consumer roles hold rights on `_V` databases only, not base databases (`DBC.AllRoleRightsV`).
-- The implied cross-database grant is present.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

@@ -2,64 +2,43 @@
 title: Teradata Search Module Implementation
 anchor: search
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: search
 platform: teradata
 ---
 
-# Teradata: Search Module Implementation
+# Teradata: Search
 
-Concrete Teradata binding of [`design/modules/search.md`](../../../../design/modules/search.md). Read the design document first; this directory only adds Teradata specifics.
+Binding of [Search](../../../../design/modules/search.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Purpose |
-|------|---------|
-| `01-embedding.sql.j2` | `entity_embedding` table: native `VECTOR`, keys only, full column metadata. |
-| `02-searchable-view.sql.j2` | `v_entity_searchable`: embedding joined to Domain content (`AccessView`). |
-| `03-similarity.sql.j2` | Similarity search and RAG retrieval templates (`NearestNeighbors` binding). |
-| `validation.sql.j2` | Runnable checks for the module's invariants. |
+`01-tables.sql.j2` calls `module_tables('search')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The embedding store holds identifiers, vectors and provenance, never source content.
 
-The `.sql.j2` files are Jinja2 templates, rendered by the builder with the product's names.
+A `Vector[n]` binds to `VARCHAR(32000) CHARACTER SET LATIN` holding a JSON array of numbers, with a `CHECK` (`REGEXP_SIMILAR`) that the text is an array of exactly `n` numbers. Teradata 17.20 and the 20.00 release tested here have no vector type, and a `JSON` column takes no `CHECK`, so the dimension is enforced on the text. A vector of the wrong dimension is refused by the engine; the engine tests show it.
+
+No similarity search object is emitted. `TD_VECTORDISTANCE` is a table operator: it cannot sit in a view or a SQL function, and a stored procedure that returns it as a dynamic result set has not yet been written. Each `Embedding:` block is reported in the manifest as a gap, and the cookbook's Search recipe falls back to reading the store's consumer view.
+
+Vectors come from the encoder the specification declares, outside the database; no encoder is substituted. Validate query vectors for finite elements and nonzero norm at the encoder and query boundary.
 
 ## Capability bindings
 
-| Capability (design) | Teradata binding |
-|---------------------|------------------|
-| `Embed(text, model)` | `ONNXEmbeddings` (in-database) in ClearScape Analytics, or an external embedding API: recorded per row in `computation_method`. |
-| `NearestNeighbors(query, candidates, metric, k)` | `TD_VectorDistance` table operator with `DistanceMeasure` and `TopK`. |
-| `ApproxIndex{IVF\|HNSW}` | `KMEANS` (IVF-style) or `HNSW` via the Enterprise Vector Store API. |
-| `CurrentStateFilter` | `WHERE is_current = 1`. |
-| `EntityJoinBack` | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
-| `AccessView` | `v_entity_searchable` with an explicit column contract. |
-| `SemanticRegistration` *(soft)* | When the composition includes Semantic: on deploy, `INSERT` embedding entity/column rows into `{product}_Semantic`. Skipped if Semantic is absent. |
-| `DocumentationCapture` *(soft)* | When the composition includes Memory's documentation facet: on deploy, `INSERT` design-decision/glossary/change-log rows into `{product}_Memory`. Skipped if absent. |
-| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. Search cannot deploy without Domain. |
+| Capability | Binding |
+|---|---|
+| `NearestNeighbors` | Not rendered: a reported gap. |
+| `EntityJoinBack` | Rows carry the Domain identifier; consumers join to the Domain consumer view. |
+| `CurrentStateFilter` | Consumer view over current vectors. |
 
-## Logical-type bindings used here
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
-| Logical type (design) | Teradata type |
-|-----------------------|---------------|
-| `Identifier` | `INTEGER GENERATED ALWAYS AS IDENTITY` |
-| `Reference -> E` | `BIGINT` |
-| `Enum{…}` | `VARCHAR(n)` with a documented value set |
-| `Vector[dim]` | native `VECTOR` (`FLOAT32(dim)`), Vantage 20.00.26.XX+ |
-| `Integer` | `INTEGER` |
-| `ShortText` | `VARCHAR(n)` |
-| `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
-| `Flag` | `BYTEINT` |
+## Invariants and checks
 
-**Legacy note.** On Vantage versions below 20.00.26.XX, or where per-dimension analytics are required, bind `Vector[dim]` to columnar `FLOAT` columns `emb_0 … emb_{dim-1}` and reference them with `TD_VectorDistance` range notation `[emb_0:emb_{dim-1}]`. Prefer the native `VECTOR` type otherwise.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-SEARCH-001,003` | Review the declared embedding and model provenance; the vector `CHECK` enforces the dimension, with an engine test that a wrong one is refused. |
+| `INV-SEARCH-002,004` | Not shown: no similarity search object is emitted. |
+| `INV-SEARCH-005` | Shared temporal macros and the `entity temporal` check. |
 
-## Invariants → checks
-
-| Invariant | Check |
-|-----------|-------|
-| `INV-SEARCH-001` (keys only) | `validation.sql.j2` §1: no content-like column on the embedding table. |
-| `INV-SEARCH-002` (references a current entity) | `validation.sql.j2` §2: every `entity_id` resolves to a current Domain row. |
-| `INV-SEARCH-003` (model + dims recorded) | `validation.sql.j2` §3: no null `embedding_model` / `embedding_dimensions`. |
-| `INV-SEARCH-004` (content by join-back) | Enforced by pattern: similarity templates join to Domain; embedding table has no content. |
-| `INV-SEARCH-005` (history preserved) | Bi-temporal / `is_current` columns present; superseded rows retained. |
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

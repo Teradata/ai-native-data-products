@@ -16,18 +16,18 @@ context. Every binding's Jinja templates read only that context.
 | Tooling | `spec_lint`, `org_profile` and `build_context` (resolver), plus `tooling/bindings/render.py` and `validate.py` |
 | PostgreSQL binding | On the build context. Both reference specifications deploy on PostgreSQL 16.4 and every rendered check passes |
 | DuckDB binding | On the build context. Both reference specifications deploy on DuckDB 1.5 and every rendered check passes |
-| Teradata binding | **Not migrated on this branch.** The old templates are still in place, and partial new work is parked on the local branch `wip/teradata-build-context` (see below) |
-| Tests | `tooling/validation/tests`: 282 pass. `tooling/bindings/tests`: 41 pass on DuckDB and PostgreSQL, none skipped |
+| Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates are not migrated and await a decision (task 1a) |
+| Tests | `tooling/validation/tests`: 240 of 242 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 68 pass (18 engine tests each on DuckDB, PostgreSQL and Teradata, 10 rendering, 4 Teradata dialect), none skipped |
 
 Nothing has been pushed since the earlier review push. This branch is ahead of `origin` by the
-PR #72/#74 merge, the binding-conflict commits and this commit.
+PR #72/#74 merge, the binding-conflict commits, the Teradata WIP and the Teradata migration.
 
 ## Running the checks
 
 ```bash
 python -m unittest discover -s tooling/validation/tests
-pip install jinja2 duckdb pytz "psycopg[binary]"
-POSTGRES_TEST_DSN="host=localhost port=5432 user=postgres dbname=scratch" python -m unittest discover -s tooling/bindings/tests
+pip install jinja2 duckdb pytz "psycopg[binary]" teradatasql
+POSTGRES_TEST_DSN="host=localhost port=5432 user=postgres dbname=scratch" TERADATA_TEST_DSN="$(cat ~/teradata_test.json)" python -m unittest discover -s tooling/bindings/tests
 python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/postgres.md --output build/itsd-postgres
 ```
 
@@ -36,62 +36,80 @@ test runs inside a transaction that is rolled back. On Windows without PostgreSQ
 EnterpriseDB binaries zip (`postgresql-16.x-windows-x64-binaries.zip`) is enough: run
 `initdb -A trust`, then `pg_ctl start`.
 
-CI (`.github/workflows/validate.yml`) already runs both suites with a PostgreSQL service and
-fails on any skip. Making it a required check is a repository-admin setting.
+The Teradata tests need `TERADATA_TEST_DSN`, the teradatasql connection parameters as JSON
+(`{"host": ..., "user": ..., "password": ...}`), for a disposable system where the user may
+create databases and roles. They deploy each reference specification once under databases and
+roles prefixed `anptest_`, reset its rows between tests, and drop everything with that prefix,
+and nothing else, before and after. A full Teradata run takes 17 to 55 minutes on ClearScape,
+most of it DDL, depending on the system's load (CI allows 60). If a run is killed, its session can keep dictionary locks: abort it with
+`SELECT SYSLIB.AbortSessions(1, 'DEMO_USER', <session>, 'Y', 'Y')` before the next run.
+
+CI (`.github/workflows/validate.yml`) runs both suites with a PostgreSQL service and fails on
+any skip. It now also installs teradatasql and reads `TERADATA_TEST_DSN` from a repository
+secret, so **CI fails until that secret is set**: missing engine coverage is a gap. Runs are
+serialised across branches because they share the `anptest_` prefix on one system. Setting the
+secret and making the check required are repository-admin settings.
 
 ## Remaining tasks, in order
 
-### 1. Teradata binding onto the build context (Phase 3)
+### 1. Teradata binding onto the build context (Phase 3) — done
 
-Partial work is committed on the local branch `wip/teradata-build-context`. It is not pushed
-and its tests fail. It holds new templates mirroring the PostgreSQL set:
-- `00-macros` (MULTISET, PI choice, BYTEINT flags, sentinel, 255-character comments, identity)
-- containers (`CREATE DATABASE ... AS PERM`, parents first)
-- tables
-- comments
-- base and consumer views (`LOCKING ROW FOR ACCESS`)
-- maintenance
-- statistics
-- key allocation (`MERGE` on the keymap's natural-key UPI, then `SELECT`)
-- registration and capture
-- discovery (relationship paths unrolled to three hops; no recursion or CTEs)
-- trust map (`QUALIFY`, derived tables)
-- entity, temporal and reference checks via `DBC`
-- grants, with implied `WITH GRANT OPTION` grants computed from placement
-- the `PLATFORM_PROFILE.md` `Phases`, `Deploy`, `Checks` and `Settings` (`Container space`)
+The WIP is merged. The review fixes it was said to lack (registration manifest guard,
+discriminator-aware reference check, container-grant rule, `Runtime scope: unsupported`) were
+already in it. Done in this pass:
 
-ITSD renders on both Teradata example profiles, and sqlglot parses everything except
-`REFERENCES WITH NO CHECK OPTION`, which is valid Teradata that sqlglot does not know.
+- **Engine-tested on Teradata 20.00.24.** Both reference specifications deploy and every check
+  passes; the shared engine tests run on Teradata as on DuckDB and PostgreSQL. They are written
+  once, against the build context; each engine only says how it writes a flag, an open interval
+  end, a vector and reads history.
+- **Fixes the engine found:** no `VECTOR` type on 17.20 or 20.00.24 (vectors are now LATIN JSON
+  arrays with a `REGEXP_SIMILAR` dimension check); `GRANT ALL` to a role fails (`CREATE USER`),
+  so the admin tier gets an explicit list; tier grants ran before their objects existed, so the
+  grants are split into implied grants (phase 01) and tier grants (last); an interval literal
+  takes no precision; an untyped `NULL` in a union branch fails when the view is queried
+  (`[3654]`, now a §7 row and a dialect rule); timestamps in maintenance are cast.
+- **Implied grants narrowed** to what each view reads (`patterns/access-layer/00-implied-grants`).
+- **Old templates and tests retired**, apart from the extras below. `test_teradata_dialect.py`
+  holds every rendered statement to the §7 rules, each rule shown to catch its construct.
+- **`hours_between` and `days_between`** are now declared on Teradata, exact to the microsecond.
+- **Docs**: Teradata README, module and pattern READMEs, `CONFORMANCE.md`; statuses are `draft`
+  (§8.1). The skill's `roles/` now point at the build manifest's checks instead of retired files.
+- `tooling/bindings/engines.py` gives `validate.py` and the tests one driver per engine, so no
+  tool branches on `platform == "postgres"`.
 
-To finish:
-- **Merge the review fixes.** Bring this branch's fixes into the WIP: the registration
-  manifest guard, the discriminator-aware reference check, the container-grant rule and
-  `Runtime scope: unsupported`. The WIP copies predate them.
-- **Narrow the implied grants** in `patterns/access-layer/01-grants.sql.j2`. They are over-broad
-  (every module database to every view database). Derive the pairs from which view reads which
-  container: base view ← table; consumer view ← base view or table; discovery views ← the
-  Semantic and Observability table containers.
-- **Retire the old templates** that read the old flat context:
-  - `modules/*/0[1-9]-*.sql.j2` other than the new `01-tables` and `02-*`
-  - `patterns/temporal-lifecycle-metadata/00-temporal-macros`, `01-ddl-template`, `02-dml-maintenance`, `04-statistics`, `conformance-queries`
-  - `patterns/validation/01-validation-run`, `02-views`, `03-validation-area`, `04-trust-map-views`, `conformance-queries`, `consumer-queries`
-  - `patterns/access-layer/access-layer.dcl.sql.j2` and `dd-access-001.sql.j2` (DD-ACCESS-001 is now a `Decision:` block in the specification, captured into Memory)
-  - `modules/semantic/06-orientation.md`
-  - `TEMPLATE_INPUTS.md`
-- **Decide on the extras** with Paul: port or retire. Neither reference specification uses them, and `render.py` already reports them as gaps when a specification or profile asks for them:
-  - graph lineage: `modules/observability/05-graph-*` to `10-access.dcl`, `04-openlineage.md`, `09-load-lineage`
-  - catalogue interface: `patterns/catalogue-interface/*`
-- **Similarity on Teradata.** `TD_VECTORDISTANCE` cannot sit in a view or SQL function. The
-  resolver already supports `Emits: procedure: embedding` (a stored procedure with a dynamic
-  result set), but it cannot be verified without an engine, so for now it is reported as a gap.
-- **Replace the old Teradata tests**:
-  - `tooling/validation/tests/td_context.py`, `td_sqlite.py`, `test_teradata_templates.py`, `test_templates_render.py` and `test_trust_map.py` exercise the old templates.
-  - The trust-map behaviours they encode (per-area staleness, legacy fallback scoped to `1.0`/`2.0`, deterministic tie-break, requested areas answering `unknown`) are now covered on PostgreSQL and DuckDB by `tooling/bindings/tests`.
-  - Keep a Teradata render test for the `PLATFORM_PROFILE.md` §7 idioms: no comment over 255 characters even with a long product name, no `ORDER BY` in a view, no zone-qualified literal in a `DEFAULT`, no FROM-less `SELECT` in a union, no `:name` inside stored strings, and no unrendered `{{`.
-  - The SQLite translation harness can be ported to the new trust map if Teradata-dialect regression coverage is wanted.
-- **Update the Teradata docs**: README, module and pattern READMEs, and a `CONFORMANCE.md` (required by `test_binding_package.py`).
-- **Engine coverage gap.** There is no Teradata engine here, so engine coverage is a reported
-  gap until it runs against a real system (for example ClearScape).
+Conflicts between bindings found and fixed, each with a test so it cannot come back:
+
+- **Relationship-path bound.** PostgreSQL and DuckDB walked four hops, the Teradata WIP three, and
+  Semantic §5 said only "bounded". The standard now says four, the resolver carries it as
+  `RelationshipPaths.max_hops`, and every binding reads it. Tests: every binding's output changes
+  with the bound; on every engine the path count per hop equals a walk done in Python.
+- **Legacy-run trust entry.** PostgreSQL and DuckDB read a legacy run's PRODUCT entry as `partial`
+  even with ERROR failures. Validation §10 applies §4.3, capped at `partial`, so it is `weak`.
+  All three now agree; engine test on every binding.
+- **Unreported gaps.** A profile's `mask`/`exclude` protection, object-storage placement, and a
+  versioned relation with no consumer point-in-time surface are now reported by `render.py` for
+  every binding.
+
+#### 1a. Still open on Teradata
+
+- **Graph lineage and catalogue interface: decision needed (Paul).** Left untouched at the user's
+  request: `modules/observability/04-openlineage.md` and `05-graph-tables` to `10-access.dcl`,
+  and `patterns/catalogue-interface/*`. They read the old flat context, and **two
+  `test_binding_package` tests fail on them alone**: every template reached by a phase, and
+  Jinja-only hygiene (`:event_dts` in `catalogue-interface/02-lifecycle-dml`). With them set
+  aside the package tests pass. Port or retire,
+  then those tests go green.
+- **Similarity search.** Not emitted; reported per `Embedding:` block. A stored procedure with a
+  dynamic result set (`Emits: procedure: embedding`, which the resolver already supports) can now
+  be verified on the engine. Vectors are JSON text, so it would parse them, or the binding moves
+  to `TD_VECTORDISTANCE` over a columnar layout.
+- **Point-in-time for consumers.** Teradata has no table functions; history is in the governed
+  base views, which are not granted to consumers. Reported as a gap. Settle with the open
+  question "History for consumers" below; a procedure or macro per versioned relation would
+  close it.
+- **Comment speed.** Column comments can take seconds each when other sessions touch the
+  dictionary. Batching them into multi-statement requests (as the tests do) helps; a
+  BTEQ-friendly `deploy.sql` cannot batch.
 
 ### 2. Conformance tests (task 7)
 - Generate each binding's conformance report from the tests, replacing the hand-maintained
@@ -103,8 +121,9 @@ To finish:
 - Package the skill and check what it contains.
 
 ### 3. CI (task 8)
-The workflow exists and installs `pytz`. Remaining: make it a required check (admin setting)
-and add Teradata coverage when an engine is available.
+The workflow installs every driver and runs all three engines. Remaining (admin settings): add
+the `TERADATA_TEST_DSN` secret, then make the check required. ClearScape systems hibernate and
+expire; the secret needs a system that stays up, or CI will report the gap.
 
 ### 4. Adoption modes
 Adopted entities and containers resolve, but no engine test deploys over an existing table.
@@ -122,6 +141,9 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
   render one.
 - Runtime Memory scope on DuckDB and Teradata (`Runtime scope: unsupported`). PostgreSQL
   enforces it with row-level security.
+- Similarity search and consumer point-in-time surfaces on Teradata.
+- Classification protection (`mask`, `exclude`) and object-storage placement, on every binding,
+  when a profile asks for them (the Teradata type-grouped example does).
 - The graph-lineage exposure and the catalogue registration, when a specification or profile
   asks for them.
 
@@ -129,7 +151,9 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
 - **History for consumers.** Point-in-time functions (PostgreSQL `SECURITY DEFINER`, DuckDB
   macros) are granted to the read and agent tiers, following access-layer §143 (the governed
   full-contract surface is a consumer surface). Confirm that is intended, since it exposes full
-  history including personal-data columns.
+  history including personal-data columns. Teradata does the opposite today (its governed base
+  views are not granted, and the example profile says so), so the bindings disagree until this
+  is settled.
 - **Fixed view column names.** The output columns of the discovery views (`ColumnCatalogue`,
   `TrustMap`, `LineageRunLatest`, the manifest's per-role columns) are fixed in templates. If
   organisations must rename them, the module standards need to define the views' columns so the
@@ -161,3 +185,10 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
 - Consumer views carry every column except the open interval ends.
 - The trust map's derived PRODUCT entry is limited to the registered legacy wire versions
   (`1.0`, `2.0`).
+- Semantic §5 bounds path discovery at four hops, and a path never revisits an entity. The
+  resolver carries the bound (`RelationshipPaths.max_hops`); no binding fixes its own.
+- A legacy run's derived PRODUCT entry is graded by Validation §4.3 on the run's counts, then
+  capped at `partial`, on every binding.
+- On Teradata a `Vector[n]` is LATIN JSON-array text with a dimension check, because neither
+  17.20 nor 20.00.24 has a vector type; the admin tier's rights are listed, since `ALL` cannot go
+  to a role; and the implied grants are only those the views read.

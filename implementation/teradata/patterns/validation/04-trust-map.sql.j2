@@ -6,12 +6,13 @@
    for a product with nothing published. Where no producer is designated, the most cautious
    producer's entry stands for each area. The same columns as every binding's trust map.
    Teradata views take no WITH clause or ORDER BY here, so the steps are derived tables and
-   the latest-row choices are QUALIFY. #}
+   the latest-row choices are QUALIFY; a NULL in a union branch is typed, or the union fails. #}
 {% set view = named('TrustMap') %}{% set run = named('ValidationRun') %}{% set area = named('ValidationArea') %}
 {% set registry = named('DataProductRegistry') %}
 {% if view and run and area and registry %}
 {% set r = run.column_names %}{% set a = area.column_names %}{% set p = registry.column_names %}
-{% set window = "INTERVAL '" ~ quality.evidence_window_days|round|int ~ "' DAY(4)" %}
+{% set secs = (quality.evidence_window_days * 86400)|round|int %}
+{% set window = "CAST('" ~ ('%d %02d:%02d:%02d'|format(secs // 86400, secs % 86400 // 3600, secs % 3600 // 60, secs % 60)) ~ "' AS INTERVAL DAY(4) TO SECOND)" %}
 {% set product -%}
 (SELECT {{ p.product_id|ident }} AS product_code,
         CASE WHEN TRIM({{ p.trust_authoritative_producer|ident }}) = '' THEN NULL ELSE {{ p.trust_authoritative_producer|ident }} END AS producer_id
@@ -37,11 +38,11 @@
         CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'no-evidence'
              WHEN y.{{ r.failed_count|ident }} = 0 AND y.{{ r.error_count|ident }} = 0 THEN 'pass' ELSE 'fail' END,
         CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'unknown'
-             WHEN y.{{ r.critical_failure_count|ident }} + y.{{ r.error_failure_count|ident }} + y.{{ r.error_count|ident }} > 0 THEN 'weak'
+             WHEN y.{{ r.critical_failure_count|ident }} + y.{{ r.error_failure_count|ident }} > 0 THEN 'weak'
              ELSE 'partial' END,
         y.{{ r.total_checks|ident }}, y.{{ r.total_checks|ident }}, y.{{ r.passed_count|ident }}, y.{{ r.failed_count|ident }},
         y.{{ r.error_count|ident }}, y.{{ r.critical_failure_count|ident }}, y.{{ r.error_failure_count|ident }},
-        'Derived from a legacy run with no area records.', NULL, y.{{ r.completed_dts|ident }}, y.{{ r.evidence_expires_dts|ident }}, 1
+        'Derived from a run with no area records.', CAST(NULL AS VARCHAR(4000)), y.{{ r.completed_dts|ident }}, y.{{ r.evidence_expires_dts|ident }}, 1
  FROM {{ run.objects.table|qualified }} y
  WHERE y.{{ r.payload_schema_version|ident }} IN ({% for v in quality.legacy_wire_versions %}{{ v|literal }}{% if not loop.last %}, {% endif %}{% endfor %})
    AND NOT EXISTS (SELECT 1 FROM {{ area.objects.table|qualified }} x WHERE x.{{ a.product_code|ident }} = y.{{ r.product_code|ident }}
@@ -54,7 +55,7 @@ SELECT c.product_code, c.producer_id, c.run_id, c.scope_kind, c.scope_id, c.area
        c.checks_expected, c.checks_ran,
        CAST(c.checks_ran AS FLOAT) / NULLIFZERO(c.checks_expected) AS coverage,
        c.passed_count, c.failed_count, c.error_count, c.critical_failure_count, c.error_failure_count,
-       CASE WHEN c.stale = 1 THEN 'Evidence is stale.' ELSE c.open_gaps END AS open_gaps,
+       CASE WHEN c.stale = 1 THEN 'Evidence is stale since ' || CAST(COALESCE(c.evidence_expires_dts, c.completed_dts + {{ window }}) AS VARCHAR(40)) || '.' ELSE c.open_gaps END AS open_gaps,
        CASE WHEN c.stale = 1 THEN 'Re-run the validator; disclose unknown confidence.'
             WHEN c.designated IS NULL THEN 'No designated producer: cautious per-area fallback. ' || COALESCE(c.recommended_action, 'Designate one producer.')
             ELSE c.recommended_action END AS recommended_action,
@@ -75,9 +76,9 @@ FROM (
                                         l.completed_dts DESC, l.run_id DESC, l.producer_id) = 1
 ) c
 UNION ALL
-SELECT p.product_code, p.producer_id, NULL, 'PRODUCT', p.product_code, 'no-evidence', 'unknown',
-       0, 0, NULL, 0, 0, 0, 0, 0, 'No published area evidence.', 'Run the validator before reporting confidence.',
-       NULL, 0
+SELECT p.product_code, p.producer_id, CAST(NULL AS VARCHAR(400)), 'PRODUCT', p.product_code, 'no-evidence', 'unknown',
+       0, 0, CAST(NULL AS FLOAT), 0, 0, 0, 0, 0, 'No published area evidence.', 'Run the validator before reporting confidence.',
+       CAST(NULL AS TIMESTAMP(6) WITH TIME ZONE), 0
 FROM {{ product }} p
 WHERE NOT EXISTS (SELECT 1 FROM {{ evidence }} e WHERE e.product_code = p.product_code
                   AND (p.producer_id IS NULL OR e.producer_id = p.producer_id));

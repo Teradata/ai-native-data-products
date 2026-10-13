@@ -1,0 +1,150 @@
+"""The database drivers the binding tools and tests run rendered SQL through, one per platform.
+
+Each engine states how to connect, its driver's parameter marker, how to isolate one check so
+a failing one leaves the session usable, and how to make a group of writes atomic. Drivers
+differ; the SQL each runs is the binding's own, rendered from its templates. Nothing here
+holds platform SQL beyond transaction control.
+"""
+import json
+import os
+from contextlib import contextmanager, nullcontext
+
+
+class Engine:
+    platform = None
+    marker = "?"
+
+    def connect(self, database=None):
+        raise NotImplementedError
+
+    def isolate(self, con):
+        """Wrap one check, so an error in it does not poison what follows."""
+        return nullcontext()
+
+    @contextmanager
+    def transaction(self, con):
+        con.execute("BEGIN")
+        try:
+            yield
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+        con.execute("COMMIT")
+
+
+class PostgreSQL(Engine):
+    platform = "postgres"
+    marker = "%s"
+    environment = "POSTGRES_DSN"
+
+    def connect(self, database=None):
+        import psycopg
+        return psycopg.connect(database or os.environ[self.environment], autocommit=True)
+
+    def isolate(self, con):
+        return con.transaction()
+
+    def transaction(self, con):
+        return con.transaction()
+
+
+class DuckDB(Engine):
+    platform = "duckdb"
+
+    def connect(self, database=None):
+        import duckdb
+        return duckdb.connect(database)
+
+
+class TeradataCursor:
+    """Rows as tuples, as the other drivers return them; teradatasql returns lists."""
+
+    def __init__(self, cur):
+        self.raw = cur
+
+    def fetchone(self):
+        row = self.raw.fetchone()
+        return None if row is None else tuple(row)
+
+    def fetchall(self):
+        return [tuple(row) for row in self.raw.fetchall()]
+
+
+class TeradataConnection:
+    """teradatasql through the `execute` shape the other drivers share. Each request commits
+    on its own unless a transaction is open; a failed request rolls back only itself."""
+
+    def __init__(self, con):
+        self.raw = con
+
+    def execute(self, sql, params=None):
+        cur = self.raw.cursor()
+        cur.execute(sql, params or None)
+        return TeradataCursor(cur)
+
+    def commit(self):
+        self.raw.commit()
+
+    def rollback(self):
+        self.raw.rollback()
+
+    def close(self):
+        self.raw.close()
+
+
+class Teradata(Engine):
+    platform = "teradata"
+    environment = "TERADATA_DSN"
+
+    def connect(self, database=None):
+        """`database` or the environment variable holds the teradatasql connection parameters
+        as JSON, for example {"host": ..., "user": ..., "password": ...}. A request whose
+        response is lost on the network would otherwise wait forever, so one fails after ten
+        minutes unless the parameters set `request_timeout` themselves."""
+        import teradatasql
+        params = json.loads(database or os.environ[self.environment])
+        params.setdefault("request_timeout", "600")
+        return TeradataConnection(teradatasql.connect(**params))
+
+    @contextmanager
+    def transaction(self, con):
+        con.raw.autocommit = False
+        try:
+            yield
+            con.commit()
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.raw.autocommit = True
+
+
+ENGINES = {e.platform: e for e in (PostgreSQL(), DuckDB(), Teradata())}
+
+
+def statements(sql):
+    """Rendered SQL as its statements, split on semicolons outside string literals and line
+    comments, for a driver that takes one statement per request."""
+    out, buf, quoted, i = [], [], False, 0
+    while i < len(sql):
+        if not quoted and sql.startswith("--", i):
+            end = sql.find("\n", i)
+            i = len(sql) if end < 0 else end
+            continue
+        ch = sql[i]
+        if ch == "'":
+            quoted = not quoted
+        if ch == ";" and not quoted:
+            out.append("".join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+        i += 1
+    out.append("".join(buf).strip())
+    return [s for s in out if s]
+
+
+def engine(platform):
+    if platform not in ENGINES:
+        raise KeyError(f"no driver is declared for the {platform} binding; engine coverage is a gap")
+    return ENGINES[platform]

@@ -109,7 +109,7 @@ class Rendering(unittest.TestCase):
 
     def test_undeclared_function_is_unrenderable_not_guessed(self):
         with self.assertRaises(Unrenderable):
-            sql("hours_between(Ticket.opened_dts, Ticket.closed_dts)", "teradata")
+            sql("as_of(Customer.tier, Ticket.opened_dts)", "teradata")
 
     def test_map_renders_a_case(self):
         out = sql("map(Ticket.priority, {P1: 1, P2: 2})", "postgres")
@@ -158,9 +158,9 @@ class ContextFields(unittest.TestCase):
 
     def test_unrenderable_expressions_are_reported(self):
         features = self.entity("TicketFeatureSet")
-        response = next(a for a in features["attributes"] if a["name"] == "f_response_hours")
-        self.assertIsNone(response["derive"]["sql"])
-        self.assertEqual(response["derive"]["unsupported"], ["hours_between"])
+        tier = next(a for a in features["attributes"] if a["name"] == "f_customer_tier_int")
+        self.assertIsNone(tier["derive"]["sql"])
+        self.assertEqual(tier["derive"]["unsupported"], ["as_of"])
 
     def test_metric_references_are_inlined(self):
         ctx, _ = build_context.resolve(REPO_ROOT / "tooling" / "evals" / "reference" / "customer-orders.md",

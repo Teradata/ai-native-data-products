@@ -1,0 +1,22 @@
+{# The implied grants the placement makes necessary (Organisation Profile Standard §2): a view
+   in one database compiles, and serves its readers, only once that database holds SELECT
+   WITH GRANT OPTION on the database it reads; without it view creation fails with [5315].
+   Each pair comes from what a view reads: a base view its table; a consumer view its base
+   view, or its table where there is none; a discovery view the Semantic and Observability
+   tables it is built over. Nothing else is granted, and never a database to itself. #}
+{% set pairs = [] %}
+{% for x in entities + relations if x.objects.table is defined %}
+{% if x.objects.base_view is defined %}{% set _ = pairs.append((x.objects.table.container, x.objects.base_view.container)) %}{% endif %}
+{% if x.objects.consumer_view is defined %}
+{% set source = x.objects.base_view if x.objects.base_view is defined else x.objects.table %}
+{% set _ = pairs.append((source.container, x.objects.consumer_view.container)) %}
+{% endif %}
+{% endfor %}
+{% for v in relations if v.relation == 'view' %}
+{% for x in relations if x.relation == 'table' and x.module in ('semantic', 'observability') and x.objects.table is defined %}
+{% set _ = pairs.append((x.objects.table.container, v.objects.consumer_view.container)) %}
+{% endfor %}
+{% endfor %}
+{% for source, target in pairs|unique if source != target %}
+GRANT SELECT ON {{ source|ident }} TO {{ target|ident }} WITH GRANT OPTION;
+{%- endfor %}

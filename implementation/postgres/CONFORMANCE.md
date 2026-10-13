@@ -20,9 +20,9 @@ Engine evidence: PostgreSQL **16.4** through Psycopg. No other server version ha
 | Engine execution | Both reference specifications deploy and every rendered check passes. The four IT Service Desk CSVs load, the consumer views return the source counts and every check still passes. |
 | Temporal | A bitemporal correction through the maintenance template reads correctly at two knowledge times through the point-in-time function. A second open version of an identity is refused by the engine or found by the temporal check. |
 | Keys | Allocation is permanent and idempotent. |
-| Metadata and discovery | The metadata check finds a removed comment; the Semantic module check finds an unregistered table; the reference check finds a reference to a deleted target. |
+| Metadata and discovery | The metadata check finds a removed comment; the Semantic module check finds an unregistered table; the reference check finds a reference to a deleted target. Relationship paths follow the Semantic standard's bound. |
 | Metrics, cookbook and search | Metric and cookbook recipes execute (parameterised recipes excepted); the similarity function ranks current vectors of its embedding and applies the declared threshold. |
-| Validation evidence | Wire 2.1 run and area records; failures and errors never count as passes; latest evidence per area and staleness; designated producer, then cautious fallback; no evidence reads `unknown`; the shared `trust_cases.json` summaries; reported gaps cap the PRODUCT area at `partial`. |
+| Validation evidence | Wire 2.1 run and area records; failures and errors never count as passes; latest evidence per area and staleness; designated producer, then cautious fallback; a legacy run graded on its counts and capped at `partial`; no evidence reads `unknown`; the shared `trust_cases.json` summaries; reported gaps cap the PRODUCT area at `partial`. |
 | Access | The read tier reaches consumer views and point-in-time functions but not base tables; the agent tier cannot write runtime Memory scoped to another user. |
 | Tooling | The renderer refuses reserved or non-empty output directories. |
 

@@ -2,113 +2,52 @@
 title: Teradata Memory Module Implementation
 anchor: memory
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: memory
 platform: teradata
 ---
 
-# Teradata: Memory Module Implementation
+# Teradata: Memory
 
-Concrete Teradata binding of [`design/modules/memory.md`](../../../../design/modules/memory.md). Read the design document first; this directory only adds Teradata specifics. Memory is one module with two facets, `runtime` and `documentation`, deployed independently.
+Binding of [Memory](../../../../design/modules/memory.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Facet | Purpose |
-|------|-------|---------|
-| `01-runtime-tables.sql.j2` | runtime | `agent_session`, `agent_interaction`, `learned_strategy`, `user_preference`, `discovered_pattern`. |
-| `02-runtime-views.sql.j2` | runtime | Standard views over sessions and interactions (`AccessView`). |
-| `10-documentation-tables.sql.j2` | documentation | The six design-memory tables (`Module_Registry`, `Design_Decision`, `Business_Glossary`, `Query_Cookbook`, `Implementation_Note`, `Change_Log`). |
-| `11-documentation-views.sql.j2` | documentation | Standard views (`v_Current_Decisions`, `v_Cookbook_Active`, …). |
-| `12-capture-protocol.sql.j2` | documentation | The `DocumentationCapture` binding: the `INSERT` templates every module uses to register and record its design memory, plus the standard ERD recipe. |
-| `validation.sql.j2` | both | Runnable checks for the module's invariants. |
+`01-tables.sql.j2` calls `module_tables('memory')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The relations are those the Memory standard defines and the resolver places: the documentation relations (module registry, design decisions, glossary, cookbook, implementation notes, change log), versioned with governed and consumer views, and the runtime relations the context includes, which have no consumer view. Text is `CHARACTER SET UNICODE`, so prose with typographic characters is stored as written.
 
-A **Data Asset** deploys `10`-`12` only (documentation facet). An **AI-Native** product deploys all. Replace `{{ product }}` with the data product name; all tables live in `{{ product }}_Memory`.
+`02-capture.sql.j2` writes the design-memory records the build context settles in `capture`, one insert per record, by logical attribute name through the `insert` macro:
 
-## Applying column comments
+- `capture.modules` into the module registry, with `product.version`;
+- `capture.decisions` into design decisions, each with its settled `DD-{MODULE}-{NNN}` id, version 1 and status `ACCEPTED`;
+- `capture.glossary`, `capture.notes` and `capture.change_log` into their relations;
+- `capture.cookbook` into the cookbook, with each recipe's query rendered here in the Teradata dialect from its `kind`: a metric's measure and filter over its dataset's consumer view (`metrics`); a `CALL` of the similarity procedure with a `?` parameter, where the binding emits one (`embeddings`); a join of a relationship's source and target consumer views (`relationships`); a catalogue lookup of entity metadata for the named modules; otherwise the named relation's consumer view. A stored query never holds a `:name` parameter, which the MCP driver would try to bind (PLATFORM_PROFILE §7).
 
-`RichMetadata` is a hard requirement of every module, and column comments are how it is satisfied. They are also the step most easily lost, because they trail the `CREATE TABLE` in the same file.
+A record the context does not carry is not written. What capture could not settle is listed in `capture.gaps` and reported in the manifest.
 
-The failure has a shape worth naming: **any step bundled behind a step that can require intervention is a step that can be skipped.** When a table creation stalls and needs investigating, attention goes to the table; the session fixes it, moves on, and the comment block below it is never submitted. The comments are then present in the artefact and absent from the database, which no reading of the file will reveal.
+`validation.sql.j2` is the `module memory` check. Every row it returns is a registered module below the capture floor: three design decisions, three glossary terms and one cookbook recipe.
 
-So treat comments as their own deployment unit, not as lines appended to a table:
+## Access
 
-1. Apply `CREATE TABLE` and `COMMENT ON TABLE`.
-2. Apply the `COMMENT ON COLUMN` statements.
-3. **Verify before moving on**, and expect zero rows:
-
-```sql
-SELECT DatabaseName, TableName, ColumnName
-FROM DBC.ColumnsV
-WHERE DatabaseName = '{{ product }}_Memory'
-  AND (CommentString IS NULL OR TRIM(CommentString) = '');
-```
-
-The same sequence applies to every module: the gate is what makes the step recoverable, because a skipped comment block is otherwise discovered by a conformance run days later, against a whole module at once.
+The [access-layer template](../../patterns/access-layer/README.md) grants the agent tier `SELECT`, `INSERT` and `UPDATE` on each runtime relation. Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported`: runtime records are not restricted to the requesting identity's scope, and every build with runtime relations reports it as a gap.
 
 ## Capability bindings
 
-| Capability (design) | Teradata binding |
-|---------------------|------------------|
-| `DocumentationCapture` | `INSERT` into the six documentation tables per `12-capture-protocol.sql.j2`; version chain via `is_current` + `valid_from_dts`/`valid_to_dts`. |
-| Agent continuity / learning | The five runtime tables + views. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`, applied and verified as their own step (below). |
-| `SemanticRegistration` *(soft)* | When Semantic is present: register Memory's entities in `{{ product }}_Semantic`. |
-| `EntityJoinBack` *(soft → Domain)* | Resolve a table reference to Domain content by join when needed. |
+| Capability | Binding |
+|---|---|
+| `DocumentationCapture` | Versioned documentation relations; `02-capture.sql.j2` writes the settled records; `validation.sql.j2` reports modules below the floor. |
+| `AgentContinuity` | Runtime relations with required scope columns and no consumer view. Scope enforcement is a reported gap. |
 
-## Logical-type bindings used here
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
-| Logical type (design) | Teradata type |
-|-----------------------|---------------|
-| `Identifier` | `INTEGER` / `BIGINT` `GENERATED ALWAYS AS IDENTITY` |
-| `NaturalKey` | `VARCHAR(n)` |
-| `ShortText` / `Text` | `VARCHAR(n) CHARACTER SET UNICODE` |
-| `LongText` | `CLOB CHARACTER SET UNICODE` |
-| `Json` | `JSON` |
-| `Enum{…}` | `VARCHAR(n) CHARACTER SET UNICODE` with a documented value set |
-| `Integer` | `INTEGER` |
-| `Decimal(p,s)` | `DECIMAL(p,s)` |
-| `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
-| `Date` | `DATE` |
-| `Flag` | `BYTEINT` |
+## Invariants and checks
 
-## Migrating a deployed documentation facet
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-MEMORY-001,002,004` | Standard-owned structures separate process and design context; producer payload review remains necessary. |
+| `INV-MEMORY-003` | Required scope columns. Enforcement at the access surface is not rendered (`Runtime scope: unsupported`), and reported. |
+| `INV-MEMORY-005` | Shared versioned temporal macros and the `entity temporal` check. |
+| `INV-MEMORY-006` | `module memory` check of the capture floor; the reference specifications meet it on the engine. |
 
-The documentation tables previously carried `created_timestamp`/`updated_timestamp` and a DATE-grain `valid_from`/`valid_to` pair. All four are prohibited generic names (TLM-04) with exactly one canonical replacement each, and the validity pair widens to `TIMESTAMP(6) WITH TIME ZONE` because validity bounds are always timestamps (pattern section 4.1). A new product deploys `10-documentation-tables.sql.j2` as it stands and needs nothing here.
-
-A deployed product migrates on the path the pattern already prescribes (section 11), not a local one:
-
-**1. Project the canonical names first.** Consumers move to the canonical names before the base tables are regenerated, so nothing downstream ever has to read both dialects:
-
-```sql
-REPLACE VIEW {{ product }}_Memory.v1_Design_Decision
-AS
-LOCKING ROW FOR ACCESS
-SELECT
-      decision_id, decision_version, decision_title, decision_status
-    , decision_category, source_module, rationale, decided_by, decided_date
-    , CAST(valid_from AS TIMESTAMP(6) WITH TIME ZONE) AS valid_from_dts
-    , CAST(valid_to   AS TIMESTAMP(6) WITH TIME ZONE) AS valid_to_dts
-    , is_current
-    , created_timestamp AS created_dts
-    , updated_timestamp AS updated_dts
-FROM {{ product }}_Memory.Design_Decision;
-```
-
-The projection is versioned (`v1_`) because it is a stated compatibility surface with an end, not a permanent alias. Retire it once the base tables are regenerated and consumers read them directly.
-
-**2. Regenerate the base tables**, then repoint the projection at the canonical columns or drop it.
-
-**What the widening cannot recover.** Migrated historical rows were captured at DATE grain, so every version boundary for them lands at midnight. **Intra-day ordering is unavailable for historical rows**: two versions of the same `decision_id` superseded on the same day are indistinguishable in time order after migration, and `decision_version` is the only thing that separates them. Widening the type does not recover a precision that was never recorded. Rows captured after migration carry the real instant, since `12-capture-protocol.sql.j2` closes a version at `CURRENT_TIMESTAMP(6)`.
-
-## Invariants → checks
-
-| Invariant | Check |
-|-----------|-------|
-| `INV-MEMORY-001` (table-level refs) | `validation.sql.j2` §1: no instance-key columns on runtime tables. |
-| `INV-MEMORY-002` (metadata not results) | Enforced by schema: no result-set columns; reviewed at design time. |
-| `INV-MEMORY-003` (privacy scope) | `validation.sql.j2` §2: every runtime table has `scope_level` + `scope_identifier`. |
-| `INV-MEMORY-004` (no Semantic dup) | Reviewed at design time; documentation holds rationale, not join paths. |
-| `INV-MEMORY-005` (versioned docs) | `validation.sql.j2` §3: documentation tables carry `is_current`/`valid_from_dts`/`valid_to_dts`. |
-| `INV-MEMORY-006` (capture protocol) | `validation.sql.j2` §4: minimum documentation records present per deployed module. |
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

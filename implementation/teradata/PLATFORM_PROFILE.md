@@ -2,8 +2,8 @@
 title: Teradata Platform Profile
 anchor: teradata
 type: platform-profile
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: false
 platform: teradata
 ---
@@ -47,7 +47,7 @@ PRIMARY INDEX (party_id, transaction_dts)
 PARTITION BY RANGE_N(transaction_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' MONTH);
 ```
 
-Note: the [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/) uses NUPI on the natural key for co-located joins across versions; choose UPI-with-period where in-schema uniqueness of `(natural_key, valid_from_dts)` is preferred.
+Note: the [shared macros](patterns/temporal-lifecycle-metadata/) give a versioned table a NUPI on its version columns, so every version of an identity sits on one AMP, with a unique constraint on the version columns plus the interval starts; a keymap a UPI on its natural key, which its allocating `MERGE` matches on; and anything else a UPI on its key.
 
 ---
 
@@ -154,6 +154,7 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 | `WHERE` predicate on `CREATE INDEX` | Syntax error: Teradata has no filtered/partial indexes | Index all rows; filter at query time |
 | `ORDER BY` inside a view body | `[3706] ORDER BY clause not permitted in this context` | Ordering is a consumer concern; apply it at query time. Use `QUALIFY ROW_NUMBER() OVER (... ORDER BY ...)` where the view needs a latest-row projection. |
 | `SELECT 'literal'` with no `FROM`, including inside a derived table | `[3888] A SELECT for a UNION, INTERSECT or MINUS must reference a table` | Query the `DBC` catalogue directly for existence checks: `SELECT DatabaseName FROM DBC.DatabasesV WHERE DatabaseName IN (...)` and count the rows returned. |
+| An untyped `NULL` as a select-list item in a branch of a `UNION` (or `INTERSECT`, `MINUS`) | `[3654] Corresponding select-list expressions are incompatible`, raised when the view is queried, not when it is created | Type it: `CAST(NULL AS VARCHAR(400))`, `CAST(NULL AS TIMESTAMP(6) WITH TIME ZONE)`, matching the other branches' column. |
 | An aggregate referencing another aggregate's result | `[3568] Cannot nest aggregate operations` | Wrap the inner aggregation in a derived table and filter in the outer query's `WHERE`. |
 | `DBC.AllRightsV` filtered on `Grantee` | `[5628] Column Grantee not found` | The columns are `UserName` (who holds the right) and `GrantorName` (who granted it). |
 | `DBC.DatabasePrivilegesV` | `[3807] Object does not exist` | Use `DBC.AllRightsV` throughout; database-level rights carry an empty `TableName`. |
@@ -192,7 +193,7 @@ Binding: -
     Container space: bytes of permanent space per database that holds objects; default 1000000000
   Phases:
     00-containers.sql: patterns/object-placement/01-containers.sql.j2
-    01-access.sql: patterns/access-layer/01-grants.sql.j2
+    01-implied-grants.sql: patterns/access-layer/00-implied-grants.sql.j2
     02-memory.sql: modules/memory/01-tables.sql.j2
     03-semantic.sql: modules/semantic/01-tables.sql.j2
     04-domain.sql: modules/domain/01-tables.sql.j2
@@ -206,6 +207,7 @@ Binding: -
     12-trust.sql: patterns/validation/04-trust-map.sql.j2
     13-documentation.sql: modules/memory/02-capture.sql.j2
     14-statistics.sql: patterns/temporal-lifecycle-metadata/05-statistics.sql.j2
+    15-access.sql: patterns/access-layer/01-grants.sql.j2
   Deploy: deploy.sql.j2
   Checks:
     entity metadata: patterns/validation/01-entity-metadata.sql.j2
@@ -231,7 +233,7 @@ Types: -
   Timestamp:  TIMESTAMP(6) WITH TIME ZONE
   Date:       DATE
   Flag:       BYTEINT
-  Vector:     VECTOR
+  Vector:     VARCHAR(32000) CHARACTER SET LATIN
 ```
 
 ```
@@ -255,9 +257,11 @@ Functions: -
   is_null: ({0} IS NULL)
   is_not_null: ({0} IS NOT NULL)
   null: NULL
-  concat/2: TRIM(COALESCE({0}, '') || ' ' || COALESCE({1}, ''))
-  concat/3: TRIM(COALESCE({0}, '') || ' ' || COALESCE({1}, '') || ' ' || COALESCE({2}, ''))
+  concat/2: TRIM(COALESCE({0}, '') || COALESCE(' ' || {1}, ''))
+  concat/3: TRIM(COALESCE({0}, '') || COALESCE(' ' || {1}, '') || COALESCE(' ' || {2}, ''))
   length: CHARACTER_LENGTH({0})
+  hours_between: ((CAST(({1} AT TIME ZONE 'GMT') AS DATE) - CAST(({0} AT TIME ZONE 'GMT') AS DATE)) * 86400.0 + (EXTRACT(HOUR FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(HOUR FROM ({0} AT TIME ZONE 'GMT'))) * 3600.0 + (EXTRACT(MINUTE FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(MINUTE FROM ({0} AT TIME ZONE 'GMT'))) * 60.0 + (EXTRACT(SECOND FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(SECOND FROM ({0} AT TIME ZONE 'GMT')))) / 3600.0
+  days_between: ((CAST(({1} AT TIME ZONE 'GMT') AS DATE) - CAST(({0} AT TIME ZONE 'GMT') AS DATE)) * 86400.0 + (EXTRACT(HOUR FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(HOUR FROM ({0} AT TIME ZONE 'GMT'))) * 3600.0 + (EXTRACT(MINUTE FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(MINUTE FROM ({0} AT TIME ZONE 'GMT'))) * 60.0 + (EXTRACT(SECOND FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(SECOND FROM ({0} AT TIME ZONE 'GMT')))) / 86400.0
   hour_of_day: EXTRACT(HOUR FROM {0} AT TIME ZONE 'GMT')
   day_of_week: ((TD_DAY_OF_WEEK(CAST({0} AS DATE)) + 5) MOD 7)
   as_flag: CASE WHEN {0} THEN 1 ELSE 0 END
@@ -267,12 +271,12 @@ Functions: -
   flag test: ({0} = 1)
 ```
 
-`hours_between` and `days_between` are not declared: Teradata's interval arithmetic overflows for spans a design cannot bound in advance, so expressions using them are reported as gaps until a bounded form is chosen.
+`hours_between` and `days_between` take each instant in UTC and count whole days through `DATE` subtraction and the remainder from the time fields, because Teradata's interval arithmetic overflows for spans a design cannot bound in advance. The result is exact to the microsecond.
 
 ---
 
 ## Related
 
 - Time-zone / UTC persistence and the SCD2 sentinel: [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/).
-- Container naming and separation: [object-placement implementation](patterns/object-placement/).
-- Object-storage physical layout (Iceberg on S3): [physical-storage implementation](patterns/physical-storage/).
+- Databases and their space: [object-placement implementation](patterns/object-placement/); naming and separation are the organisation profile's.
+- Physical storage: [physical-storage implementation](patterns/physical-storage/). Object storage is not rendered.

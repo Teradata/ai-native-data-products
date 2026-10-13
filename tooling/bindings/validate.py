@@ -3,16 +3,14 @@
 The manifest is trusted build output containing SQL: never run an untrusted manifest. Each
 check returns its defects, so a check passes when it returns no rows. Where the product
 places `ValidationRun` and `ValidationArea`, one run and its area records are appended,
-named as the manifest's build context placed them. PostgreSQL isolates each check in a
-savepoint; DuckDB runs them in autocommit and publishes evidence in one transaction.
+named as the manifest's build context placed them. Each engine's driver (engines.py) isolates
+each check and publishes the evidence in one transaction.
 """
 import argparse
 import json
-import os
 import sys
 import uuid
 from collections import defaultdict
-from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -20,6 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tooling" / "build"))
 
 from binding import load_binding  # noqa: E402
+from engines import engine  # noqa: E402
 
 PAYLOAD_SCHEMA_VERSION = "2.1"
 COUNTS = ("passed_count", "failed_count", "error_count", "critical_failure_count", "error_failure_count")
@@ -48,11 +47,11 @@ def summarize(expected, results, gap=None):
 
 
 def run_checks(con, manifest):
-    postgres = manifest["platform"] == "postgres"
+    driver = engine(manifest["platform"])
     results = []
     for check in manifest["checks"]:
         try:
-            with con.transaction() if postgres else nullcontext():
+            with driver.isolate(con):
                 count = con.execute("SELECT count(*) FROM (" + check["sql"] + ") defects").fetchone()[0]
             status, error = ("FAILED" if count else "PASSED"), None
         except Exception as exc:  # an erroring check is evidence, never a pass
@@ -70,8 +69,8 @@ def publish(con, manifest, results, started, producer_id=None, run_id=None):
     if not (evidence["run"] and evidence["area"]):
         return None
     binding, _ = load_binding(manifest["platform"])
-    postgres = manifest["platform"] == "postgres"
-    marker = "%s" if postgres else "?"
+    driver = engine(manifest["platform"])
+    marker = driver.marker
     now = datetime.now(timezone.utc)
     run_id = run_id or uuid.uuid4().hex
     product = manifest["product"]["code"]
@@ -101,34 +100,25 @@ def publish(con, manifest, results, started, producer_id=None, run_id=None):
               for r in results if r["status"] != "PASSED"]
     trust = ("UNTRUSTED" if totals["critical_failure_count"] + totals["error_failure_count"] + totals["error_count"]
              else "DEGRADED" if failed or gaps else "TRUSTED")
-    with con.transaction() if postgres else nullcontext():
-        if not postgres:
-            con.execute("BEGIN")
-        try:
-            insert(evidence["run"], {
-                "product_code": product, "producer_id": producer, "producer_version": "2.0",
-                "profile_id": "rendered-binding", "profile_version": manifest["platform"],
-                "source_format": "NATIVE", "payload_schema_version": PAYLOAD_SCHEMA_VERSION, "run_id": run_id,
-                "started_dts": started, "completed_dts": now, "trust_status": trust,
-                "total_checks": len(results), **{n: totals[n] for n in COUNTS},
-                "repair_candidate_count": 0, "failed_checks_json": json.dumps(failed),
-                "evidence_expires_dts": now + timedelta(days=evidence["evidence_window_days"])})
-            for (kind, scope), entries in groups.items():
-                gap = "; ".join(gaps) if kind == "PRODUCT" and gaps else None
-                area = summarize(len(entries), entries, gap)
-                if area["confidence"] != "strong" and not gap and entries:
-                    gap = "Failed or missing checks; inspect the run's failed checks."
-                insert(evidence["area"], {
-                    "product_code": product, "producer_id": producer, "run_id": run_id,
-                    "scope_kind": kind, "scope_id": scope, **area, "open_gaps": gap,
-                    "recommended_action": "Repair or supply the missing evidence, then re-run." if gap else None,
-                    "completed_dts": now})
-            if not postgres:
-                con.execute("COMMIT")
-        except Exception:
-            if not postgres:
-                con.execute("ROLLBACK")
-            raise
+    with driver.transaction(con):
+        insert(evidence["run"], {
+            "product_code": product, "producer_id": producer, "producer_version": "2.0",
+            "profile_id": "rendered-binding", "profile_version": manifest["platform"],
+            "source_format": "NATIVE", "payload_schema_version": PAYLOAD_SCHEMA_VERSION, "run_id": run_id,
+            "started_dts": started, "completed_dts": now, "trust_status": trust,
+            "total_checks": len(results), **{n: totals[n] for n in COUNTS},
+            "repair_candidate_count": 0, "failed_checks_json": json.dumps(failed),
+            "evidence_expires_dts": now + timedelta(days=evidence["evidence_window_days"])})
+        for (kind, scope), entries in groups.items():
+            gap = "; ".join(gaps) if kind == "PRODUCT" and gaps else None
+            area = summarize(len(entries), entries, gap)
+            if area["confidence"] != "strong" and not gap and entries:
+                gap = "Failed or missing checks; inspect the run's failed checks."
+            insert(evidence["area"], {
+                "product_code": product, "producer_id": producer, "run_id": run_id,
+                "scope_kind": kind, "scope_id": scope, **area, "open_gaps": gap,
+                "recommended_action": "Repair or supply the missing evidence, then re-run." if gap else None,
+                "completed_dts": now})
     return run_id
 
 
@@ -142,18 +132,15 @@ def validate(con, manifest, producer_id=None, run_id=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
-    parser.add_argument("--database", help="DuckDB file path; PostgreSQL uses POSTGRES_DSN")
+    parser.add_argument("--database", help="DuckDB file path; PostgreSQL reads POSTGRES_DSN and Teradata "
+                                            "TERADATA_DSN (teradatasql connection parameters as JSON)")
     parser.add_argument("--producer", help="the producer id to publish as; defaults to the product's trust producer")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    if manifest["platform"] == "postgres":
-        import psycopg
-        con = psycopg.connect(os.environ["POSTGRES_DSN"], autocommit=True)
-    else:
-        import duckdb
-        if not args.database or not Path(args.database).is_file():
-            parser.error("Provide an existing DuckDB file with --database")
-        con = duckdb.connect(args.database)
+    driver = engine(manifest["platform"])
+    if driver.platform == "duckdb" and not (args.database and Path(args.database).is_file()):
+        parser.error("Provide an existing DuckDB file with --database")
+    con = driver.connect(args.database)
     try:
         results = validate(con, manifest, args.producer)
     finally:

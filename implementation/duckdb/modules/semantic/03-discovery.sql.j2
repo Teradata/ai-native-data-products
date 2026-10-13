@@ -56,7 +56,7 @@ WITH RECURSIVE edges AS (
            p.join_path || ' AND ' || e.from_object || '.' || e.from_column || ' = ' || e.to_object || '.' || e.to_column,
            p.hops + 1
     FROM paths p JOIN edges e ON e.from_object = p.to_object
-    WHERE p.hops < 4 AND NOT list_contains(p.visited, e.to_object)
+    WHERE p.hops < {{ paths.max_hops }} AND NOT list_contains(p.visited, e.to_object)
 )
 SELECT from_object, to_object, join_path, hops FROM paths;
 {% endif %}

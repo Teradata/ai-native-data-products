@@ -94,6 +94,9 @@ class Resolution:
 # area records and are projected as one PRODUCT entry.
 LEGACY_WIRE_VERSIONS = ("1.0", "2.0")
 
+# Semantic §5: the most hops a path-discovery surface returns.
+PATH_HOPS = 4
+
 # Semantic, the orientation relation: role, serving relation, required. Trust map second,
 # before every analytical resource.
 ORIENTATION_RESOURCES = [
@@ -441,6 +444,7 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
             relations.append({**item, "relation": "table", "defined": bool(definition), "objects": objects})
         for name in imp.views:
             relations.append({"name": name, "module": module, "kind": "View", "relation": "view",
+                              **({"max_hops": PATH_HOPS} if name == "RelationshipPaths" else {}),
                               "defined": False, "profile": None,
                               "description": f"The {name} discovery view the {module} module defines.",
                               "history": False, "bitemporal": False, "supports_deletion": False,

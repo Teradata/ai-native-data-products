@@ -1,25 +1,21 @@
-{# The access tiers (Access Layer). First the implied grants: a view in one database compiles
-   against objects in another only once the view's database holds SELECT WITH GRANT OPTION
-   on it, and without them view creation fails later with [5315]. Then the principals the
-   build context names, created where the profile says the build creates them (CREATE ROLE
-   needs DBA privilege), and the grants: read and agent tiers reach consumer views; the agent
-   tier also writes its write targets; the admin tier maintains every database. Grants are per
+{# The access tiers (Access Layer), once every object exists: the principals the build
+   context names, created where the profile says the build creates them (CREATE ROLE needs
+   the CREATE ROLE right), and the grants: read and agent tiers reach consumer views; the agent
+   tier also writes its write targets; the admin tier maintains every database, with the
+   rights a role may hold (ALL carries CREATE USER, which no role may). Grants are per
    object or per database as the profile's grant level says. A role comment names who the
-   role is for and never what it reaches. #}
-{% set sources = module_containers|selectattr('role', 'in', ('table', 'base_view'))|map(attribute='container')|unique|list %}
-{% set targets = module_containers|selectattr('role', 'in', ('base_view', 'consumer_view'))|map(attribute='container')|unique|list %}
-{% for t in targets %}{% for s in sources if s != t %}
-GRANT SELECT ON {{ s|ident }} TO {{ t|ident }} WITH GRANT OPTION;
-{%- endfor %}{% endfor %}
+   role is for and never what it reaches. The implied grants between databases are
+   00-implied-grants. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set read = principals.ROLE_READ.name %}{% set agent = principals.ROLE_AGENT.name %}{% set admin = principals.ROLE_ADMIN.name %}
 {% set who = {'ROLE_READ': 'analyst and BI consumer role', 'ROLE_AGENT': 'AI agent and automated tool role',
               'ROLE_ADMIN': 'owner and data steward role'} %}
 {% for tier in ('ROLE_READ', 'ROLE_AGENT', 'ROLE_ADMIN') if principals[tier].create %}
 CREATE ROLE {{ principals[tier].name|ident }};
-COMMENT ON ROLE {{ principals[tier].name|ident }} IS {{ (product.name ~ ' data product - ' ~ who[tier] ~ '.')|literal }};
+COMMENT ON ROLE {{ principals[tier].name|ident }} IS {{ m.comment(product.name ~ ' data product - ' ~ who[tier] ~ '.') }};
 {%- endfor %}
 {% for k in containers if k.holds_objects %}
-GRANT ALL ON {{ k.name|ident }} TO {{ admin|ident }};
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, DROP TABLE, CREATE VIEW, DROP VIEW, STATISTICS ON {{ k.name|ident }} TO {{ admin|ident }};
 {%- endfor %}
 {# A database-level grant reaches only a database that holds no tables; consumer views that
    share a database with tables are granted one by one, so a grant never reaches a table. #}

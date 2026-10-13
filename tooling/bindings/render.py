@@ -72,6 +72,12 @@ def gaps(context):
     for b in context.get("embeddings", []):
         if not ({"function", "procedure"} & set(b["objects"])):
             out.append(f"embeddings[{b['name']}]: the binding emits no similarity search object")
+    unread = [x["name"] for x in context["entities"] + context["relations"]
+              if x.get("history") and "consumer_view" in x["objects"]
+              and not {"function", "procedure"} & set(x["objects"])]
+    if unread:
+        out.append(f"history: {', '.join(unread)} have no point-in-time surface consumers are granted; "
+                   f"their history is read through the governed tier only")
     for a in context.get("access_objects", []):
         out.append(f"access_objects[{a['name']}]: composite access objects are not rendered")
     out += [f"capture: {g}" for g in context.get("capture", {}).get("gaps", [])]
@@ -84,6 +90,14 @@ def gaps(context):
         out.append("facets: the graph-lineage exposure is not rendered")
     if context.get("catalogue"):
         out.append("catalogue: the organisation catalogue registration is not rendered")
+    protected = sorted({(c["classification"], c["protection"]) for x in context["entities"] + context["relations"]
+                        for c in x.get("columns", [])
+                        if c.get("protection", "none") != "none"})
+    out += [f"classification: {cls} data is to be protected '{how}', which the binding does not render"
+            for cls, how in protected]
+    if context.get("storage"):
+        out.append("storage: the profile holds tables in object storage, which the binding does not render; "
+                   "tables are created in the platform's own storage")
     return out
 
 

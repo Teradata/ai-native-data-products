@@ -31,7 +31,7 @@ Because DuckDB enforces neither one open version nor non-overlap in its schema, 
 
 `04-trust-map.sql.j2` is a phase, not a check. Where the product places `TrustMap`, `ValidationRun`, `ValidationArea` and the product registry, it creates one `TrustMap` view:
 
-- evidence is the area records joined to their run, plus one PRODUCT entry for each run with no area records, at `partial` confidence (or `no-evidence` and `unknown` if the run had no checks);
+- evidence is the area records joined to their run, plus one PRODUCT entry for each run at a registered legacy wire version (`quality.legacy_wire_versions`) with no area records, graded on the run's counts by Validation §4.3 and never above `partial` (`no-evidence` and `unknown` if the run had no checks);
 - the registry's designated producer, where one is set, is the only producer read;
 - the latest entry per producer and area wins; it is read at `unknown` confidence once past the run's `evidence_expires_dts`, or, without one, past its completion plus the product's evidence window (`quality.evidence_window_days`, which the resolver defaults to 7 days);
 - where no producer is designated, the most cautious producer's entry stands for each area;

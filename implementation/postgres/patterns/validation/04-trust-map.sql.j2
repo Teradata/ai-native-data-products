@@ -30,7 +30,9 @@ WITH product AS (
     SELECT y.{{ r.product_code|ident }}, y.{{ r.producer_id|ident }}, y.{{ r.run_id|ident }}, 'PRODUCT', y.{{ r.product_code|ident }},
            CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'no-evidence'
                 WHEN y.{{ r.failed_count|ident }} = 0 AND y.{{ r.error_count|ident }} = 0 THEN 'pass' ELSE 'fail' END,
-           CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'unknown' ELSE 'partial' END,
+           CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'unknown'
+                WHEN y.{{ r.critical_failure_count|ident }} + y.{{ r.error_failure_count|ident }} > 0 THEN 'weak'
+                ELSE 'partial' END,
            y.{{ r.total_checks|ident }}, y.{{ r.total_checks|ident }}, y.{{ r.passed_count|ident }}, y.{{ r.failed_count|ident }},
            y.{{ r.error_count|ident }}, y.{{ r.critical_failure_count|ident }}, y.{{ r.error_failure_count|ident }},
            'Derived from a run with no area records.', NULL, y.{{ r.completed_dts|ident }}, y.{{ r.evidence_expires_dts|ident }}, TRUE
