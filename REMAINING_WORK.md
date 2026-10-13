@@ -142,10 +142,12 @@ Found on the way, not done:
 - `examples/alation-interface/` ships `.sql` files, which the "examples hold inputs, not
   generated output" rule (Authoring §7) checks only for the ITSD example.
 
-### 3. CI (task 8)
-The workflow installs every driver and runs all three engines. Remaining (admin settings): add
-the `TERADATA_TEST_DSN` secret, then make the check required. ClearScape systems hibernate and
-expire; the secret needs a system that stays up, or CI will report the gap.
+### 3. CI (task 8) — guide written; admin steps outstanding
+The workflow installs every driver, runs all three engines and checks the conformance reports.
+What is left are repository-admin and system steps, written up in `docs/ci-setup.md`: a
+dedicated Teradata system and CI user, the `TERADATA_TEST_DSN` secret, a first run (committing
+the reports CI regenerates), and making `validate` a required check. CI cannot go green until
+the task 1a decision removes the two failing package tests.
 
 ### 4. Adoption modes
 Adopted entities and containers resolve, but no engine test deploys over an existing table.
