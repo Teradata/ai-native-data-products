@@ -1,9 +1,11 @@
-{# Every table in a container the product places objects in is registered in EntityMetadata,
-   keymaps included. Every returned row is an unregistered table. #}
+{# Every table of the product is registered in EntityMetadata, keymaps included: every table
+   in a container it owns, and each table it adopted. Every returned row is an unregistered
+   table. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set meta = named('EntityMetadata') %}{% set c = meta.column_names %}
 SELECT TRIM(t.DatabaseName) AS container_name, TRIM(t.TableName) AS table_name FROM DBC.TablesV t
 LEFT JOIN {{ meta.objects.table|qualified }} e
   ON e.{{ c.container_name|ident }} = TRIM(t.DatabaseName) AND e.{{ c.table_name|ident }} = TRIM(t.TableName)
 WHERE t.TableKind IN ('T', 'O')
-  AND TRIM(t.DatabaseName) IN ({% for k in containers if k.holds_objects %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %})
+  AND {{ m.in_product('TRIM(t.DatabaseName)', 'TRIM(t.TableName)') }}
   AND e.{{ c.entity_name|ident }} IS NULL

@@ -14,7 +14,7 @@
 CREATE ROLE {{ principals[tier].name|ident }};
 COMMENT ON ROLE {{ principals[tier].name|ident }} IS {{ m.comment(product.name ~ ' data product - ' ~ who[tier] ~ '.') }};
 {%- endfor %}
-{% for k in containers if k.holds_objects %}
+{% for k in containers if k.holds_objects and not k.adopted %}
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, DROP TABLE, CREATE VIEW, DROP VIEW, STATISTICS ON {{ k.name|ident }} TO {{ admin|ident }};
 {%- endfor %}
 {# A database-level grant reaches only a database that holds no tables; consumer views that

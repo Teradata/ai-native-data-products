@@ -81,7 +81,7 @@ Binding: -
   Deploy: deploy.sql.j2
   Gaps:
     Composition: only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy
-    Adoption: templates skip adopted containers and relations; no test deploys over an adopted structure, and the canonical names over an adopted entity's column aliases are not presented
+    Adoption: the reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered
     Maintenance: only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted
     Historical references: the reference check covers current surfaces only
     Cookbook recipes: cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join

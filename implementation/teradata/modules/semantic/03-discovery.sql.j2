@@ -2,6 +2,7 @@
    catalogue, manifest and relationship paths, and Observability's lineage views. Each is
    created only where the composition places it. Teradata views take no ORDER BY, and a
    union's text widths come from its first branch, so every text column is cast. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set colmeta = named('ColumnMetadata') %}{% set catalogue = named('ColumnCatalogue') %}
 {% if catalogue and colmeta %}{% set c = colmeta.column_names %}
 REPLACE VIEW {{ catalogue.objects.consumer_view|qualified }} AS
@@ -17,7 +18,7 @@ FROM DBC.ColumnsV col
 LEFT JOIN {{ colmeta.objects.table|qualified }} m
   ON m.{{ c.container_name|ident }} = TRIM(col.DatabaseName) AND m.{{ c.table_name|ident }} = TRIM(col.TableName)
  AND m.{{ c.column_name|ident }} = TRIM(col.ColumnName)
-WHERE TRIM(col.DatabaseName) IN ({% for k in containers if k.holds_objects %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %});
+WHERE {{ m.in_product('TRIM(col.DatabaseName)', 'TRIM(col.TableName)') }};
 {% endif %}
 {% set registry = named('DataProductRegistry') %}{% set orient = named('DataProductOrientation') %}
 {% set manifest = named('DataProductManifest') %}

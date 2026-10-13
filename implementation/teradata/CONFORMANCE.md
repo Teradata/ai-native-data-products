@@ -8,11 +8,11 @@ Engine evidence: Teradata 20.00.24.60 through teradatasql 20.0.0.71.
 
 | Outcome | Count |
 |---|---|
-| Passed | 37 |
+| Passed | 38 |
 | Failed | 2 |
 | Skipped | 0 |
 | Gaps reported by the builds | 20 |
-| Gaps the binding declares | 12 |
+| Gaps the binding declares | 13 |
 
 ## Failures
 
@@ -55,13 +55,14 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | Area | Gap |
 |---|---|
 | Composition | Only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy. |
-| Adoption | Templates skip adopted containers and relations; no test deploys over an adopted structure, and the canonical names over an adopted entity's column aliases are not presented. |
+| Adoption | The reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered. |
 | Maintenance | Only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted. |
 | Historical references | The reference check covers current surfaces only. |
 | Cookbook recipes | Cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join. |
 | Embedding, model and operations | No encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these. |
 | Temporal enforcement | Teradata enforces neither one open version per identity nor non-overlapping intervals in its schema; the temporal check finds both after the fact. |
 | Point-in-time call | No table functions, so no parameterised point-in-time call; consumers apply the temporal predicates to the governed views they are granted. |
+| Adopted databases | The implied grant on an adopted database is emitted by the build, so the deploying user needs its owner's rights; the access-layer pattern has the owner provision it and the build report it as outstanding, which is not rendered. |
 | Deployment | DDL commits per statement, so a failed deployment cannot be rolled back; it is cleared by dropping the product's databases. |
 | Concurrency | No lock serialises concurrent maintenance writers, and no concurrent-writer test exists. |
 | Principals and membership | Roles carry rights only; users, memberships and passwords are operator work. |
@@ -75,6 +76,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 |---|---|
 | A legacy run is graded by its counts and capped | pass |
 | A vector of the wrong dimension is refused | pass |
+| An adopted entity is used where it stands | pass |
 | An unregistered table is detected | pass |
 | An unrelated product deploys and every check passes | pass |
 | Bitemporal maintenance keeps known history | pass |

@@ -17,7 +17,7 @@ context. Every binding's Jinja templates read only that context.
 | PostgreSQL binding | On the build context. Both reference specifications deploy on PostgreSQL 16.4 and every rendered check passes |
 | DuckDB binding | On the build context. Both reference specifications deploy on DuckDB 1.5 and every rendered check passes |
 | Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates are not migrated and await a decision (task 1a) |
-| Tests | `tooling/validation/tests`: 253 of 255 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 72 pass (19 engine tests each on DuckDB, PostgreSQL and Teradata, 11 rendering, 4 Teradata dialect), none skipped. Each binding's `CONFORMANCE.md` is generated from them (`tooling/bindings/conformance.py`) |
+| Tests | `tooling/validation/tests`: 253 of 255 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 75 pass (20 engine tests each on DuckDB, PostgreSQL and Teradata, 11 rendering, 4 Teradata dialect), none skipped. Each binding's `CONFORMANCE.md` is generated from them (`tooling/bindings/conformance.py`) |
 
 Nothing has been pushed since the earlier review push. This branch is ahead of `origin` by the
 PR #72/#74 merge, the binding-conflict commits, the Teradata WIP and the Teradata migration.
@@ -149,9 +149,31 @@ dedicated Teradata system and CI user, the `TERADATA_TEST_DSN` secret, a first r
 the reports CI regenerates), and making `validate` a required check. CI cannot go green until
 the task 1a decision removes the two failing package tests.
 
-### 4. Adoption modes
-Adopted entities and containers resolve, but no engine test deploys over an existing table.
-Add one per binding.
+### 4. Adoption modes — reference mode done
+
+One engine test per binding, written once (`test_an_adopted_entity_is_used_where_it_stands`):
+the profile binds ITSD's `Category` to `<existing container>.category_master`; the test creates
+that container, the table and an unrelated table beside it, with a row in each, before the
+product exists. The build must create nothing in the table's place and change nothing on it,
+serve its row through the product's views, register it in `EntityMetadata` as the product's own,
+pass every check, and leave the unrelated table alone. Passes on DuckDB, PostgreSQL and
+Teradata.
+
+It found three ways every binding treated an adopted container as its own, now fixed with one
+`in_product` macro per binding: PostgreSQL revoked and re-granted privileges on an adopted schema
+(`GRANT ALL ON ALL TABLES` to the admin tier included), and Teradata granted admin rights on an
+adopted database; the `module semantic` check flagged the organisation's other tables in an
+adopted container as unregistered; and `ColumnCatalogue` published their metadata.
+
+Still open (declared in each binding's `Gaps`):
+- **Wrap and migrate modes**, and presenting canonical names over an adopted entity's
+  `Column aliases`, are not rendered. Authoring §4.3 says the modes are "defined separately";
+  they are not yet, so define them in the standard first.
+- **Adopted databases on Teradata**: the implied grant on an adopted database is emitted, so the
+  deploying user needs its owner's rights. Access-layer §4 has the owner provision it and the
+  build report it as outstanding; the manifest has no place for outstanding steps yet.
+- No check covers an adopted table's shape (its columns and descriptions): the `entity
+  metadata` and `entity temporal` checks render only for tables the product creates.
 
 ### 5. Review, push, PR
 Ask Paul to review. Push the branch and raise a PR into `main`; it includes PR #74. Then update

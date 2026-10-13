@@ -137,3 +137,11 @@ VALUES ({{ exprs|join(', ') }});
 {% macro comment(text) -%}
 {{- (text or '')|truncate(255, true, '', 0)|literal -}}
 {%- endmacro %}
+
+{#- True for an object of the product: anything in a container it owns, and, in a container it
+    adopted, only the tables it adopted. The organisation's other objects there are not the
+    product's to register, catalogue or check (Authoring Standard §4.3). -#}
+{% macro in_product(container, name) -%}
+({{ container }} IN ({% for k in containers if k.holds_objects and not k.adopted %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %})
+{%- for x in entities + relations if x.adopted|default(false) and x.objects.table is defined %} OR ({{ container }} = {{ x.objects.table.container|literal }} AND {{ name }} = {{ x.objects.table.name|literal }}){% endfor %})
+{%- endmacro %}

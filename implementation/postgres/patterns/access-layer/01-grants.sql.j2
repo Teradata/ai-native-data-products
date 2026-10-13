@@ -7,7 +7,7 @@
 {% for tier in ('ROLE_READ', 'ROLE_AGENT', 'ROLE_ADMIN') if principals[tier].create %}
 CREATE ROLE {{ principals[tier].name|ident }} NOLOGIN;
 {%- endfor %}
-{% for k in containers if k.holds_objects %}
+{% for k in containers if k.holds_objects and not k.adopted %}
 REVOKE ALL ON SCHEMA {{ k.name|ident }} FROM PUBLIC;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ k.name|ident }} FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA {{ k.name|ident }} REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;

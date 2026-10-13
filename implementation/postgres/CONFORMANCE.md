@@ -8,7 +8,7 @@ Engine evidence: PostgreSQL 16.4 through psycopg 3.3.6.
 
 | Outcome | Count |
 |---|---|
-| Passed | 35 |
+| Passed | 36 |
 | Failed | 0 |
 | Skipped | 0 |
 | Gaps reported by the builds | 13 |
@@ -41,7 +41,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | Area | Gap |
 |---|---|
 | Composition | Only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy. |
-| Adoption | Templates skip adopted containers and relations; no test deploys over an adopted structure, and the canonical names over an adopted entity's column aliases are not presented. |
+| Adoption | The reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered. |
 | Maintenance | Only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted. |
 | Historical references | The reference check covers current surfaces only. |
 | Cookbook recipes | Cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join. |
@@ -56,6 +56,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | Test | Outcome |
 |---|---|
 | A legacy run is graded by its counts and capped | pass |
+| An adopted entity is used where it stands | pass |
 | An unregistered table is detected | pass |
 | An unrelated product deploys and every check passes | pass |
 | Bitemporal maintenance keeps known history | pass |

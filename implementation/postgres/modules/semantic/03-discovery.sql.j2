@@ -2,6 +2,7 @@
    catalogue, manifest and relationship paths, and Observability's lineage views. Each is
    created only where the composition places it, and reads only relations the build context
    places. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set colmeta = named('ColumnMetadata') %}{% set catalogue = named('ColumnCatalogue') %}
 {% if catalogue and colmeta %}{% set c = colmeta.column_names %}
 CREATE VIEW {{ catalogue.objects.consumer_view|qualified }} AS
@@ -17,7 +18,7 @@ FROM information_schema.columns col
 LEFT JOIN {{ colmeta.objects.table|qualified }} m
   ON m.{{ c.container_name|ident }} = col.table_schema AND m.{{ c.table_name|ident }} = col.table_name
  AND m.{{ c.column_name|ident }} = col.column_name
-WHERE col.table_schema IN ({% for k in containers if k.holds_objects %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %});
+WHERE {{ m.in_product('col.table_schema', 'col.table_name') }};
 {% endif %}
 {% set registry = named('DataProductRegistry') %}{% set orient = named('DataProductOrientation') %}
 {% set manifest = named('DataProductManifest') %}

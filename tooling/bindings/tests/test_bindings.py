@@ -85,6 +85,20 @@ def prefixed_containers(text, prefix):
     return re.sub(r"(-> )([^ .]+\.)", lambda m: m.group(1) + prefix + m.group(2), text)
 
 
+def adopting(text, entity, target):
+    """The profile with one more entity bound to an existing object (Organisation Profile
+    Standard, `Adoption:`), as `<product_code>.<Entity>: <container>.<object>`."""
+    text = text.replace("\r\n", "\n")
+    line = f"    {entity}: {target}\n"
+    block = re.search(r"Adoption: -\n((?:  .*\n)*)", text)
+    if not block:
+        return text.rstrip("\n") + f"\n\n## Adoption\n\n```\nAdoption: -\n  Entities:\n{line}```\n"
+    fields = block.group(1)
+    fields = (fields.replace("  Entities:\n", "  Entities:\n" + line, 1) if "  Entities:\n" in fields
+              else fields + "  Entities:\n" + line)
+    return text[:block.start(1)] + fields + text[block.end(1):]
+
+
 class Rendering(unittest.TestCase):
     def test_every_binding_renders_every_reference_specification(self):
         for platform in PLATFORMS:
@@ -261,6 +275,20 @@ class EngineTests:
     def undo(self, sql):
         """Reverse a test's change to the schema, where the engine keeps it after the test."""
 
+    existing_container = "crm"
+
+    def create_container(self, name):
+        self.con.execute(f"CREATE SCHEMA {self.binding.ident(name)}")
+
+    def adopting_context(self, spec, entity, target):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / f"{self.platform}.md"
+            path.write_text(adopting(profile(self.platform).read_text(encoding="utf-8"), entity, target),
+                            encoding="utf-8")
+            ctx, findings = build_context.resolve(Path(spec), path)
+        assert not findings, [str(f) for f in findings]
+        return ctx
+
     # ---- harness ---------------------------------------------------------------------
     def context(self, spec):
         return context(spec, self.platform)
@@ -382,6 +410,70 @@ class EngineTests:
         return self.q(f"SELECT area_status, confidence FROM {self.view('TrustMap')} WHERE scope_id = {self.marker}", [scope])
 
     # ---- behaviour -------------------------------------------------------------------
+    def sample(self, x, key):
+        """One plausible row of `x` by logical attribute name, with `key` as its identifier."""
+        row = {}
+        for c in x["columns"]:
+            logical = re.split(r"[{(\[]", c["type"])[0]
+            if c["origin"] != "attribute":
+                continue
+            if c["physical_name"] in x["key_columns"]:
+                row[c["name"]] = key
+            elif c["references"]:
+                row[c["name"]] = None
+            elif c["members"]:
+                row[c["name"]] = c["members"][0]
+            elif logical == "Flag":
+                row[c["name"]] = self.flag(False)
+            elif logical in ("Integer", "Decimal"):
+                row[c["name"]] = 1
+            elif logical == "Timestamp":
+                row[c["name"]] = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            elif logical == "Date":
+                row[c["name"]] = date(2020, 1, 1)
+            else:
+                row[c["name"]] = f"existing {c['name']}"[:20]
+        row.update(self.temporal(x, datetime(2020, 1, 1, tzinfo=timezone.utc)))
+        return row
+
+    def test_an_adopted_entity_is_used_where_it_stands(self):
+        """Authoring Standard §4.3: the profile binds an entity to an existing table. The build
+        creates nothing in its place, serves its rows through the product's views, registers it
+        as the product's own, and leaves the organisation's other objects alone."""
+        container, name = self.existing_container, "category_master"
+        self.binding = load_binding(self.platform)[0]
+        self.ctx = self.adopting_context(ITSD, f"ITSD.Category", f"{container}.{name}")
+        category = named(self.ctx, "Category")
+        self.assertTrue(category["adopted"])
+        self.assertEqual((category["objects"]["table"]["container"], category["objects"]["table"]["name"]),
+                         (container, name))
+        # the organisation's existing structures, before the product exists
+        self.create_container(container)
+        existing = self.binding.qualified(container, name)
+        self.con.execute(f"CREATE TABLE {existing} ("
+                         + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}"
+                                     for c in category["columns"]) + ")")
+        unrelated = self.binding.qualified(container, "unrelated_data")
+        self.con.execute(f"CREATE TABLE {unrelated} (x INTEGER)")
+        self.insert("Category", self.sample(category, 7001))
+        self.con.execute(f"INSERT INTO {unrelated} (x) VALUES (1)")
+
+        self.deploy(ctx=self.ctx)
+        reading = re.compile(r"(CREATE|REPLACE)\s+(OR\s+REPLACE\s+)?(VIEW|FUNCTION|MACRO)\b", re.I)
+        touched = [s[:120] for s in statements(self.files["deploy.sql"])
+                   if re.match(r"(CREATE|ALTER|DROP|COMMENT|COLLECT|REVOKE|GRANT)\b", s, re.I)
+                   and existing in s and not reading.match(s)]
+        self.assertEqual(touched, [], "the build changed the adopted table or created one in its place")
+        key = self.binding.ident(category["key_columns"][0])
+        self.assertEqual(self.q(f"SELECT {key} FROM {self.view('Category')}"), [(7001,)])
+        meta = named(self.ctx, "EntityMetadata")["column_names"]
+        self.assertEqual(self.q(f"SELECT {self.binding.ident(meta['container_name'])}, {self.binding.ident(meta['table_name'])} "
+                                f"FROM {self.view('EntityMetadata')} WHERE {self.binding.ident(meta['entity_name'])} = "
+                                f"{self.marker}", ["Category"]), [(container, name)])
+        failing = [r for r in run_checks(self.con, self.manifest) if r["status"] != "PASSED"]
+        self.assertEqual(failing, [])
+        self.assertEqual(self.q(f"SELECT x FROM {unrelated}"), [(1,)])
+
     def test_the_engine_reports_its_version(self):
         """The engine and driver the evidence comes from, recorded for the conformance report."""
         self.engine_version = engine(self.platform).describe(self.con)
@@ -826,6 +918,21 @@ class Teradata(EngineTests, unittest.TestCase):
 
     def uncomment(self, table, column):
         self.con.execute(f"COMMENT ON COLUMN {table}.{column} IS ''")
+
+    existing_container = f"{TEST_PREFIX}_crm"
+
+    def create_container(self, name):
+        self.con.execute(f"CREATE DATABASE {self.binding.ident(name)} AS PERM = 100000000")
+
+    def adopting_context(self, spec, entity, target):
+        """Under a prefix of its own, so this product's databases and roles do not collide with
+        the shared deployment of the same specification; still dropped with the rest."""
+        path = Path(self.profiles.name) / "adopting.md"
+        path.write_text(adopting(isolated(profile("teradata").read_text(encoding="utf-8"), f"{TEST_PREFIX}_adopt"),
+                                 entity, target), encoding="utf-8")
+        ctx, findings = build_context.resolve(Path(spec), path, f"{TEST_PREFIX}_adopt")
+        assert not findings, [str(f) for f in findings]
+        return ctx
 
     def undo(self, sql):
         self.addCleanup(self.con.execute, sql)
