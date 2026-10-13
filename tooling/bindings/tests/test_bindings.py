@@ -10,6 +10,7 @@ from datetime import datetime,timezone
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import unittest
 
@@ -97,6 +98,19 @@ class Rendering(unittest.TestCase):
                     if c['product']['id']=='laboratory':
                         self.assertNotIn('ticket',files['deploy.sql'].lower())
                         self.assertNotIn('CREATE SCHEMA "itsd_',files['deploy.sql'])
+
+    def test_every_created_object_is_commented(self):
+        for p in PLATFORMS:
+            for c in (itsd(p),unrelated()):
+                with self.subTest(platform=p,product=c['product']['id']):
+                    sql=render_product(c,p)['deploy.sql']
+                    created=set(re.findall(r'CREATE (?:TABLE|VIEW|FUNCTION|MACRO) ([\w".]+)',sql))
+                    commented=set(re.findall(r'COMMENT ON (?:TABLE|VIEW|FUNCTION|MACRO TABLE) ([\w".]+)',sql))
+                    self.assertTrue(created)
+                    self.assertEqual(sorted(created-commented),[])
+                    if p=='postgres':
+                        ids=[m['test_id'] for m in json.loads(render_product(c,p)['manifest.json'])['checks']]
+                        self.assertIn(c['product']['id']+':comment-coverage',ids)
 
     def test_missing_names_and_strict_templates(self):
         from jinja2 import UndefinedError
@@ -224,6 +238,16 @@ class PostgreSQL(EngineTests,unittest.TestCase):
                     "SELECT * FROM itsd_domain.at_ticket(current_timestamp,current_timestamp)"]:
             with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 with self.con.transaction():self.con.execute(sql)
+
+    def test_comment_coverage_reports_uncommented_objects_and_columns(self):
+        m=self.deploy(itsd('postgres'))
+        check=next(c for c in m['checks'] if c['test_id']=='ITSD:comment-coverage')
+        self.assertEqual(self.con.execute(check['sql']).fetchall(),[])
+        self.con.execute('COMMENT ON COLUMN itsd_access.v_ticket.priority IS NULL')
+        self.con.execute('COMMENT ON VIEW itsd_access.trust_map IS NULL')
+        self.con.execute('COMMENT ON FUNCTION itsd_domain.at_ticket(TIMESTAMPTZ,TIMESTAMPTZ) IS NULL')
+        found={(r[1],r[2],r[3]) for r in self.con.execute(check['sql']).fetchall()}
+        self.assertEqual(found,{('column','v_ticket','priority'),('view','trust_map',None),('function','at_ticket',None)})
 
     def test_runtime_scopes_use_authenticated_login(self):
         import psycopg

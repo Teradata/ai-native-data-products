@@ -15,6 +15,8 @@ Binding of [Validation](../../../../design/patterns/validation.md). The design r
 
 `01-entity-check.sql.j2` returns physical-metadata and temporal defects; `02-relationship-check.sql.j2` checks current-surface reference coverage. Module validation templates add inventory and documentation coverage. The helper renders a check manifest for the actual product instead of a fixed test inventory.
 
+`03-comment-coverage.sql.j2` is the product-wide `MetadataCoverageCheck`. It sweeps every product schema in the catalogue and returns each schema, table, view, function and column with no comment, including objects no declared entity mentions. The helper adds it to the manifest as `{product}:comment-coverage` (scope `PRODUCT`). It does not judge the quality of a comment, only that one exists.
+
 `04-trust-map.sql.j2` retains wire-schema 2.1 semantics: designated producer, latest evidence per area, expiry, cautious fallback and no-evidence/unknown. It requires Semantic and Observability. Other compositions can execute checks without persisting evidence; absence of a module must not create dangling SQL.
 
 `tooling/bindings/validate.py` records errors without treating them as zero defects. PostgreSQL uses savepoints; DuckDB runs individual checks outside a caller transaction and publishes evidence in a separate transaction. It is a structural profile, not a certification of arbitrary business rules. Required documentation and unverified model/operational capabilities remain visible gaps. Add design-specific checks to the generated manifest in the product workspace, with explicit scope and provenance.

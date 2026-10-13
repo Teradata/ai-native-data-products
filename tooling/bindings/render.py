@@ -210,6 +210,9 @@ def render_product(raw,platform):
     for r in c['relationships']:
         checks.append(dict(test_id=r['source']+':'+r['source_column'],scope_kind='MODULE',scope_id=r['source_entity']['module'],
                            sql=render('patterns/validation/02-relationship-check.sql.j2',relationship=r).rstrip(';\n')))
+    if platform=='postgres':
+        checks.append(dict(test_id=c['product']['id']+':comment-coverage',scope_kind='PRODUCT',scope_id=c['product']['id'],
+                           sql=render('patterns/validation/03-comment-coverage.sql.j2').rstrip(';\n')))
     for module in ('semantic','memory'):
         if module in c['modules']:
             checks.append(dict(test_id=module+':coverage',scope_kind='MODULE',scope_id=module,

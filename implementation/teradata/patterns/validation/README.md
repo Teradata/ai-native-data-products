@@ -23,6 +23,7 @@ Teradata binding of [`design/patterns/validation.md`](../../../../design/pattern
 | `04-trust-map-views.sql` | `validation_trust_map`: the latest entry per (product, producer, area), coverage and staleness derived on read against each area's own run, plus the derived `PRODUCT` entry for a 2.0/1.0 producer. |
 | `consumer-queries.sql` | The map read before analytical use (reconciled against the caller's requested scopes, so a missing area reads as explicit `no-evidence` rather than disappearing), the whole map, the most-cautious composite, run-level evidence-age context, advisory summary, failure detail, per-area and run trends. |
 | `conformance-queries.sql` | `DBC`/data checks for the VAL conformance rules. `{sem}` tags the product's Semantic container where `PRODUCT`, `MODULE`, and `ENTITY` scopes are resolved; `PATTERN`/`CAPABILITY` have no deployed catalogue and are a producer build-time assertion instead. |
+| `comment-coverage.sql` | Product-wide `MetadataCoverageCheck`: databases, tables, views, macros, procedures, functions and the columns of tables and views with no comment. `{Product}` tags the product database prefix. Not a deployment step; run it against the deployed product, zero rows is a pass. |
 
 Deploy in file order: the views project the tables above them.
 

@@ -7,7 +7,7 @@ The old product-specific check count is no longer a coverage claim. Checks are r
 | Contract | Evidence | Remaining obligation |
 |---|---|---|
 | Reusability | ITSD and unrelated laboratory contexts, renamed containers/entities, different compositions/dimensions | Additional product designs and workload-specific types |
-| Physical metadata | Every declared field exists and carries a comment; keymaps registered | Full semantic meanings, metric/synonym coverage and domain quality |
+| Physical metadata | Every declared field exists and carries a comment; keymaps registered; catalogue sweep finds no uncommented schema, table, view, function or column in any product schema (`comment-coverage`) | Full semantic meanings, metric/synonym coverage and domain quality |
 | History | Half-open SCD2 and two-axis correction/reconstruction | Caller-planned replay, late changes, full temporal maintenance concurrency |
 | Relationships | Shared ITSD source rows and current-surface reference checks | Historical referential completeness |
 | Search / Prediction | Parameterised structures and source join-back | Encoder, feature pipeline, trained model and quality evidence |
