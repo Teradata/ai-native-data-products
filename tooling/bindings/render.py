@@ -74,10 +74,10 @@ def gaps(context):
             out.append(f"embeddings[{b['name']}]: the binding emits no similarity search object")
     unread = [x["name"] for x in context["entities"] + context["relations"]
               if x.get("history") and "consumer_view" in x["objects"]
-              and not {"function", "procedure"} & set(x["objects"])]
+              and not {"function", "procedure", "base_view"} & set(x["objects"])]
     if unread:
-        out.append(f"history: {', '.join(unread)} have no point-in-time surface consumers are granted; "
-                   f"their history is read through the governed tier only")
+        out.append(f"history: {', '.join(unread)} have no history surface consumers can be granted "
+                   f"(temporal-lifecycle-metadata §9)")
     for a in context.get("access_objects", []):
         out.append(f"access_objects[{a['name']}]: composite access objects are not rendered")
     out += [f"capture: {g}" for g in context.get("capture", {}).get("gaps", [])]

@@ -25,7 +25,7 @@ Feature derivations the specification declares are rendered in the Teradata dial
 
 | Capability | Binding |
 |---|---|
-| `PointInTimeReconstruction` | The governed base view carries the full temporal contract; reads as at an instant apply the profile's predicates to it. No consumer point-in-time surface is emitted (a reported gap). Cutoff correctness is a product obligation. |
+| `PointInTimeReconstruction` | The governed base view carries the full temporal contract and is granted to the read and agent tiers; reads as at an instant apply the profile's predicates to it. Cutoff correctness is a product obligation. |
 | `CurrentStateFilter` | Consumer view over current, undeleted rows. |
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |
 

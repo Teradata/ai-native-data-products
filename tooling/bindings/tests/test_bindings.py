@@ -857,17 +857,20 @@ class Teradata(EngineTests, unittest.TestCase):
 
     # ---- Teradata's own behaviour ----------------------------------------------------
     def test_the_read_tier_reaches_views_but_not_tables(self):
-        """Granted rights, read from the dictionary: the read role reaches the consumer view
-        and holds nothing on the database of the table beneath it."""
+        """Granted rights, read from the dictionary: the read role reaches the consumer view and
+        the governed view that carries history, and holds no right on the table beneath them,
+        nor on its whole database."""
         self.deploy()
         role = self.ctx["principals"]["ROLE_READ"]["name"]
         rights = {(d, t) for d, t, r in self.q(
             "LOCKING ROW FOR ACCESS SELECT TRIM(DatabaseName), TRIM(TableName), TRIM(AccessRight) "
             "FROM DBC.AllRoleRightsV WHERE RoleName = ?", [role]) if r == "R"}
         ticket = named(self.ctx, "Ticket")["objects"]
-        view, table = ticket["consumer_view"], ticket["table"]
-        self.assertTrue({(view["container"], "All"), (view["container"], view["name"])} & rights, rights)
-        self.assertFalse([d for d, _ in rights if d == table["container"]], rights)
+        view, history, table = ticket["consumer_view"], ticket["base_view"], ticket["table"]
+        for surface in (view, history):
+            self.assertTrue({(surface["container"], "All"), (surface["container"], surface["name"])} & rights, rights)
+        self.assertNotIn((table["container"], table["name"]), rights)
+        self.assertNotIn((table["container"], "All"), rights)
 
     def test_a_vector_of_the_wrong_dimension_is_refused(self):
         self.deploy()

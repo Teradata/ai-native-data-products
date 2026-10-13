@@ -22,9 +22,10 @@ Binding of [Access Layer](../../../../design/patterns/access-layer.md). The desi
 1. creates each principal the profile says to `create` as a role, with a comment naming who it is for, never what it reaches; an `existing` principal is used by name and not altered;
 2. grants the admin tier `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `DROP TABLE`, `CREATE VIEW`, `DROP VIEW` and `STATISTICS` on every database that holds objects (`ALL` carries `CREATE USER`, which Teradata grants to no role);
 3. grants `SELECT` on consumer views to the read and agent tiers: per view at grant level `object`; at grant level `container`, on each database that holds consumer views and no tables, and per view where a database holds both, so a grant never reaches a table;
-4. for each table whose primary role is `WRITE_TARGET`: on a runtime Memory relation, `SELECT`, `INSERT` and `UPDATE` for the agent tier; on any other write target (agent outcomes), `INSERT`.
+4. grants `SELECT` on the governed base view of every versioned relation with a consumer view to the read and agent tiers, one view at a time, so history is reachable as other bindings make it reachable through point-in-time functions (temporal-lifecycle-metadata §9); base views can share a database with tables, so these are never database grants;
+5. for each table whose primary role is `WRITE_TARGET`: on a runtime Memory relation, `SELECT`, `INSERT` and `UPDATE` for the agent tier; on any other write target (agent outcomes), `INSERT`.
 
-Governed base views carry the full temporal contract and are not granted to the read and agent tiers. Runtime Memory is not restricted to the requesting identity's scope: Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported` and every build with runtime relations reports it.
+Runtime Memory is not restricted to the requesting identity's scope: Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported` and every build with runtime relations reports it.
 
 The deploy script does not create users, assign passwords or grant roles to users; those are operator steps. Creating roles needs the `CREATE ROLE` right. Review the members of an `existing` role before binding a product to it.
 
@@ -32,7 +33,7 @@ The deploy script does not create users, assign passwords or grant roles to user
 
 | Capability | Binding |
 |---|---|
-| `AccessView` | Consumer views are the read and agent tiers' only table-like surface; the engine tests read the read role's rights from `DBC.AllRoleRightsV`. |
+| `AccessView` | Consumer views, and the governed views that carry history, are the read and agent tiers' only table-like surfaces; the engine tests read the read role's rights from `DBC.AllRoleRightsV`. |
 | `ProductRoleAccess` | Roles named by the profile; grants per object or per database. Runtime scope enforcement is a reported gap. |
 
 Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

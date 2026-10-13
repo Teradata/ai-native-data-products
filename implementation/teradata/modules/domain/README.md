@@ -33,7 +33,7 @@ Comments, governed and consumer views and statistics come from the temporal patt
 |---|---|
 | `SurrogateKeyAllocation` | Identity column on each keymap or inline-keyed table; `02-key-allocation.sql.j2` returns the permanent identifier. |
 | `CurrentStateFilter` | Consumer view over current, undeleted rows. |
-| `PointInTimeReconstruction` | The governed base view carries the full temporal contract; a point-in-time read applies the profile's predicates to it. Teradata SQL has no table functions, so no consumer point-in-time surface is emitted, and the build reports it as a gap. |
+| `PointInTimeReconstruction` | The governed base view carries the full temporal contract and is granted to the read and agent tiers; a read as at an instant applies the profile's predicates to it. Teradata SQL has no table functions, so there is no parameterised call. |
 | `NaturalKeyLookup` | Unique primary index on each keymap's natural key; consumer views carry the stable identifier. |
 | `EntityJoinBack` | Search and Prediction rows carry the Domain identifier; consumers join to the Domain consumer view. |
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |

@@ -25,7 +25,7 @@ Engine evidence: Teradata **20.00.24** (a ClearScape Analytics system) through t
 | Metrics and cookbook | Metric and cookbook recipes execute (parameterised recipes excepted). |
 | Search | A vector of the wrong dimension is refused by the engine. |
 | Validation evidence | Wire 2.1 run and area records; failures and errors never count as passes; latest evidence per area and staleness; designated producer, then cautious fallback; a legacy run graded on its counts and capped at `partial`; no evidence reads `unknown`; the shared `trust_cases.json` summaries; reported gaps cap the PRODUCT area at `partial`. |
-| Access | The read role holds `SELECT` on the consumer views' database and no right on the database of the tables beneath them, read from `DBC.AllRoleRightsV`. Views compile only through the implied grants the binding derives from the placement. |
+| Access | The read role holds `SELECT` on the consumer views and on the governed views that carry history, and no right on the tables beneath them or on their database, read from `DBC.AllRoleRightsV`. Views compile only through the implied grants the binding derives from the placement. |
 | Tooling | The renderer refuses reserved or non-empty output directories; the validator runs through the Teradata driver. |
 
 ## Declared gaps
@@ -33,7 +33,7 @@ Engine evidence: Teradata **20.00.24** (a ClearScape Analytics system) through t
 | Gap | Detail |
 |---|---|
 | Similarity search | No similarity search object is emitted: `TD_VECTORDISTANCE` cannot sit in a view or SQL function, and a procedure returning it is not yet written. Each `Embedding:` block is reported. |
-| Point-in-time for consumers | Teradata SQL has no table functions. History is read through the governed base views, which are not granted to consumers; every versioned relation with a consumer view is reported. Whether consumers should reach history at all is an open question across bindings. |
+| Point-in-time call | Teradata SQL has no table functions, so there is no parameterised call like PostgreSQL's point-in-time function. Consumers read history through the governed base views they are granted, applying the temporal predicates themselves. A macro per versioned relation would match the call. |
 | Runtime scope | `Runtime scope: unsupported`: runtime Memory is not restricted to the requesting identity's scope. Reported in every build with runtime relations. |
 | Graph lineage and catalogue interface | The templates under `modules/observability/04` to `10` and `patterns/catalogue-interface/` read the old flat context and no phase renders them. A specification or profile asking for either has it reported. Porting or retiring them is an open decision. |
 | Composite access objects | Composite access objects (for example the IT Service Desk `TicketDetail`) are not rendered or registered; the manifest reports each one. |

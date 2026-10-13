@@ -109,14 +109,15 @@ Placement: -
 
 ## Section 5. Separation Policy
 
-Strict separation: consumers are granted the access database only, so a grant there never
-exposes a base table.
+Strict separation: consumer views sit in the access database, which holds no tables, so a
+grant on that database never exposes a base table. The governed views that carry history sit
+with their tables and are granted to consumers one by one.
 
 ```
 Separation: -
   Policy:        STRICT_SEPARATION
   Object naming: container-discriminated
-  Exceptions:    Governed _Current views live in module databases as an internal tier; they are never granted to consumer principals.
+  Exceptions:    Governed _Current views live in module databases beside their tables; consumers reach them by per-view grants only.
 ```
 
 ## Section 6. Derivation Function

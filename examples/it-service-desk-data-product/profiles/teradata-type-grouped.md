@@ -94,7 +94,7 @@ Placement: -
 Separation: -
   Policy:        TYPE_GROUPED
   Object naming: name-discriminated
-  Exceptions:    Base and consumer views share the views container; the _cur suffix distinguishes them, and consumer principals are granted only the unsuffixed views.
+  Exceptions:    Base and consumer views share the views container; the _cur suffix distinguishes them. Consumers are granted views one by one, never a table.
 ```
 
 ## Section 6. Derivation Function

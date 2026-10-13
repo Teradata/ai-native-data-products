@@ -32,7 +32,7 @@ Binding of [Temporal Lifecycle Metadata](../../../../design/patterns/temporal-li
 
 `03-access-views.sql.j2` creates two views per persisted relation, each with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, so a consumer never blocks a load:
 
-- the **governed base view**, for every relation with a `base_view` object (this binding emits `base_view: all`): every column and every row, the full temporal contract. Teradata SQL has no table functions, so a read as at an instant applies the profile's predicates to this view; it is not granted to consumers, and the build reports the absence of a consumer point-in-time surface as a gap;
+- the **governed base view**, for every relation with a `base_view` object (this binding emits `base_view: all`): every column and every row, the full temporal contract. Teradata SQL has no table functions, so a read as at an instant applies the profile's predicates to this view. For versioned relations it is granted to the read and agent tiers ([access-layer](../access-layer/README.md));
 - the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` macro) over the base view, carrying every column except the open interval ends `valid_to_dts` and `transaction_to_dts`. Runtime relations have no consumer view.
 
 `04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls the transaction and runs the checks before ending it. It:
@@ -52,7 +52,7 @@ Validity and knowledge intervals are half-open; the sentinel appears only as an 
 | Capability | Binding |
 |---|---|
 | `CurrentStateFilter` | `current` macro behind the consumer views and reference checks. |
-| `PointInTimeReconstruction` | The governed base view; the profile's predicates select the rows at an instant. No consumer surface: a reported gap. |
+| `PointInTimeReconstruction` | The governed base view, granted to the read and agent tiers; the profile's predicates select the rows at an instant. |
 | `SoftDelete` | `is_deleted` and `deleted_dts`; the `entity temporal` check finds a disagreement; deleted rows are excluded from current reads. |
 
 Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

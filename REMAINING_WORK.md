@@ -87,8 +87,8 @@ Conflicts between bindings found and fixed, each with a test so it cannot come b
   even with ERROR failures. Validation §10 applies §4.3, capped at `partial`, so it is `weak`.
   All three now agree; engine test on every binding.
 - **Unreported gaps.** A profile's `mask`/`exclude` protection, object-storage placement, and a
-  versioned relation with no consumer point-in-time surface are now reported by `render.py` for
-  every binding.
+  versioned relation with no history surface consumers can be granted are now reported by
+  `render.py` for every binding.
 
 #### 1a. Still open on Teradata
 
@@ -103,10 +103,11 @@ Conflicts between bindings found and fixed, each with a test so it cannot come b
   dynamic result set (`Emits: procedure: embedding`, which the resolver already supports) can now
   be verified on the engine. Vectors are JSON text, so it would parse them, or the binding moves
   to `TD_VECTORDISTANCE` over a columnar layout.
-- **Point-in-time for consumers.** Teradata has no table functions; history is in the governed
-  base views, which are not granted to consumers. Reported as a gap. Settle with the open
-  question "History for consumers" below; a procedure or macro per versioned relation would
-  close it.
+- **History for consumers: simple fix done, broader change pending.** Teradata now grants the
+  governed base view of every versioned relation to the read and agent tiers, per view, as
+  PostgreSQL grants its point-in-time functions, so history reaches the same tiers on every
+  binding. There is no parameterised call (no table functions); a macro per relation would add
+  one. The broader change is its own PR (see open questions).
 - **Comment speed.** Column comments can take seconds each when other sessions touch the
   dictionary. Batching them into multi-statement requests (as the tests do) helps; a
   BTEQ-friendly `deploy.sql` cannot batch.
@@ -141,19 +142,23 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
   render one.
 - Runtime Memory scope on DuckDB and Teradata (`Runtime scope: unsupported`). PostgreSQL
   enforces it with row-level security.
-- Similarity search and consumer point-in-time surfaces on Teradata.
+- Similarity search on Teradata.
 - Classification protection (`mask`, `exclude`) and object-storage placement, on every binding,
   when a profile asks for them (the Teradata type-grouped example does).
 - The graph-lineage exposure and the catalogue registration, when a specification or profile
   asks for them.
 
 ## Open questions and review notes
-- **History for consumers.** Point-in-time functions (PostgreSQL `SECURITY DEFINER`, DuckDB
-  macros) are granted to the read and agent tiers, following access-layer §143 (the governed
-  full-contract surface is a consumer surface). Confirm that is intended, since it exposes full
-  history including personal-data columns. Teradata does the opposite today (its governed base
-  views are not granted, and the example profile says so), so the bindings disagree until this
-  is settled.
+- **History for consumers, and tables apart from views (separate PR).** Every binding now grants
+  history to the read and agent tiers: PostgreSQL through `SECURITY DEFINER` point-in-time
+  functions, DuckDB through macros, Teradata through per-view grants on its governed views.
+  Still to settle: (1) the access-layer grant matrix never names the governed full-contract
+  surface, so add a row for it, and confirm exposing full history (personal-data columns
+  included) is intended; (2) Teradata best practice keeps tables and views in separate
+  databases, so maintainers and consumers never touch a table and grants can be database-level.
+  Do this on PostgreSQL and DuckDB too, so the placement looks the same everywhere, then move
+  Teradata's governed views out of the table databases; (3) rename the example profile's
+  `{entity}_Current` base views, which hold full history.
 - **Fixed view column names.** The output columns of the discovery views (`ColumnCatalogue`,
   `TrustMap`, `LineageRunLatest`, the manifest's per-role columns) are fixed in templates. If
   organisations must rename them, the module standards need to define the views' columns so the
