@@ -115,6 +115,18 @@ Binding: -
     12-trust.sql: patterns/validation/04-trust-map.sql.j2
     13-documentation.sql: modules/memory/02-capture.sql.j2
   Deploy: deploy.sql.j2
+  Gaps:
+    Composition: only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy
+    Adoption: templates skip adopted containers and relations; no test deploys over an adopted structure, and the canonical names over an adopted entity's column aliases are not presented
+    Maintenance: only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted
+    Historical references: the reference check covers current surfaces only
+    Cookbook recipes: cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join
+    Embedding, model and operations: no encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these
+    Roles, grants and runtime privacy: unsupported by the engine; there is no access phase, the profile declares how each tier is enforced outside the database, and no access evidence is published
+    Temporal enforcement: no exclusion constraint or partial unique index, so non-overlap and a single current version are found by the temporal check, not prevented
+    Concurrency: one writing connection is assumed; no concurrent-writer or crash-recovery test exists
+    Catalogue scope: discovery and validation queries filter by schema name, not by current_database()
+    Coverage not carried over: the earlier reference's bespoke checks are not reproduced: a point-in-time training function and retrospective-rewrite guard for Prediction, metric and synonym reference checks, content-duplication allowlists and placement inventory checks
   Checks:
     entity metadata: patterns/validation/01-entity-metadata.sql.j2
     entity temporal: patterns/validation/02-entity-temporal.sql.j2

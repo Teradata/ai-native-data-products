@@ -79,6 +79,15 @@ Binding: -
     13-documentation.sql: modules/memory/02-capture.sql.j2
     14-access.sql: patterns/access-layer/01-grants.sql.j2
   Deploy: deploy.sql.j2
+  Gaps:
+    Composition: only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy
+    Adoption: templates skip adopted containers and relations; no test deploys over an adopted structure, and the canonical names over an adopted entity's column aliases are not presented
+    Maintenance: only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted
+    Historical references: the reference check covers current surfaces only
+    Cookbook recipes: cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join
+    Embedding, model and operations: no encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these
+    Concurrency: the maintenance template takes an advisory lock, but no concurrent-writer test exists
+    Principals and membership: roles are NOLOGIN; login users, memberships and a shared-scope Memory policy are operator work
   Checks:
     entity metadata: patterns/validation/01-entity-metadata.sql.j2
     entity temporal: patterns/validation/02-entity-temporal.sql.j2

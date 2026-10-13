@@ -202,6 +202,7 @@ def long_named(spec, tmp):
 
 
 class TeradataDialect(unittest.TestCase):
+    platform = "teradata"
     @classmethod
     def setUpClass(cls):
         cls.rendered, cls.long = {}, set()

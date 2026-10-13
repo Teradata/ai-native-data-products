@@ -37,6 +37,7 @@ class Binding:
     settings: Dict[str, str] = field(default_factory=dict)
     phases: Dict[str, str] = field(default_factory=dict)
     checks: Dict[str, str] = field(default_factory=dict)
+    gaps: Dict[str, str] = field(default_factory=dict)
     deploy: Optional[str] = None
     types: Dict[str, str] = field(default_factory=dict)
     functions: Dict[str, str] = field(default_factory=dict)
@@ -116,6 +117,7 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     b.settings = _mapping(fields.get("Settings"))
     b.phases = _mapping(fields.get("Phases"))
     b.checks = _mapping(fields.get("Checks"))
+    b.gaps = _mapping(fields.get("Gaps"))
     b.deploy = fields.get("Deploy")
     for key in b.checks:
         scope = key.split(" ")[0]

@@ -114,6 +114,7 @@ A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when i
 | `Settings` | no | mappings | Each binding setting an organisation profile may set, with its permitted values and default, as `<setting>: <values>; default <value>`. |
 | `Phases` | no | mappings | The deployment phases in order, each as `<file>: <template>`. A template that renders nothing for a composition emits no file. |
 | `Deploy` | no | text | The template that joins the rendered phases into one deployable script. It reads `phases`, the rendered files in order, each with its `file` and `sql`. |
+| `Gaps` | no | mappings | Each known gap no check can detect, as `<area>: <what is not covered>`: an untested composition or adoption mode, a constraint the engine cannot enforce, evidence the binding cannot produce. The conformance report lists them with the gaps the builds report (§8.1). |
 | `Checks` | no | mappings | The validation checks a build manifest carries, each as `<scope> <check>: <template>`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
 
 #### `Types:`
@@ -171,7 +172,7 @@ Static naming and file-extension checks alone cannot establish portability. Revi
 
 ### 8.1 Conformance status follows evidence
 
-The checks produce a conformance report per binding: what passes, what fails, and each gap. A binding document, and the binding as a whole, may carry `status: standard` only when its report shows no gaps; otherwise it is `draft`. The report is generated from the checks, never maintained by hand.
+The checks produce a conformance report per binding: what passes, what fails, and each gap. A binding document, and the binding as a whole, may carry `status: standard` only when its report shows no gaps; otherwise it is `draft`. The report is generated from the checks, never maintained by hand: `tooling/bindings/conformance.py` runs the tests, renders the reference builds, and writes each binding's `CONFORMANCE.md` with every outcome, every gap the builds report, every gap the binding declares (`Gaps`, §5.1) and every skipped engine.
 
 A pull request must not increase any binding's reported gaps. A binding with gaps can still be improved, used and merged into; it cannot be described as conforming. The same rule applies to every platform, existing and new.
 

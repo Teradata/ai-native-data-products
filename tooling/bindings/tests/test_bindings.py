@@ -122,34 +122,37 @@ class Rendering(unittest.TestCase):
     def test_a_platform_without_principals_refuses_to_create_them(self):
         unsupported = [p for p in PLATFORMS if load_binding(p)[0].principals == "unsupported"]
         for platform in unsupported:
-            with tempfile.TemporaryDirectory() as tmp:
-                bad = Path(tmp) / f"{platform}.md"
-                bad.write_text(profile(platform).read_text(encoding="utf-8").replace(
-                    "ROLE_READ:   outside read-only file access to the database",
-                    "ROLE_READ:   create {product_code|lower}_reader"), encoding="utf-8")
-                _, findings = build_context.resolve(ITSD, bad)
-                self.assertIn("unsupported-principal", {f.rule for f in findings})
+            with self.subTest(platform=platform):
+                with tempfile.TemporaryDirectory() as tmp:
+                    bad = Path(tmp) / f"{platform}.md"
+                    bad.write_text(profile(platform).read_text(encoding="utf-8").replace(
+                        "ROLE_READ:   outside read-only file access to the database",
+                        "ROLE_READ:   create {product_code|lower}_reader"), encoding="utf-8")
+                    _, findings = build_context.resolve(ITSD, bad)
+                    self.assertIn("unsupported-principal", {f.rule for f in findings})
 
     def test_templates_are_strict(self):
         for platform in PLATFORMS:
-            ctx = context(ITSD, platform)
-            env = environment(load_binding(platform)[0], ctx)
-            with self.assertRaises(UndefinedError):
-                env.from_string("{{ product.no_such_field }}").render(**ctx)
+            with self.subTest(platform=platform):
+                ctx = context(ITSD, platform)
+                env = environment(load_binding(platform)[0], ctx)
+                with self.assertRaises(UndefinedError):
+                    env.from_string("{{ product.no_such_field }}").render(**ctx)
 
     def test_caller_templates_quote_their_values(self):
         for platform in PLATFORMS:
-            ctx = context(ITSD, platform)
-            env = environment(load_binding(platform)[0], ctx)
-            sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-                **dict(ctx, keymap=named(ctx, "TicketKeymap"), natural_value="T-1'; DROP"))
-            self.assertIn("'T-1''; DROP'", sql)
-            ticket = named(ctx, "Ticket")
-            row = {c["physical_name"]: None for c in ticket["columns"]}
-            sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-                **dict(ctx, entity=ticket, stable_key=1, effective_at="2026-01-01", recorded_at="2026-02-01",
-                       replacement_rows=[row]))
-            self.assertIn("INSERT INTO", sql)
+            with self.subTest(platform=platform):
+                ctx = context(ITSD, platform)
+                env = environment(load_binding(platform)[0], ctx)
+                sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
+                    **dict(ctx, keymap=named(ctx, "TicketKeymap"), natural_value="T-1'; DROP"))
+                self.assertIn("'T-1''; DROP'", sql)
+                ticket = named(ctx, "Ticket")
+                row = {c["physical_name"]: None for c in ticket["columns"]}
+                sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
+                    **dict(ctx, entity=ticket, stable_key=1, effective_at="2026-01-01", recorded_at="2026-02-01",
+                           replacement_rows=[row]))
+                self.assertIn("INSERT INTO", sql)
 
     def test_one_specification_gives_every_binding_the_same_product(self):
         """One specification, under each platform's example organisation profile, places the
@@ -185,9 +188,10 @@ class Rendering(unittest.TestCase):
 
     def test_gaps_are_reported_not_hidden(self):
         for platform in PLATFORMS:
-            gaps = json.loads(render_context(context(ITSD, platform))["manifest.json"])["gaps"]
-            self.assertTrue(any("as_of" in g for g in gaps), gaps)
-            self.assertTrue(any("TicketDetail" in g for g in gaps), gaps)
+            with self.subTest(platform=platform):
+                gaps = json.loads(render_context(context(ITSD, platform))["manifest.json"])["gaps"]
+                self.assertTrue(any("as_of" in g for g in gaps), gaps)
+                self.assertTrue(any("TicketDetail" in g for g in gaps), gaps)
 
     def test_cli_refuses_reserved_and_existing_output(self):
         cmd = [sys.executable, str(REPO / "tooling" / "bindings" / "render.py"), str(ITSD), str(profile(PLATFORMS[0]))]
@@ -378,6 +382,11 @@ class EngineTests:
         return self.q(f"SELECT area_status, confidence FROM {self.view('TrustMap')} WHERE scope_id = {self.marker}", [scope])
 
     # ---- behaviour -------------------------------------------------------------------
+    def test_the_engine_reports_its_version(self):
+        """The engine and driver the evidence comes from, recorded for the conformance report."""
+        self.engine_version = engine(self.platform).describe(self.con)
+        self.assertTrue(self.engine_version)
+
     def test_itsd_deploys_and_every_check_passes(self):
         self.deploy()
         failing = [r for r in run_checks(self.con, self.manifest) if r["status"] != "PASSED"]

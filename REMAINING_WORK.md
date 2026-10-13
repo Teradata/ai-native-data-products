@@ -17,7 +17,7 @@ context. Every binding's Jinja templates read only that context.
 | PostgreSQL binding | On the build context. Both reference specifications deploy on PostgreSQL 16.4 and every rendered check passes |
 | DuckDB binding | On the build context. Both reference specifications deploy on DuckDB 1.5 and every rendered check passes |
 | Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates are not migrated and await a decision (task 1a) |
-| Tests | `tooling/validation/tests`: 240 of 242 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 68 pass (18 engine tests each on DuckDB, PostgreSQL and Teradata, 10 rendering, 4 Teradata dialect), none skipped |
+| Tests | `tooling/validation/tests`: 253 of 255 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 72 pass (19 engine tests each on DuckDB, PostgreSQL and Teradata, 11 rendering, 4 Teradata dialect), none skipped. Each binding's `CONFORMANCE.md` is generated from them (`tooling/bindings/conformance.py`) |
 
 Nothing has been pushed since the earlier review push. This branch is ahead of `origin` by the
 PR #72/#74 merge, the binding-conflict commits, the Teradata WIP and the Teradata migration.
@@ -112,14 +112,35 @@ Conflicts between bindings found and fixed, each with a test so it cannot come b
   dictionary. Batching them into multi-statement requests (as the tests do) helps; a
   BTEQ-friendly `deploy.sql` cannot batch.
 
-### 2. Conformance tests (task 7)
-- Generate each binding's conformance report from the tests, replacing the hand-maintained
-  `implementation/{postgres,duckdb}/CONFORMANCE.md` (Authoring Standard §8.1). The report
-  should list every manifest gap and every skipped engine.
-- Add a cross-platform test: the same specification renders on every binding with the same
-  relation set and the same check ids.
-- Add a `design_lint` rule against platform names in `design/`.
-- Package the skill and check what it contains.
+### 2. Conformance tests (task 7) — done
+
+- **Generated conformance reports.** `tooling/bindings/conformance.py` runs the binding and
+  package tests once, attributes every outcome to the binding it evidences (an engine class's
+  `platform`, or a subtest's `platform` parameter; the platform loops now use subtests), renders
+  both reference specifications under every example profile per platform, and writes each
+  `CONFORMANCE.md`: outcomes, failures, skips, every gap the builds report, and the gaps the
+  binding declares in a new `Gaps` field of its `Binding:` block (Authoring §5.1). Engine
+  versions are recorded by a new engine test. `--check` fails when a committed report is out of
+  date and names any gap it does not carry; CI runs it instead of the plain binding suite and
+  uploads the regenerated reports. A package test requires each report to be generated and
+  forbids `status: standard` in a binding whose report is `draft`.
+- **Cross-platform test.** One specification, under each platform's example profile, places the
+  same relations and renders the same checks (ids and scopes) on every binding.
+- **`platform-name` lint rule.** No document under `design/` names a platform, with no
+  `ignore-file` escape. The known-platform list moved into the linter (spec_lint reads it there).
+  The Design Language's stale Appendix A (a copy of the bindings' types that had drifted) now
+  points at the bindings' declarations.
+- **Skill package.** `verify_skill.py --package` builds what an install receives (`git archive
+  HEAD`) and checks the routing against it, the entry files, and that nothing the `.gitignore`
+  excludes ships. `{platform}` routes must now resolve on every binding; the platforms are
+  discovered (they were hard-coded to Teradata). A test holds this repository to it.
+
+Found on the way, not done:
+- `design_lint.py` checks the 255-character comment limit only `if "teradata" in sql.parts`: a
+  platform special case in tooling. The limit belongs in the binding's declarations (or the
+  static check can go, since `test_teradata_dialect.py` checks rendered comments).
+- `examples/alation-interface/` ships `.sql` files, which the "examples hold inputs, not
+  generated output" rule (Authoring §7) checks only for the ITSD example.
 
 ### 3. CI (task 8)
 The workflow installs every driver and runs all three engines. Remaining (admin settings): add
@@ -134,7 +155,7 @@ Add one per binding.
 Ask Paul to review. Push the branch and raise a PR into `main`; it includes PR #74. Then update
 PR #75 (layout standard) or withdraw it: the organisation profile now covers layout and naming.
 
-## Known gaps the builds report (in each manifest's `gaps`)
+## Known gaps the builds report (in each manifest's `gaps`; each `CONFORMANCE.md` lists them per binding)
 - Expressions using `as_of`, `integrity` or `freshness`, which no binding declares a fragment
   for.
 - Composite access objects (`AccessObject:` blocks, such as ITSD's `TicketDetail`). The

@@ -39,6 +39,28 @@ recorded as an error, never as a pass. Where the product places `ValidationRun` 
 `ValidationArea`, one run and its area records are appended (wire schema 2.1), named as the
 build context placed them. Reported gaps cap the product-level area at `partial`.
 
+## Conformance reports
+
+```sh
+python tooling/bindings/conformance.py            # regenerate implementation/*/CONFORMANCE.md
+python tooling/bindings/conformance.py --check    # fail if a committed report is out of date
+```
+
+Each binding's `CONFORMANCE.md` is generated, never edited ([Platform Implementation
+Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §8.1). The generator runs
+these tests and the package tests once, records every outcome against the binding it is
+evidence for (an engine class's `platform`, or a subtest's `platform` parameter), renders both
+reference specifications under every example profile for the platform, and writes: the
+outcomes, each failure and skip, every gap the builds' manifests report, and the gaps the
+binding declares in its `PLATFORM_PROFILE.md` `Gaps` field. A binding is `standard` only when
+its report shows no failure, no skip and no gap.
+
+`--check` writes nothing in place and fails when a regenerated report differs from the
+committed one, naming any gap the committed report does not carry, so a change never adds a
+gap unseen. It also fails on any failing or skipped test. CI runs it with every engine and
+uploads the regenerated reports; commit them when they change. Engine-version lines are
+compared loosely, since they depend on where the tests ran.
+
 ## Tests
 
 ```sh

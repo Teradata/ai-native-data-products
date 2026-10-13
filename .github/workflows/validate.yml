@@ -71,8 +71,19 @@ jobs:
       - name: Validation suite (design lint, template hygiene, rendering)
         run: python -m unittest discover -s tooling/validation/tests -v 2>&1 | tee validation.log
 
-      - name: Binding suite (DuckDB, PostgreSQL and Teradata engine tests)
-        run: python -m unittest discover -s tooling/bindings/tests -v 2>&1 | tee bindings.log
+      # Runs the binding and package tests once and regenerates each binding's
+      # CONFORMANCE.md from them. Fails on any failing or skipped test, and when a
+      # committed report differs from the regenerated one (Authoring Standard 8.1);
+      # the regenerated reports are uploaded, to be committed when they change.
+      - name: Binding suite and conformance reports (DuckDB, PostgreSQL and Teradata engine tests)
+        run: python tooling/bindings/conformance.py --check --output build/conformance 2>&1 | tee bindings.log
+
+      - name: Upload the regenerated conformance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-reports
+          path: build/conformance/
 
       - name: Fail on skipped tests
         run: |

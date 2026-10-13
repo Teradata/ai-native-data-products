@@ -21,6 +21,10 @@ class Engine:
         """Wrap one check, so an error in it does not poison what follows."""
         return nullcontext()
 
+    def describe(self, con):
+        """The engine version and driver a connection reaches, for the conformance report."""
+        raise NotImplementedError
+
     @contextmanager
     def transaction(self, con):
         con.execute("BEGIN")
@@ -47,6 +51,10 @@ class PostgreSQL(Engine):
     def transaction(self, con):
         return con.transaction()
 
+    def describe(self, con):
+        import psycopg
+        return f"PostgreSQL {con.execute('SHOW server_version').fetchone()[0].split()[0]} through psycopg {psycopg.__version__}"
+
 
 class DuckDB(Engine):
     platform = "duckdb"
@@ -54,6 +62,10 @@ class DuckDB(Engine):
     def connect(self, database=None):
         import duckdb
         return duckdb.connect(database)
+
+    def describe(self, con):
+        import duckdb
+        return f"DuckDB {con.execute('SELECT version()').fetchone()[0]} through the duckdb {duckdb.__version__} Python driver"
 
 
 class TeradataCursor:
@@ -105,6 +117,11 @@ class Teradata(Engine):
         params = json.loads(database or os.environ[self.environment])
         params.setdefault("request_timeout", "600")
         return TeradataConnection(teradatasql.connect(**params))
+
+    def describe(self, con):
+        import teradatasql
+        version = con.execute("SELECT InfoData FROM DBC.DBCInfoV WHERE InfoKey = 'VERSION'").fetchone()[0]
+        return f"Teradata {version} through teradatasql {teradatasql.__version__}"
 
     @contextmanager
     def transaction(self, con):
