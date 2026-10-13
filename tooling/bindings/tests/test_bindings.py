@@ -151,6 +151,23 @@ class Rendering(unittest.TestCase):
                        replacement_rows=[row]))
             self.assertIn("INSERT INTO", sql)
 
+    def test_one_specification_gives_every_binding_the_same_product(self):
+        """One specification, under each platform's example organisation profile, places the
+        same relations and renders the same checks, with the same ids and scopes, on every
+        binding. What differs between bindings is how, never what."""
+        for spec in (ITSD, CUSTORD):
+            built = {}
+            for platform in PLATFORMS:
+                ctx = context(spec, platform)
+                checks = json.loads(render_context(ctx)["manifest.json"])["checks"]
+                built[platform] = (sorted(x["name"] for x in ctx["entities"] + ctx["relations"]),
+                                   sorted((c["test_id"], c["check"], c["scope_kind"], c["scope_id"]) for c in checks))
+            first = PLATFORMS[0]
+            for platform in PLATFORMS[1:]:
+                with self.subTest(spec=spec.name, platform=platform):
+                    self.assertEqual(built[platform][0], built[first][0], "relation set")
+                    self.assertEqual(built[platform][1], built[first][1], "checks")
+
     def test_every_binding_takes_the_path_bound_from_the_context(self):
         """Semantic §5 bounds path discovery; no binding fixes its own bound."""
         for platform in PLATFORMS:

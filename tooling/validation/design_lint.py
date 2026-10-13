@@ -80,6 +80,14 @@ VENDOR_TOKEN_PATTERNS = [
     (re.compile(r"\bTD_[A-Za-z_]\w*"), "TD_* function"),
 ]
 
+# Platforms a design document never names (Design Language, the design/implementation
+# boundary): every directory under implementation/, found when the linter runs, and these,
+# which have no binding yet. A capitalised name matches as written; a binding directory
+# matches in any case. The list lives here, with the SQL tokens, so design/ itself never
+# has to spell a platform to state the rule; the specification linter reads it too.
+KNOWN_PLATFORMS = ("Teradata", "Snowflake", "Databricks", "BigQuery", "Redshift", "Synapse",
+                   "Oracle", "SQL Server", "Postgres", "PostgreSQL", "DuckDB")
+
 # Known logical types (the Logical Type Vocabulary). Used by the entity-notation check.
 LOGICAL_TYPES = {
     "Identifier", "NaturalKey", "Reference", "Code", "ShortText", "Text",
@@ -752,6 +760,33 @@ def lint_text(path: str, text: str) -> List[Finding]:
     return sorted(findings, key=lambda f: (f.line, f.rule))
 
 
+def platform_names(repo_root: Path = None) -> List[str]:
+    """Every platform name a design document must not use: the known platforms, and every
+    binding directory under implementation/."""
+    names = list(KNOWN_PLATFORMS)
+    impl = (repo_root or Path(__file__).resolve().parents[2]) / "implementation"
+    if impl.is_dir():
+        names += sorted(p.name for p in impl.iterdir() if p.is_dir())
+    return names
+
+
+def find_platform_name_violations(text: str, path: str, names: List[str]) -> List[Finding]:
+    """A design document names no platform: whether a sentence would change with the
+    platform is the boundary test, and naming one is the plainest way to fail it. Not waived
+    by `ignore-file`, which exists for documents that must name SQL, never a platform."""
+    findings = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        named = {}
+        for name in names:
+            flags = re.I if name.islower() else 0
+            if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", line, flags):
+                named.setdefault(name.lower(), name)
+        findings += [Finding(path, lineno, "platform-name",
+                             f"names the platform '{name}'; design/ is platform-agnostic")
+                     for name in named.values()]
+    return findings
+
+
 def lint_file(path: Path) -> List[Finding]:
     text = path.read_text(encoding="utf-8")
     return lint_text(str(path), text)
@@ -797,6 +832,9 @@ def lint_paths(paths: List[str]) -> List[Finding]:
             # implementation/ is for, so linting it there would flag the intended content.
             if "design" in [q.lower() for q in md.parts]:
                 findings += lint_file(md)
+                root = Path(*md.resolve().parts[:[q.lower() for q in md.resolve().parts].index("design")])
+                findings += find_platform_name_violations(md.read_text(encoding="utf-8"), str(md),
+                                                          platform_names(root))
             if not is_design_document(md):
                 continue
             text = md.read_text(encoding="utf-8")

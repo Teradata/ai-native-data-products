@@ -40,6 +40,7 @@ assert lint_text("design/modules/domain.md", text) == []
 | `sql-fence` | a code block is tagged ` ```sql ` (or `tsql`, `plsql`, `psql`, `mysql`, `sqlite`). |
 | `sql-statement` | a line inside any code block starts with `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, or `WITH`. |
 | `vendor-token` | a platform data type or vendor token appears anywhere: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `TINYINT`, `DECIMAL(…)`, `NUMERIC(…)`, `FLOAT32`, `TIMESTAMP(…)`, `PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT <value>`, `COMMENT ON`, `::VECTOR`, any `TD_*` function. |
+| `platform-name` | a document under `design/` names a platform: any directory under `implementation/`, or one of the `KNOWN_PLATFORMS` the linter lists. Not waived by `ignore-file`, which lets a document name SQL, never a platform. |
 | `unknown-type` | an attribute inside an `Entity:` pseudo-block uses a type not in the logical vocabulary (the Design Language's Logical Type Vocabulary). |
 | `invariant-id` | an invariant id does not match `INV-<MODULE>-<NNN>` (the Design Language's Invariants section). |
 

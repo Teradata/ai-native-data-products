@@ -15,9 +15,13 @@ Stdlib only, like the linters beside it.
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "validation"))
+from design_lint import platform_names  # noqa: E402
 
 BACKTICK = re.compile(r"`([^`]+)`")
 ENUM_LEAD = re.compile(r"^`[^`]+`(?:(?:, | or )`[^`]+`)*")
@@ -217,12 +221,7 @@ def load_standard(design_root: Path) -> Standard:
     m = re.search(r"Weight dimensions are (.+?)\.", text)
     if m:
         std.weight_dimensions = set(BACKTICK.findall(m.group(1)))
-    m = re.search(r"or one of (.+?);", text)
-    if m:
-        std.platforms = {p.strip() for p in re.split(r",\s*|\s+or\s+", m.group(1)) if p.strip()}
-    impl = design_root.parent / "implementation"
-    if impl.is_dir():
-        std.platforms |= {p.name for p in impl.iterdir() if p.is_dir()}
+    std.platforms = set(platform_names(design_root.parent))
 
     _load_temporal(std, design_root / "patterns" / "temporal-lifecycle-metadata.md")
     std.patterns = {p.stem for p in (design_root / "patterns").glob("*.md")}

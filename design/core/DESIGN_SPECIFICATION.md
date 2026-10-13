@@ -360,7 +360,7 @@ Expressions are platform-neutral. Each binding maps every function below to its 
 `spec_lint` reports, in addition to its composition, decision and invariant checks:
 
 - frontmatter keys outside section 3.1, a missing or malformed `product_code`, and any `platform` key;
-- a platform named anywhere in the specification: any directory under `implementation/`, or one of Teradata, Snowflake, Databricks, BigQuery, Redshift, Synapse, Oracle, SQL Server, Postgres or DuckDB;
+- a platform named anywhere in the specification: any directory under `implementation/`, or a platform the design linter lists (`tooling/validation/design_lint.py`), as for every document in `design/`;
 - an entity without a valid `profile`, an invalid `allocation`, or a departure from either default with no covering `Decision:`;
 - a reference whose target does not resolve, or a multi-target reference without a discriminator;
 - a missing entity section, a feature group with no derived attribute, or a section field missing, unknown or invalid for its type;

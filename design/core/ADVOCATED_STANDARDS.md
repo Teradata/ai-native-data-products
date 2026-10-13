@@ -411,8 +411,8 @@ Three properties follow, and they are the reason this material is expressed as d
 | Version | Change |
 |---|---|
 | 2.1 | Added `DEC-GRAPH-SESSION-NODES` and `DEC-GRAPH-LOAD-CADENCE`; placement, naming and physical design deferred to the organisation profile and binding settings; zone-naive and external-allocator requirements given structured homes. |
-| 2.0 | Restructured from advisory prose into a decision catalogue expressed in the design language. Physical-design guidance moved to the Teradata platform profile; access-layer and object-placement material moved to their patterns; temporal column contracts moved to the temporal-lifecycle-metadata pattern. |
+| 2.0 | Restructured from advisory prose into a decision catalogue expressed in the design language. Physical-design guidance moved to the platform profiles; access-layer and object-placement material moved to their patterns; temporal column contracts moved to the temporal-lifecycle-metadata pattern. |
 | 1.6 | Added the access-layer section, deferring placement and naming to the Object Placement Standard. |
-| 1.5 | Established platform neutrality; Teradata physical design identified as a platform profile. |
+| 1.5 | Established platform neutrality; platform physical design identified as a platform profile. |
 | 1.4 | Surrogate key strategy rewritten to address instability in versioned entities. |
 | 1.0-1.3 | Initial advocated standards and naming alignment. |
