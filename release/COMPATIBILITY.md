@@ -36,43 +36,62 @@ One semantic version covers the whole standard, held in the root `VERSION` file.
 
 A consumer may rely on these across minor and patch releases:
 
-- **Logical identities.** A metadata entity is identified by module and entity name, for example
-  `semantic.table_relationship`. Physical container names are chosen by the product and are
-  not part of the contract; an agent resolves them through the manifest and the module map.
+- **Logical identities.** Entities, access objects and composites are identified by the grammar in
+  `contract.json` (`identity_grammar`): `module.entity`, `module.entity:surface`, `module:object` and
+  `composite:name`. An identity contains no container, product prefix or object-type affix and does
+  not change when a container is renamed or the design is deployed with different placement. The
+  physical container and object name are separate columns.
+- **Ordered groups are rows.** A key is the ordered rows of `key_column`; a relationship is a join
+  group whose column pairs are the ordered rows of `relationship_column`; an access object's output
+  columns are the rows of `access_column`. Ordinals run 1 to n without gaps. No platform stores a
+  group as a list, array or delimited string.
+- **Join paths are rows.** `relationship_paths` returns one row per step and key position, with the
+  columns and order listed in `contract.json`. A path has at most four steps and visits no entity
+  twice. The consumer assembles the join; no join string is part of the contract.
 - **Discovery roles.** The roles in `contract.json` (`TRUST_MAP`, `MANIFEST`, `MODULE_MAP`,
   `OBJECT_CATALOGUE`, `ENTITY_CATALOGUE`, `COLUMN_CATALOGUE`, `RELATIONSHIP_CATALOGUE`) and the access
   objects they name, with their columns and the order in which an agent reads them.
 - **Metadata entities and columns.** Names, types, nullability and meaning of each entity in
   `contract.json`. New columns are added only at the end of an entity or view.
-- **Comments exist.** Every product schema, table, view, function and column carries a comment
-  (the `comment-coverage` check). The wording of a comment is not stable.
+- **Comments exist.** Every product container (where the platform allows), table, view, routine and
+  column carries a comment (the `comment-coverage` check). The wording of a comment is not stable.
 
-## Known limitations in 1.1.0
-
-These are listed so an agent does not assume more than the contract provides. They are addressed in
-the next planned release, which will change the metadata surface and therefore carries a migration note.
+## Known limitations in 2.0.0
 
 | Area | Limitation today |
 |---|---|
-| Composite keys | `entity_metadata` names one surrogate and one natural key column; a multi-column key cannot be expressed |
-| Key grouping | `table_relationship` holds one column pair per row, with no group or position, so the columns of a composite join cannot be grouped |
-| Ordered paths | `relationship_paths.join_path` is a concatenated string whose form differs by platform; join steps carry no machine-readable order |
-| Access-column mappings | No object records which base column each access-view column comes from |
-| Identity rules | The rules above are stated here but are not yet checked by a conformance check |
+| Physical keys | A key is described as ordered columns, but the Domain module still allocates one surrogate column and one physical natural-key column per entity. A composite natural key is declared with `natural_key_parts`; this is metadata, not a change to how rows are keyed |
+| Generated mappings | Bindings generate `PASSTHROUGH` access columns for entity views. `RENAMED` and `DERIVED` mappings and composite access objects are authored by the builder; no binding generates them |
+| Declaration | A declaration is an assertion. Nothing verifies it against the deployment |
+| Column metadata keys | On Teradata, `column_metadata` and `column_catalogue` stay keyed by physical location because they join to the system catalogue. Every other reference uses logical identities |
+
+## Platform differences a consumer may meet
+
+The contract is the same on every platform: identity grammar, ordered-group rows and path columns.
+Where a platform's pre-existing catalogue differs, the difference is recorded here rather than hidden.
+
+| Platform | Difference |
+|---|---|
+| teradata | Relationship ids are integers, so a path id reads `12>7<` rather than `REL-12>REL-7<`; the leg grammar is the same. Location columns are named `database_name` and `object_name`. The orientation table and manifest view keep their existing shape, which pivots resources into one entrypoint column per role |
+| postgres, duckdb | Relationship ids are `REL-n`. Location columns are `container_name` and `object_name`; orientation rows and the manifest carry both |
+| duckdb | Schemas cannot be commented, so the comment-coverage sweep covers tables, views, columns, sequences and macros |
 
 ## Release index
 
 | Version | Date | Type | Summary | Migration |
 |---|---|---|---|---|
-| 1.1.0 | prepared 2026-10-14, not yet tagged | Minor | Adds the release bundle and the declared standard version | [v1.1.0](migrations/v1.1.0.md) |
+| 2.0.0 | prepared 2026-10-14, not yet tagged | Major | Logical identities, key definitions, relationship column groups, path rows and access-column mappings on all three platforms; the release bundle and declared standard version; comment coverage | [v2.0.0](migrations/v2.0.0.md) |
 | 1.0.0 | 2026-05-30 | Initial | First tagged release; no bundle was published | none |
+
+A 1.1.0 release was prepared and never tagged. Its content (the release bundle, the declaration and
+comment coverage) is part of 2.0.0.
 
 ## Binding adoption
 
 | Platform | Declares the standard version | Notes |
 |---|---|---|
 | postgres | yes | Rendered from `VERSION` at registration |
-| teradata | no | No `standard_declaration` table; contract version is read from the release tag |
-| duckdb | no | The Jinja binding is present but has not been ported: no `standard_declaration`, no comment-coverage check, and its views, macros and sequences are not yet fully commented |
+| duckdb | yes | Jinja binding; executed in tests |
+| teradata | yes | Templates render; execution evidence is recorded in the migration note |
 
 `release/vX.Y.Z/bindings.json` records the same status and is checked against the sources.

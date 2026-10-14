@@ -255,35 +255,12 @@ FROM (
 WHERE REGEXP_SIMILAR(idn.identity_value,
           '([a-z][a-z0-9_]*[.][a-z][a-z0-9_]*(:(base|current))?|[a-z][a-z0-9_]*:[a-z][a-z0-9_]*)', 'c') = 0;
 
--- INV-SEMANTIC-016: an identity that contains a container name
-SELECT idn.identity_kind, idn.identity_value, cnt.container_name
-FROM (
-    SELECT CAST('ENTITY' AS VARCHAR(20)) AS identity_kind, e.entity_name AS identity_value
-    FROM {{ product }}_Semantic.entity_metadata AS e
-    WHERE e.is_active = 1
-    UNION ALL
-    SELECT CAST('ACCESS_OBJECT' AS VARCHAR(20)), a.object_identity
-    FROM {{ product }}_Semantic.access_object AS a
-    WHERE a.is_active = 1
-    UNION ALL
-    SELECT CAST('PRIMARY_OBJECT' AS VARCHAR(20)), p.object_identity
-    FROM {{ product }}_Semantic.data_product_map_primary_objects AS p
-    WHERE p.is_active = 1
-) AS idn
-CROSS JOIN (
-    SELECT m.database_name AS container_name
-    FROM {{ product }}_Semantic.data_product_map AS m
-    WHERE m.is_active = 1
-    UNION
-    SELECT e.database_name
-    FROM {{ product }}_Semantic.entity_metadata AS e
-    WHERE e.is_active = 1 AND e.database_name IS NOT NULL
-    UNION
-    SELECT a.database_name
-    FROM {{ product }}_Semantic.access_object AS a
-    WHERE a.is_active = 1
-) AS cnt
-WHERE POSITION(LOWER(cnt.container_name) IN LOWER(idn.identity_value)) > 0;
+-- INV-SEMANTIC-016: an entity identity whose qualifier is not its own module, which is how a
+-- placement-bound identity (a container name in front of the entity) shows up
+SELECT ent.entity_name, ent.module_name
+FROM {{ product }}_Semantic.entity_metadata AS ent
+WHERE ent.is_active = 1
+  AND ent.entity_name NOT LIKE LOWER(ent.module_name) || '.%';
 
 -- INV-SEMANTIC-016: an entity identity registered more than once
 SELECT e.entity_name, COUNT(*) AS registrations

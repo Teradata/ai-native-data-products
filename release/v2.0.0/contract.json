@@ -1,5 +1,5 @@
 {
-  "standard_version": "1.1.0",
+  "standard_version": "2.0.0",
   "modules": [
     "memory",
     "semantic",
@@ -13,6 +13,32 @@
     "temporal-lifecycle-metadata",
     "validation",
     "access-layer"
+  ],
+  "identity_grammar": [
+    {
+      "kind": "entity",
+      "form": "module.entity",
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$",
+      "example": "domain.ticket"
+    },
+    {
+      "kind": "entity surface",
+      "form": "module.entity:surface",
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|current)$",
+      "example": "domain.ticket:current"
+    },
+    {
+      "kind": "module-owned object",
+      "form": "module:object (composite is reserved)",
+      "pattern": "^(?!composite:)[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
+      "example": "observability:trust_map"
+    },
+    {
+      "kind": "composite access object",
+      "form": "composite:name",
+      "pattern": "^composite:[a-z][a-z0-9_]*$",
+      "example": "composite:ticket_enriched"
+    }
   ],
   "metadata_entities": {
     "memory": [
@@ -872,7 +898,7 @@
             "name": "entity_name",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Unique qualified logical entity identity."
+            "comment": "Logical entity identity, module.entity; independent of placement."
           },
           {
             "name": "entity_description",
@@ -890,31 +916,19 @@
             "name": "container_name",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Exact deployed schema."
+            "comment": "Exact deployed container (location, not identity)."
           },
           {
             "name": "table_name",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Exact deployed base table."
+            "comment": "Exact deployed base table (location, not identity)."
           },
           {
             "name": "view_name",
             "type": "VARCHAR",
             "nullable": true,
             "comment": "Canonical consumable view; null for private runtime state."
-          },
-          {
-            "name": "surrogate_key_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable identity column."
-          },
-          {
-            "name": "natural_key_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Business-key column or record key."
           },
           {
             "name": "temporal_pattern",
@@ -943,6 +957,64 @@
         ]
       },
       {
+        "name": "key_definition",
+        "key": "key_id",
+        "profile": "CURRENT_STATE",
+        "description": "One key of an entity: its surrogate key, natural key or an alternate key.",
+        "columns": [
+          {
+            "name": "key_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Key identity in the form entity_name#role, for example domain.ticket#natural."
+          },
+          {
+            "name": "entity_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Logical identity of the entity that owns the key."
+          },
+          {
+            "name": "key_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "SURROGATE for the stable identity, NATURAL for the business key, ALTERNATE for another unique key."
+          }
+        ]
+      },
+      {
+        "name": "key_column",
+        "key": "key_column_id",
+        "profile": "CURRENT_STATE",
+        "description": "Ordered columns of a key; a single-column key has one row.",
+        "columns": [
+          {
+            "name": "key_column_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Synthetic key in the form key_id:ordinal."
+          },
+          {
+            "name": "key_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Key the column belongs to."
+          },
+          {
+            "name": "ordinal",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Position of the column in the key, from 1 with no gaps."
+          },
+          {
+            "name": "column_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact column of the owning entity."
+          }
+        ]
+      },
+      {
         "name": "column_metadata",
         "key": "column_metadata_id",
         "profile": "CURRENT_STATE",
@@ -952,7 +1024,7 @@
             "name": "column_metadata_id",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Stable schema.table.column metadata key."
+            "comment": "Stable module.entity.column metadata key."
           },
           {
             "name": "container_name",
@@ -1008,7 +1080,7 @@
         "name": "table_relationship",
         "key": "relationship_id",
         "profile": "CURRENT_STATE",
-        "description": "Registered joins including semantic references without physical foreign keys.",
+        "description": "Registered joins including semantic references without physical foreign keys. A relationship is a join group; its column pairs are in relationship_column.",
         "columns": [
           {
             "name": "relationship_id",
@@ -1020,25 +1092,13 @@
             "name": "source_entity",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Qualified referencing entity."
-          },
-          {
-            "name": "source_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Referencing field."
+            "comment": "Logical identity of the referencing entity."
           },
           {
             "name": "target_entity",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Qualified referenced entity."
-          },
-          {
-            "name": "target_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Referenced field."
+            "comment": "Logical identity of the referenced entity."
           },
           {
             "name": "cardinality",
@@ -1061,6 +1121,44 @@
         ]
       },
       {
+        "name": "relationship_column",
+        "key": "relationship_column_id",
+        "profile": "CURRENT_STATE",
+        "description": "Ordered column pairs of a relationship; a composite join has one row per pair.",
+        "columns": [
+          {
+            "name": "relationship_column_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Synthetic key in the form relationship_id:ordinal."
+          },
+          {
+            "name": "relationship_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Relationship, which is the join group, the pair belongs to."
+          },
+          {
+            "name": "ordinal",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Position of the pair in the join, from 1 with no gaps."
+          },
+          {
+            "name": "source_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Referencing field on the source entity."
+          },
+          {
+            "name": "target_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Referenced field on the target entity."
+          }
+        ]
+      },
+      {
         "name": "access_object",
         "key": "object_identity",
         "profile": "CURRENT_STATE",
@@ -1070,7 +1168,19 @@
             "name": "object_identity",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Exact qualified consumable object."
+            "comment": "Logical object identity: module.entity:surface, module:object or composite:name; independent of placement."
+          },
+          {
+            "name": "container_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed container of the object (location, not identity)."
+          },
+          {
+            "name": "object_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed object name (location, not identity)."
           },
           {
             "name": "access_role",
@@ -1082,7 +1192,7 @@
             "name": "represents_entity",
             "type": "VARCHAR",
             "nullable": true,
-            "comment": "Entity represented; null for composite objects."
+            "comment": "Logical identity of the entity represented; null for composite objects."
           },
           {
             "name": "object_grain",
@@ -1100,7 +1210,7 @@
             "name": "resolves_to_object",
             "type": "VARCHAR",
             "nullable": true,
-            "comment": "Base object exposed by a passthrough."
+            "comment": "Logical identity of the base object exposed by a passthrough."
           },
           {
             "name": "access_note",
@@ -1111,10 +1221,66 @@
         ]
       },
       {
+        "name": "access_column",
+        "key": "access_column_id",
+        "profile": "CURRENT_STATE",
+        "description": "Where each output column of an access object comes from; consumers never parse view definitions.",
+        "columns": [
+          {
+            "name": "access_column_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Synthetic key in the form object_identity:ordinal."
+          },
+          {
+            "name": "object_identity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Logical identity of the access object."
+          },
+          {
+            "name": "ordinal",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Position of the output column in the object, from 1 with no gaps."
+          },
+          {
+            "name": "column_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Output column name as a consumer sees it."
+          },
+          {
+            "name": "source_entity",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Logical identity of the entity the column derives from; null when derived from several."
+          },
+          {
+            "name": "source_column",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Source column on that entity; null when derived."
+          },
+          {
+            "name": "mapping_kind",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "PASSTHROUGH when unchanged, RENAMED when only the name differs, DERIVED when computed."
+          },
+          {
+            "name": "derivation_note",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "How a derived column is computed; null otherwise."
+          }
+        ]
+      },
+      {
         "name": "access_composition",
         "key": "access_composition_id",
         "profile": "CURRENT_STATE",
-        "description": "Declared members of joined surfaces; consumers never parse DDL.",
+        "description": "Declared members of joined surfaces; consumers never parse DDL or join strings.",
         "columns": [
           {
             "name": "access_composition_id",
@@ -1126,13 +1292,19 @@
             "name": "composite_object",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Exact joined view."
+            "comment": "Logical identity of the joined view, composite:name."
+          },
+          {
+            "name": "member_seq",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Order of the member within the composite, from 1 with no gaps."
           },
           {
             "name": "member_entity",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Qualified catalogued member."
+            "comment": "Logical identity of the catalogued member."
           },
           {
             "name": "member_role",
@@ -1141,10 +1313,16 @@
             "comment": "ANCHOR or joined-member role."
           },
           {
-            "name": "join_path",
+            "name": "via_relationship_id",
             "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Explicit join predicate; empty for anchor."
+            "nullable": true,
+            "comment": "Relationship that joins this member to a prior member; null for the anchor."
+          },
+          {
+            "name": "via_direction",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "FORWARD to cross the relationship from source to target, REVERSE the other way; null for the anchor."
           },
           {
             "name": "is_grain_contributor",
@@ -1164,7 +1342,7 @@
             "name": "object_identity",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Verbatim deployed object identity."
+            "comment": "Logical identity of the access object; its location is on access_object."
           },
           {
             "name": "module_name",
@@ -1211,10 +1389,16 @@
             "comment": "Registry product name."
           },
           {
-            "name": "object_identity",
+            "name": "container_name",
             "type": "VARCHAR",
             "nullable": false,
-            "comment": "Verbatim database resource name."
+            "comment": "Exact deployed container of the resource; use as given."
+          },
+          {
+            "name": "object_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed object name of the resource; use as given."
           },
           {
             "name": "discovery_order",
@@ -2351,12 +2535,27 @@
         "container_name",
         "table_name",
         "view_name",
-        "surrogate_key_column",
-        "natural_key_column",
         "temporal_pattern",
         "current_flag_column",
         "deleted_flag_column",
         "standalone_reason"
+      ]
+    },
+    {
+      "name": "v_key_definition",
+      "columns": [
+        "key_id",
+        "entity_name",
+        "key_role"
+      ]
+    },
+    {
+      "name": "v_key_column",
+      "columns": [
+        "key_column_id",
+        "key_id",
+        "ordinal",
+        "column_name"
       ]
     },
     {
@@ -2378,18 +2577,28 @@
       "columns": [
         "relationship_id",
         "source_entity",
-        "source_column",
         "target_entity",
-        "target_column",
         "cardinality",
         "relationship_type",
         "is_mandatory"
       ]
     },
     {
+      "name": "v_relationship_column",
+      "columns": [
+        "relationship_column_id",
+        "relationship_id",
+        "ordinal",
+        "source_column",
+        "target_column"
+      ]
+    },
+    {
       "name": "v_access_object",
       "columns": [
         "object_identity",
+        "container_name",
+        "object_name",
         "access_role",
         "represents_entity",
         "object_grain",
@@ -2399,13 +2608,28 @@
       ]
     },
     {
+      "name": "v_access_column",
+      "columns": [
+        "access_column_id",
+        "object_identity",
+        "ordinal",
+        "column_name",
+        "source_entity",
+        "source_column",
+        "mapping_kind",
+        "derivation_note"
+      ]
+    },
+    {
       "name": "v_access_composition",
       "columns": [
         "access_composition_id",
         "composite_object",
+        "member_seq",
         "member_entity",
         "member_role",
-        "join_path",
+        "via_relationship_id",
+        "via_direction",
         "is_grain_contributor"
       ]
     },
@@ -2424,7 +2648,8 @@
       "columns": [
         "resource_role",
         "product_id",
-        "object_identity",
+        "container_name",
+        "object_name",
         "discovery_order",
         "is_required"
       ]
@@ -2682,7 +2907,8 @@
         "approved_entrypoint",
         "trust_authoritative_producer",
         "resource_role",
-        "object_identity",
+        "container_name",
+        "object_name",
         "discovery_order",
         "is_required",
         "standard_version"
@@ -2691,20 +2917,30 @@
     {
       "name": "relationship_edges",
       "columns": [
-        "source_entity",
-        "source_column",
-        "target_entity",
-        "target_column"
+        "relationship_id",
+        "key_ordinal",
+        "direction",
+        "from_entity",
+        "from_column",
+        "to_entity",
+        "to_column"
       ]
     },
     {
       "name": "relationship_paths",
       "columns": [
-        "source_entity",
-        "target_entity",
-        "visited",
-        "join_path",
-        "hops"
+        "path_id",
+        "origin_entity",
+        "destination_entity",
+        "hop_count",
+        "hop",
+        "key_ordinal",
+        "from_entity",
+        "from_column",
+        "to_entity",
+        "to_column",
+        "relationship_id",
+        "direction"
       ]
     },
     {

@@ -143,7 +143,7 @@ Entity: RelationshipColumn        [kind: Record] [profile: CURRENT_STATE]  // th
 | Module-owned object that is not an entity | `module:object` | `observability:trust_map` |
 | Composite access object | `composite:name` | `composite:ticket_enriched` |
 
-`module` is the module anchor in lower case; `entity` and `object` are lower-case logical names. Every relationship, key, mapping and composition names entities and objects by these identities (`INV-SEMANTIC-016`).
+`module` is the module anchor in lower case; `entity` and `object` are lower-case logical names in snake_case (`ValidationRun` becomes `validation_run`). Every relationship, key, mapping and composition names entities and objects by these identities (`INV-SEMANTIC-016`).
 
 **Ordered groups are rows (normative).** A key with several columns, a join with several column pairs and an access object with several output columns are each recorded as rows with an explicit ordinal, never as a list, array or delimited string. A key is the ordered rows of `KeyColumn`; a relationship is a join group whose pairs are the ordered rows of `RelationshipColumn`, so two pairs belonging to one join are grouped by construction. A single-column key or join is the one-row case. Every entity has a `SURROGATE` key; a natural key is recorded when the entity has one, and lists its components in order where the physical natural key is built from several business columns (`INV-SEMANTIC-017`, `INV-SEMANTIC-018`).
 

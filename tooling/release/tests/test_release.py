@@ -97,7 +97,7 @@ class ContractContent(unittest.TestCase):
     def test_bindings_report_declaration_support(self):
         support = {b["platform"]: b["declares_standard_version"] for b in release.build_bindings()["bindings"]}
         self.assertTrue(support["postgres"])
-        self.assertFalse(support["teradata"])
+        self.assertTrue(support["teradata"])
 
     def test_checks_include_comment_coverage(self):
         rendered = release.build_checks()["rendered_checks"]["postgres"]

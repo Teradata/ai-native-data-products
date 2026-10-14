@@ -25,7 +25,7 @@ REFERENCE_PLATFORM = "postgres"
 IDENTITY_GRAMMAR = [
     {"kind": "entity", "form": "module.entity", "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$", "example": "domain.ticket"},
     {"kind": "entity surface", "form": "module.entity:surface", "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|current)$", "example": "domain.ticket:current"},
-    {"kind": "module-owned object", "form": "module:object", "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", "example": "observability:trust_map"},
+    {"kind": "module-owned object", "form": "module:object (composite is reserved)", "pattern": "^(?!composite:)[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", "example": "observability:trust_map"},
     {"kind": "composite access object", "form": "composite:name", "pattern": "^composite:[a-z][a-z0-9_]*$", "example": "composite:ticket_enriched"}]
 CHECK_FILE_NAMES = ("conformance-queries.sql", "conformance.sql", "comment-coverage.sql",
                     "validation.sql", "validation.sql.j2", "checks.py")
