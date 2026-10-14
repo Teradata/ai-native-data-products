@@ -119,7 +119,7 @@ A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when i
 
 #### `Types:`
 
-One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension. A logical type with no line is unsupported, and a context that needs it fails with a reported gap.
+One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension, and `{dim*n}` for the dimension times `n`, as for a binary encoding of `n` bytes an element. A logical type with no line is unsupported, and a context that needs it fails with a reported gap.
 
 | Field | Required | Type | Value |
 |---|---|---|---|

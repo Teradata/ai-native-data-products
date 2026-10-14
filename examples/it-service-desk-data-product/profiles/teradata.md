@@ -60,7 +60,7 @@ Containers: -
 
 Containers are `{product_code}_{module abbreviation}`, the abbreviations below. Objects take the entity name; a
 versioned Domain entity's table carries `_History`, every governed view carries `_Current`,
-and the consumer view takes the bare entity name. Attributes keep the specification's names. The
+the consumer view takes the bare entity name, and a similarity procedure carries `_Similar`. Attributes keep the specification's names. The
 validation pattern's relations keep their logical snake-case names, which this
 organisation's conformance tooling expects.
 
@@ -71,6 +71,7 @@ Naming: -
     table domain History: {entity}_History
     base_view: {entity}_Current
     consumer_view: {entity}
+    procedure: {entity}_Similar
   Attributes: {attribute}
   Standard names:
     ValidationRun: validation_run

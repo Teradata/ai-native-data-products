@@ -274,9 +274,11 @@ class Portability(unittest.TestCase):
                     for e in ctx["entities"]]
         a, b = Resolved(profile=PROFILE_A).context, Resolved(profile=PROFILE_B).context
         self.assertEqual(logical(a), logical(b))
-        for key in ("metrics", "embeddings", "models", "quality", "lineage", "retention",
-                    "decisions", "product_decisions"):
+        for key in ("metrics", "models", "quality", "lineage", "retention", "decisions", "product_decisions"):
             self.assertEqual(a[key], b[key], key)
+        # an embedding's similarity object is placed and named by the profile, as every object is
+        unplaced = [[{k: v for k, v in x.items() if k != "objects"} for x in ctx["embeddings"]] for ctx in (a, b)]
+        self.assertEqual(*unplaced)
 
     def test_one_profile_serves_another_product(self):
         ctx = Resolved(spec=ORDERS_SPEC).context

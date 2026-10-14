@@ -60,6 +60,7 @@ Naming: -
     table: {entity|snake}
     base_view: {entity|snake}_cur
     consumer_view: {entity|snake}
+    procedure: {entity|snake}_similar
   Attributes: {attribute}
   Standard names:
     created_dts: row_created_ts

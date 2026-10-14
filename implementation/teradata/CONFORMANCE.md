@@ -8,10 +8,10 @@ Engine evidence: Teradata 20.00.24.60 through teradatasql 20.0.0.71.
 
 | Outcome | Count |
 |---|---|
-| Passed | 38 |
+| Passed | 39 |
 | Failed | 2 |
 | Skipped | 0 |
-| Gaps reported by the builds | 20 |
+| Gaps reported by the builds | 17 |
 | Gaps the binding declares | 13 |
 
 ## Failures
@@ -31,9 +31,6 @@ Every gap the reference specifications' manifests report on this platform, built
 | access_objects[TicketDetail]: composite access objects are not rendered | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md` |
 | catalogue: the organisation catalogue registration is not rendered | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md`; Customer Orders under `teradata-type-grouped.md`; Customer Orders under `teradata.md` |
 | classification: Sensitive data is to be protected 'mask for ROLE_READ, ROLE_AGENT', which the binding does not render | IT Service Desk under `teradata-type-grouped.md`; Customer Orders under `teradata-type-grouped.md` |
-| embeddings[product_description]: the binding emits no similarity search object | Customer Orders under `teradata-type-grouped.md`; Customer Orders under `teradata.md` |
-| embeddings[resolution_notes]: the binding emits no similarity search object | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md` |
-| embeddings[subject_description]: the binding emits no similarity search object | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md` |
 | entities[CustomerFeature].attributes[reorder_propensity].derive: 'count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)' uses count_related, which the binding does not render | Customer Orders under `teradata-type-grouped.md`; Customer Orders under `teradata.md` |
 | entities[TicketFeatureSet].attributes[f_agent_team_int].derive: 'map(as_of(Agent.team, Ticket.opened_dts), {Infrastructure: 1, Applications: 2, 'Service Desk': 3})' uses as_of, which the binding does not render | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md` |
 | entities[TicketFeatureSet].attributes[f_customer_tier_int].derive: 'map(as_of(Customer.tier, Ticket.opened_dts), {Platinum: 1, Gold: 2, Silver: 3, Bronze: 4})' uses as_of, which the binding does not render | IT Service Desk under `teradata-type-grouped.md`; IT Service Desk under `teradata.md` |
@@ -118,6 +115,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | Each rule catches what it names | pass |
 | Every rendered statement keeps the dialect rules | pass |
 | The rules let the teradata forms through | pass |
+| Vectors are stored as eight byte floats | pass |
 
 ### Package
 

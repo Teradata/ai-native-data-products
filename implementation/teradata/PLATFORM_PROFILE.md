@@ -155,6 +155,12 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 | `ORDER BY` inside a view body | `[3706] ORDER BY clause not permitted in this context` | Ordering is a consumer concern; apply it at query time. Use `QUALIFY ROW_NUMBER() OVER (... ORDER BY ...)` where the view needs a latest-row projection. |
 | `SELECT 'literal'` with no `FROM`, including inside a derived table | `[3888] A SELECT for a UNION, INTERSECT or MINUS must reference a table` | Query the `DBC` catalogue directly for existence checks: `SELECT DatabaseName FROM DBC.DatabasesV WHERE DatabaseName IN (...)` and count the rows returned. |
 | An untyped `NULL` as a select-list item in a branch of a `UNION` (or `INTERSECT`, `MINUS`) | `[3654] Corresponding select-list expressions are incompatible`, raised when the view is queried, not when it is created | Type it: `CAST(NULL AS VARCHAR(400))`, `CAST(NULL AS TIMESTAMP(6) WITH TIME ZONE)`, matching the other branches' column. |
+| A vector in `VARBYTE` written as 4-byte floats and read by `TD_VECTORDISTANCE` | No error where the length is a multiple of 8: the function reads the bytes as 8-byte floats, and every distance is wrong. Otherwise `[9134] Embeddings contain invalid double values. Row length must be multiple of 8` | Store each element as a little-endian 8-byte float: `VARBYTE(dimensions × 8)` (see Vectors, below). |
+| A bind (`?`) or macro parameter inside a `TD_VECTORDISTANCE` `ON` clause | `[3706] Parameter token '?' is not allowed in SQLMRQuery`; in a macro, `[3939]` | Build the request as dynamic SQL in a stored procedure, with the value written in as a literal. |
+| `FROM_BYTES(x, 'base16')` used to write bytes back as a hex literal | No error: leading zero digits are dropped, so the literal is shorter than the value and a vector's length is wrong | `LPAD(CAST(FROM_BYTES(x, 'base16') AS VARCHAR(2n)), 2n, '0')` for `n` bytes, then `'...'XB` cast to the column's type. |
+| Concatenating `FROM_BYTES` output into a string in a stored procedure | `[5526]`, from the compiler's `[3798] A column or character expression is larger than the max size` | Cast `FROM_BYTES` to the exact hex length first, as above. |
+| `CREATE` or `REPLACE PROCEDURE` in a database the deploying user created | `[5526] Stored Procedure is not created/replaced due to error(s)`: a database's creator is granted `DROP PROCEDURE` on it but not `CREATE PROCEDURE` | `GRANT CREATE PROCEDURE ON <database> TO <deploying user>` first; the `Deploying user` binding setting renders it. BTEQ's `.COMPILE FILE` prints the compiler's own messages; teradatasql does not. |
+| A stored procedure sent without the semicolon after its final `END`, or split at its body's semicolons (as BTEQ splits a script) | `[5526] Stored Procedure is not created/replaced due to error(s)`, or a cascade of `[3706]` | Send each procedure as one request, ending `END;`: through a driver, or in BTEQ with `.COMPILE FILE`. |
 | An aggregate referencing another aggregate's result | `[3568] Cannot nest aggregate operations` | Wrap the inner aggregation in a derived table and filter in the outer query's `WHERE`. |
 | `DBC.AllRightsV` filtered on `Grantee` | `[5628] Column Grantee not found` | The columns are `UserName` (who holds the right) and `GrantorName` (who granted it). |
 | `DBC.DatabasePrivilegesV` | `[3807] Object does not exist` | Use `DBC.AllRightsV` throughout; database-level rights carry an empty `TableName`. |
@@ -162,6 +168,17 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 | `:identifier` inside a stored SQL string | `InvalidRequestError: A value is required for bind parameter` | The MCP driver's SQLAlchemy layer intercepts `:word` as a named bind parameter before the SQL reaches the database. Stored templates use `<param_name>`; the same applies to an unquoted `:true` or `:1` inside JSON. |
 
 The last row has a boundary worth keeping straight: `:param` is correct for a **runtime** bind parameter in maintenance DML a pipeline executes, and wrong for a parameter placeholder **stored inside a string literal**, such as a cookbook template. The driver cannot tell the two apart; you can.
+
+### Vectors
+
+A `Vector[n]` is held as `VARBYTE(n × 8)`: its elements as little-endian 8-byte floats (IEEE 754 doubles), with a `CHECK` that the value is exactly that long. This is the encoding `TD_VECTORDISTANCE` reads from a `VARBYTE` column, so the stored vectors are scored with no conversion. The same column holding 4-byte floats is misread without an error whenever its length is a multiple of 8, and every distance is then wrong.
+
+A producer writes a vector as:
+
+- **from outside the database**: `numpy.asarray(v, dtype="<f8").tobytes()`, or `struct.pack(f"<{n}d", *v)`, bound as a `VARBYTE` parameter;
+- **from an in-database embedding function**: converted to 8-byte floats first. `mldb.ONNXEmbeddings` with `OutputFormat('VARBYTE(n × 4)')` writes 4-byte floats, which is not this encoding; whether it can write 8-byte floats has not been tested here.
+
+Similarity is a stored procedure per `Embedding:` block, called as `CALL <procedure>(query_vector, result_limit)`, with the query vector in the same encoding. It returns one result set of `(entity_id, similarity)`; see the [Search binding](modules/search/README.md).
 
 ---
 
@@ -189,8 +206,10 @@ Binding: -
   Runtime scope:    unsupported
   Emits:
     base_view: all
+    procedure: embedding
   Settings:
     Container space: bytes of permanent space per database that holds objects; default 1000000000
+    Deploying user: the user that runs the deployment, granted CREATE PROCEDURE on each database that holds a procedure, or none where it already holds that right; default none
   Phases:
     00-containers.sql: patterns/object-placement/01-containers.sql.j2
     01-implied-grants.sql: patterns/access-layer/00-implied-grants.sql.j2
@@ -202,12 +221,13 @@ Binding: -
     07-prediction.sql: modules/prediction/01-tables.sql.j2
     08-comments.sql: patterns/temporal-lifecycle-metadata/02-comments.sql.j2
     09-views.sql: patterns/temporal-lifecycle-metadata/03-access-views.sql.j2
-    10-registration.sql: modules/semantic/02-registration.sql.j2
-    11-discovery.sql: modules/semantic/03-discovery.sql.j2
-    12-trust.sql: patterns/validation/04-trust-map.sql.j2
-    13-documentation.sql: modules/memory/02-capture.sql.j2
-    14-statistics.sql: patterns/temporal-lifecycle-metadata/05-statistics.sql.j2
-    15-access.sql: patterns/access-layer/01-grants.sql.j2
+    10-similarity.sql: modules/search/02-similarity.sql.j2
+    11-registration.sql: modules/semantic/02-registration.sql.j2
+    12-discovery.sql: modules/semantic/03-discovery.sql.j2
+    13-trust.sql: patterns/validation/04-trust-map.sql.j2
+    14-documentation.sql: modules/memory/02-capture.sql.j2
+    15-statistics.sql: patterns/temporal-lifecycle-metadata/05-statistics.sql.j2
+    16-access.sql: patterns/access-layer/01-grants.sql.j2
   Deploy: deploy.sql.j2
   Gaps:
     Composition: only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy
@@ -247,7 +267,7 @@ Types: -
   Timestamp:  TIMESTAMP(6) WITH TIME ZONE
   Date:       DATE
   Flag:       BYTEINT
-  Vector:     VARCHAR(32000) CHARACTER SET LATIN
+  Vector:     VARBYTE({dim*8})
 ```
 
 ```

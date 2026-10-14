@@ -23,6 +23,7 @@ import csv
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 import tempfile
@@ -530,7 +531,7 @@ class EngineTests:
             vector = [first] + [0.0] * (dims - 2) + [1.0 - first]
             self.insert(x["name"], dict(entity_id=ticket, entity_kind="TICKET", source_attribute=embedding["name"],
                                         embedding=self.vector(vector), embedding_dimensions=dims,
-                                        embedding_model="test-encoder",
+                                        embedding_model=embedding.get("model") or "test-encoder",
                                         generated_dts=datetime.now(timezone.utc),
                                         **self.temporal(x, datetime(2026, 1, 1, tzinfo=timezone.utc))))
         query = [1.0] + [0.0] * (dims - 1)
@@ -836,11 +837,14 @@ TEST_PREFIX = "anptest"
 def isolated(text, prefix):
     """The example profile with every container it creates, and every principal, under a prefix
     the tests own. It uses the profile's own environment mechanism: phases share one system,
-    and each container name carries the phase."""
+    and each container name carries the phase. The test login deploys, so it is the profile's
+    `Deploying user`."""
     text = re.sub(r"Environments: -\n(?:  .*\n)+",
                   f"Environments: -\n  Phases:             {prefix}\n  Isolation:          container\n"
                   f"  Container template: {{environment}}_{{container}}\n", text.replace("\r\n", "\n"))
-    return re.sub(r"(  ROLE_\w+:\s+)create (\S+)", rf"\1create {prefix}_\2", text)
+    text = re.sub(r"(  ROLE_\w+:\s+)create (\S+)", rf"\1create {prefix}_\2", text)
+    return (text.rstrip("\n") + "\n\n## Binding Settings\n\n```\nSettings: -\n"
+            f"  Deploying user: {json.loads(TERADATA_DSN)['user']}\n```\n")
 
 
 @unittest.skipUnless(teradatasql and TERADATA_DSN and "teradata" in PLATFORMS,
@@ -899,7 +903,8 @@ class Teradata(EngineTests, unittest.TestCase):
         return int(value)
 
     def vector(self, values):
-        return json.dumps(values)
+        """Its elements as little-endian 8-byte floats, as the binding stores a Vector."""
+        return struct.pack(f"<{len(values)}d", *values)
 
     def timestamp(self, sql_text):
         return f"CAST('{sql_text}' AS TIMESTAMP(6) WITH TIME ZONE)"
@@ -918,6 +923,19 @@ class Teradata(EngineTests, unittest.TestCase):
 
     def uncomment(self, table, column):
         self.con.execute(f"COMMENT ON COLUMN {table}.{column} IS ''")
+
+    def similar(self, embedding, query, limit):
+        """The binding's similarity procedure, called; its one result set is the ranking."""
+        proc = embedding["objects"]["procedure"]
+        cur = self.con.raw.cursor()
+        cur.execute(f"{{call {self.binding.qualified(proc['container'], proc['name'])}(?, ?)}}", [query, limit])
+        rows = []
+        while True:
+            if cur.description:
+                rows = [tuple(r) for r in cur.fetchall()]
+            if not cur.nextset():
+                break
+        return rows
 
     existing_container = f"{TEST_PREFIX}_crm"
 

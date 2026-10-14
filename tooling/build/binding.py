@@ -63,6 +63,7 @@ class Binding:
         if m.group(2):
             out = out.replace("{p}", m.group(2)).replace("{s}", m.group(3))
         if m.group(4):
+            out = re.sub(r"\{dim\*(\d+)\}", lambda n: str(int(m.group(4)) * int(n.group(1))), out)
             out = out.replace("{dim}", m.group(4))
         return out
 

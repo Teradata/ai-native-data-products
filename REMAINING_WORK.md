@@ -99,10 +99,15 @@ Conflicts between bindings found and fixed, each with a test so it cannot come b
   Jinja-only hygiene (`:event_dts` in `catalogue-interface/02-lifecycle-dml`). With them set
   aside the package tests pass. Port or retire,
   then those tests go green.
-- **Similarity search.** Not emitted; reported per `Embedding:` block. A stored procedure with a
-  dynamic result set (`Emits: procedure: embedding`, which the resolver already supports) can now
-  be verified on the engine. Vectors are JSON text, so it would parse them, or the binding moves
-  to `TD_VECTORDISTANCE` over a columnar layout.
+- **Vectors and similarity: done.** A `Vector[n]` is `VARBYTE(n × 8)`, little-endian 8-byte
+  floats checked to that length, because the engine showed `TD_VECTORDISTANCE` reads VARBYTE as
+  8-byte floats: with 4-byte floats every distance was wrong, without an error. Similarity is a
+  stored procedure per `Embedding:` block (`Emits: procedure: embedding`) that runs
+  `TD_VECTORDISTANCE` as dynamic SQL, since the operator takes no parameters; engine-tested for
+  ranking, threshold, limit and a wrong-dimension query. A database's creator is not granted
+  `CREATE PROCEDURE`, so a new `Deploying user` setting renders the grant. Open: whether
+  `mldb.ONNXEmbeddings` can emit 8-byte floats (its `VARBYTE` output is 4-byte); the earlier
+  in-database product this followed stored 4-byte floats and scored them with this function.
 - **History for consumers: simple fix done, broader change pending.** Teradata now grants the
   governed base view of every versioned relation to the read and agent tiers, per view, as
   PostgreSQL grants its point-in-time functions, so history reaches the same tiers on every
@@ -187,7 +192,6 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
   render one.
 - Runtime Memory scope on DuckDB and Teradata (`Runtime scope: unsupported`). PostgreSQL
   enforces it with row-level security.
-- Similarity search on Teradata.
 - Classification protection (`mask`, `exclude`) and object-storage placement, on every binding,
   when a profile asks for them (the Teradata type-grouped example does).
 - The graph-lineage exposure and the catalogue registration, when a specification or profile
@@ -242,3 +246,6 @@ PR #75 (layout standard) or withdraw it: the organisation profile now covers lay
 - On Teradata a `Vector[n]` is LATIN JSON-array text with a dimension check, because neither
   17.20 nor 20.00.24 has a vector type; the admin tier's rights are listed, since `ALL` cannot go
   to a role; and the implied grants are only those the views read.
+- On Teradata a vector is `VARBYTE(n × 8)` of 8-byte floats, the encoding `TD_VECTORDISTANCE`
+  reads, and similarity is a stored procedure per embedding. `Types:` declarations may size a
+  type as `{dim*n}`.

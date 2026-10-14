@@ -1,8 +1,9 @@
 {# The access tiers (Access Layer), once every object exists: the principals the build
    context names, created where the profile says the build creates them (CREATE ROLE needs
-   the CREATE ROLE right), and the grants: read and agent tiers reach consumer views, and the
-   history of versioned relations through their governed base views; the agent tier also writes its write targets; the admin tier maintains every database, with the
-   rights a role may hold (ALL carries CREATE USER, which no role may). Grants are per
+   the CREATE ROLE right), and the grants: read and agent tiers reach consumer views, the
+   history of versioned relations through their governed base views, and the similarity
+   procedures; the agent tier also writes its write targets; the admin tier maintains every
+   database, with the rights a role may hold (ALL carries CREATE USER, which no role may). Grants are per
    object or per database as the profile's grant level says. A role comment names who the
    role is for and never what it reaches. The implied grants between databases are
    00-implied-grants. #}
@@ -36,6 +37,10 @@ GRANT SELECT ON {{ x.objects.consumer_view|qualified }} TO {{ agent|ident }};
 {% for x in entities + relations if x.history and x.objects.consumer_view is defined and x.objects.base_view is defined and x.objects.base_view.container not in whole %}
 GRANT SELECT ON {{ x.objects.base_view|qualified }} TO {{ read|ident }};
 GRANT SELECT ON {{ x.objects.base_view|qualified }} TO {{ agent|ident }};
+{%- endfor %}
+{% for b in embeddings if b.objects.procedure is defined %}
+GRANT EXECUTE PROCEDURE ON {{ b.objects.procedure|qualified }} TO {{ read|ident }};
+GRANT EXECUTE PROCEDURE ON {{ b.objects.procedure|qualified }} TO {{ agent|ident }};
 {%- endfor %}
 {% for x in entities + relations if x.objects.table is defined and x.objects.table.primary_role == 'WRITE_TARGET' %}
 GRANT {% if x.runtime %}SELECT, INSERT, UPDATE{% else %}INSERT{% endif %} ON {{ x.objects.table|qualified }} TO {{ agent|ident }};

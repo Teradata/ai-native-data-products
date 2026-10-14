@@ -6,6 +6,7 @@ differ; the SQL each runs is the binding's own, rendered from its templates. Not
 holds platform SQL beyond transaction control.
 """
 import json
+import re
 import os
 from contextlib import contextmanager, nullcontext
 
@@ -139,21 +140,36 @@ class Teradata(Engine):
 ENGINES = {e.platform: e for e in (PostgreSQL(), DuckDB(), Teradata())}
 
 
+PROCEDURE_START = re.compile(r"\s*(CREATE|REPLACE)\s+PROCEDURE\b", re.I)
+BLOCK_WORD = re.compile(r"(BEGIN|END)\b(\s+(IF|WHILE|LOOP|FOR|CASE|REPEAT)\b)?", re.I)
+
+
 def statements(sql):
     """Rendered SQL as its statements, split on semicolons outside string literals and line
-    comments, for a driver that takes one statement per request."""
-    out, buf, quoted, i = [], [], False, 0
+    comments, for a driver that takes one statement per request. A stored procedure is one
+    statement, its body's semicolons included, through the `END` that closes its outer
+    `BEGIN`."""
+    out, buf, quoted, depth, procedure, started, i = [], [], False, 0, False, False, 0
     while i < len(sql):
         if not quoted and sql.startswith("--", i):
             end = sql.find("\n", i)
             i = len(sql) if end < 0 else end
             continue
         ch = sql[i]
+        if not started and not ch.isspace():
+            started, procedure = True, bool(PROCEDURE_START.match(sql, i))
         if ch == "'":
             quoted = not quoted
-        if ch == ";" and not quoted:
-            out.append("".join(buf).strip())
-            buf = []
+        elif procedure and not quoted and not (i and (sql[i - 1].isalnum() or sql[i - 1] == "_")):
+            word = BLOCK_WORD.match(sql, i)
+            if word:
+                depth += 1 if word.group(1).upper() == "BEGIN" else (0 if word.group(2) else -1)
+                buf.append(word.group(0))
+                i = word.end()
+                continue
+        if ch == ";" and not quoted and depth == 0:
+            out.append("".join(buf).strip() + (";" if procedure else ""))  # a procedure needs its END;
+            buf, started = [], False
         else:
             buf.append(ch)
         i += 1

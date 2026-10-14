@@ -74,12 +74,14 @@
     'access_note': x.description}) }}
 {% endfor %}
 {% endfor %}
-{% for b in embeddings if b.objects.function is defined %}
+{% for b in embeddings %}
+{% for role, obj in b.objects|dictsort if role in ('function', 'procedure') %}
 {{ m.insert(access, {
-    'container_name': b.objects.function.container, 'object_name': b.objects.function.name,
-    'object_type': 'FUNCTION', 'access_role': 'PASSTHROUGH', 'represents_entity': b.entity,
+    'container_name': obj.container, 'object_name': obj.name,
+    'object_type': role|upper, 'access_role': 'PASSTHROUGH', 'represents_entity': b.entity,
     'is_agent_consumable': true, 'is_primary': false,
     'access_note': 'Similarity search over the ' ~ b.name ~ ' embedding of ' ~ b.entity ~ '.'}) }}
+{% endfor %}
 {% endfor %}
 {% endif %}
 {% set primary = named('PrimaryObject') %}

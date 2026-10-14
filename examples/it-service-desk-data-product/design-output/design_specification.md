@@ -519,6 +519,7 @@ Embedding: subject_description
   Entity:     Ticket
   Source:     concat(Ticket.subject, Ticket.description)
   Dimensions: 384
+  Model:      bge-small-en-v1.5
   Similarity: cosine
   Index:      exact
   Threshold:  0.75
@@ -531,6 +532,7 @@ Embedding: resolution_notes
   Source:     Ticket.resolution_notes
   Where:      is_not_null(Ticket.resolution_notes)
   Dimensions: 384
+  Model:      bge-small-en-v1.5
   Similarity: cosine
   Index:      exact
   Threshold:  0.75
