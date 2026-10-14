@@ -1,11 +1,8 @@
 {# Inputs: containers.semantic, containers.observability. Requires both modules. #}
-{% macro inherit_comments(source, target) %}
-DO $copy$ DECLARE r RECORD; BEGIN
- FOR r IN SELECT a.attname AS col, pg_catalog.col_description(a.attrelid,a.attnum) AS txt FROM pg_catalog.pg_attribute a
-  WHERE a.attrelid={{ source|literal }}::regclass AND a.attnum>0 AND NOT a.attisdropped
-  AND EXISTS (SELECT 1 FROM pg_catalog.pg_attribute t WHERE t.attrelid={{ target|literal }}::regclass AND t.attname=a.attname AND NOT t.attisdropped)
- LOOP EXECUTE format('COMMENT ON COLUMN %s.%I IS %L',{{ target|literal }},r.col,r.txt); END LOOP;
-END $copy$;
+{% macro run_latest_comments(view) %}
+{% for e in entities if e.name=='validation_run' %}{% for c in e.all_columns %}
+COMMENT ON COLUMN {{ view }}.{{ c.name|ident }} IS {{ c.comment|literal }};
+{% endfor %}{% endfor %}
 {% endmacro %}
 {% macro trust_column_comments(view) %}
 COMMENT ON COLUMN {{ view }}.product_prefix IS 'Data product the evidence describes.';
@@ -30,7 +27,7 @@ COMMENT ON COLUMN {{ view }}.completed_dts IS 'When the area evidence was comple
 CREATE VIEW {{ containers.observability|ident }}.validation_run_latest AS
 SELECT DISTINCT ON (product_prefix,producer_id) * FROM {{ containers.observability|ident }}.validation_run ORDER BY product_prefix,producer_id,completed_dts DESC,run_id DESC;
 COMMENT ON VIEW {{ containers.observability|ident }}.validation_run_latest IS 'Latest validation run of each producer for each data product.';
-{{ inherit_comments((containers.observability|ident)~'.validation_run',(containers.observability|ident)~'.validation_run_latest') }}
+{{ run_latest_comments(containers.observability|ident ~ '.validation_run_latest') }}
 
 -- Authoritative producer and latest PER AREA; newer runs need not cover old areas.
 -- No evidence remains visible, and stale evidence cannot retain strong confidence.

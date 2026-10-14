@@ -52,6 +52,31 @@ class ContractContent(unittest.TestCase):
         self.assertIn("v_standard_declaration", surface)
         self.assertEqual(surface["data_product_manifest"][-1], "standard_version")
 
+    def test_identity_grammar_examples_match_their_patterns(self):
+        import re
+        for rule in self.contract["identity_grammar"]:
+            with self.subTest(kind=rule["kind"]):
+                self.assertRegex(rule["example"], rule["pattern"])
+                others = [r for r in self.contract["identity_grammar"] if r is not rule]
+                self.assertFalse(any(re.fullmatch(o["pattern"], rule["example"]) for o in others))
+
+    def test_ordered_group_surfaces_are_published(self):
+        entities = {e["name"]: [c["name"] for c in e["columns"]] for e in self.contract["metadata_entities"]["semantic"]}
+        self.assertEqual(entities["key_column"], ["key_column_id", "key_id", "ordinal", "column_name"])
+        self.assertEqual(entities["relationship_column"], ["relationship_column_id", "relationship_id", "ordinal", "source_column", "target_column"])
+        self.assertIn("source_entity", entities["access_column"])
+        for gone in ("source_column", "target_column"):
+            self.assertNotIn(gone, entities["table_relationship"])
+        for gone in ("surrogate_key_column", "natural_key_column"):
+            self.assertNotIn(gone, entities["entity_metadata"])
+        self.assertNotIn("join_path", entities["access_composition"])
+        surface = {v["name"]: v["columns"] for v in self.contract["access_surface"]}
+        self.assertEqual(surface["relationship_paths"], [
+            "path_id", "origin_entity", "destination_entity", "hop_count", "hop", "key_ordinal",
+            "from_entity", "from_column", "to_entity", "to_column", "relationship_id", "direction"])
+        self.assertEqual(surface["relationship_edges"], [
+            "relationship_id", "key_ordinal", "direction", "from_entity", "from_column", "to_entity", "to_column"])
+
     def test_every_published_access_object_lists_columns(self):
         for view in self.contract["access_surface"]:
             with self.subTest(view=view["name"]):

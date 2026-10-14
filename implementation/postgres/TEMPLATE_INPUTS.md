@@ -13,11 +13,13 @@ The optional helper accepts a JSON product context and a separate JSON placement
 | entities | Business/extension entity declarations: module, name, description, key, columns, profile, allocation |
 | entity.columns | name, bound SQL type, nullable, authored comment; optional check expression, pii and classification |
 | entity.profile | CURRENT_STATE, EVENT_APPEND_ONLY, OPERATIONAL_LOG, ASSOCIATION_CURRENT, SCD2_HISTORY, ASSOCIATION_SCD2 or SCD2_BITEMPORAL |
+| entity.natural_key_parts | Optional ordered list of the business columns that make up the natural key, registered as the NATURAL key's columns. Omit it and the single `natural_key` column is the key. Does not change how rows are keyed or allocated |
+| entity.alternate_keys | Optional list of ordered column lists, each registered as an ALTERNATE key |
 | entity.allocation | supplied, inline, or keymap; keymap additionally requires explicit keymap name and natural_key |
 | entity.supports_deletion | Explicit lifecycle option; defaults on for versioned profiles |
 | entity.current_view / history_function | Optional explicit names; documented defaults v_<entity> and at_<entity> |
 | runtime_memory | Whether to include standard runtime tables; independent of documentation |
-| relationships | Declared source/target module.entity, source/target columns and mandatory flag |
+| relationships | Declared source/target module.entity and mandatory flag. The join is `columns`, an ordered list of `{source, target}` column pairs forming one join group; the single `source_column`/`target_column` form remains valid as a one-pair group. Each relationship is registered as `REL-n` in declaration order |
 | searches | Source Domain and embedding Search entity references, function name, vector column/dimensions, model/version, source facet and content projection |
 | documentation | Authored decision records with id, title, context, alternatives, rationale, consequences, category, module and source |
 

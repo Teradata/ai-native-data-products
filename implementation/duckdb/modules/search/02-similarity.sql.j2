@@ -9,4 +9,5 @@ FROM {{ s.embedding_entity.view }} e JOIN {{ s.source_entity.view }} d ON e.enti
 WHERE e.entity_kind={{ s.entity_kind|literal }} AND e.embedding_model={{ s.model|literal }} AND e.embedding_model_version={{ s.model_version|literal }}
  AND e.source_attribute={{ s.source_attribute|literal }}
 ORDER BY similarity DESC,e.entity_id LIMIT greatest(0,least(result_limit,1000));
+COMMENT ON MACRO TABLE {{ qualified(containers.search,s.name) }} IS {{ ('Cosine-similarity search of ' ~ s.embedding ~ ' vectors joined back to authoritative ' ~ s.source ~ ' rows. Takes a query vector and a result limit (maximum 1000).')|literal }};
 {% endfor %}

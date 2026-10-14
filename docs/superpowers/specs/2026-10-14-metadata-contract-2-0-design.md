@@ -44,9 +44,10 @@ names with no container, product prefix or object-type affix. An identity never 
 container is renamed or the same design is deployed with a different placement.
 
 Physical location is separate: `container_name` and `table_name` on `entity_metadata`, and
-`container_name` and `object_name` on `access_object`. `data_product_orientation` and
-`primary_object` use a verbatim `object_location` (`container.object`) where a consumer needs the
-physical name; they otherwise reference the logical identity.
+`container_name` and `object_name` on `access_object`. `data_product_orientation` carries
+`container_name` and `object_name` (as the design already defines it) for the physical name a consumer
+uses verbatim; `primary_object` references the logical identity and takes its location from
+`access_object`.
 
 Entity identity today differs on every platform (`Party` on Teradata, `itsd_domain.ticket` on
 Postgres and DuckDB, `domain.Ticket` in the validation rules). 2.0.0 makes it one form.
@@ -67,7 +68,7 @@ single-column key the binding contract requires.
 | `access_composition` | changed | `join_path` is replaced by `via_relationship_id` and `via_direction` (`FORWARD`, `REVERSE`). Adds `member_seq` |
 | `access_column` | new | Synthetic id, `object_identity`, `ordinal`, `column_name`, `source_entity`, `source_column`, `mapping_kind` (`PASSTHROUGH`, `RENAMED`, `DERIVED`), `derivation_note` |
 | `primary_object` | changed | References the logical `object_identity` |
-| `data_product_orientation` | changed | `object_identity` becomes `object_location` |
+| `data_product_orientation` | changed | Postgres and DuckDB replace `object_identity` with `container_name` and `object_name`, matching the design and Teradata, which already carry them |
 
 A composite key is the ordered rows of its `key_column`. An entity that today has one natural key
 column has a `NATURAL` key with one row. When the physical natural key is built from several business
@@ -80,12 +81,15 @@ Every identity-bearing reference (`source_entity`, `target_entity`, `member_enti
 
 ### Access surface
 
-`relationship_edges` has one row per direction per key position: relationship, key ordinal, from
-entity and column, to entity and column. `relationship_paths` has one row per path hop per key position:
+`relationship_edges` has one row per direction per key position, with columns `relationship_id`,
+`key_ordinal`, `direction`, `from_entity`, `from_column`, `to_entity`, `to_column`.
+`relationship_paths` has one row per path hop per key position, with these columns in this order:
 
 | Column | Meaning |
 |---|---|
-| `path_id` | The ordered relationship ids with direction, for example `REL-1>REL-3<` |
+| `path_id` | The ordered legs of the path: each a relationship id followed by `>` for FORWARD or `<` for REVERSE, for example `REL-1>REL-3<` |
+| `origin_entity`, `destination_entity` | The entities the whole path starts from and ends at |
+| `hop_count` | Number of steps in the path |
 | `hop` | Position of the step in the path, from 1 |
 | `key_ordinal` | Position of the column pair within the join group |
 | `from_entity`, `from_column`, `to_entity`, `to_column` | One pair of the join |

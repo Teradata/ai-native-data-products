@@ -42,6 +42,18 @@ def unrelated(platform='postgres'):
                        dict(name='mass',type='DECIMAL(12,4)',nullable=True,comment='Measured mass in grams.')])])
 
 
+def composite_product(platform):
+    """The laboratory product plus an assay entity that joins specimens on two columns at once."""
+    c=unrelated(platform);c['modules']=['domain','memory','semantic'];c['containers']['semantic']='lab_meta'
+    c['entities'].append(dict(module='domain',name='assay',key='assay_id',profile='CURRENT_STATE',description='An assay run on a specimen.',columns=[
+        dict(name='assay_id',type='BIGINT',nullable=False,comment='Stable assay identity.'),
+        dict(name='specimen_id',type='BIGINT',nullable=False,comment='Specimen assayed.'),
+        dict(name='accession',type='VARCHAR',nullable=False,comment='Accession of the specimen assayed.')]))
+    c['relationships']=[dict(source='domain.assay',target='domain.specimen',mandatory=False,
+                             columns=[dict(source='specimen_id',target='specimen_id'),dict(source='accession',target='accession')])]
+    return c
+
+
 def load_itsd(con,m):
     """Test-only source loading. This is not a deployable product loader or ML pipeline."""
     pg=m['platform']=='postgres';mark='%s' if pg else '?';maps={}
@@ -166,8 +178,7 @@ class Rendering(unittest.TestCase):
                         self.assertNotIn('CREATE SCHEMA "itsd_',files['deploy.sql'])
 
     def test_every_created_object_is_commented(self):
-        # The DuckDB templates have not yet been brought to comment parity; see release/COMPATIBILITY.md.
-        for p in [p for p in PLATFORMS if p=='postgres']:
+        for p in PLATFORMS:
             for c in (itsd(p),unrelated(p)):
                 with self.subTest(platform=p,product=c['product']['id']):
                     sql=render_product(c,p)['deploy.sql']
@@ -175,9 +186,8 @@ class Rendering(unittest.TestCase):
                     commented=set(re.findall(r'COMMENT ON (?:TABLE|VIEW|FUNCTION|MACRO TABLE) ([\w".]+)',sql))
                     self.assertTrue(created)
                     self.assertEqual(sorted(created-commented),[])
-                    if p=='postgres':
-                        ids=[m['test_id'] for m in json.loads(render_product(c,p)['manifest.json'])['checks']]
-                        self.assertIn(c['product']['id']+':comment-coverage',ids)
+                    ids=[m['test_id'] for m in json.loads(render_product(c,p)['manifest.json'])['checks']]
+                    self.assertIn(c['product']['id']+':comment-coverage',ids)
 
     def test_standard_declaration_is_registered_from_version_file(self):
         version=(REPO/'VERSION').read_text().strip()
@@ -204,6 +214,27 @@ class Rendering(unittest.TestCase):
                              '--output',str(target)],capture_output=True,text=True)
         self.assertEqual(done.returncode,2)
         self.assertFalse(target.exists())
+
+    def test_keys_and_relationship_columns_are_registered_in_order(self):
+        for p in PLATFORMS:
+            with self.subTest(platform=p):
+                c=composite_product(p)
+                specimen=next(e for e in c['entities'] if e['name']=='specimen')
+                specimen['natural_key_parts']=['accession','mass'];specimen['alternate_keys']=[['mass','accession']]
+                sql=render_product(c,p)['deploy.sql']
+                for row in ("'domain.specimen#surrogate:1','domain.specimen#surrogate',1,'specimen_id'",
+                            "'domain.specimen#natural:1','domain.specimen#natural',1,'accession'",
+                            "'domain.specimen#natural:2','domain.specimen#natural',2,'mass'",
+                            "'domain.specimen#alternate-1:1','domain.specimen#alternate-1',1,'mass'",
+                            "'REL-1:1','REL-1',1,'specimen_id','specimen_id'","'REL-1:2','REL-1',2,'accession','accession'"):
+                    self.assertIn(row,sql)
+                specimen['natural_key_parts']=['accession','absent']
+                with self.assertRaises(ValueError):render_product(c,p)
+                specimen['natural_key_parts']=None
+                c['relationships'][0]['columns']=[]
+                with self.assertRaises(ValueError):render_product(c,p)
+                c['relationships'][0]['columns']=[dict(source='absent',target='accession')]
+                with self.assertRaises(ValueError):render_product(c,p)
 
     def test_missing_names_and_strict_templates(self):
         from jinja2 import UndefinedError
@@ -274,7 +305,7 @@ class EngineTests:
         self.con.execute('INSERT INTO itsd_domain.ticket SELECT '+','.join(expr)+' FROM itsd_domain.ticket WHERE ticket_id=1')
         self.assertEqual(self.con.execute("SELECT priority FROM itsd_domain.at_ticket('2026-07-10'::TIMESTAMPTZ,'2026-07-20'::TIMESTAMPTZ) WHERE ticket_id=1").fetchone()[0],'P4')
         self.assertEqual(self.con.execute("SELECT priority FROM itsd_domain.at_ticket('2026-07-10'::TIMESTAMPTZ,'2026-08-20'::TIMESTAMPTZ) WHERE ticket_id=1").fetchone()[0],'P1')
-        check=next(c for c in m['checks'] if c['test_id']=='itsd_domain.ticket:temporal')
+        check=next(c for c in m['checks'] if c['test_id']=='domain.ticket:temporal')
         self.assertEqual(self.con.execute(check['sql']).fetchall(),[])
 
     def test_validation_errors_publish_without_false_success(self):
@@ -363,11 +394,11 @@ class EngineTests:
         def failing(test_id):
             check=next(c for c in m['checks'] if c['test_id']==test_id)
             return self.con.execute(check['sql']).fetchall()
-        self.assertEqual(failing('itsd_domain.ticket:metadata'),[]);self.assertEqual(failing('semantic:coverage'),[])
+        self.assertEqual(failing('domain.ticket:metadata'),[]);self.assertEqual(failing('semantic:coverage'),[])
         self.con.execute('CREATE TABLE itsd_domain.stray(x INTEGER)')
         self.assertTrue(failing('semantic:coverage'))
         self.con.execute("COMMENT ON COLUMN itsd_domain.ticket.subject IS ''")
-        self.assertTrue(failing('itsd_domain.ticket:metadata'))
+        self.assertTrue(failing('domain.ticket:metadata'))
         relationship=next(c for c in m['checks'] if c['test_id']=='domain.ticket:customer_id')
         self.assertEqual(self.con.execute(relationship['sql']).fetchall(),[])
         self.con.execute("UPDATE itsd_domain.customer SET is_deleted=true,deleted_dts=current_timestamp WHERE customer_id=1")
@@ -378,7 +409,7 @@ class EngineTests:
         self.con.execute("INSERT INTO lab_store.accession_map(accession) VALUES ('LAB-1')")
         for frm,to,cur in (('2025-01-01','2025-02-01',False),('2025-02-01','infinity',True)):
             self.con.execute(f"INSERT INTO lab_store.specimen VALUES (1,'LAB-1',1.5,'{frm}','{to}',{cur},current_timestamp,current_timestamp,false,NULL)")
-        check=next(c for c in m['checks'] if c['test_id']=='lab_store.specimen:temporal')
+        check=next(c for c in m['checks'] if c['test_id']=='domain.specimen:temporal')
         self.assertEqual(self.con.execute(check['sql']).fetchall(),[])
         # An engine that can enforce non-overlap (PostgreSQL exclusion constraint) refuses the write;
         # one that cannot (DuckDB) must have the check detect it. Either way the overlap is not silent.
@@ -395,15 +426,50 @@ class EngineTests:
         self.assertEqual(self.scalar('SELECT count(*) FROM itsd_access.lineage_graph'),[(4,)])
         self.con.execute('UPDATE itsd_observability.data_lineage SET is_active=false,retired_dts=current_timestamp WHERE lineage_id=1')
         self.assertEqual(self.scalar('SELECT count(*) FROM itsd_access.lineage_graph'),[(2,)])
-        self.assertEqual(self.scalar("SELECT count(*) FROM itsd_semantic.access_object WHERE represents_entity='itsd_memory.agent_session' AND is_agent_consumable"),[(0,)])
+        self.assertEqual(self.scalar("SELECT count(*) FROM itsd_semantic.access_object WHERE represents_entity='memory.agent_session' AND is_agent_consumable"),[(0,)])
         with self.assertRaises(Exception):
             self.con.execute("INSERT INTO itsd_memory.agent_session (session_id,session_key,agent_key,user_key,session_start_dts,session_status,session_goal,scope_level,scope_identifier,created_dts,updated_dts) VALUES (1,'s','a','u',current_timestamp,'ACTIVE','g','USER',NULL,current_timestamp,current_timestamp)")
 
     def test_relationship_paths_use_declared_joins(self):
         self.deploy(itsd(self.platform))
-        direct=self.scalar("SELECT join_path FROM itsd_access.relationship_paths WHERE source_entity='itsd_domain.ticket' AND target_entity='itsd_domain.customer' AND hops=1")
-        self.assertEqual(direct,[('itsd_domain.ticket.customer_id = itsd_domain.customer.customer_id',)])
-        self.assertTrue(self.scalar("SELECT 1 FROM itsd_access.relationship_paths WHERE source_entity='itsd_domain.customer' AND target_entity='itsd_domain.agent' AND hops=2"))
+        direct=self.scalar("SELECT hop,key_ordinal,from_entity,from_column,to_entity,to_column,direction FROM itsd_access.relationship_paths WHERE origin_entity='domain.ticket' AND destination_entity='domain.customer' AND hop_count=1")
+        self.assertEqual(direct,[(1,1,'domain.ticket','customer_id','domain.customer','customer_id','FORWARD')])
+        self.assertTrue(self.scalar("SELECT 1 FROM itsd_access.relationship_paths WHERE origin_entity='domain.customer' AND destination_entity='domain.agent' AND hop_count=2"))
+
+    def test_composite_relationship_is_one_ordered_join_group(self):
+        m=self.deploy(composite_product(self.platform))
+        self.assertEqual(self.scalar("SELECT ordinal,source_column,target_column FROM lab_meta.relationship_column ORDER BY ordinal"),
+                         [(1,'specimen_id','specimen_id'),(2,'accession','accession')])
+        rows=self.scalar("SELECT path_id,hop,key_ordinal,from_column,to_column FROM lab_public.relationship_paths WHERE origin_entity='domain.assay' ORDER BY hop,key_ordinal")
+        self.assertEqual(rows,[('REL-1>',1,1,'specimen_id','specimen_id'),('REL-1>',1,2,'accession','accession')])
+        reverse=self.scalar("SELECT relationship_id,key_ordinal,from_column FROM lab_public.relationship_edges WHERE direction='REVERSE' ORDER BY key_ordinal")
+        self.assertEqual(reverse,[('REL-1',1,'specimen_id'),('REL-1',2,'accession')])
+        status={r['test_id']:r['status'] for r in validate(self.con,m)}
+        for kind in ('identity','keys','relationships','access-columns','composition'):
+            self.assertEqual(status['semantic:'+kind],'PASSED',kind)
+
+    def breaks(self,kind,mutation):
+        """The contract check passes on a clean deployment and fails once one rule is broken."""
+        m=self.deploy(itsd(self.platform))
+        check=next(c for c in m['checks'] if c['test_id']=='semantic:'+kind)
+        self.assertEqual(self.con.execute(check['sql']).fetchall(),[])
+        self.con.execute(mutation)
+        self.assertTrue(self.con.execute(check['sql']).fetchall())
+
+    def test_identity_check_detects_a_placement_bound_identity(self):
+        self.breaks('identity',"UPDATE itsd_semantic.entity_metadata SET entity_name='itsd_domain.ticket' WHERE entity_name='domain.ticket'")
+
+    def test_keys_check_detects_a_missing_surrogate_key(self):
+        self.breaks('keys',"DELETE FROM itsd_semantic.key_definition WHERE key_id='domain.ticket#surrogate'")
+
+    def test_relationships_check_detects_a_relationship_without_columns(self):
+        self.breaks('relationships',"DELETE FROM itsd_semantic.relationship_column WHERE relationship_id='REL-1'")
+
+    def test_access_columns_check_detects_an_unmapped_output_column(self):
+        self.breaks('access-columns',"DELETE FROM itsd_semantic.access_column WHERE object_identity='domain.ticket:current' AND column_name='subject'")
+
+    def test_composition_check_detects_a_composite_without_an_anchor(self):
+        self.breaks('composition',"INSERT INTO itsd_semantic.access_composition VALUES ('c:1','composite:orphan',1,'domain.ticket','INNER','REL-1','FORWARD',true,current_timestamp,current_timestamp)")
 
 
 @unittest.skipUnless('duckdb' in PLATFORMS,'DuckDB binding is on a separate branch')

@@ -21,6 +21,12 @@ from tooling.bindings.render import ORDER, PATTERNS, render_product  # noqa: E40
 
 REFERENCE = REPO / "examples/it-service-desk-data-product"
 REFERENCE_PLATFORM = "postgres"
+# The placement-independent identities every consumer follows (design/modules/semantic.md, INV-SEMANTIC-016).
+IDENTITY_GRAMMAR = [
+    {"kind": "entity", "form": "module.entity", "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$", "example": "domain.ticket"},
+    {"kind": "entity surface", "form": "module.entity:surface", "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|current)$", "example": "domain.ticket:current"},
+    {"kind": "module-owned object", "form": "module:object", "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", "example": "observability:trust_map"},
+    {"kind": "composite access object", "form": "composite:name", "pattern": "^composite:[a-z][a-z0-9_]*$", "example": "composite:ticket_enriched"}]
 CHECK_FILE_NAMES = ("conformance-queries.sql", "conformance.sql", "comment-coverage.sql",
                     "validation.sql", "validation.sql.j2", "checks.py")
 
@@ -74,7 +80,7 @@ def _access_surface(sql, access_schema, standard_names):
 
 def _discovery_roles(sql):
     """Discovery roles in the order an agent reads them, from the registration rows."""
-    rows = re.findall(r"data_product_orientation\" VALUES\n \('(\w+)','[^']+','\w+\.(\w+)',(\d+),", sql)
+    rows = re.findall(r"data_product_orientation\" VALUES\n \('(\w+)','[^']+','\w+','(\w+)',(\d+),", sql)
     return [{"role": r, "object": o, "discovery_order": int(n)} for r, o, n in sorted(rows, key=lambda x: int(x[2]))]
 
 
@@ -85,6 +91,7 @@ def build_contract(repo=REPO):
     modules = _standard_entities(repo)
     names = {e["name"] for entities in modules.values() for e in entities}
     return {"standard_version": version, "modules": list(ORDER), "patterns": list(PATTERNS),
+            "identity_grammar": IDENTITY_GRAMMAR,
             "metadata_entities": modules,
             "access_surface": _access_surface(sql, access_schema, names),
             "discovery_roles": _discovery_roles(sql)}

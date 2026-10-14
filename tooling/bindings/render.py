@@ -15,6 +15,8 @@ REPO = Path(__file__).resolve().parents[2]
 ORDER = ('memory','semantic','domain','observability','search','prediction')
 # Patterns the binding always applies; declared with the modules at registration.
 PATTERNS = ('object-placement','temporal-lifecycle-metadata','validation','access-layer')
+# INV-SEMANTIC-016..020, in order; each is a kind of modules/semantic/contract-check.sql.j2.
+CONTRACT_CHECKS = ('identity','keys','relationships','access-columns','composition')
 RESERVED = ('design','implementation','examples','roles','tooling','release')
 PROFILES = {'CURRENT_STATE','EVENT_APPEND_ONLY','OPERATIONAL_LOG','ASSOCIATION_CURRENT',
             'SCD2_HISTORY','ASSOCIATION_SCD2','SCD2_BITEMPORAL'}
@@ -56,6 +58,24 @@ def environment(platform):
     env.filters.update(ident=ident,literal=literal)
     env.globals.update(qualified=qualified)
     return env
+
+
+def key_definitions(e,names):
+    """Surrogate, natural and alternate keys of an entity as ordered column lists."""
+    parts=e.get('natural_key_parts') or ([e['natural_key']] if e['natural_key'] else [])
+    alternates=e.get('alternate_keys') or []
+    for columns in [parts]+list(alternates):
+        if any(c not in names for c in columns): raise ValueError('Key column is absent')
+    keys=[dict(id=e['identity']+'#surrogate',role='SURROGATE',columns=[e['key']])]
+    if parts: keys.append(dict(id=e['identity']+'#natural',role='NATURAL',columns=list(parts)))
+    keys.extend(dict(id=f"{e['identity']}#alternate-{n}",role='ALTERNATE',columns=list(columns)) for n,columns in enumerate(alternates,1))
+    return keys
+
+
+def access_columns(e):
+    """Output columns of the entity's current consumer view, each passing through unchanged."""
+    names=[c['name'] for c in e['columns']]+(['valid_from_dts'] if e['history'] else [])
+    return [dict(ordinal=n,name=name,source=name) for n,name in enumerate(names,1)]
 
 
 def prepare(raw,platform):
@@ -112,7 +132,8 @@ def prepare(raw,platform):
         for name in (e['name'],e['key'],e['current_view'],e['history_function']): ident(name)
         if not e['description'].strip(): raise ValueError('Every entity needs authored meaning')
         e['qualified']=qualified(e['schema'],e['name'])
-        e['identity']=e['schema']+'.'+e['name']
+        e['identity']=e['module']+'.'+e['name']
+        e['location']=e['schema']+'.'+e['name']
         e['view']=qualified(containers['access'],e['current_view'])
         if e['identity'] in seen: raise ValueError('Duplicate entity identity')
         seen.add(e['identity'])
@@ -150,6 +171,8 @@ def prepare(raw,platform):
         if e['supports_deletion']: temporal+=['is_deleted','deleted_dts']
         e['temporal_columns']=[dict(name=n,type=TEMPORAL[n][0],nullable=n=='deleted_dts',comment=TEMPORAL[n][1],pii=False,classification='INTERNAL') for n in temporal]
         e['all_columns']=e['columns']+e['temporal_columns']
+        e['key_defs']=key_definitions(e,names)
+        e['access_columns']=access_columns(e)
     views=[e['current_view'] for e in entities if not e['runtime']]
     if len(views)!=len(set(views)): raise ValueError('Consumer view names must be unique in the access schema')
     context['entities']=entities
@@ -164,19 +187,27 @@ def prepare(raw,platform):
                  supports_deletion=False,columns=[c for c in e['columns'] if c['name'] in (e['key'],e['natural_key'])],
                  temporal_columns=[c for c in e['temporal_columns'] if c['name'] in ('created_dts','updated_dts')],
                  current_view='v_'+e['keymap'],is_keymap=True)
-        k['qualified']=qualified(k['schema'],k['name']);k['identity']=k['schema']+'.'+k['name']
+        k['qualified']=qualified(k['schema'],k['name']);k['identity']=k['module']+'.'+k['name'];k['location']=k['schema']+'.'+k['name']
         k['view']=qualified(containers['access'],k['current_view'])
         k['all_columns']=k['columns']+k['temporal_columns']
+        k['natural_key_parts']=None;k['alternate_keys']=[]
+        k['key_defs']=key_definitions(k,[c['name'] for c in k['columns']])
+        k['access_columns']=access_columns(k)
         if k['identity'] in seen or k['current_view'] in views: raise ValueError('Keymap name collides with a declared object')
         seen.add(k['identity']);views.append(k['current_view'])
         entities.append(k);context['keymaps'].append(k)
     context.setdefault('relationships',[])
     by_ref={e['module']+'.'+e['name']:e for e in entities}
-    for rel in context['relationships']:
+    for number,rel in enumerate(context['relationships'],1):
+        rel['id']=f'REL-{number}'
+        pairs=rel['columns'] if 'columns' in rel else [dict(source=rel['source_column'],target=rel['target_column'])]
+        if not pairs: raise ValueError('A relationship needs at least one column pair')
         for side in ('source','target'):
             e=by_ref[rel[side]]
-            if rel[side+'_column'] not in [c['name'] for c in e['columns']]: raise ValueError('Relationship column is absent')
+            for pair in pairs:
+                if pair[side] not in [c['name'] for c in e['columns']]: raise ValueError('Relationship column is absent')
             rel[side+'_entity']=e
+        rel['columns']=[dict(ordinal=n,source=p['source'],target=p['target']) for n,p in enumerate(pairs,1)]
         rel.setdefault('mandatory',False)
     context.setdefault('documentation',[])
     for doc in context['documentation']:
@@ -221,11 +252,14 @@ def render_product(raw,platform):
             checks.append(dict(test_id=e['identity']+':'+kind,scope_kind='ENTITY',scope_id=e['identity'],
                                sql=render('patterns/validation/01-entity-check.sql.j2',entity=e,check_kind=kind).rstrip(';\n')))
     for r in c['relationships']:
-        checks.append(dict(test_id=r['source']+':'+r['source_column'],scope_kind='MODULE',scope_id=r['source_entity']['module'],
+        checks.append(dict(test_id=r['source']+':'+'+'.join(p['source'] for p in r['columns']),scope_kind='MODULE',scope_id=r['source_entity']['module'],
                            sql=render('patterns/validation/02-relationship-check.sql.j2',relationship=r).rstrip(';\n')))
-    if platform=='postgres':
-        checks.append(dict(test_id=c['product']['id']+':comment-coverage',scope_kind='PRODUCT',scope_id=c['product']['id'],
-                           sql=render('patterns/validation/03-comment-coverage.sql.j2').rstrip(';\n')))
+    checks.append(dict(test_id=c['product']['id']+':comment-coverage',scope_kind='PRODUCT',scope_id=c['product']['id'],
+                       sql=render('patterns/validation/03-comment-coverage.sql.j2').rstrip(';\n')))
+    if 'semantic' in c['modules']:
+        for kind in CONTRACT_CHECKS:
+            checks.append(dict(test_id='semantic:'+kind,scope_kind='MODULE',scope_id='semantic',
+                               sql=render('modules/semantic/contract-check.sql.j2',check_kind=kind).rstrip(';\n')))
     for module in ('semantic','memory'):
         if module in c['modules']:
             checks.append(dict(test_id=module+':coverage',scope_kind='MODULE',scope_id=module,

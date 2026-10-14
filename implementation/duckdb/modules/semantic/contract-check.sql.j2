@@ -1,0 +1,105 @@
+{# Inputs: containers.semantic, check_kind in identity|keys|relationships|access-columns|composition.
+   INV-SEMANTIC-016..020. Every returned row is a defect. Reads only registered metadata and the catalogue. #}
+{% set sem=containers.semantic %}
+{% if check_kind=='identity' %}
+SELECT e.entity_name AS identity,'entity identity is not module.entity' AS defect
+FROM {{ qualified(sem,'entity_metadata') }} e
+WHERE NOT regexp_matches(e.entity_name,'^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$') OR e.entity_name<>e.module_name||'.'||e.table_name
+UNION ALL
+SELECT a.object_identity,'access identity breaks the grammar'
+FROM {{ qualified(sem,'access_object') }} a
+WHERE NOT (regexp_matches(a.object_identity,'^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|current)$')
+        OR regexp_matches(a.object_identity,'^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$')
+        OR regexp_matches(a.object_identity,'^composite:[a-z][a-z0-9_]*$'))
+UNION ALL
+SELECT a.object_identity,'single-entity identity does not match its entity and surface'
+FROM {{ qualified(sem,'access_object') }} a
+WHERE a.access_role IN ('BASE','PASSTHROUGH')
+  AND a.object_identity<>a.represents_entity||CASE a.access_role WHEN 'BASE' THEN ':base' ELSE ':current' END
+{% elif check_kind=='keys' %}
+SELECT e.entity_name AS identity,'no surrogate key definition' AS defect
+FROM {{ qualified(sem,'entity_metadata') }} e
+WHERE NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'key_definition') }} k WHERE k.entity_name=e.entity_name AND k.key_role='SURROGATE')
+UNION ALL
+SELECT k.key_id,'key has no columns or ordinals do not run 1..n'
+FROM {{ qualified(sem,'key_definition') }} k
+WHERE (SELECT count(*) FROM {{ qualified(sem,'key_column') }} c WHERE c.key_id=k.key_id)=0
+   OR (SELECT count(DISTINCT c.ordinal)<>count(*) OR min(c.ordinal)<>1 OR max(c.ordinal)<>count(*) FROM {{ qualified(sem,'key_column') }} c WHERE c.key_id=k.key_id)
+UNION ALL
+SELECT c.key_column_id,'key column is absent from its entity'
+FROM {{ qualified(sem,'key_column') }} c
+INNER JOIN {{ qualified(sem,'key_definition') }} k ON k.key_id=c.key_id
+INNER JOIN {{ qualified(sem,'entity_metadata') }} e ON e.entity_name=k.entity_name
+WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns i WHERE i.table_catalog=current_database() AND i.table_schema=e.container_name AND i.table_name=e.table_name AND i.column_name=c.column_name)
+UNION ALL
+SELECT k.key_id,'key belongs to an unregistered entity'
+FROM {{ qualified(sem,'key_definition') }} k
+WHERE NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'entity_metadata') }} e WHERE e.entity_name=k.entity_name)
+{% elif check_kind=='relationships' %}
+SELECT r.relationship_id AS identity,'relationship has no columns or ordinals do not run 1..n' AS defect
+FROM {{ qualified(sem,'table_relationship') }} r
+WHERE (SELECT count(*) FROM {{ qualified(sem,'relationship_column') }} c WHERE c.relationship_id=r.relationship_id)=0
+   OR (SELECT count(DISTINCT c.ordinal)<>count(*) OR min(c.ordinal)<>1 OR max(c.ordinal)<>count(*) FROM {{ qualified(sem,'relationship_column') }} c WHERE c.relationship_id=r.relationship_id)
+UNION ALL
+SELECT r.relationship_id,'relationship names an unregistered entity'
+FROM {{ qualified(sem,'table_relationship') }} r
+WHERE NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'entity_metadata') }} e WHERE e.entity_name=r.source_entity)
+   OR NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'entity_metadata') }} e WHERE e.entity_name=r.target_entity)
+UNION ALL
+SELECT c.relationship_column_id,'relationship column is absent from its entity'
+FROM {{ qualified(sem,'relationship_column') }} c
+INNER JOIN {{ qualified(sem,'table_relationship') }} r ON r.relationship_id=c.relationship_id
+INNER JOIN {{ qualified(sem,'entity_metadata') }} s ON s.entity_name=r.source_entity
+INNER JOIN {{ qualified(sem,'entity_metadata') }} t ON t.entity_name=r.target_entity
+WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns i WHERE i.table_catalog=current_database() AND i.table_schema=s.container_name AND i.table_name=s.table_name AND i.column_name=c.source_column)
+   OR NOT EXISTS (SELECT 1 FROM information_schema.columns i WHERE i.table_catalog=current_database() AND i.table_schema=t.container_name AND i.table_name=t.table_name AND i.column_name=c.target_column)
+{% elif check_kind=='access-columns' %}
+SELECT a.object_identity||'.'||i.column_name AS identity,'output column has no mapping' AS defect
+FROM {{ qualified(sem,'access_object') }} a
+INNER JOIN information_schema.columns i ON i.table_catalog=current_database() AND i.table_schema=a.container_name AND i.table_name=a.object_name
+WHERE a.is_agent_consumable
+  AND NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'access_column') }} m WHERE m.object_identity=a.object_identity AND m.column_name=i.column_name)
+UNION ALL
+SELECT m.access_column_id,'mapping names a column the object does not have, or is duplicated'
+FROM {{ qualified(sem,'access_column') }} m
+INNER JOIN {{ qualified(sem,'access_object') }} a ON a.object_identity=m.object_identity
+WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns i WHERE i.table_catalog=current_database() AND i.table_schema=a.container_name AND i.table_name=a.object_name AND i.column_name=m.column_name)
+   OR (SELECT count(*) FROM {{ qualified(sem,'access_column') }} d WHERE d.object_identity=m.object_identity AND d.column_name=m.column_name)>1
+UNION ALL
+SELECT m.access_column_id,'mapping ordinals do not run 1..n'
+FROM {{ qualified(sem,'access_column') }} m
+WHERE (SELECT count(DISTINCT d.ordinal)<>count(*) OR min(d.ordinal)<>1 OR max(d.ordinal)<>count(*) FROM {{ qualified(sem,'access_column') }} d WHERE d.object_identity=m.object_identity)
+UNION ALL
+SELECT m.access_column_id,'non-derived mapping source is absent'
+FROM {{ qualified(sem,'access_column') }} m
+WHERE m.mapping_kind<>'DERIVED'
+  AND NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'entity_metadata') }} e
+                  INNER JOIN information_schema.columns i ON i.table_catalog=current_database() AND i.table_schema=e.container_name AND i.table_name=e.table_name
+                  WHERE e.entity_name=m.source_entity AND i.column_name=m.source_column)
+{% elif check_kind=='composition' %}
+SELECT c.composite_object AS identity,'composite does not have exactly one anchor' AS defect
+FROM {{ qualified(sem,'access_composition') }} c
+GROUP BY c.composite_object
+HAVING count(*) FILTER (WHERE c.member_role='ANCHOR')<>1
+UNION ALL
+SELECT c.composite_object,'member_seq does not run 1..n'
+FROM {{ qualified(sem,'access_composition') }} c
+GROUP BY c.composite_object
+HAVING count(DISTINCT c.member_seq)<>count(*) OR min(c.member_seq)<>1 OR max(c.member_seq)<>count(*)
+UNION ALL
+SELECT c.access_composition_id,'non-anchor member does not join to a prior member through its relationship'
+FROM {{ qualified(sem,'access_composition') }} c
+WHERE c.member_role<>'ANCHOR'
+  AND NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'table_relationship') }} r
+                  INNER JOIN {{ qualified(sem,'access_composition') }} p ON p.composite_object=c.composite_object AND p.member_seq<c.member_seq
+                  WHERE r.relationship_id=c.via_relationship_id
+                    AND ((c.via_direction='FORWARD' AND r.source_entity=p.member_entity AND r.target_entity=c.member_entity)
+                      OR (c.via_direction='REVERSE' AND r.target_entity=p.member_entity AND r.source_entity=c.member_entity)))
+UNION ALL
+SELECT c.access_composition_id,'anchor carries a join or member names an unregistered entity'
+FROM {{ qualified(sem,'access_composition') }} c
+WHERE (c.member_role='ANCHOR' AND (c.via_relationship_id IS NOT NULL OR c.via_direction IS NOT NULL))
+   OR NOT EXISTS (SELECT 1 FROM {{ qualified(sem,'entity_metadata') }} e WHERE e.entity_name=c.member_entity)
+{% else %}
+{{ undefined_check_kind_is_an_error }}
+{% endif %}
