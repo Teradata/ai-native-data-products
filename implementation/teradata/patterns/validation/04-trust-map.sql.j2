@@ -7,6 +7,7 @@
    producer's entry stands for each area. The same columns as every binding's trust map.
    Teradata views take no WITH clause or ORDER BY here, so the steps are derived tables and
    the latest-row choices are QUALIFY; a NULL in a union branch is typed, or the union fails. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set view = named('TrustMap') %}{% set run = named('ValidationRun') %}{% set area = named('ValidationArea') %}
 {% set registry = named('DataProductRegistry') %}
 {% if view and run and area and registry %}
@@ -82,4 +83,27 @@ SELECT p.product_code, p.producer_id, CAST(NULL AS VARCHAR(400)), 'PRODUCT', p.p
 FROM {{ product }} p
 WHERE NOT EXISTS (SELECT 1 FROM {{ evidence }} e WHERE e.product_code = p.product_code
                   AND (p.producer_id IS NULL OR e.producer_id = p.producer_id));
+COMMENT ON VIEW {{ view.objects.consumer_view|qualified }} IS {{ m.comment('Trust map: per area, the latest evidence from the designated producer, read at unknown confidence once expired. Read it before relying on any other object.') }};
+{% for name, meaning in [
+  ('product_code', 'Data product the evidence describes.'),
+  ('producer_id', 'Validation producer whose evidence is read; null when none is designated.'),
+  ('run_id', 'Validation run that supplied the area evidence; null when none exists.'),
+  ('scope_kind', 'Kind of scope the evidence covers, for example MODULE, ENTITY or PRODUCT.'),
+  ('scope_id', 'Identifier of the scope the evidence covers.'),
+  ('area_status', 'Outcome of the area: pass, fail, partial or no-evidence.'),
+  ('confidence', 'Trust confidence for the area; unknown once the evidence has expired.'),
+  ('checks_expected', 'Number of checks the area should have run.'),
+  ('checks_ran', 'Number of checks the area actually ran.'),
+  ('coverage', 'Fraction of expected checks that ran; null when none were expected.'),
+  ('passed_count', 'Number of checks that passed.'),
+  ('failed_count', 'Number of checks that failed.'),
+  ('error_count', 'Number of checks that errored before producing a result.'),
+  ('critical_failure_count', 'Number of failed checks of critical severity.'),
+  ('error_failure_count', 'Number of failed or errored checks counted against trust.'),
+  ('open_gaps', 'Known gaps in the evidence; states staleness when the evidence has expired.'),
+  ('recommended_action', 'Next step to restore or confirm trust.'),
+  ('completed_dts', 'When the area evidence was completed; null when none exists.'),
+  ('derived', '1 when the entry is derived from a legacy run that published no area records, otherwise 0.')] -%}
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.{{ name|ident }} IS {{ m.comment(meaning) }};
+{% endfor -%}
 {% endif %}

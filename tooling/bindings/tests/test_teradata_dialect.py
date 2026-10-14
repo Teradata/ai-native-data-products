@@ -222,20 +222,21 @@ class TeradataDialect(unittest.TestCase):
     platform = "teradata"
     @classmethod
     def setUpClass(cls):
-        cls.rendered, cls.long = {}, set()
+        cls.rendered, cls.long, cls.built = {}, set(), {}
         with tempfile.TemporaryDirectory() as tmp:
             for name, spec in (("ITSD", ITSD), ("Customer Orders", CUSTORD), ("long-named ITSD", long_named(ITSD, tmp))):
                 for profile in PROFILES:
                     ctx, findings = build_context.resolve(spec, profile)
                     assert not findings, [str(f) for f in findings]
                     label = f"{name} on {profile.name}"
-                    cls.rendered[label] = cls.everything(ctx)
+                    files = render_context(ctx)
+                    cls.built[label] = (ctx, files)
+                    cls.rendered[label] = cls.everything(ctx, files)
                     if name.startswith("long"):
                         cls.long.add(label)
 
     @staticmethod
-    def everything(ctx):
-        files = render_context(ctx)
+    def everything(ctx, files):
         sql = [text for name, text in files.items() if name.endswith(".sql")]
         sql += [c["sql"] for c in json.loads(files["manifest.json"])["checks"]]
         binding, _ = load_binding("teradata")
@@ -282,6 +283,97 @@ class TeradataDialect(unittest.TestCase):
                     for width, column, checked in columns:
                         self.assertEqual(width, checked, column)
                         self.assertEqual(int(width) % 8, 0, column)
+
+    # ---- the metadata contract (release 2.0.0) as Teradata renders it -----------------
+    CONTRACT = ("contract-identity", "contract-keys", "contract-relationships", "contract-access-columns",
+                "contract-composition", "comment-coverage")
+
+    def view_statement(self, label, name):
+        """The REPLACE VIEW statement the build renders for a placed standard-owned relation."""
+        ctx, files = self.built[label]
+        view = next(x for x in ctx["relations"] if x["name"] == name)["objects"]["consumer_view"]
+        found = [s for s in statements("\n".join(t for n, t in files.items() if n.endswith(".sql") and n != "deploy.sql"))
+                 if re.match(rf'REPLACE\s+VIEW\s+"{view["container"]}"\."{view["name"]}"', s, re.I)]
+        self.assertEqual(len(found), 1, name)
+        return found[0]
+
+    def test_the_contract_checks_are_declared_in_every_build(self):
+        for label, (ctx, files) in self.built.items():
+            with self.subTest(build=label):
+                declared = {c["check"] for c in json.loads(files["manifest.json"])["checks"]}
+                self.assertLessEqual(set(self.CONTRACT), declared)
+
+    def test_relationship_paths_are_rows_of_a_stated_shape(self):
+        columns = ["path_id", "origin_entity", "destination_entity", "hop_count", "hop", "key_ordinal",
+                   "from_entity", "from_column", "to_entity", "to_column", "relationship_id", "direction"]
+        for label in self.built:
+            with self.subTest(build=label):
+                s = self.view_statement(label, "RelationshipPaths")
+                self.assertEqual(re.findall(r'"(\w+)"', s.split(" AS\n", 1)[0].split("(", 1)[1]), columns)
+                self.assertNotIn("join_path", s)
+                self.assertNotRegex(s, r"\bNOT\s+IN\b")
+                # one branch per (length, position) up to the standard's four steps, and no fifth
+                self.assertEqual(len(re.findall(r"^SELECT CAST\(stp1\.leg", s, re.M)), 1 + 2 + 3 + 4)
+                self.assertIn("stp4.leg", s)
+                self.assertNotIn("stp5", s)
+
+    def test_the_manifest_ends_with_the_standard_version(self):
+        for label in self.built:
+            with self.subTest(build=label):
+                s = self.view_statement(label, "DataProductManifest")
+                select_list = s.split("\nFROM ", 1)[0]
+                self.assertEqual(re.findall(r"\bAS\s+\"?(\w+)\"?\s*,?\s*$", select_list.strip())[-1], "standard_version")
+                self.assertIn("'STANDARD'", s)
+
+    def test_a_consumer_view_selects_the_context_view_columns_and_registers_each(self):
+        for label, (ctx, files) in self.built.items():
+            with self.subTest(build=label):
+                text = "\n".join(t for n, t in files.items() if n.endswith(".sql") and n != "deploy.sql")
+                access = next(x for x in ctx["relations"] if x["name"] == "AccessColumn")
+                registered = len(re.findall(rf'INSERT INTO "{access["objects"]["table"]["container"]}"\."{access["objects"]["table"]["name"]}"', text))
+                expected = 0
+                for x in ctx["entities"] + ctx["relations"]:
+                    view = x.get("objects", {}).get("consumer_view")
+                    if not view or "table" not in x["objects"]:
+                        continue
+                    listed = [v["physical_name"] for v in x["view_columns"]]
+                    expected += len(listed)
+                    m = re.search(rf'^REPLACE VIEW "{view["container"]}"\."{view["name"]}" \(([^)]*)\) AS', text, re.M)
+                    self.assertIsNotNone(m, x["name"])
+                    self.assertEqual(re.findall(r'"([^"]+)"', m.group(1)), listed, x["name"])
+                self.assertEqual(registered, expected)
+
+    def test_identities_are_logical_and_keys_and_pairs_are_rows(self):
+        for label, (ctx, files) in self.built.items():
+            with self.subTest(build=label):
+                text = files["11-registration.sql"]
+                self.assertNotIn("surrogate_key_column", text)
+                self.assertNotIn("natural_key_column", text)
+                for x in ctx["entities"] + ctx["relations"]:
+                    if "table" in x["objects"]:
+                        self.assertIn(f"'{x['logical_id']}'", text, x["name"])
+                for r in ctx["relationships"]:
+                    if r["source_table"] and r["target_table"]:
+                        self.assertIn(f"'{r['source_identity']}'", text)
+                for name in ("KeyDefinition", "KeyColumn", "RelationshipColumn", "StandardDeclaration"):
+                    t = next(x for x in ctx["relations"] if x["name"] == name)["objects"]["table"]
+                    self.assertIn(f'INSERT INTO "{t["container"]}"."{t["name"]}"', text, name)
+
+    def test_every_object_the_build_creates_carries_a_comment(self):
+        """The catalogue-wide sweep needs a comment on every database, table, view, procedure and view column."""
+        for label, (ctx, files) in self.built.items():
+            with self.subTest(build=label):
+                sql = "\n".join(t for n, t in files.items() if n.endswith(".sql") and n != "deploy.sql")
+                made = {(m.group(1).upper(), m.group(2)) for m in re.finditer(
+                    r"^(?:CREATE|REPLACE)\s+(?:MULTISET\s+)?(TABLE|VIEW|PROCEDURE|DATABASE)\s+(\S+)", sql, re.M | re.I)}
+                commented = {(m.group(1).upper(), m.group(2)) for m in re.finditer(
+                    r"^COMMENT ON (TABLE|VIEW|PROCEDURE|DATABASE)\s+(\S+) IS", sql, re.M | re.I)}
+                self.assertEqual(made - commented, set())
+                columns = {}
+                for m in re.finditer(r'^COMMENT ON COLUMN\s+(\S+?)\.("[^"]+") IS', sql, re.M):
+                    columns.setdefault(m.group(1), set()).add(m.group(2))
+                for m in re.finditer(r"^REPLACE VIEW\s+(\S+)\s*\(([^)]*)\)\s*AS", sql, re.M):
+                    self.assertEqual(set(re.findall(r'"[^"]+"', m.group(2))) - columns.get(m.group(1), set()), set(), m.group(1))
 
     def test_each_rule_catches_what_it_names(self):
         self.assertEqual(set(CAUGHT), set(RULES))

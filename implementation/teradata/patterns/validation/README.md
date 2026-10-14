@@ -24,6 +24,8 @@ Each check is a query whose every row is a defect. The `Checks:` block of [PLATF
 | `relationship reference` | `03-relationship-reference.sql.j2` | each entry in `relationships` (`relationship`) | current source references with no current target, read through the consumer views (the tables where no view is placed); an optional reference may be null; a generic reference is checked only where its discriminator names this target |
 | `module semantic` | [`modules/semantic/validation.sql.j2`](../../modules/semantic/README.md) | the Semantic module | unregistered tables |
 | `module memory` | [`modules/memory/validation.sql.j2`](../../modules/memory/README.md) | the Memory module | modules below the capture floor |
+| `contract identity`, `contract keys`, `contract relationships`, `contract access-columns`, `contract composition` | [`modules/semantic/contract/`](../../modules/semantic/README.md) | once, for the Semantic module (`contract` scope); rendered as `contract-identity` and so on | the defects of the Semantic metadata contract (`INV-SEMANTIC-016` to `020`), as `object_identity` and `defect` |
+| `product comment-coverage` | `05-comment-coverage.sql.j2` | once, for the product (`product` scope) | each database, table, view, macro, procedure, function and table or view column with no comment, read from `DBC.DatabasesV`, `DBC.TablesV` and `DBC.ColumnsV` over the containers the product creates (databases) and those that hold objects (objects and columns); an adopted container is not swept |
 
 The reference check is current-surface coverage, not historical proof, and compares the first target column only.
 
@@ -37,7 +39,7 @@ The reference check is current-surface coverage, not historical proof, and compa
 - where no producer is designated, the most cautious producer's entry stands for each area;
 - a product with no evidence at all reads `no-evidence` and `unknown`.
 
-Teradata views take no `WITH` clause and no `ORDER BY`, so each step is a derived table, and a `NULL` in a union branch is cast to its column's type.
+Teradata views take no `WITH` clause and no `ORDER BY`, so each step is a derived table, and a `NULL` in a union branch is cast to its column's type. The view and each of its columns carry a comment.
 
 ## Validator
 
