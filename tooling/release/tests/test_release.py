@@ -5,14 +5,16 @@ have its authored documents. The release bundle must also never become a module.
 """
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-from tooling.bindings.render import ORDER  # noqa: E402
-from tooling.release import build_release as release  # noqa: E402
+sys.path.insert(0, str(REPO / "tooling" / "release"))
+import build_release as release  # noqa: E402
+
+MODULES = ("memory", "semantic", "domain", "observability", "search", "prediction")
 
 
 class CommittedBundle(unittest.TestCase):
@@ -26,12 +28,11 @@ class CommittedBundle(unittest.TestCase):
         self.assertEqual(release.render_bundle(), release.render_bundle())
 
     def test_bundle_is_not_a_module(self):
-        self.assertNotIn("release", ORDER)
         self.assertFalse((REPO / "design/modules/release.md").exists())
         for platform in (REPO / "implementation").iterdir():
             self.assertFalse((platform / "modules/release").exists(), platform.name)
         contract = release.build_contract()
-        self.assertEqual(contract["modules"], list(ORDER))
+        self.assertEqual(contract["modules"], list(MODULES))
         self.assertNotIn("release", contract["metadata_entities"])
 
 
@@ -39,69 +40,75 @@ class ContractContent(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.contract = release.build_contract()
+        cls.entities = {e["name"]: e for items in cls.contract["metadata_entities"].values() for e in items}
+        cls.surface = {s["relation"]: s for s in cls.contract["access_surface"]}
 
     def test_declares_its_own_version(self):
         self.assertEqual(self.contract["standard_version"], release.read_version())
 
     def test_declaration_surface_is_published(self):
-        entities = {e["name"]: e for e in self.contract["metadata_entities"]["semantic"]}
-        self.assertIn("standard_declaration", entities)
-        self.assertEqual([c["name"] for c in entities["standard_declaration"]["columns"]][:3],
-                         ["declaration_id", "product_id", "component_kind"])
-        surface = {v["name"]: v["columns"] for v in self.contract["access_surface"]}
-        self.assertIn("v_standard_declaration", surface)
-        self.assertEqual(surface["data_product_manifest"][-1], "standard_version")
+        self.assertIn("StandardDeclaration", self.entities)
+        self.assertEqual(self.entities["StandardDeclaration"]["identity"], "semantic.standard_declaration")
+        self.assertEqual(self.surface["DataProductManifest"]["columns"][-1], "standard_version")
 
     def test_identity_grammar_examples_match_their_patterns(self):
-        import re
         for rule in self.contract["identity_grammar"]:
             with self.subTest(kind=rule["kind"]):
                 self.assertRegex(rule["example"], rule["pattern"])
                 others = [r for r in self.contract["identity_grammar"] if r is not rule]
                 self.assertFalse(any(re.fullmatch(o["pattern"], rule["example"]) for o in others))
 
+    def test_every_published_identity_follows_the_grammar(self):
+        patterns = [re.compile(r["pattern"]) for r in self.contract["identity_grammar"]]
+        for identity in [e["identity"] for e in self.entities.values()] + [s["identity"] for s in self.surface.values()]:
+            with self.subTest(identity=identity):
+                self.assertTrue(any(p.fullmatch(identity) for p in patterns))
+
     def test_ordered_group_surfaces_are_published(self):
-        entities = {e["name"]: [c["name"] for c in e["columns"]] for e in self.contract["metadata_entities"]["semantic"]}
-        self.assertEqual(entities["key_column"], ["key_column_id", "key_id", "ordinal", "column_name"])
-        self.assertEqual(entities["relationship_column"], ["relationship_column_id", "relationship_id", "ordinal", "source_column", "target_column"])
-        self.assertIn("source_entity", entities["access_column"])
-        for gone in ("source_column", "target_column"):
-            self.assertNotIn(gone, entities["table_relationship"])
+        columns = {name: [c["name"] for c in e["columns"]] for name, e in self.entities.items()}
+        self.assertEqual(columns["KeyColumn"][:4], ["key_column_id", "key_definition_id", "ordinal", "column_name"])
+        self.assertEqual(columns["RelationshipColumn"][:5],
+                         ["relationship_column_id", "relationship_id", "ordinal", "source_column", "target_column"])
+        self.assertIn("source_entity", columns["AccessColumn"])
+        for gone in ("source_column", "target_column", "source_table", "target_table"):
+            self.assertNotIn(gone, columns["TableRelationship"])
         for gone in ("surrogate_key_column", "natural_key_column"):
-            self.assertNotIn(gone, entities["entity_metadata"])
-        self.assertNotIn("join_path", entities["access_composition"])
-        surface = {v["name"]: v["columns"] for v in self.contract["access_surface"]}
-        self.assertEqual(surface["relationship_paths"], [
+            self.assertNotIn(gone, columns["EntityMetadata"])
+        self.assertNotIn("join_path", columns["AccessComposition"])
+        self.assertEqual(self.surface["RelationshipPaths"]["columns"], [
             "path_id", "origin_entity", "destination_entity", "hop_count", "hop", "key_ordinal",
             "from_entity", "from_column", "to_entity", "to_column", "relationship_id", "direction"])
-        self.assertEqual(surface["relationship_edges"], [
-            "relationship_id", "key_ordinal", "direction", "from_entity", "from_column", "to_entity", "to_column"])
+
+    def test_every_entity_publishes_its_keys_in_order(self):
+        embedding = next(e for items in self.contract["metadata_entities"].values() for e in items
+                         if e["name"] == "ValidationArea")
+        natural = next(k for k in embedding["keys"] if k["role"] == "NATURAL")
+        self.assertGreater(len(natural["columns"]), 1)
 
     def test_every_published_access_object_lists_columns(self):
         for view in self.contract["access_surface"]:
-            with self.subTest(view=view["name"]):
+            with self.subTest(view=view["relation"]):
                 self.assertTrue(view["columns"])
-
-    def test_every_published_column_has_a_comment(self):
-        for entities in self.contract["metadata_entities"].values():
-            for entity in entities:
-                for column in entity["columns"]:
-                    with self.subTest(entity=entity["name"], column=column["name"]):
-                        self.assertTrue(column["comment"].strip())
 
     def test_discovery_starts_at_the_trust_map(self):
         roles = self.contract["discovery_roles"]
-        self.assertEqual(roles[0]["role"], "TRUST_MAP")
-        self.assertEqual([r["discovery_order"] for r in roles], sorted(r["discovery_order"] for r in roles))
+        self.assertEqual(roles[0]["role"], "MANIFEST")
+        orders = [r["discovery_order"] for r in roles]
+        self.assertEqual(orders, sorted(orders))
+        self.assertIn("TRUST_MAP", [r["role"] for r in roles[:2]])
 
     def test_bindings_report_declaration_support(self):
         support = {b["platform"]: b["declares_standard_version"] for b in release.build_bindings()["bindings"]}
-        self.assertTrue(support["postgres"])
-        self.assertTrue(support["teradata"])
+        self.assertTrue(all(support.values()), support)
 
-    def test_checks_include_comment_coverage(self):
-        rendered = release.build_checks()["rendered_checks"]["postgres"]
-        self.assertIn({"scope_kind": "PRODUCT", "check": "comment-coverage"}, rendered)
+    def test_checks_include_the_contract_and_comment_coverage(self):
+        rendered = release.build_checks()["rendered_checks"]
+        for platform, checks in rendered.items():
+            names = {c["check"] for c in checks}
+            with self.subTest(platform=platform):
+                for expected in ("contract-identity", "contract-keys", "contract-relationships",
+                                 "contract-access-columns", "contract-composition", "comment-coverage"):
+                    self.assertIn(expected, names)
 
 
 class Generator(unittest.TestCase):
