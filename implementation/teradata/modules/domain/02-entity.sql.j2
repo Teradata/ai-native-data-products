@@ -14,7 +14,7 @@
         { name, type, nullable(bool), comment,
           ref(optional target entity for FK columns) }
 
-  {entity}_id is sourced from {entity}_Keymap on load. NOT generated here: so the
+  The entity's _id is sourced from its _Keymap table on load. NOT generated here: so the
   surrogate is stable across all SCD versions (INV-DOMAIN-003).
 
   The open-end sentinel on valid_to_dts / transaction_to_dts is set at INSERT time

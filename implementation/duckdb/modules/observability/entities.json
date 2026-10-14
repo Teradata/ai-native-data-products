@@ -1,0 +1,770 @@
+[
+  {
+    "name": "change_event",
+    "key": "change_event_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Append-only operational evidence: change event.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "change_event_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying change event; never recycled."
+      },
+      {
+        "name": "table_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified changed table; no row identifiers."
+      },
+      {
+        "name": "change_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Mutation kind."
+      },
+      {
+        "name": "change_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Change occurred."
+      },
+      {
+        "name": "changed_by",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Responsible producer."
+      },
+      {
+        "name": "records_affected",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Aggregate count only."
+      },
+      {
+        "name": "batch_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Producing run identity."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "data_quality_metric",
+    "key": "quality_metric_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Append-only operational evidence: data quality metric.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "quality_metric_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying quality measurement; never recycled."
+      },
+      {
+        "name": "table_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified measured table."
+      },
+      {
+        "name": "metric_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Data quality dimension."
+      },
+      {
+        "name": "metric_value",
+        "type": "DECIMAL(10,4)",
+        "nullable": false,
+        "comment": "Measured fraction, independently of validation coverage."
+      },
+      {
+        "name": "measured_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Measurement instant."
+      },
+      {
+        "name": "quality_threshold",
+        "type": "DECIMAL(5,4)",
+        "nullable": false,
+        "comment": "Acceptance threshold."
+      },
+      {
+        "name": "is_threshold_met",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Measurement meets declared threshold."
+      },
+      {
+        "name": "sample_size",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Measured population size."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "lineage_run",
+    "key": "lineage_run_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Append-only operational evidence: lineage run.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "lineage_run_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying flow execution; never recycled."
+      },
+      {
+        "name": "lineage_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying observability.data_lineage; never recycled."
+      },
+      {
+        "name": "run_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Execution instant."
+      },
+      {
+        "name": "run_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "SUCCESS, FAILED, PARTIAL or RUNNING."
+      },
+      {
+        "name": "records_read",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Input count."
+      },
+      {
+        "name": "records_written",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Output count."
+      },
+      {
+        "name": "batch_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Execution batch identity."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "model_performance",
+    "key": "performance_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Append-only operational evidence: model performance.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "performance_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying model measurement; never recycled."
+      },
+      {
+        "name": "model_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Measured model."
+      },
+      {
+        "name": "model_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Measured revision."
+      },
+      {
+        "name": "metric_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Performance dimension, separate from predictions."
+      },
+      {
+        "name": "metric_value",
+        "type": "DECIMAL(10,6)",
+        "nullable": true,
+        "comment": "Measured metric in named units."
+      },
+      {
+        "name": "evaluation_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Evaluation instant."
+      },
+      {
+        "name": "sample_size",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Evaluation population."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "agent_outcome",
+    "key": "outcome_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Append-only operational evidence: agent outcome.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "outcome_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying agent outcome; never recycled."
+      },
+      {
+        "name": "agent_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Acting agent."
+      },
+      {
+        "name": "session_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Process session identifier."
+      },
+      {
+        "name": "action_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Process action."
+      },
+      {
+        "name": "action_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Action instant."
+      },
+      {
+        "name": "tables_accessed",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Table-level references only."
+      },
+      {
+        "name": "outcome_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Execution result."
+      },
+      {
+        "name": "records_processed",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Aggregate count, never result rows."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "data_lineage",
+    "key": "lineage_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Flow definitions retained independently of executions.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "lineage_id",
+        "type": "BIGINT",
+        "nullable": false,
+        "comment": "Stable surrogate identifying flow; never recycled."
+      },
+      {
+        "name": "source_table",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified source table."
+      },
+      {
+        "name": "target_table",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified target table."
+      },
+      {
+        "name": "job_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Producing transformation."
+      },
+      {
+        "name": "transformation_logic",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Transformation definition, without business data."
+      },
+      {
+        "name": "is_active",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Owner enables or retires a flow; transitions true to false on retirement."
+      },
+      {
+        "name": "registered_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Flow registered."
+      },
+      {
+        "name": "retired_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": true,
+        "comment": "Retirement; null while active."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "retention_policy",
+    "key": "policy_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Operator-applied retention obligations, not automatic deletion.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "policy_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Table or facet retention identity."
+      },
+      {
+        "name": "retention_days",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Null means product lifetime."
+      },
+      {
+        "name": "rationale",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Why this retention period is used."
+      },
+      {
+        "name": "owner",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Operator accountable for archival and deletion."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "validation_run",
+    "key": "run_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Validation wire schema 2.1 run evidence; advisory, never an access gate.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "product_prefix",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Product evaluated."
+      },
+      {
+        "name": "producer_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validator identity."
+      },
+      {
+        "name": "run_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Unique append-only execution identity."
+      },
+      {
+        "name": "producer_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validator version."
+      },
+      {
+        "name": "profile_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Executed profile."
+      },
+      {
+        "name": "profile_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Profile version."
+      },
+      {
+        "name": "source_format",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Evidence interchange format."
+      },
+      {
+        "name": "payload_schema_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validation wire schema version."
+      },
+      {
+        "name": "started_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Validation started."
+      },
+      {
+        "name": "completed_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Validation completed."
+      },
+      {
+        "name": "trust_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Advisory product summary.",
+        "check": "trust_status IN ('TRUSTED','DEGRADED','UNTRUSTED')"
+      },
+      {
+        "name": "agent_use_allowed",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Deprecated compatibility field; always go, never authoritative."
+      },
+      {
+        "name": "total_checks",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Executed check count."
+      },
+      {
+        "name": "passed_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks with PASSED status.",
+        "check": "passed_count>=0"
+      },
+      {
+        "name": "failed_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks with FAILED status.",
+        "check": "failed_count>=0"
+      },
+      {
+        "name": "error_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks that could not execute.",
+        "check": "error_count>=0"
+      },
+      {
+        "name": "critical_failure_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Failed or errored CRITICAL checks.",
+        "check": "critical_failure_count>=0"
+      },
+      {
+        "name": "error_failure_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Failed or errored ERROR-severity checks.",
+        "check": "error_failure_count>=0"
+      },
+      {
+        "name": "data_product_trust_score",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Optional readiness score; null means unassessed.",
+        "check": "data_product_trust_score BETWEEN 0 AND 100"
+      },
+      {
+        "name": "performance_readiness_score",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Optional readiness score; null means unassessed.",
+        "check": "performance_readiness_score BETWEEN 0 AND 100"
+      },
+      {
+        "name": "operational_readiness_score",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Optional readiness score; null means unassessed.",
+        "check": "operational_readiness_score BETWEEN 0 AND 100"
+      },
+      {
+        "name": "repair_candidate_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "True repair proposal count."
+      },
+      {
+        "name": "failed_checks_json",
+        "type": "JSON",
+        "nullable": true,
+        "comment": "Optional capped failure detail; counts remain authoritative."
+      },
+      {
+        "name": "repair_candidates_json",
+        "type": "JSON",
+        "nullable": true,
+        "comment": "Optional capped proposals, never executable authority."
+      },
+      {
+        "name": "evidence_expires_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": true,
+        "comment": "Evidence expiry."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "validation_area",
+    "key": "area_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Per-area check coverage and confidence for each validation run.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "product_prefix",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Product evaluated."
+      },
+      {
+        "name": "producer_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validator identity."
+      },
+      {
+        "name": "run_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Unique append-only execution identity."
+      },
+      {
+        "name": "area_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Run-scope composite identity."
+      },
+      {
+        "name": "payload_schema_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validation wire schema version."
+      },
+      {
+        "name": "scope_kind",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "PRODUCT, MODULE, ENTITY, PATTERN or CAPABILITY."
+      },
+      {
+        "name": "scope_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Resolvable area identity."
+      },
+      {
+        "name": "checks_expected",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks defined by the profile."
+      },
+      {
+        "name": "checks_ran",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks executed."
+      },
+      {
+        "name": "passed_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks with PASSED status.",
+        "check": "passed_count>=0"
+      },
+      {
+        "name": "failed_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks with FAILED status.",
+        "check": "failed_count>=0"
+      },
+      {
+        "name": "error_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Checks that could not execute.",
+        "check": "error_count>=0"
+      },
+      {
+        "name": "critical_failure_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Failed or errored CRITICAL checks.",
+        "check": "critical_failure_count>=0"
+      },
+      {
+        "name": "error_failure_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Failed or errored ERROR-severity checks.",
+        "check": "error_failure_count>=0"
+      },
+      {
+        "name": "area_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "pass, fail, partial, not-validated or no-evidence."
+      },
+      {
+        "name": "confidence",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "strong, partial, weak or unknown."
+      },
+      {
+        "name": "open_gaps",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Coverage limits, required below strong."
+      },
+      {
+        "name": "recommended_action",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "How to raise confidence."
+      },
+      {
+        "name": "completed_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Parent run completion instant."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "validation_check",
+    "key": "check_result_id",
+    "natural_key": null,
+    "profile": "EVENT_APPEND_ONLY",
+    "description": "Individual executed check identity and error evidence.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "check_result_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Run and test identity."
+      },
+      {
+        "name": "run_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Parent validation run."
+      },
+      {
+        "name": "test_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable product-family check identifier."
+      },
+      {
+        "name": "scope_kind",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Area kind."
+      },
+      {
+        "name": "scope_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Area identity."
+      },
+      {
+        "name": "category",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Check family."
+      },
+      {
+        "name": "severity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Failure impact."
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "PASSED, FAILED or ERROR."
+      },
+      {
+        "name": "row_count",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "True violating row count."
+      },
+      {
+        "name": "error_message",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Execution error only."
+      },
+      {
+        "name": "checked_dts",
+        "type": "TIMESTAMPTZ",
+        "nullable": false,
+        "comment": "Check execution time."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  }
+]

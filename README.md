@@ -24,7 +24,7 @@ ai-native-data-products/
 │                               physical-storage · validation · access-layer
 ├── implementation/
 │   ├── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
-│   ├── duckdb/                 portable file binding and executable conformance
+│   ├── duckdb/                 reusable Jinja bindings for a portable file engine
 │   └── postgres/               reusable Jinja bindings, native grants and history constraints
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)

@@ -1,7 +1,31 @@
+{#
+  Memory module. DocumentationCapture binding (Teradata).
+  The INSERT statements every module uses to record its design memory (the capture
+  protocol in design/modules/memory.md), rendered from the approved design's records.
+
+  Template variables (build context). Each list holds records the design already
+  carries; nothing is invented here, and an empty list renders no statement:
+
+    memory_db
+    registered_modules : { name, container, purpose, scope, entities, upstream,
+                           downstream, owner, tech_contact, version, status }
+    decisions          : { id, title, description, context, alternatives, rationale,
+                           consequences, category, module, version, tables, author }
+    superseded         : decision ids to close (a version chain: see 2b)
+    changes            : { id, title, description, module, tables, deployer, version,
+                           decision_id }
+    glossary_terms     : { term, category, definition, context, module, version }
+    recipes            : { id, title, description, use_case, target_module,
+                           sql_template, parameters, performance, complexity,
+                           is_batch, module, version }
+    semantic_db        : the Semantic container (the standard ERD recipe reads it)
+
+  Identifiers such as DD-ACCESS-001 arrive whole in `id`; this template does not build
+  them. Text values go through `q`, which doubles any embedded quote.
+#}
+{%- macro q(value) -%}'{{ value | replace("'", "''") }}'{%- endmacro -%}
 -- Memory module. DocumentationCapture binding (Teradata).
--- The INSERT templates every module uses to record its design memory
--- (the capture protocol in design/modules/memory.md). Replace {{ product }}, {MODULE}, {NNN}, and
--- {...} placeholders. Temporal field standards: valid_from_dts = CURRENT_TIMESTAMP(6),
+-- Temporal field standards: valid_from_dts = CURRENT_TIMESTAMP(6),
 -- valid_to_dts = the open-end sentinel TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
 -- is_current/is_active = 1, decision_status = 'ACCEPTED'.
 --
@@ -17,86 +41,98 @@
 -- this product. A value naming no registered module (e.g. 'ACCESS') falls through
 -- the INV-MEMORY-006 join and counts toward nothing, silently.
 --
--- A stored sql_template uses <param_name> placeholders, never :param_name: the
--- driver's SQLAlchemy layer reads :word as a bind parameter and strips it before
--- the INSERT reaches the database (see PLATFORM_PROFILE, SQL idioms and driver
--- constraints). This is the opposite of the maintenance DML, where :param is a
--- real runtime bind and correct.
+-- A stored sql_template marks each parameter by wrapping its name in angle brackets,
+-- never with a leading colon: the driver's SQLAlchemy layer reads :word as a bind
+-- parameter and strips it before the INSERT reaches the database (see PLATFORM_PROFILE,
+-- SQL idioms and driver constraints). This is the opposite of the maintenance DML,
+-- where :param is a real runtime bind and correct.
 
 -- 1. Register the module (one row per module CONSIDERED, with deployment_status)
-INSERT INTO {{ product }}_Memory.Module_Registry
+{% for m in registered_modules -%}
+INSERT INTO {{ memory_db }}.Module_Registry
 (module_name, database_name, deployment_status, module_version, module_purpose,
  module_scope, key_entities, dependencies, dependents, data_owner, technical_owner,
  version_date, is_current, valid_from_dts, valid_to_dts, created_dts, updated_dts)
 VALUES
-('{MODULE_NAME}', '{{ product }}_{Module}', 'DEPLOYED', '1.0.0',
- '{purpose}', '{scope}', '{entity_list}', '{upstream}', '{downstream}',
- '{owner}', '{tech_contact}',
+({{ q(m.name) }}, {{ q(m.container) }}, {{ q(m.status) }}, {{ q(m.version) }},
+ {{ q(m.purpose) }}, {{ q(m.scope) }}, {{ q(m.entities) }}, {{ q(m.upstream) }}, {{ q(m.downstream) }},
+ {{ q(m.owner) }}, {{ q(m.tech_contact) }},
  CURRENT_DATE, 1, CURRENT_TIMESTAMP(6), TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 
+{% endfor -%}
 -- 2. Capture a design decision (min. 3 per deployed module)
-INSERT INTO {{ product }}_Memory.Design_Decision
+{% for d in decisions -%}
+INSERT INTO {{ memory_db }}.Design_Decision
 (decision_id, decision_version, decision_title, decision_description,
  context, alternatives_considered, rationale, consequences,
  decision_status, decision_category, source_module, module_version, affects_table,
  decided_by, decided_date, valid_from_dts, valid_to_dts, is_current,
  created_dts, updated_dts)
 VALUES
-('DD-{MODULE}-{NNN}', 1, '{title}', '{description}',
- '{context}', '{alternatives}', '{rationale}', '{consequences}',
- 'ACCEPTED', '{category}', '{MODULE_NAME}', '{version}', '{table_list}',
- '{author}', CURRENT_DATE,
+({{ q(d.id) }}, 1, {{ q(d.title) }}, {{ q(d.description) }},
+ {{ q(d.context) }}, {{ q(d.alternatives) }}, {{ q(d.rationale) }}, {{ q(d.consequences) }},
+ 'ACCEPTED', {{ q(d.category) }}, {{ q(d.module) }}, {{ q(d.version) }}, {{ q(d.tables) }},
+ {{ q(d.author) }}, CURRENT_DATE,
  CURRENT_TIMESTAMP(6), TIMESTAMP '9999-12-31 23:59:59.999999+00:00', 1,
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 
+{% endfor -%}
 -- 2b. Supersede a decision (version chain): close current, insert new version.
 -- The successor's valid_from_dts must be the same instant this UPDATE writes:
 -- adjacent versions share a boundary instant, with no gap and no overlap.
-UPDATE {{ product }}_Memory.Design_Decision
+{% for decision_id in superseded -%}
+UPDATE {{ memory_db }}.Design_Decision
 SET valid_to_dts = CURRENT_TIMESTAMP(6), is_current = 0, updated_dts = CURRENT_TIMESTAMP(6)
-WHERE decision_id = 'DD-{MODULE}-{NNN}' AND is_current = 1;
+WHERE decision_id = {{ q(decision_id) }} AND is_current = 1;
 -- then INSERT the same decision_id with decision_version + 1
 
+{% endfor -%}
 -- 3. Change-log entry (min. 1 initial release per deployed module)
-INSERT INTO {{ product }}_Memory.Change_Log
+{% for c in changes -%}
+INSERT INTO {{ memory_db }}.Change_Log
 (change_id, version_number, change_title, change_description,
  change_type, change_category, source_module, affects_table,
  migration_steps, rollback_steps, related_decision_id,
  deployed_date, deployed_by, deployment_status, created_dts)
 VALUES
-('CL-{MODULE}-{NNN}', '1.0.0', '{title}', '{description}',
- 'INITIAL_RELEASE', 'ADDITIVE', '{MODULE_NAME}', '{table_list}',
- NULL, NULL, 'DD-{MODULE}-{NNN}',
- CURRENT_DATE, '{deployer}', 'DEPLOYED', CURRENT_TIMESTAMP(6));
+({{ q(c.id) }}, {{ q(c.version) }}, {{ q(c.title) }}, {{ q(c.description) }},
+ 'INITIAL_RELEASE', 'ADDITIVE', {{ q(c.module) }}, {{ q(c.tables) }},
+ NULL, NULL, {{ q(c.decision_id) }},
+ CURRENT_DATE, {{ q(c.deployer) }}, 'DEPLOYED', CURRENT_TIMESTAMP(6));
 
+{% endfor -%}
 -- 4. Glossary term (min. 3 per deployed module)
-INSERT INTO {{ product }}_Memory.Business_Glossary
+{% for g in glossary_terms -%}
+INSERT INTO {{ memory_db }}.Business_Glossary
 (term, term_category, definition, business_context, source_module, module_version,
  is_active, valid_from_dts, valid_to_dts, created_dts, updated_dts)
 VALUES
-('{term}', '{category}', '{definition}', '{context}', '{MODULE_NAME}', '{version}',
+({{ q(g.term) }}, {{ q(g.category) }}, {{ q(g.definition) }}, {{ q(g.context) }}, {{ q(g.module) }}, {{ q(g.version) }},
  1, CURRENT_TIMESTAMP(6), TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 
+{% endfor -%}
 -- 5. Query recipe (min. 1 per deployed module; 1 cross-module per deployed pair)
-INSERT INTO {{ product }}_Memory.Query_Cookbook
+{% for r in recipes -%}
+INSERT INTO {{ memory_db }}.Query_Cookbook
 (recipe_id, recipe_title, recipe_description, use_case, target_module,
  sql_template, parameter_descriptions, performance_notes, complexity, is_batch,
  source_module, module_version, is_active, valid_from_dts, valid_to_dts,
  created_dts, updated_dts)
 VALUES
-('QC-{MODULE}-{NNN}', '{title}', '{description}', '{use_case}', '{target_module}',
- '{sql_with_<angle_bracket>_parameters}', '{param_desc}', '{perf_notes}', '{complexity}', {is_batch},
- '{MODULE_NAME}', '{version}', 1,
+({{ q(r.id) }}, {{ q(r.title) }}, {{ q(r.description) }}, {{ q(r.use_case) }}, {{ q(r.target_module) }},
+ {{ q(r.sql_template) }}, {{ q(r.parameters) }}, {{ q(r.performance) }}, {{ q(r.complexity) }}, {{ 1 if r.is_batch else 0 }},
+ {{ q(r.module) }}, {{ q(r.version) }}, 1,
  CURRENT_TIMESTAMP(6), TIMESTAMP '9999-12-31 23:59:59.999999+00:00',
  CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
 
+{% endfor -%}
 -- ---------------------------------------------------------------------------
 -- Standard ERD recipe (QC-SEMANTIC-002): required whenever Semantic is present.
 -- Lets any agent regenerate a current ER diagram from the living relationship data.
 -- ---------------------------------------------------------------------------
-INSERT INTO {{ product }}_Memory.Query_Cookbook
+INSERT INTO {{ memory_db }}.Query_Cookbook
 (recipe_id, recipe_title, recipe_description, use_case, target_module,
  sql_template, parameter_descriptions, performance_notes, complexity, is_batch,
  source_module, module_version, is_active, valid_from_dts, valid_to_dts,
@@ -109,7 +145,7 @@ VALUES
  'SEMANTIC',
  'SELECT r.from_database, r.from_table, r.from_column, r.relationship_type, r.cardinality,
         r.to_database, r.to_table, r.to_column, r.join_type, r.is_mandatory, r.relationship_desc
- FROM {{ product }}_Semantic.table_relationship r
+ FROM {{ semantic_db }}.table_relationship r
  WHERE r.is_active = 1
  ORDER BY r.from_table, r.to_table;',
  'None - reads the Semantic relationship metadata.',

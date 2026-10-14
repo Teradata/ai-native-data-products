@@ -73,6 +73,6 @@ the next planned release, which will change the metadata surface and therefore c
 |---|---|---|
 | postgres | yes | Rendered from `VERSION` at registration |
 | teradata | no | No `standard_declaration` table; contract version is read from the release tag |
-| duckdb | no | Binding is not yet rebased onto this release |
+| duckdb | no | The Jinja binding is present but has not been ported: no `standard_declaration`, no comment-coverage check, and its views, macros and sequences are not yet fully commented |
 
 `release/vX.Y.Z/bindings.json` records the same status and is checked against the sources.

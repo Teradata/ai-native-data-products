@@ -7,13 +7,6 @@
       "readme": "examples/alation-interface/README.md"
     },
     {
-      "example": "customer360-duckdb",
-      "platforms": [
-        "duckdb"
-      ],
-      "readme": "examples/customer360-duckdb/README.md"
-    },
-    {
       "example": "it-service-desk-data-product",
       "platforms": [
         "duckdb",

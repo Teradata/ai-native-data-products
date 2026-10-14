@@ -1,0 +1,55 @@
+-- Validation: product-wide comment coverage (Teradata). MetadataCoverageCheck, catalogue-wide.
+-- Every row returned is a database, object or column with no COMMENT ON. Zero rows is a pass.
+-- Sweeps the containers the build context placed for the deployed modules and the access layer,
+-- so an object the declared entities never mention is still caught. Unlike the per-module
+-- INV-DOMAIN-001 query it does not filter by object-name convention.
+-- Covers databases; tables, views, macros, procedures and functions; and the columns of
+-- tables and views. Procedure and function arguments are documented in the object's header
+-- block, not here. Read-only; running it twice returns the same rows.
+{% macro in_product(column) -%}
+(
+{%- if 'semantic' in modules %}{{ column }} = '{{ semantic_db }}' OR {% endif -%}
+{%- if 'memory' in modules %}{{ column }} = '{{ memory_db }}' OR {% endif -%}
+{%- if 'domain' in modules %}{{ column }} = '{{ domain_db }}' OR {% endif -%}
+{%- if 'observability' in modules %}{{ column }} = '{{ observability_db }}' OR {% endif -%}
+{%- if 'search' in modules %}{{ column }} = '{{ search_db }}' OR {% endif -%}
+{%- if 'prediction' in modules %}{{ column }} = '{{ prediction_db }}' OR {% endif -%}
+{{ column }} = '{{ access_db }}')
+{%- endmacro %}
+SELECT CAST('DATABASE' AS VARCHAR(12)) AS ObjectKind,
+       dbs.DatabaseName,
+       CAST(NULL AS VARCHAR(128)) AS ObjectName,
+       CAST(NULL AS VARCHAR(128)) AS ColumnName
+FROM DBC.DatabasesV dbs
+WHERE {{ in_product('dbs.DatabaseName') }}
+  AND (dbs.CommentString IS NULL OR TRIM(dbs.CommentString) = '')
+UNION ALL
+SELECT CASE obj.TableKind
+         WHEN 'V' THEN 'VIEW'
+         WHEN 'M' THEN 'MACRO'
+         WHEN 'P' THEN 'PROCEDURE'
+         WHEN 'E' THEN 'PROCEDURE'
+         WHEN 'F' THEN 'FUNCTION'
+         WHEN 'R' THEN 'FUNCTION'
+         ELSE 'TABLE'
+       END,
+       obj.DatabaseName,
+       obj.TableName,
+       CAST(NULL AS VARCHAR(128))
+FROM DBC.TablesV obj
+WHERE {{ in_product('obj.DatabaseName') }}
+  AND obj.TableKind IN ('T', 'O', 'V', 'M', 'P', 'E', 'F', 'R')
+  AND (obj.CommentString IS NULL OR TRIM(obj.CommentString) = '')
+UNION ALL
+SELECT CAST('COLUMN' AS VARCHAR(12)),
+       col.DatabaseName,
+       col.TableName,
+       col.ColumnName
+FROM DBC.ColumnsV col
+INNER JOIN DBC.TablesV obj
+   ON obj.DatabaseName = col.DatabaseName
+  AND obj.TableName = col.TableName
+WHERE {{ in_product('col.DatabaseName') }}
+  AND obj.TableKind IN ('T', 'O', 'V')
+  AND (col.CommentString IS NULL OR TRIM(col.CommentString) = '')
+ORDER BY 1, 2, 3, 4;

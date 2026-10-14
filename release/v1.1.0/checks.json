@@ -30,8 +30,8 @@
   },
   "check_files": {
     "duckdb": [
-      "implementation/duckdb/checks.py",
-      "implementation/duckdb/patterns/validation/conformance.sql"
+      "implementation/duckdb/modules/memory/validation.sql.j2",
+      "implementation/duckdb/modules/semantic/validation.sql.j2"
     ],
     "postgres": [
       "implementation/postgres/modules/memory/validation.sql.j2",
@@ -42,11 +42,7 @@
       "implementation/teradata/modules/memory/validation.sql.j2",
       "implementation/teradata/modules/prediction/validation.sql.j2",
       "implementation/teradata/modules/search/validation.sql.j2",
-      "implementation/teradata/modules/semantic/validation.sql.j2",
-      "implementation/teradata/patterns/catalogue-interface/conformance-queries.sql",
-      "implementation/teradata/patterns/temporal-lifecycle-metadata/conformance-queries.sql",
-      "implementation/teradata/patterns/validation/comment-coverage.sql",
-      "implementation/teradata/patterns/validation/conformance-queries.sql"
+      "implementation/teradata/modules/semantic/validation.sql.j2"
     ]
   }
 }

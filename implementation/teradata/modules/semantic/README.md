@@ -19,7 +19,7 @@ Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/se
 |------|---------|
 | `01-catalog-tables.sql.j2` | `entity_metadata`, `column_metadata`, `naming_standard`, `table_relationship`. |
 | `02-discovery-tables.sql.j2` | `data_product_map`, `data_product_map_primary_objects`, `view_metadata`, `view_column_type`. |
-| `03-registry.sql` | `governance.data_product_registry`: the orientation-layer anchor. |
+| `03-registry.sql.j2` | `governance.data_product_registry`: the orientation-layer anchor. |
 | `04-path-discovery.sql.j2` | `v_relationship_paths`: recursive multi-hop join-path discovery. |
 | `05-column-catalogue.sql.j2` | `column_catalogue`: live hybrid column catalogue with value provenance. |
 | `06-orientation.md` | MCP resource/tool shapes and the discovery manifest (orientation layer). |

@@ -1,30 +1,45 @@
-<!-- design-lint: ignore-file (implementation evidence index, not a design document) -->
+<!-- design-lint: ignore-file (implementation evidence scope) -->
 
-# DuckDB conformance evidence
+# DuckDB conformance scope
 
-The native [profile](checks.py) contains executable violation queries. `conformance.sql` is generated from the same definitions for CLI readers; the Python runner records every result including execution errors. Tests run against an actual persistent DuckDB engine, not a SQL translator. Generated SQL is checked for currency.
+Status: **draft, non-conforming**. This binding was converted from hand-written SQL and a bespoke Python compiler to Jinja templates driven by the shared tooling. It has declared gaps, listed below, and is not described as conforming until they are closed. The older fixed check inventory (hundreds of Customer360 checks) is no longer a coverage claim: checks are rendered from each product's declared entities and relationships.
 
-| Contract | Evidence / scope | Boundary |
-|---|---|---|
-| INV-DOMAIN-001..007 | META coverage, DOM-KEY, JOIN, temporal checks; current/as-of, key allocation and duplication mutation tests | Stable-key retention and writer authorization are host obligations. |
-| INV-SEMANTIC-001..002 | Explicit object-level model, table/content allowlists and model review | No instance catalogue is generated. |
-| INV-SEMANTIC-003..012 | SEM/REL checks, orientation/resource resolution, bidirectional access paths and name-only agent demo | Bootstrap registry and orientation are the only consumer conventions. |
-| INV-SEMANTIC-013..015 | Metric/expression/dataset/synonym checks | One DuckDB dialect and one additive metric in the example. |
-| INV-SEARCH-001..005 | SEARCH, JOIN, BOUNDARY, temporal checks; live join-back and reopened vector query tests | Toy embedding quality unassessed; VSS omitted. |
-| INV-PRED-001..005 | PRED/JOIN/BOUNDARY checks, engineered-value tests and point-in-time cutoffs | SCD2 effective history only; retrospective feature correction rejected. Definitions live in Semantic, monitoring in Observability. |
-| INV-OBS-001..006 | BOUNDARY, OBS, VAL checks; active-edge mutation and appended evidence tests | Host supplies events; no automatic trigger/audit guarantee. |
-| INV-OBS-007..009 | Not applicable: graph-native/column-lineage facets not selected | Recorded in DD-OBSERVABILITY-003. |
-| INV-MEMORY-001..006 | BOUNDARY, MEM-SCOPE, DOC checks; versioned compiler and cookbook execution | Semantic privacy enforcement external; no unrestricted runtime view. |
-| TLM-01..05,18 | Inventory/profile/required-column/type checks and corpus prohibited-name lint | UTC-aware timestamp binding. |
-| TLM-06..11,17 | NOT NULL/CHECK constraints, overlap/current/finite-event queries and mutation tests | No exclusion constraint is claimed; transactional writer prevents conflicts. |
-| TLM-12 | Authored lineage lifecycle comment + metadata check | Sole is_active field; owner controls active→retired. |
-| TLM-13..16 | Exact current-surface set comparison, comments and as-of tests; compiler review | All current views explicit; no inclusive-end idioms. |
-| Replay, unchanged input, late changes, closure/insertion atomicity | Temporal writer behavioural tests | Conflicting same-boundary corrections rejected, not silently overwritten. |
-| VAL-01..09,12,14..18 | VAL checks, shared fixture, failure/error/severity/append tests | Optional score/JSON fields are null in count-only native producer. |
-| VAL-10..11,13 | Shared trust fixture, staleness/latest-area tests, designated producer and demo disclosure | Native 2.1 producer only; no external legacy importer. |
-| Access Layer / INV-MASTER-004 | Logical tier registry, public-surface metadata and DD-ACCESS-001 | Native RBAC unsupported; external enforcement remains no-evidence. |
-| Object placement / INV-MASTER-006 | PLACE/schema inventory, portable file paths and explicit naming declaration | Environment markers belong only to file location. |
-| Physical storage / self-containment | Checkpoint, close/reopen, read-only tests; no external asset references in baseline | OS ACL/backup/remote storage validation external. |
-| Documentation capture / INV-MASTER-002 | Per-module and pair minimums, required decisions, provenance fields, cookbook execution | No requirement is satisfied by an empty placeholder record. |
+Tests live in `tooling/bindings/tests` (`test_bindings.py`, `test_duckdb_binding.py`) and `tooling/validation/tests/test_binding_package.py`. They render into memory or temporary directories and execute on an actual DuckDB engine. They skip only when the `duckdb` driver is not installed, and a skip is a gap.
 
-The map reports evidence strength, not deployment permission. A strong module entry means its **defined native checks** passed. Separate unknown entries disclose capabilities this fixture cannot prove. Adding a model field, view or check requires regeneration and review; changing the standards is not part of this implementation.
+Engine evidence: DuckDB **1.5.6** through the Python driver, on Windows. No other DuckDB version, no JDBC or CLI client and no other operating system has been tested.
+
+## Verified
+
+| Contract | Evidence |
+|---|---|
+| Every template renders | A test records the templates loaded while rendering ITSD plus the standalone key-allocation and maintenance templates, and fails if any `.sql.j2` file is unrendered. |
+| Template hygiene | No plain `.sql` and no Python under `implementation/duckdb`; no substitution convention other than Jinja; no product literals in templates or declarations. |
+| Portability | ITSD and an unrelated laboratory product render from the same templates with different containers and entities; no output carries the other product's names or an unresolved expression. |
+| Composition | Seven compositions (domain alone and with each module, and Semantic with Observability) deploy and execute with only their dependencies. |
+| Engine execution | The complete ITSD product deploys on DuckDB, loads the four ITSD CSVs, and its consumer views return the source counts. |
+| Temporal | Half-open as-of boundaries, hidden lifecycle columns on consumer views, two-axis bitemporal correction, effective-history replay, late change, deletion and restoration, rollback of a failed replacement, overlap detection by mutation. Replacement rows come from a test-only planner. |
+| Keys | Permanent keymap, idempotent allocation, foreign-key rejection of an unallocated identity. |
+| Metadata and discovery | Physical comment and inventory checks detect mutations; the manifest, relationship paths and lineage views are queried; runtime stores have no consumer view and are not agent consumable. |
+| Search | Different vector dimensions; join-back to the authoritative Domain row after a source update; a persisted file closed, reopened read-only and queried; no extension is installed or loaded. |
+| Validation evidence | Wire 2.1 run, area and check rows via the shared validator, including execution errors, failed-warning severity, the shared `trust_cases.json` producer cases consumed through the SQL trust map, latest evidence per area, expiry, designated producer and cautious fallback, and the command-line validator. |
+| Tooling | The renderer refuses reserved or non-empty output directories and unsupported settings. |
+
+## Declared gaps
+
+| Gap | Detail |
+|---|---|
+| Build context | The renderer consumes the legacy `context.json` and `placement.json` inputs, not the shared build-context document from `tooling/build`. Cross-platform acceptance (one resolved context for every binding) is not shown. |
+| Organisation profile | No profile setting is consumed. Naming rules, classification mapping, retention bounds and environment variation are not exercised. |
+| Standard-owned names | Names such as the manifest, column catalogue, trust map and relationship views are fixed in the templates, not mapped from the build context. |
+| Adoption of existing structures | Unsupported. A build that needs an adoption must report it as a gap. |
+| Roles, grants and runtime privacy | Unsupported by the engine. The access-layer template emits a comment-only boundary record. The access-layer trust area has no evidence. |
+| Temporal enforcement | No exclusion constraint or partial unique index: non-overlap and a single current row are detected by checks, not prevented by the engine. A direct SQL write can violate them. |
+| Change planning and audit | The maintenance template is a transaction body. No planner is shipped (the test planner is a fixture), and no change event is emitted by it. |
+| Concurrency | One writing connection is assumed. No concurrent-writer or crash-recovery test exists. |
+| Coverage not carried over | The earlier reference's bespoke checks are not reproduced: point-in-time training function and retrospective-rewrite guard for Prediction, metric and synonym reference checks, content-duplication allowlists, cookbook query execution, per-module documentation minimums beyond `memory:coverage` and placement inventory checks. |
+| Embedding, model and operations | No encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence. Strong structural evidence never substitutes for these. |
+| Versions and clients | DuckDB versions other than 1.5.6, JDBC and CLI clients are untested. |
+
+## Reading the evidence
+
+The ITSD input is a design and build example, not a prebuilt product. Its seven captured decisions do not satisfy per-module documentation minimums, so the validator reports `memory:coverage` until the builder records the remaining real documentation. Embedding and scoring tables begin empty; no synthetic probability or model quality fills the gap. A passing structural check means only that check passed.

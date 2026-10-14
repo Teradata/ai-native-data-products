@@ -20,14 +20,14 @@ Teradata (v17.20+). Container = `DATABASE`. Access principal = `ROLE` (and `USER
 Parent + child. A parent database allocates `PERM` space and owns child databases but holds no data objects; child databases hold objects. Two levels (parent → child). Development and production may be separate systems; agents must not assume cross-system connectivity.
 
 ## Section 3: Naming Pattern
-`{{Product}}_{{Module}}` for base containers; `{{Product}}_{{Module}}_V` for the view layer under `STRICT_SEPARATION`. Separator `_`. Example: `Customer360_Domain`, `Customer360_Domain_V`. Object names are environment-agnostic: only the container changes between environments (`INV-MASTER-006`).
+The product name, an underscore and the module name for base containers; the same with a `_V` suffix for the view layer under `STRICT_SEPARATION`. Separator `_`. Example: `Customer360_Domain`, `Customer360_Domain_V`. Object names are environment-agnostic: only the container changes between environments (`INV-MASTER-006`).
 
 ## Section 4: Object Placement Rules
 | Object type | Container |
 |-------------|-----------|
-| Persistent table | `{{Product}}_{{Module}}` |
-| View | `{{Product}}_{{Module}}_V` |
-| Stored procedure / function | `{{Product}}_{{Module}}` |
+| Persistent table | Base container (product, underscore, module) |
+| View | View container (base container plus `_V`) |
+| Stored procedure / function | Base container |
 | Temporary/volatile | not persisted in a named container |
 
 Rule A (container-discriminated): the container is the sole type discriminator; object names are identical across the base and view containers; type markers (`v_`, `_vw`) are prohibited. View-tier architecture, in two tiers. A **governed** view (1:1 over its base table, may reference the base container) and **access** views (reference the governed view only).
@@ -45,7 +45,7 @@ derive_container(object_type, {product, module}, classification):
 Examples: `derive_container(TABLE, {Customer360, Domain})` → `Customer360_Domain`; `derive_container(VIEW, {Customer360, Domain})` → `Customer360_Domain_V`; `derive_container(PROCEDURE, {Customer360, Memory})` → `Customer360_Memory`.
 
 ## Section 7: Access Model
-Role-based, granted at the container level. `{{Product}}_ROLE_READ` / `_AGENT` / `_ADMIN` (see [access-layer](../access-layer/)). Consumers are granted the view database only. **Implied grant:** the view-owning database requires cross-database rights on the base database before any view compiles, provisioned before view creation, in the standard sequence.
+Role-based, granted at the container level. The product's `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN` roles (see [access-layer](../access-layer/)). Consumers are granted the view database only. **Implied grant:** the view-owning database requires cross-database rights on the base database before any view compiles, provisioned before view creation, in the standard sequence.
 
 ## Section 8: Validation Procedure
 Agent-executable `DBC` checks (halt and report on any row returned):
