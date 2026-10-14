@@ -259,7 +259,7 @@ class AreaIdentityResolves(TrustMapCase):
             "INSERT INTO data_product_map (module_name, is_active) VALUES ('DOMAIN', 1)")
         self.fx.db.execute(
             "INSERT INTO entity_metadata (module_name, entity_name, is_active)"
-            " VALUES ('DOMAIN', 'Ticket', 1)")
+            " VALUES ('DOMAIN', 'domain.ticket', 1)")
         self.fx.insert_run(run_id="R1", completed_dts=ts(-1))
 
     def test_a_module_typo_is_reported(self):

@@ -48,6 +48,7 @@ REPLACE VIEW {{ product }}_Semantic.data_product_manifest
     , object_catalogue_entrypoint, entity_catalogue_entrypoint
     , column_catalogue_entrypoint, relationship_catalogue_entrypoint
     , trust_authoritative_producer, manifest_json
+    , standard_version
 )
 AS
 LOCKING ROW FOR ACCESS
@@ -70,15 +71,22 @@ SELECT
     , MAX(CASE WHEN o.resource_role = 'RELATIONSHIP_CATALOGUE' THEN o.fully_qualified_object_name END)
     , r.trust_authoritative_producer
     , r.manifest_json
+    , d.standard_version
 FROM {{ governance_db }}.data_product_registry AS r
 LEFT JOIN {{ product }}_Semantic.data_product_orientation AS o
     ON  o.product_id = r.product_id
     AND o.is_active  = 1
+LEFT JOIN {{ product }}_Semantic.standard_declaration AS d
+    ON  d.product_id     = r.product_id
+    AND d.component_kind = 'STANDARD'
+    AND d.is_active      = 1
 WHERE r.is_active = 1 AND r.is_deleted = 0
 GROUP BY
       r.product_id, r.product_name, r.product_version, r.product_status, r.owner_team
     , r.approved_access_mode, r.approved_entrypoint
-    , r.trust_authoritative_producer, r.manifest_json;
+    , r.trust_authoritative_producer, r.manifest_json
+    , d.standard_version;
 
 COMMENT ON VIEW {{ product }}_Semantic.data_product_manifest IS
 'Machine-readable product manifest - generated from data_product_registry and data_product_orientation, so it cannot drift. Read first, then follow orientation in discovery_order.';
+COMMENT ON COLUMN {{ product }}_Semantic.data_product_manifest.standard_version IS 'Release of the standard the product declares it implements, read from the STANDARD row of standard_declaration; null when none is declared.';

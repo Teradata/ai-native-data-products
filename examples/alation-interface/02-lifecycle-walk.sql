@@ -171,14 +171,12 @@ WHERE database_name = 'CustExp_DOM_STD_T'
 -- A relationship added, so an agent can join the new column to something.
 INSERT INTO CustExp_SEM_STD_T.table_relationship
       (relationship_name, relationship_description
-     , source_database, source_table, source_column
-     , target_database, target_table, target_column
+     , source_entity, target_entity
      , relationship_type, cardinality, relationship_meaning
      , is_mandatory, is_active, created_dts, updated_dts)
 SELECT 'interaction_resolution_channel'
      , 'Resolution channel of an interaction. Added in 1.1.0 with resolution_channel_code.'
-     , 'CustExp_DOM_STD_T', 'customer_interaction', 'resolution_channel_code'
-     , 'CustExp_DOM_STD_T', 'channel', 'channel_code'
+     , 'domain.customer_interaction', 'domain.channel'
      , 'FOREIGN_KEY', 'MANY_TO_ONE'
      , 'The channel an interaction was resolved through; optional, since an unresolved interaction has none.'
      , 0, 1
@@ -188,6 +186,24 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM CustExp_SEM_STD_T.table_relationship AS r
     WHERE r.relationship_name = 'interaction_resolution_channel'
+);
+
+-- The column pair of the relationship, as one ordered row of its join group.
+INSERT INTO CustExp_SEM_STD_T.relationship_column
+      (relationship_column_id, relationship_id, ordinal, source_column, target_column
+     , is_active, created_dts, updated_dts)
+SELECT TRIM(r.relationship_id) || ':1', r.relationship_id, 1
+     , 'resolution_channel_code', 'channel_code'
+     , 1
+     , TIMESTAMP '2025-06-10 11:15:00.000000+00:00'
+     , TIMESTAMP '2025-06-10 11:15:00.000000+00:00'
+FROM CustExp_SEM_STD_T.table_relationship AS r
+WHERE r.relationship_name = 'interaction_resolution_channel'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM CustExp_SEM_STD_T.relationship_column AS c
+    WHERE c.relationship_id = r.relationship_id
+      AND c.ordinal         = 1
 );
 
 -- The change events. Table-level and aggregate, per the Observability module. They record
@@ -215,6 +231,9 @@ FROM (
     UNION ALL SELECT 'CustExp_SEM_STD_T', 'table_relationship', 'INSERT'
          , 'Release 1.1.0: interaction_resolution_channel relationship added.'
          , 1, 'relationship_name'
+    UNION ALL SELECT 'CustExp_SEM_STD_T', 'relationship_column', 'INSERT'
+         , 'Release 1.1.0: column pair of interaction_resolution_channel added.'
+         , 1, 'source_column, target_column'
 ) AS d;
 
 -- --- 2b. The new interface ------------------------------------------------

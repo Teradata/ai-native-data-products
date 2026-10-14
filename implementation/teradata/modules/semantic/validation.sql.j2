@@ -49,13 +49,13 @@ WHERE e.is_active = 1
       WHERE vm.base_database = e.database_name AND vm.base_table = e.table_name AND vm.is_active = 1);
 
 -- INV-SEMANTIC-005: isolated entities (in entity_metadata but no relationship)
-SELECT em.table_name
-FROM {{ product }}_Semantic.entity_metadata em
-WHERE em.is_active = 1
+SELECT ent.entity_name
+FROM {{ product }}_Semantic.entity_metadata AS ent
+WHERE ent.is_active = 1
   AND NOT EXISTS (
-      SELECT 1 FROM {{ product }}_Semantic.table_relationship r
-      WHERE r.is_active = 1
-        AND (r.source_table = em.table_name OR r.target_table = em.table_name));
+      SELECT 1 FROM {{ product }}_Semantic.table_relationship AS rel
+      WHERE rel.is_active = 1
+        AND (rel.source_entity = ent.entity_name OR rel.target_entity = ent.entity_name));
 -- An isolated entity is either a documented standalone (record a Design_Decision) or an omission.
 
 -- INV-SEMANTIC-008: registered access object that is not actually deployed
@@ -90,22 +90,22 @@ WHERE c.is_active = 1
       WHERE e.is_active = 1 AND e.entity_name = c.member_entity);
 
 -- INV-SEMANTIC-010: a COMPOSITE access object without a described composition
-SELECT a.database_name, a.object_name
+SELECT a.object_identity, a.database_name, a.object_name
 FROM {{ product }}_Semantic.access_object AS a
 WHERE a.is_active = 1 AND a.access_role = 'COMPOSITE'
   AND NOT EXISTS (
       SELECT 1 FROM {{ product }}_Semantic.access_composition AS c
       WHERE c.is_active = 1
-        AND c.composite_database = a.database_name
-        AND c.composite_object   = a.object_name);
+        AND c.composite_object = a.object_identity);
 
--- INV-SEMANTIC-010: composition without exactly one ANCHOR member
-SELECT c.composite_database, c.composite_object,
+-- INV-SEMANTIC-010, INV-SEMANTIC-020: composition without exactly one ANCHOR member
+SELECT c.composite_object,
        SUM(CASE WHEN c.member_role = 'ANCHOR' THEN 1 ELSE 0 END) AS anchors
 FROM {{ product }}_Semantic.access_composition AS c
 WHERE c.is_active = 1
-GROUP BY c.composite_database, c.composite_object
+GROUP BY c.composite_object
 HAVING SUM(CASE WHEN c.member_role = 'ANCHOR' THEN 1 ELSE 0 END) <> 1;
+
 -- INV-SEMANTIC-011: missing required baseline orientation role for a product
 SELECT r.product_id, req.resource_role
 FROM {{ product }}_Semantic.data_product_orientation AS r
@@ -193,12 +193,12 @@ GROUP BY x.metric_name, x.sql_dialect
 HAVING COUNT(*) > 1;
 
 -- INV-SEMANTIC-014: a metric dataset that is not a registered active entity
-SELECT d.metric_name, d.container_name, d.table_name
+SELECT d.metric_name, d.entity_name
 FROM {{ product }}_Semantic.metric_dataset AS d
 WHERE d.is_active = 1
   AND NOT EXISTS (
       SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
-      WHERE e.table_name = d.table_name AND e.is_active = 1);
+      WHERE e.entity_name = d.entity_name AND e.is_active = 1);
 
 -- INV-SEMANTIC-014: a metric without exactly one primary dataset
 SELECT m.metric_name, COUNT(d.metric_dataset_id) AS primary_datasets
@@ -215,10 +215,13 @@ FROM {{ product }}_Semantic.semantic_synonym AS s
 WHERE s.is_active = 1
   AND NOT (   (s.object_kind = 'ENTITY'
                AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
-                           WHERE e.table_name = s.object_name AND e.is_active = 1))
+                           WHERE e.entity_name = s.object_name AND e.is_active = 1))
            OR (s.object_kind = 'COLUMN'
-               AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.column_metadata AS c
-                           WHERE c.table_name = s.object_name
+               AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS e
+                           INNER JOIN {{ product }}_Semantic.column_metadata AS c
+                               ON  c.database_name = e.database_name
+                               AND c.table_name    = e.table_name
+                           WHERE e.entity_name = s.object_name AND e.is_active = 1
                              AND c.column_name = s.column_name AND c.is_active = 1))
            OR (s.object_kind = 'METRIC'
                AND EXISTS (SELECT 1 FROM {{ product }}_Semantic.metric_metadata AS m
@@ -230,3 +233,222 @@ FROM {{ product }}_Semantic.semantic_synonym AS s
 WHERE s.is_active = 1
 GROUP BY s.object_kind, s.object_name, s.column_name, s.synonym_text
 HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-016: an entity identity that is not module.entity in lower case
+SELECT ent.entity_name
+FROM {{ product }}_Semantic.entity_metadata AS ent
+WHERE ent.is_active = 1
+  AND REGEXP_SIMILAR(ent.entity_name, '[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*', 'c') = 0;
+
+-- INV-SEMANTIC-016: an access or primary-object identity outside the grammar
+-- (module.entity, module.entity:base|current, module:object, composite:name)
+SELECT idn.identity_kind, idn.identity_value
+FROM (
+    SELECT CAST('ACCESS_OBJECT' AS VARCHAR(20)) AS identity_kind, a.object_identity AS identity_value
+    FROM {{ product }}_Semantic.access_object AS a
+    WHERE a.is_active = 1
+    UNION ALL
+    SELECT CAST('PRIMARY_OBJECT' AS VARCHAR(20)), p.object_identity
+    FROM {{ product }}_Semantic.data_product_map_primary_objects AS p
+    WHERE p.is_active = 1
+) AS idn
+WHERE REGEXP_SIMILAR(idn.identity_value,
+          '([a-z][a-z0-9_]*[.][a-z][a-z0-9_]*(:(base|current))?|[a-z][a-z0-9_]*:[a-z][a-z0-9_]*)', 'c') = 0;
+
+-- INV-SEMANTIC-016: an identity that contains a container name
+SELECT idn.identity_kind, idn.identity_value, cnt.container_name
+FROM (
+    SELECT CAST('ENTITY' AS VARCHAR(20)) AS identity_kind, e.entity_name AS identity_value
+    FROM {{ product }}_Semantic.entity_metadata AS e
+    WHERE e.is_active = 1
+    UNION ALL
+    SELECT CAST('ACCESS_OBJECT' AS VARCHAR(20)), a.object_identity
+    FROM {{ product }}_Semantic.access_object AS a
+    WHERE a.is_active = 1
+    UNION ALL
+    SELECT CAST('PRIMARY_OBJECT' AS VARCHAR(20)), p.object_identity
+    FROM {{ product }}_Semantic.data_product_map_primary_objects AS p
+    WHERE p.is_active = 1
+) AS idn
+CROSS JOIN (
+    SELECT m.database_name AS container_name
+    FROM {{ product }}_Semantic.data_product_map AS m
+    WHERE m.is_active = 1
+    UNION
+    SELECT e.database_name
+    FROM {{ product }}_Semantic.entity_metadata AS e
+    WHERE e.is_active = 1 AND e.database_name IS NOT NULL
+    UNION
+    SELECT a.database_name
+    FROM {{ product }}_Semantic.access_object AS a
+    WHERE a.is_active = 1
+) AS cnt
+WHERE POSITION(LOWER(cnt.container_name) IN LOWER(idn.identity_value)) > 0;
+
+-- INV-SEMANTIC-016: an entity identity registered more than once
+SELECT e.entity_name, COUNT(*) AS registrations
+FROM {{ product }}_Semantic.entity_metadata AS e
+WHERE e.is_active = 1
+GROUP BY e.entity_name
+HAVING COUNT(*) > 1;
+
+-- INV-SEMANTIC-017: an entity with no SURROGATE key definition
+SELECT ent.entity_name
+FROM {{ product }}_Semantic.entity_metadata AS ent
+WHERE ent.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.key_definition AS kdf
+      WHERE kdf.entity_name = ent.entity_name
+        AND kdf.key_role    = 'SURROGATE'
+        AND kdf.is_active   = 1);
+
+-- INV-SEMANTIC-017: a key definition for an uncatalogued entity
+SELECT kdf.key_id, kdf.entity_name
+FROM {{ product }}_Semantic.key_definition AS kdf
+WHERE kdf.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.entity_metadata AS ent
+      WHERE ent.entity_name = kdf.entity_name AND ent.is_active = 1);
+
+-- INV-SEMANTIC-017: a key with no columns, or ordinals that do not run 1..n without gaps
+SELECT kdf.key_id, COUNT(kcl.key_column_id) AS key_columns
+FROM {{ product }}_Semantic.key_definition AS kdf
+LEFT OUTER JOIN {{ product }}_Semantic.key_column AS kcl
+    ON kcl.key_id = kdf.key_id AND kcl.is_active = 1
+WHERE kdf.is_active = 1
+GROUP BY kdf.key_id
+HAVING COUNT(kcl.key_column_id) = 0
+    OR MIN(kcl.ordinal) <> 1
+    OR MAX(kcl.ordinal) <> COUNT(kcl.key_column_id)
+    OR COUNT(DISTINCT kcl.ordinal) <> COUNT(kcl.key_column_id);
+
+-- INV-SEMANTIC-017: a key column that does not exist on the entity table
+SELECT kdf.key_id, kcl.ordinal, kcl.column_name
+FROM {{ product }}_Semantic.key_column AS kcl
+INNER JOIN {{ product }}_Semantic.key_definition AS kdf
+    ON kdf.key_id = kcl.key_id AND kdf.is_active = 1
+INNER JOIN {{ product }}_Semantic.entity_metadata AS ent
+    ON ent.entity_name = kdf.entity_name AND ent.is_active = 1
+WHERE kcl.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM DBC.ColumnsV AS dcl
+      WHERE dcl.DatabaseName = ent.database_name
+        AND dcl.TableName    = ent.table_name
+        AND dcl.ColumnName   = kcl.column_name);
+
+-- INV-SEMANTIC-018: a relationship with no column pair, or ordinals that do not run 1..n without gaps
+SELECT rel.relationship_id, COUNT(rcl.relationship_column_id) AS column_pairs
+FROM {{ product }}_Semantic.table_relationship AS rel
+LEFT OUTER JOIN {{ product }}_Semantic.relationship_column AS rcl
+    ON rcl.relationship_id = rel.relationship_id AND rcl.is_active = 1
+WHERE rel.is_active = 1
+GROUP BY rel.relationship_id
+HAVING COUNT(rcl.relationship_column_id) = 0
+    OR MIN(rcl.ordinal) <> 1
+    OR MAX(rcl.ordinal) <> COUNT(rcl.relationship_column_id)
+    OR COUNT(DISTINCT rcl.ordinal) <> COUNT(rcl.relationship_column_id);
+
+-- INV-SEMANTIC-018: a relationship column that does not exist on its entity table
+SELECT rcl.relationship_id, rcl.ordinal, rcl.source_column, rcl.target_column
+FROM {{ product }}_Semantic.relationship_column AS rcl
+INNER JOIN {{ product }}_Semantic.table_relationship AS rel
+    ON rel.relationship_id = rcl.relationship_id AND rel.is_active = 1
+WHERE rcl.is_active = 1
+  AND (   NOT EXISTS (
+              SELECT 1
+              FROM {{ product }}_Semantic.entity_metadata AS sen
+              INNER JOIN DBC.ColumnsV AS dcs
+                  ON  dcs.DatabaseName = sen.database_name
+                  AND dcs.TableName    = sen.table_name
+              WHERE sen.entity_name = rel.source_entity
+                AND sen.is_active   = 1
+                AND dcs.ColumnName  = rcl.source_column)
+       OR NOT EXISTS (
+              SELECT 1
+              FROM {{ product }}_Semantic.entity_metadata AS ten
+              INNER JOIN DBC.ColumnsV AS dct
+                  ON  dct.DatabaseName = ten.database_name
+                  AND dct.TableName    = ten.table_name
+              WHERE ten.entity_name = rel.target_entity
+                AND ten.is_active   = 1
+                AND dct.ColumnName  = rcl.target_column));
+
+-- INV-SEMANTIC-019: an output column of an agent-consumable object with no access_column row
+SELECT aob.object_identity, dcl.ColumnName
+FROM {{ product }}_Semantic.access_object AS aob
+INNER JOIN DBC.ColumnsV AS dcl
+    ON  dcl.DatabaseName = aob.database_name
+    AND dcl.TableName    = aob.object_name
+WHERE aob.is_active = 1
+  AND aob.is_agent_consumable = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM {{ product }}_Semantic.access_column AS acl
+      WHERE acl.object_identity = aob.object_identity
+        AND acl.column_name     = dcl.ColumnName
+        AND acl.is_active       = 1);
+
+-- INV-SEMANTIC-019: a column mapped more than once, or mapped but not an output column of its object
+SELECT acl.object_identity, acl.column_name, COUNT(*) AS mappings
+FROM {{ product }}_Semantic.access_column AS acl
+WHERE acl.is_active = 1
+GROUP BY acl.object_identity, acl.column_name
+HAVING COUNT(*) > 1;
+
+SELECT acl.object_identity, acl.column_name
+FROM {{ product }}_Semantic.access_column AS acl
+INNER JOIN {{ product }}_Semantic.access_object AS aob
+    ON  aob.object_identity     = acl.object_identity
+    AND aob.is_active           = 1
+    AND aob.is_agent_consumable = 1
+WHERE acl.is_active = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM DBC.ColumnsV AS dcl
+      WHERE dcl.DatabaseName = aob.database_name
+        AND dcl.TableName    = aob.object_name
+        AND dcl.ColumnName   = acl.column_name);
+
+-- INV-SEMANTIC-019: a non-derived mapping whose source column does not exist
+SELECT acl.object_identity, acl.column_name, acl.source_entity, acl.source_column
+FROM {{ product }}_Semantic.access_column AS acl
+WHERE acl.is_active = 1
+  AND acl.mapping_kind <> 'DERIVED'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM {{ product }}_Semantic.entity_metadata AS ent
+      INNER JOIN DBC.ColumnsV AS dcl
+          ON  dcl.DatabaseName = ent.database_name
+          AND dcl.TableName    = ent.table_name
+      WHERE ent.entity_name = acl.source_entity
+        AND ent.is_active   = 1
+        AND dcl.ColumnName  = acl.source_column);
+
+-- INV-SEMANTIC-020: member_seq that does not run 1..n without gaps within a composite
+SELECT cmp.composite_object
+FROM {{ product }}_Semantic.access_composition AS cmp
+WHERE cmp.is_active = 1
+GROUP BY cmp.composite_object
+HAVING MIN(cmp.member_seq) <> 1
+    OR MAX(cmp.member_seq) <> COUNT(*)
+    OR COUNT(DISTINCT cmp.member_seq) <> COUNT(*);
+
+-- INV-SEMANTIC-020: a non-anchor member whose via relationship does not exist or does not join
+-- it to a prior member in the stated direction (FORWARD: prior member is the source)
+SELECT cmp.composite_object, cmp.member_seq, cmp.member_entity, cmp.via_relationship_id, cmp.via_direction
+FROM {{ product }}_Semantic.access_composition AS cmp
+WHERE cmp.is_active = 1
+  AND cmp.member_role <> 'ANCHOR'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM {{ product }}_Semantic.table_relationship AS rel
+      INNER JOIN {{ product }}_Semantic.access_composition AS pri
+          ON  pri.composite_object = cmp.composite_object
+          AND pri.member_seq       < cmp.member_seq
+          AND pri.is_active        = 1
+      WHERE rel.relationship_id = cmp.via_relationship_id
+        AND rel.is_active       = 1
+        AND (   (cmp.via_direction = 'FORWARD'
+                 AND rel.source_entity = pri.member_entity
+                 AND rel.target_entity = cmp.member_entity)
+             OR (cmp.via_direction = 'REVERSE'
+                 AND rel.target_entity = pri.member_entity
+                 AND rel.source_entity = cmp.member_entity)));
