@@ -3,4 +3,5 @@
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 {% for c in containers if c.holds_objects and not c.adopted %}
 CREATE SCHEMA {{ c.name|ident }};
+COMMENT ON SCHEMA {{ c.name|ident }} IS {{ ('Container of the ' ~ product.name ~ ' data product, as the organisation profile places it.')|literal }};
 {%- endfor %}

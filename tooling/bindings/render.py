@@ -78,6 +78,10 @@ def gaps(context):
     if unread:
         out.append(f"history: {', '.join(unread)} have no history surface consumers can be granted "
                    f"(temporal-lifecycle-metadata §9)")
+    for r in context["relationships"]:
+        if r["unpaired_target_columns"]:
+            out.append(f"relationships[{r['name']}]: the target identity has {len(r['unpaired_target_columns']) + 1} "
+                       f"columns and the reference carries one; only the first is paired")
     for a in context.get("access_objects", []):
         out.append(f"access_objects[{a['name']}]: composite access objects are not rendered")
     out += [f"capture: {g}" for g in context.get("capture", {}).get("gaps", [])]
@@ -142,6 +146,10 @@ def render_context(context):
                 add(name, "ENTITY", r["source"], r["source_module"], render(template, relationship=r))
         elif scope == "module" and name in context["modules"]:
             add("module", "MODULE", name, name, render(template, module=name))
+        elif scope == "contract" and "semantic" in context["modules"]:
+            add(f"contract-{name}", "MODULE", "semantic", "semantic", render(template))
+        elif scope == "product":
+            add(name, "PRODUCT", context["product"]["code"], None, render(template))
 
     def placed(name):
         x = next((x for x in context["relations"] if x["name"] == name), None)

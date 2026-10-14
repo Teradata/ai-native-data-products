@@ -1,0 +1,35 @@
+{# INV-SEMANTIC-018: every relationship has at least one column pair; pairs are ordered 1..n and
+   their columns exist on the entities. Every returned row is a defect. #}
+{% import 'modules/semantic/contract/00-macros.sql.j2' as q %}
+SELECT r.{{ q.col('TableRelationship', 'relationship_name') }}::TEXT AS identity, 'relationship has no column pair' AS defect
+FROM {{ q.tbl('TableRelationship') }} r
+WHERE r.{{ q.col('TableRelationship', 'is_active') }}
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('RelationshipColumn') }} c
+                  WHERE c.{{ q.col('RelationshipColumn', 'relationship_id') }} = r.{{ q.pk('TableRelationship') }}
+                    AND c.{{ q.col('RelationshipColumn', 'is_active') }})
+UNION ALL
+SELECT r.{{ q.col('TableRelationship', 'relationship_name') }}, 'relationship ordinals do not run 1..n'
+FROM {{ q.tbl('TableRelationship') }} r
+INNER JOIN {{ q.tbl('RelationshipColumn') }} c ON c.{{ q.col('RelationshipColumn', 'relationship_id') }} = r.{{ q.pk('TableRelationship') }}
+WHERE r.{{ q.col('TableRelationship', 'is_active') }} AND c.{{ q.col('RelationshipColumn', 'is_active') }}
+GROUP BY r.{{ q.col('TableRelationship', 'relationship_name') }}
+HAVING {{ q.contiguous('c', q.col('RelationshipColumn', 'ordinal')) }}
+UNION ALL
+SELECT r.{{ q.col('TableRelationship', 'relationship_name') }}, 'relationship names an unregistered entity'
+FROM {{ q.tbl('TableRelationship') }} r
+WHERE r.{{ q.col('TableRelationship', 'is_active') }}
+  AND (NOT EXISTS (SELECT 1 FROM {{ q.tbl('EntityMetadata') }} e WHERE e.{{ q.col('EntityMetadata', 'entity_name') }} = r.{{ q.col('TableRelationship', 'source_entity') }})
+    OR NOT EXISTS (SELECT 1 FROM {{ q.tbl('EntityMetadata') }} e WHERE e.{{ q.col('EntityMetadata', 'entity_name') }} = r.{{ q.col('TableRelationship', 'target_entity') }}))
+UNION ALL
+SELECT r.{{ q.col('TableRelationship', 'relationship_name') }} || '.' || c.{{ q.col('RelationshipColumn', 'ordinal') }}, 'relationship column is absent from its entity'
+FROM {{ q.tbl('RelationshipColumn') }} c
+INNER JOIN {{ q.tbl('TableRelationship') }} r ON r.{{ q.pk('TableRelationship') }} = c.{{ q.col('RelationshipColumn', 'relationship_id') }}
+INNER JOIN {{ q.tbl('EntityMetadata') }} s ON s.{{ q.col('EntityMetadata', 'entity_name') }} = r.{{ q.col('TableRelationship', 'source_entity') }}
+INNER JOIN {{ q.tbl('EntityMetadata') }} t ON t.{{ q.col('EntityMetadata', 'entity_name') }} = r.{{ q.col('TableRelationship', 'target_entity') }}
+WHERE c.{{ q.col('RelationshipColumn', 'is_active') }}
+  AND (NOT EXISTS (SELECT 1 FROM information_schema.columns i
+                   WHERE i.table_catalog = current_database() AND i.table_schema = s.{{ q.col('EntityMetadata', 'container_name') }} AND i.table_name = s.{{ q.col('EntityMetadata', 'table_name') }}
+                     AND i.column_name = c.{{ q.col('RelationshipColumn', 'source_column') }})
+    OR NOT EXISTS (SELECT 1 FROM information_schema.columns i
+                   WHERE i.table_catalog = current_database() AND i.table_schema = t.{{ q.col('EntityMetadata', 'container_name') }} AND i.table_name = t.{{ q.col('EntityMetadata', 'table_name') }}
+                     AND i.column_name = c.{{ q.col('RelationshipColumn', 'target_column') }}))

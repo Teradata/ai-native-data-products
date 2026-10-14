@@ -133,6 +133,12 @@ Binding: -
     relationship reference: patterns/validation/03-relationship-reference.sql.j2
     module semantic: modules/semantic/validation.sql.j2
     module memory: modules/memory/validation.sql.j2
+    contract identity: modules/semantic/contract/identity.sql.j2
+    contract keys: modules/semantic/contract/keys.sql.j2
+    contract relationships: modules/semantic/contract/relationships.sql.j2
+    contract access-columns: modules/semantic/contract/access-columns.sql.j2
+    contract composition: modules/semantic/contract/composition.sql.j2
+    product comment-coverage: patterns/validation/05-comment-coverage.sql.j2
 ```
 
 ```

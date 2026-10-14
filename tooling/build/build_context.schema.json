@@ -41,7 +41,8 @@
     "catalogue",
     "storage",
     "settings",
-    "defaults_applied"
+    "defaults_applied",
+    "standard"
   ],
   "additionalProperties": false,
   "$defs": {
@@ -506,7 +507,10 @@
           "history",
           "bitemporal",
           "supports_deletion",
-          "temporal"
+          "temporal",
+          "logical_id",
+          "key_defs",
+          "view_columns"
         ],
         "properties": {
           "name": {
@@ -635,6 +639,62 @@
             "items": {
               "$ref": "#/$defs/temporal"
             }
+          },
+          "logical_id": {
+            "type": "string"
+          },
+          "key_defs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "role",
+                "columns"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "SURROGATE",
+                    "NATURAL",
+                    "ALTERNATE"
+                  ]
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          "view_columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ordinal",
+                "name",
+                "physical_name"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "type": "string"
+                },
+                "physical_name": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -654,7 +714,10 @@
           "identity",
           "attributes",
           "temporal",
-          "objects"
+          "objects",
+          "logical_id",
+          "key_defs",
+          "view_columns"
         ],
         "properties": {
           "name": {
@@ -744,6 +807,62 @@
           },
           "objects": {
             "$ref": "#/$defs/objects"
+          },
+          "logical_id": {
+            "type": "string"
+          },
+          "key_defs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "role",
+                "columns"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "SURROGATE",
+                    "NATURAL",
+                    "ALTERNATE"
+                  ]
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          "view_columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ordinal",
+                "name",
+                "physical_name"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "type": "string"
+                },
+                "physical_name": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -936,7 +1055,12 @@
           "source_column",
           "target",
           "target_columns",
-          "mandatory"
+          "mandatory",
+          "name",
+          "source_identity",
+          "target_identity",
+          "pairs",
+          "unpaired_target_columns"
         ],
         "properties": {
           "target_columns": {
@@ -947,6 +1071,45 @@
           },
           "mandatory": {
             "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source_identity": {
+            "type": "string"
+          },
+          "target_identity": {
+            "type": "string"
+          },
+          "pairs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "ordinal",
+                "source_column",
+                "target_column"
+              ],
+              "properties": {
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "source_column": {
+                  "type": "string"
+                },
+                "target_column": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "unpaired_target_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
@@ -1066,6 +1229,45 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "standard": {
+      "type": "object",
+      "required": [
+        "version",
+        "platform",
+        "declarations"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+[.][0-9]+[.][0-9]+$"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "declarations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "name"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "STANDARD",
+                  "MODULE",
+                  "PATTERN"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            }
           }
         }
       }

@@ -96,6 +96,10 @@ LEGACY_WIRE_VERSIONS = ("1.0", "2.0")
 
 # Semantic §5: the most hops a path-discovery surface returns.
 PATH_HOPS = 4
+# Patterns every binding applies; a deployment declares them beside its modules.
+STANDARD_PATTERNS = ("object-placement", "temporal-lifecycle-metadata", "validation", "access-layer")
+# The open interval ends are always open on a consumer view, so the view does not carry them.
+HIDDEN_ON_VIEW = ("valid_to_dts", "transaction_to_dts")
 
 # Semantic, the orientation relation: role, serving relation, required. Trust map second,
 # before every analytical resource.
@@ -571,6 +575,28 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                     "discriminator": a["discriminator"],
                     "discriminator_value": target_name.upper() if a["discriminator"] else None})
 
+    # ---- the metadata contract (release 2.0.0): identities, keys, joins, view columns ------
+    for x in entities + relations:
+        x["logical_id"] = f"{x['module']}.{_snake(x['name'])}"
+        keys = []
+        if x.get("surrogate_columns"):
+            keys.append({"name": "surrogate", "role": "SURROGATE", "columns": list(x["surrogate_columns"])})
+        if x.get("natural_columns"):
+            keys.append({"name": "natural", "role": "NATURAL", "columns": list(x["natural_columns"])})
+        x["key_defs"] = keys
+        x["view_columns"] = [{"ordinal": n, "name": c["name"], "physical_name": c["physical_name"]}
+                             for n, c in enumerate((c for c in x.get("columns", [])
+                                                    if c["name"] not in HIDDEN_ON_VIEW), 1)]
+    for rel in relationships:
+        rel["name"] = f"{rel['source']}.{rel['source_attribute']}"
+        rel["source_identity"] = by_name[rel["source"]]["logical_id"]
+        rel["target_identity"] = by_name[rel["target"]]["logical_id"]
+        # A reference carries one source column, so a join pairs it with the first target column;
+        # any further column of a composite target identity is reported as a gap, never dropped.
+        rel["pairs"] = [{"ordinal": 1, "source_column": rel["source_column"],
+                         "target_column": rel["target_columns"][0]}]
+        rel["unpaired_target_columns"] = list(rel["target_columns"][1:])
+
     # ---- expressions, rendered in the binding's dialect ---------------------------------
     measures = {b.name: b.fields.get("Measure") for b in spec.blocks_of("Metric")}
 
@@ -623,6 +649,8 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                 a["derive"] = expression(a["derive"])
 
     embeddings = blocks("Embedding")
+    for b in embeddings:
+        b["logical_id"] = f"search:{_snake(b['name'])}"
     for b in embeddings:
         b["source"] = expression(b.get("source"))
         b["where"] = expression(b.get("where"), condition=True)
@@ -943,6 +971,11 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                     for kind in ("Storage", "Files", "Partitioning", "Lifecycle", "StorageAccess")
                     if kind in profile.blocks} or None,
         "settings": settings,
+        "standard": {"version": (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip(),
+                     "platform": binding.platform,
+                     "declarations": ([{"kind": "STANDARD", "name": "standard"}]
+                                      + [{"kind": "MODULE", "name": m} for m in modules]
+                                      + [{"kind": "PATTERN", "name": p} for p in STANDARD_PATTERNS])},
         "defaults_applied": r.defaults,
     }
     return (context if not r.findings else {}), r.findings

@@ -6,12 +6,16 @@
 {% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.consumer_view is defined %}
 CREATE VIEW {{ x.objects.consumer_view|qualified }} AS
-SELECT {{ m.cols(x.columns|rejectattr('name', 'in', ('valid_to_dts', 'transaction_to_dts'))|map(attribute='physical_name')) }}
+SELECT {{ m.cols(x.view_columns|map(attribute='physical_name')) }}
 FROM {{ x.objects.table|qualified }}
 WHERE {{ m.current(x) }};
 COMMENT ON VIEW {{ x.objects.consumer_view|qualified }} IS {{ ('Current consumer surface: ' ~ x.description)|literal }};
+{% for vc in x.view_columns %}{% set col = x.columns|selectattr('physical_name', 'equalto', vc.physical_name)|first %}
+COMMENT ON COLUMN {{ x.objects.consumer_view|qualified }}.{{ vc.physical_name|ident }} IS {{ (col.description or col.name)|literal }};
+{% endfor %}
 {% endfor %}
 {% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.function is defined %}
 CREATE MACRO {{ x.objects.function|qualified }}(valid_at{% if x.bitemporal %}, known_at{% endif %}) AS TABLE
 SELECT * FROM {{ x.objects.table|qualified }} WHERE {{ m.at(x) }};
+COMMENT ON MACRO TABLE {{ x.objects.function|qualified }} IS {{ ('Point-in-time reconstruction of ' ~ x.description ~ (' Takes the valid-time and known-time instants.' if x.bitemporal else ' Takes the valid-time instant.'))|literal }};
 {% endfor %}

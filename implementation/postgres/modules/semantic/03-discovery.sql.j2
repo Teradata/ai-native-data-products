@@ -1,8 +1,14 @@
 {# The standard-owned discovery views (Design Specification Standard §4.1): Semantic's column
    catalogue, manifest and relationship paths, and Observability's lineage views. Each is
    created only where the composition places it, and reads only relations the build context
-   places. #}
+   places. Every view and every column carries a comment. #}
 {% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% macro describe(view, text, columns) -%}
+COMMENT ON VIEW {{ view|qualified }} IS {{ text|literal }};
+{% for name, meaning in columns -%}
+COMMENT ON COLUMN {{ view|qualified }}.{{ name|ident }} IS {{ meaning|literal }};
+{% endfor -%}
+{%- endmacro %}
 {% set colmeta = named('ColumnMetadata') %}{% set catalogue = named('ColumnCatalogue') %}
 {% if catalogue and colmeta %}{% set c = colmeta.column_names %}
 CREATE VIEW {{ catalogue.objects.consumer_view|qualified }} AS
@@ -19,9 +25,21 @@ LEFT JOIN {{ colmeta.objects.table|qualified }} m
   ON m.{{ c.container_name|ident }} = col.table_schema AND m.{{ c.table_name|ident }} = col.table_name
  AND m.{{ c.column_name|ident }} = col.column_name
 WHERE {{ m.in_product('col.table_schema', 'col.table_name') }};
+{{ describe(catalogue.objects.consumer_view, 'Column-level catalogue of every product container: the structural facts from the system catalogue joined to the authored column metadata.', [
+  ('container_name', "Container (schema) that holds the column's table or view."),
+  ('table_name', 'Table or view that holds the column.'), ('column_name', 'Physical column name.'),
+  ('data_type', 'Declared platform data type of the column.'), ('is_nullable', 'YES when the column accepts nulls, otherwise NO.'),
+  ('logical_name', 'Name the specification or owning standard gives the column; null when none is registered.'),
+  ('business_description', 'Authored business meaning of the column; null when none is registered.'),
+  ('is_pii', 'True when the column holds personally identifiable information.'),
+  ('sensitivity_marker', "The specification's sensitivity marker for the column, when it carries one."),
+  ('data_classification', "Class the organisation's scheme assigns the column."),
+  ('declared_type', 'Logical type the specification declares for the column.'),
+  ('structural_source', 'Catalogue that supplied the structural facts.'),
+  ('description_source', 'authored when a business description is registered, missing otherwise.')]) }}
 {% endif %}
 {% set registry = named('DataProductRegistry') %}{% set orient = named('DataProductOrientation') %}
-{% set manifest = named('DataProductManifest') %}
+{% set manifest = named('DataProductManifest') %}{% set decl = named('StandardDeclaration') %}
 {% if manifest and registry and orient %}{% set p = registry.column_names %}{% set o = orient.column_names %}
 CREATE VIEW {{ manifest.objects.consumer_view|qualified }} AS
 SELECT r.{{ p.product_id|ident }} AS product_id, r.{{ p.product_name|ident }} AS product_name,
@@ -32,34 +50,76 @@ SELECT r.{{ p.product_id|ident }} AS product_id, r.{{ p.product_name|ident }} AS
 {%- for res in orientation.resources %},
        max(CASE WHEN o.{{ o.resource_role|ident }} = {{ res.role|literal }} THEN o.{{ o.container_name|ident }} || '.' || o.{{ o.object_name|ident }} END) AS {{ res.role|lower|ident }}
 {%- endfor %}
+{%- if decl %}{% set d = decl.column_names %},
+       (SELECT s.{{ d.standard_version|ident }} FROM {{ decl.objects.table|qualified }} s
+         WHERE s.{{ d.product_id|ident }} = r.{{ p.product_id|ident }} AND s.{{ d.component_kind|ident }} = 'STANDARD'
+           AND s.{{ d.is_active|ident }}) AS standard_version
+{%- endif %}
 FROM {{ registry.objects.table|qualified }} r
 JOIN {{ orient.objects.table|qualified }} o ON o.{{ o.product_id|ident }} = r.{{ p.product_id|ident }}
 WHERE r.{{ p.is_active|ident }} AND NOT r.{{ p.is_deleted|ident }} AND o.{{ o.is_active|ident }}
 GROUP BY 1, 2, 3, 4, 5, 6, 7;
+{{ describe(manifest.objects.consumer_view, 'Bootstrap manifest: the approved entrypoint, trust producer, one deployed object per discovery resource, and the standard version the product declares.',
+  [('product_id', 'Identifier of the data product.'), ('product_name', 'Name of the data product.'),
+   ('product_version', 'Published contract version of the data product.'),
+   ('product_status', 'Publication lifecycle state of the product.'),
+   ('approved_entrypoint', 'Consumer object an agent should start from.'),
+   ('approved_access_mode', 'How the approved entrypoint is reached.'),
+   ('trust_authoritative_producer', 'Validation producer whose evidence is authoritative for trust.')]) }}
+{% for res in orientation.resources -%}
+COMMENT ON COLUMN {{ manifest.objects.consumer_view|qualified }}.{{ res.role|lower|ident }} IS {{ ('Container and object of the ' ~ res.role ~ ' discovery resource, to use as given.')|literal }};
+{% endfor -%}
+{%- if decl -%}
+COMMENT ON COLUMN {{ manifest.objects.consumer_view|qualified }}.{{ 'standard_version'|ident }} IS {{ 'Release of the standard the deployment declares it implements; null when no declaration is registered.'|literal }};
+{%- endif %}
 {% endif %}
-{% set rel = named('TableRelationship') %}{% set paths = named('RelationshipPaths') %}
-{% if paths and rel %}{% set t = rel.column_names %}
+{% set rel = named('TableRelationship') %}{% set relcol = named('RelationshipColumn') %}{% set paths = named('RelationshipPaths') %}
+{% if paths and rel and relcol %}{% set t = rel.column_names %}{% set u = relcol.column_names %}
 CREATE VIEW {{ paths.objects.consumer_view|qualified }} AS
 WITH RECURSIVE edges AS (
-    SELECT {{ t.source_container|ident }} || '.' || {{ t.source_table|ident }} AS from_object, {{ t.source_column|ident }} AS from_column,
-           {{ t.target_container|ident }} || '.' || {{ t.target_table|ident }} AS to_object, {{ t.target_column|ident }} AS to_column
-    FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }}
+    SELECT r.{{ t.relationship_id|ident }} AS relationship_id, c.{{ u.ordinal|ident }} AS key_ordinal, 'FORWARD' AS direction,
+           r.{{ t.source_entity|ident }} AS from_entity, c.{{ u.source_column|ident }} AS from_column,
+           r.{{ t.target_entity|ident }} AS to_entity, c.{{ u.target_column|ident }} AS to_column
+    FROM {{ rel.objects.table|qualified }} r
+    INNER JOIN {{ relcol.objects.table|qualified }} c ON c.{{ u.relationship_id|ident }} = r.{{ t.relationship_id|ident }}
+    WHERE r.{{ t.is_active|ident }} AND c.{{ u.is_active|ident }}
     UNION ALL
-    SELECT {{ t.target_container|ident }} || '.' || {{ t.target_table|ident }}, {{ t.target_column|ident }},
-           {{ t.source_container|ident }} || '.' || {{ t.source_table|ident }}, {{ t.source_column|ident }}
-    FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }}
-), paths AS (
-    SELECT from_object, to_object, ARRAY[from_object, to_object] AS visited,
-           from_object || '.' || from_column || ' = ' || to_object || '.' || to_column AS join_path, 1 AS hops
+    SELECT r.{{ t.relationship_id|ident }}, c.{{ u.ordinal|ident }}, 'REVERSE',
+           r.{{ t.target_entity|ident }}, c.{{ u.target_column|ident }},
+           r.{{ t.source_entity|ident }}, c.{{ u.source_column|ident }}
+    FROM {{ rel.objects.table|qualified }} r
+    INNER JOIN {{ relcol.objects.table|qualified }} c ON c.{{ u.relationship_id|ident }} = r.{{ t.relationship_id|ident }}
+    WHERE r.{{ t.is_active|ident }} AND c.{{ u.is_active|ident }}
+), steps AS (
+    SELECT DISTINCT relationship_id, direction, from_entity, to_entity,
+           relationship_id::TEXT || CASE direction WHEN 'FORWARD' THEN '>' ELSE '<' END AS leg
     FROM edges
+), walk AS (
+    SELECT s.from_entity AS origin_entity, s.to_entity AS destination_entity,
+           ARRAY[s.from_entity::TEXT, s.to_entity::TEXT] AS visited, ARRAY[s.leg::TEXT] AS legs, 1 AS hops
+    FROM steps s
     UNION ALL
-    SELECT p.from_object, e.to_object, p.visited || e.to_object,
-           p.join_path || ' AND ' || e.from_object || '.' || e.from_column || ' = ' || e.to_object || '.' || e.to_column,
-           p.hops + 1
-    FROM paths p JOIN edges e ON e.from_object = p.to_object
-    WHERE p.hops < {{ paths.max_hops }} AND NOT e.to_object = ANY(p.visited)
+    SELECT w.origin_entity, s.to_entity, w.visited || s.to_entity::TEXT, w.legs || s.leg::TEXT, w.hops + 1
+    FROM walk w INNER JOIN steps s ON s.from_entity = w.destination_entity
+    WHERE w.hops < {{ paths.max_hops }} AND NOT s.to_entity = ANY(w.visited)
 )
-SELECT from_object, to_object, join_path, hops FROM paths;
+SELECT array_to_string(w.legs, '') AS path_id, w.origin_entity, w.destination_entity, w.hops AS hop_count, h.hop,
+       e.key_ordinal, e.from_entity, e.from_column, e.to_entity, e.to_column, e.relationship_id, e.direction
+FROM walk w
+CROSS JOIN LATERAL generate_series(1, cardinality(w.legs)) AS h(hop)
+INNER JOIN edges e
+   ON e.relationship_id::TEXT = substr(w.legs[h.hop], 1, length(w.legs[h.hop]) - 1)
+  AND e.direction = CASE substr(w.legs[h.hop], length(w.legs[h.hop]), 1) WHEN '>' THEN 'FORWARD' ELSE 'REVERSE' END;
+{{ describe(paths.objects.consumer_view, 'Join paths of up to four steps between entities: one row per step and key position, ready for a consumer to assemble the join. A path never revisits an entity.', [
+  ('path_id', 'Ordered legs of the path, each a relationship id followed by > for FORWARD or < for REVERSE.'),
+  ('origin_entity', 'Logical identity of the entity the path starts from.'),
+  ('destination_entity', 'Logical identity of the entity the path ends at.'),
+  ('hop_count', 'Number of relationship steps in the path.'), ('hop', 'Position of this step in the path, from 1.'),
+  ('key_ordinal', 'Position of the column pair within the join of this step, from 1.'),
+  ('from_entity', 'Logical identity of the entity the step leaves.'), ('from_column', 'Join column on the entity the step leaves.'),
+  ('to_entity', 'Logical identity of the entity the step arrives at.'), ('to_column', 'Join column on the entity the step arrives at.'),
+  ('relationship_id', 'Relationship, which is the join group, this step crosses.'),
+  ('direction', "FORWARD when crossing from the relationship's source to its target, REVERSE for the other way.")]) }}
 {% endif %}
 {% set lineage = named('DataLineage') %}{% set graph_view = named('LineageGraph') %}
 {% if graph_view and lineage %}{% set d = lineage.column_names %}
@@ -70,6 +130,10 @@ FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} AND {{ 
 UNION
 SELECT DISTINCT {{ d.job_name|ident }}, coalesce({{ d.target_container|ident }} || '.', '') || {{ d.target_table|ident }}, 'produces'
 FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} AND {{ d.job_name|ident }} IS NOT NULL;
+{{ describe(graph_view.objects.consumer_view, 'Table-and-job lineage graph: one edge from each active source to its job and from the job to its target.', [
+  ('source_node', 'Node the edge leaves: a source table or a job.'),
+  ('target_node', 'Node the edge arrives at: a job or a target table.'),
+  ('edge_type', 'Kind of relationship the edge records; produces for data flow.')]) }}
 {% endif %}
 {% set run = named('LineageRun') %}{% set latest = named('LineageRunLatest') %}
 {% if latest and lineage and run %}{% set d = lineage.column_names %}{% set r = run.column_names %}
@@ -84,4 +148,9 @@ SELECT lineage_id, source_table, target_table, job_name, run_dts, run_status FRO
     LEFT JOIN {{ run.objects.table|qualified }} r ON r.{{ r.lineage_id|ident }} = d.{{ d.lineage_id|ident }}
     WHERE d.{{ d.is_active|ident }}
 ) ranked WHERE rank = 1;
+{{ describe(latest.objects.consumer_view, 'Latest recorded run of each active lineage definition.', [
+  ('lineage_id', 'Identifier of the lineage definition.'), ('source_table', 'Table the job reads.'),
+  ('target_table', 'Table the job writes.'), ('job_name', 'Name of the job that moves the data.'),
+  ('run_dts', 'When the latest run was recorded; null when never run.'),
+  ('run_status', 'Outcome of the latest run; null when never run.')]) }}
 {% endif %}

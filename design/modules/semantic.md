@@ -60,7 +60,7 @@ Semantic's entities are the discovery catalogue. All apply `object-placement`, `
 ```
 Entity: EntityMetadata            [kind: Record] [profile: CURRENT_STATE]
   entity_metadata_id: Identifier
-  entity_name: ShortText [required]  // business name (Party, Product)
+  entity_name: ShortText [required]  // logical identity, module.entity (domain.ticket); never contains a container, so it survives re-placement
   logical_name: ShortText [required]  // the name the specification or owning standard writes (Ticket, ValidationRun)
   entity_description: Text [required]  // purpose and scope
   entity_kind: Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD} [required]
@@ -68,13 +68,25 @@ Entity: EntityMetadata            [kind: Record] [profile: CURRENT_STATE]
   container_name: ShortText [optional]  // where the table lives, from the build context
   table_name: ShortText [required]  // physical name
   view_name: ShortText [optional]  // physical name of the canonical consumable object
-  surrogate_key_column: ShortText [optional]
-  natural_key_column: ShortText [optional]
   temporal_pattern: Enum{CURRENT_STATE|EVENT_APPEND_ONLY|SCD2_HISTORY|SCD2_BITEMPORAL|ASSOCIATION_CURRENT|ASSOCIATION_SCD2|OPERATIONAL_LOG} [required]  // the declared temporal profile
   current_flag_column: ShortText [optional]  // physical name of the current flag
   deleted_flag_column: ShortText [optional]  // physical name of the deleted flag
   assumed_zone: ShortText [optional]  // IANA zone from the Product block; present only under zone-naive (TLM-18)
   industry_standard: ShortText [optional]  // FIBO, HL7, CUSTOM, …
+  is_active: Flag
+
+Entity: KeyDefinition            [kind: Record] [profile: CURRENT_STATE]  // one row per key of an entity
+  key_definition_id: Identifier
+  entity_id: Reference [required] [-> EntityMetadata]  // the entity that owns the key
+  key_role: Enum{SURROGATE|NATURAL|ALTERNATE} [required]  // the stable identity, the business key, or another unique key
+  key_name: ShortText [required]  // the key within its entity: surrogate, natural, or alternate-1, alternate-2, ...
+  is_active: Flag
+
+Entity: KeyColumn                 [kind: Record] [profile: CURRENT_STATE]  // the ordered columns of a key
+  key_column_id: Identifier
+  key_definition_id: Reference [required] [-> KeyDefinition]  // the key the column belongs to
+  ordinal: Integer [required]  // position in the key, from 1 with no gaps
+  column_name: ShortText [required]  // physical name of a column of the owning entity
   is_active: Flag
 
 Entity: ColumnMetadata            [kind: Record] [profile: CURRENT_STATE]
@@ -107,17 +119,34 @@ Entity: NamingStandard            [kind: Record] [profile: CURRENT_STATE]
 Entity: TableRelationship         [kind: Record] [profile: CURRENT_STATE]
   relationship_id: Identifier
   relationship_name: ShortText [required]
-  source_container: ShortText [optional]
-  source_table: ShortText [required]
-  source_column: ShortText [required]  // the referencing (foreign) key
-  target_container: ShortText [optional]
-  target_table: ShortText [required]
-  target_column: ShortText [required]  // the referenced key
+  source_entity: ShortText [required]  // EntityMetadata.entity_name of the referencing entity
+  target_entity: ShortText [required]  // EntityMetadata.entity_name of the referenced entity
   relationship_type: Enum{FOREIGN_KEY|HIERARCHY|ASSOCIATIVE} [required]
   cardinality: Enum{ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY} [optional]
   is_mandatory: Flag
   is_active: Flag
+
+Entity: RelationshipColumn        [kind: Record] [profile: CURRENT_STATE]  // the ordered column pairs of one relationship
+  relationship_column_id: Identifier
+  relationship_id: Reference [required] [-> TableRelationship]  // the join group the pair belongs to
+  ordinal: Integer [required]  // position of the pair in the join, from 1 with no gaps
+  source_column: ShortText [required]  // the referencing (foreign) key column
+  target_column: ShortText [required]  // the referenced key column
+  is_active: Flag
 ```
+
+**Identities are logical and placement-independent (normative).** Every identity a consumer follows is built from the module anchor and a logical name, never from a container, product prefix or object-type affix, so deploying the same design with different placement changes no identity. The location is recorded beside it, in separate columns.
+
+| Kind | Form | Example |
+|---|---|---|
+| Entity | `module.entity` | `domain.ticket` |
+| Entity surface | `module.entity:surface`, surface `base` or `current` | `domain.ticket:current` |
+| Module-owned object that is not an entity | `module:object` | `observability:trust_map` |
+| Composite access object | `composite:name` | `composite:ticket_enriched` |
+
+`module` is the module anchor in lower case; `entity` and `object` are lower-case logical names in snake_case (`ValidationRun` becomes `validation_run`). Every relationship, key, mapping and composition names entities and objects by these identities (`INV-SEMANTIC-016`).
+
+**Ordered groups are rows (normative).** A key with several columns, a join with several column pairs and an access object with several output columns are each recorded as rows with an explicit ordinal, never as a list, array or delimited string. A key is the ordered rows of `KeyColumn`; a relationship is a join group whose pairs are the ordered rows of `RelationshipColumn`, so two pairs belonging to one join are grouped by construction. A single-column key or join is the one-row case. Every entity has a key: a `SURROGATE` key where one is allocated, otherwise its `NATURAL` key; a natural key is recorded when the entity has one, and lists its components in order where the identity is built from several attributes (`INV-SEMANTIC-017`, `INV-SEMANTIC-018`).
 
 **Names are logical; the catalogue records both.** The specification and the standards name entities and attributes logically, and the organisation profile decides their physical names ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md) §6.3), including the physical name of any standard-owned logical name it maps. The build registers every relation and column under both: `logical_name` holds the name the specification or owning standard writes, and `table_name`, `view_name` and `column_name` hold the physical names. Canonical temporal and lifecycle columns and standard-owned relations are registered with their logical names, so a conformance rule written against a canonical name, such as the required columns of TLM-02, is judged by resolving that name through this metadata after the organisation's mapping, never by assuming the physical name.
 
@@ -212,6 +241,15 @@ Entity: DataProductMap            [kind: Record] [profile: CURRENT_STATE]  // mo
   graph_key: ShortText [optional]  // OBSERVABILITY rows only, when the graph-lineage facet is enabled; from the build context
   is_active: Flag
 
+Entity: StandardDeclaration      [kind: Record] [profile: CURRENT_STATE]  // one row per implemented component
+  standard_declaration_id: Identifier
+  product_id: NaturalKey [required]  // the product making the declaration (DataProductRegistry.product_id)
+  component_kind: Enum{STANDARD|MODULE|PATTERN} [required]  // the standard as a whole, a deployed module, or an applied pattern
+  component_name: ShortText [required]  // standard, a module anchor or a pattern anchor
+  platform: ShortText [required]  // the platform binding that implements the component
+  standard_version: ShortText [required]  // the release of the standard the component conforms to
+  is_active: Flag
+
 Entity: PrimaryObject             [kind: Record] [profile: CURRENT_STATE]  // one row per agent-facing object
   primary_object_id: Identifier
   module_id: Reference [required] [-> DataProductMap]  // the module and object-type row the object belongs to
@@ -234,6 +272,8 @@ Entity: DataProductOrientation    [kind: Record] [profile: CURRENT_STATE]  // on
   discovery_order: Integer [required]  // ascending processing order; the trust map precedes every analytical resource
   is_active: Flag
 ```
+
+**The deployment declares the standard it implements (normative).** `StandardDeclaration` records the release of the standard the product implements: one `STANDARD` row for the whole, one `MODULE` row per deployed module and one `PATTERN` row per applied pattern, each with the platform that implements it. The generated manifest repeats the `STANDARD` row's version as its last column, so the first read an agent makes says which contract it is reading. A declaration is an assertion by the build, not evidence: the trust map is the evidence. The release bundle published with each release states what an agent may rely on at that version.
 
 **Where registry facts come from.** The registry's descriptive facts come from the specification's `Product:` block ([Design Specification Standard](../core/DESIGN_SPECIFICATION.md) §4.12): description, domain, owner, technical contact and trust producer. Its approved entrypoint and access mode come from the `Orientation:` block, which carries nothing else. Version and lifecycle status are the build's, never the design's.
 
@@ -261,6 +301,7 @@ The catalogue above models entities and how they relate; it does not model the *
 ```
 Entity: AccessObject              [kind: Record] [profile: CURRENT_STATE]  // one row per consumable object
   access_object_id: Identifier
+  object_identity: ShortText [required]  // logical identity (module.entity:surface, module:object, composite:name); never contains a container
   container_name: ShortText [required]  // where the object is deployed
   object_name: ShortText [required]  // the queryable object
   object_type: Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION} [required]  // the organisation profile's object role
@@ -280,9 +321,21 @@ Entity: AccessComposition         [kind: Record] [profile: CURRENT_STATE]  // on
   member_seq: Integer [required]  // ordering of the member within the composite
   member_entity: ShortText [required]  // entity the member represents (EntityMetadata.entity_name)
   member_role: Enum{ANCHOR|INNER|LEFT|RIGHT|FULL} [required]  // join role within the composite
-  join_path: Text [optional]  // entity-level join condition, same form as the path-discovery joins
+  via_relationship_id: Reference [optional] [-> TableRelationship]  // the relationship that joins this member to a prior member; null for the anchor
+  via_direction: Enum{FORWARD|REVERSE} [optional]  // FORWARD crosses the relationship from source to target; null for the anchor
   is_grain_contributor: Flag  // whether this member changes the composite's grain
   member_note: Text [optional]
+  is_active: Flag
+
+Entity: AccessColumn              [kind: Record] [profile: CURRENT_STATE]  // one row per output column of an access object
+  access_column_id: Identifier
+  access_object_id: Reference [required] [-> AccessObject]  // the access object the column belongs to
+  ordinal: Integer [required]  // position of the output column, from 1 with no gaps
+  column_name: ShortText [required]  // the output column as a consumer sees it
+  source_entity: ShortText [optional]  // logical identity of the entity the column derives from; null when derived from several
+  source_column: ShortText [optional]  // the source column; null when derived
+  mapping_kind: Enum{PASSTHROUGH|RENAMED|DERIVED} [required]  // unchanged, renamed only, or computed
+  derivation_note: Text [optional]  // how a derived column is computed
   is_active: Flag
 ```
 
@@ -319,7 +372,9 @@ This decision is bounded by the product. Discovery *across* products depends on 
 
 ## 5. Multi-Hop Path Discovery
 
-`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to **four hops**, and returns the join conditions to use. A path never revisits an entity. The bound is the standard's, so every platform's surface returns the same paths for the same relationships. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
+`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to **four hops**, and returns the join as rows to assemble: one row per step and key position, never a concatenated condition. A path never revisits an entity. The bound is the standard's, so every platform's surface returns the same paths for the same relationships. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
+
+**The path surface is rows (normative).** Each row carries the path (an id built from the ordered relationship legs, each marked with its direction), the origin and destination entities, the number of steps, the step and the key position within it, the from and to entity and column of that pair, and the relationship and direction crossed. A path is bounded to four steps and visits no entity twice. A consumer assembles the join from the rows of one path, grouped by step and ordered by key position; it never parses a stored join string, and no such string is part of the contract.
 
 **Completeness requirement (`INV-SEMANTIC-005`).** `TableRelationship` must register **every** relationship an agent is expected to traverse: not only those with physical foreign keys:
 
@@ -417,6 +472,11 @@ Semantic never becomes a dependency of the modules it describes: it observes and
 - `INV-SEMANTIC-013`: every registered metric carries a platform-neutral definition and at least one expression derived from it, each in a declared dialect, and no two expressions of one metric declare the same dialect.
 - `INV-SEMANTIC-014`: every dataset a metric names is an entity registered in the same product, and every metric names exactly one dataset in the primary role.
 - `INV-SEMANTIC-015`: every synonym resolves to a registered entity, column or metric; a synonym is unique within the object it resolves to.
+- `INV-SEMANTIC-016`: every entity and access identity follows the identity grammar and contains no container; entity identities are unique.
+- `INV-SEMANTIC-017`: every entity has a key, `SURROGATE` where one is allocated and otherwise `NATURAL`; the columns of every key are ordered 1 to n without gaps and exist on the entity.
+- `INV-SEMANTIC-018`: every relationship has at least one column pair; pairs are ordered 1 to n without gaps and exist on their entities.
+- `INV-SEMANTIC-019`: every consumer view over a registered entity has exactly one `AccessColumn` row per output column, and every non-derived source exists.
+- `INV-SEMANTIC-020`: a composite's members are ordered 1 to n, and each non-anchor member joins to a prior member through a registered relationship in a stated direction.
 
 ---
 

@@ -69,4 +69,24 @@ SELECT p.product_code, p.producer_id, NULL, 'PRODUCT', p.product_code, 'no-evide
        0, 0, NULL, 0, 0, 0, 0, 0, 'No published area evidence.', 'Run the validator before reporting confidence.',
        NULL, FALSE
 FROM product p WHERE NOT EXISTS (SELECT 1 FROM latest l WHERE l.product_code = p.product_code);
+COMMENT ON VIEW {{ view.objects.consumer_view|qualified }} IS 'Trust map: per area, the latest evidence from the designated producer, read at unknown confidence once expired. Read it before relying on any other object.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.product_code IS 'Data product the evidence describes.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.producer_id IS 'Validation producer whose evidence is read; null when none is designated.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.run_id IS 'Validation run that supplied the area evidence; null when none exists.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.scope_kind IS 'Kind of scope the evidence covers, for example MODULE, ENTITY or PRODUCT.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.scope_id IS 'Identifier of the scope the evidence covers.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.area_status IS 'Outcome of the area: pass, fail, partial or no-evidence.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.confidence IS 'Trust confidence for the area; unknown once the evidence has expired.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.checks_expected IS 'Number of checks the area should have run.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.checks_ran IS 'Number of checks the area actually ran.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.coverage IS 'Fraction of expected checks that ran; null when none were expected.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.passed_count IS 'Number of checks that passed.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.failed_count IS 'Number of checks that failed.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.error_count IS 'Number of checks that errored before producing a result.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.critical_failure_count IS 'Number of failed checks of critical severity.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.error_failure_count IS 'Number of failed or errored checks counted against trust.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.open_gaps IS 'Known gaps in the evidence; states staleness when the evidence has expired.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.recommended_action IS 'Next step to restore or confirm trust.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.completed_dts IS 'When the area evidence was completed; null when none exists.';
+COMMENT ON COLUMN {{ view.objects.consumer_view|qualified }}.derived IS 'True when the entry is derived from a legacy run that published no area records.';
 {% endif %}
