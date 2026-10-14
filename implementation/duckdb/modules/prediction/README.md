@@ -1,40 +1,30 @@
 ---
-title: DuckDB Prediction Implementation
+title: DuckDB Prediction Module Implementation
 anchor: prediction
 type: implementation
-status: draft
+status: standard
 version: 2.0
 normative: true
 implements: prediction
 platform: duckdb
 ---
 
-# DuckDB: Prediction
+# DuckDB Prediction
 
-Binding of [Prediction](../../../../design/modules/prediction.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
+Binding of [Prediction](../../../../design/modules/prediction.md). [schema.sql](schema.sql) chooses tall engineered values and versioned model outputs. Wide feature groups are an alternative model choice, not a second required copy of the same values.
 
-## Templates
-
-`01-tables.sql.j2` calls `module_tables('prediction')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). It creates the feature and prediction entities the specification assigns to Prediction, with the columns, keys, sequences and temporal profile the context resolves for each. The temporal pattern adds their consumer views and point-in-time table macros.
-
-No template computes features or scores. Product feature SQL must apply both effective and knowledge-time cutoffs to each source and respect observation and availability time. Definitions belong to Semantic and monitoring to Observability; Domain context is reached by identifier join-back, not copied into feature or prediction rows. Prediction tables begin empty: no score or model quality is fabricated. A point-in-time training function and a retrospective-rewrite guard are not rendered; see [conformance scope](../../CONFORMANCE.md).
-
-## Capability bindings
+**Provides:**
 
 | Capability | Binding |
 |---|---|
-| `PointInTimeReconstruction` | Point-in-time table macro per versioned feature or prediction relation. Cutoff correctness is a product obligation. |
-| `CurrentStateFilter` | Consumer view over current, undeleted rows. |
-| `AccessView` | One consumer view per relation with a `consumer_view` object. |
+| `PointInTimeReconstruction` | Half-open feature history plus observation cutoff. |
+| `CurrentStateFilter` | Canonical current feature and prediction views. |
+| `AccessView` | Current, enriched and `training_at(t)` surfaces. |
 
-Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+Spend intensity clips aggregate AUD spend divided by 1000 to [0,1]; no customer descriptive attributes are copied. Definitions and model metadata are Semantic-owned; lineage and quality are Observability-owned. The score is reproducible as one minus the exact feature snapshot and has no calibrated predictive claim.
 
-## Invariants and checks
+The example's snapshot computation filters each source entity as-of observation_dts and includes transactions posted strictly before it. Feature validity cannot precede availability. Prediction records the exact feature observation timestamp and model version; training joins Domain at the same historical instant. Source-observation joins, bounds and scoring reconstruction are runnable checks.
 
-| Invariant | Evidence or outstanding check |
-|---|---|
-| `INV-PRED-001,003` | Review the specification's features; only engineered values and Domain identifiers belong here. |
-| `INV-PRED-002` | Point-in-time macros support reconstruction; the product's feature pipeline must prove cutoff correctness. |
-| `INV-PRED-004,005` | Semantic and Observability stores are separate; product capture and lineage checks remain required. |
+`DD-PREDICTION-001` records the departure from advocated bitemporal history: this small fixture has no as-known correction use case. The writer rejects retrospective feature corrections. A production design needing those must add a bitemporal profile rather than silently rewriting old feature knowledge. No claim is made that business-time SCD2 alone solves every late-source leakage problem.
 
-Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Tests cover January/February boundaries, future-feature exclusion, source joins, prediction provenance and absence of raw content. Soft deletion and metadata follow the shared compiler/writer.

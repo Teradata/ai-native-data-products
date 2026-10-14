@@ -102,11 +102,10 @@ Every reference target must resolve to an entity declared in the specification o
 
 ### 3.5 Entity sections
 
-`Description:` and `Synonyms:` are single lines. `Volume:` and `Features:` hold indented fields. Every attribute also carries its business meaning as a trailing `// description`; the build records both as the objects' metadata (`RichMetadata`).
+`Synonyms:` is a single line of terms. `Volume:` and `Features:` hold indented fields.
 
 | Section | Required on |
 |---|---|
-| `Description` | every entity |
 | `Volume` | every entity of kind `History`, `Reference` or `Relationship` |
 | `Features` | every feature group: an entity a `Model:` reads |
 | `Synonyms` | none |
@@ -149,15 +148,15 @@ Every specification also requires a `Product` block. A product with the `memory:
 
 #### Standard-owned relations
 
-Relations a build creates for an included module without the specification declaring them, placed and named through the organisation profile and shaped by the entity definitions of the module or pattern that owns them. A specification entity of the same name replaces the standard's. Every relation outside the Memory runtime facet has a consumer view; the views listed are consumer views a binding defines over the relations.
+Relations a build creates for an included module without the specification declaring them, placed and named through the organisation profile. A specification entity of the same name replaces the standard's.
 
 | Owner | Relations |
 |---|---|
 | `domain` | `none`: the specification declares every Domain entity. |
 | `search` | `none`: the specification declares its embedding entities. |
 | `prediction` | `none`: the specification declares its feature groups and prediction entities; `FeatureValue` is created when a feature group declares `storage: tall`. |
-| `semantic` | `all` the module's entities, and the discovery views `ColumnCatalogue`, `DataProductManifest` and `RelationshipPaths`. |
-| `observability` | `all` the module's entities; the validation pattern's `ValidationRun` and `ValidationArea`; and the discovery views `LineageGraph`, `LineageRunLatest` and `TrustMap`. |
+| `semantic` | `all` the module's entities. |
+| `observability` | `all` the module's entities; the validation pattern's `ValidationRun` and `ValidationArea`; and the discovery views `LineageGraph` and `LineageRunLatest`. |
 | `memory` | `by facet`: the entities of each enabled facet. |
 
 ### 4.2 `Embedding:`
@@ -269,7 +268,7 @@ A product design decision, recorded once here and captured into Memory's `Design
 |---|---|---|---|
 | `Title` | yes | text | One line. |
 | `Category` | yes | enum | `ARCHITECTURE`, `SCHEMA`, `NAMING`, `PERFORMANCE`, `SECURITY`, `INTEGRATION` or `OPERATIONAL`, as Memory's `DesignDecision` defines them. |
-| `Module` | yes | module | The module the decision is recorded against, one of the product's `modules`. A pattern's decision names the module whose behaviour it governs, and a decision governing several modules is one block per module ([Memory](../modules/memory.md) §5.2). |
+| `Module` | yes | module | The module or pattern the decision belongs to. |
 | `Applies to` | no | text | The entity or block the decision concerns. |
 | `Settles` | no | text | The catalogued decision this record settles for its module, when it records one. |
 | `Context` | yes | text | What prompted it. |
@@ -360,7 +359,7 @@ Expressions are platform-neutral. Each binding maps every function below to its 
 `spec_lint` reports, in addition to its composition, decision and invariant checks:
 
 - frontmatter keys outside section 3.1, a missing or malformed `product_code`, and any `platform` key;
-- a platform named anywhere in the specification: any directory under `implementation/`, or a platform the design linter lists (`tooling/validation/design_lint.py`), as for every document in `design/`;
+- a platform named anywhere in the specification: any directory under `implementation/`, or one of Teradata, Snowflake, Databricks, BigQuery, Redshift, Synapse, Oracle, SQL Server, Postgres or DuckDB;
 - an entity without a valid `profile`, an invalid `allocation`, or a departure from either default with no covering `Decision:`;
 - a reference whose target does not resolve, or a multi-target reference without a discriminator;
 - a missing entity section, a feature group with no derived attribute, or a section field missing, unknown or invalid for its type;

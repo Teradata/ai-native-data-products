@@ -1,6 +1,0 @@
-{# Containers the build context places objects in. Adopted containers already exist and
-   parent containers hold no objects on this platform, so neither is created here. #}
-CREATE EXTENSION IF NOT EXISTS btree_gist;
-{% for c in containers if c.holds_objects and not c.adopted %}
-CREATE SCHEMA {{ c.name|ident }};
-{%- endfor %}

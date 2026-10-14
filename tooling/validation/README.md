@@ -40,7 +40,6 @@ assert lint_text("design/modules/domain.md", text) == []
 | `sql-fence` | a code block is tagged ` ```sql ` (or `tsql`, `plsql`, `psql`, `mysql`, `sqlite`). |
 | `sql-statement` | a line inside any code block starts with `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, or `WITH`. |
 | `vendor-token` | a platform data type or vendor token appears anywhere: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `TINYINT`, `DECIMAL(…)`, `NUMERIC(…)`, `FLOAT32`, `TIMESTAMP(…)`, `PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT <value>`, `COMMENT ON`, `::VECTOR`, any `TD_*` function. |
-| `platform-name` | a document under `design/` names a platform: any directory under `implementation/`, or one of the `KNOWN_PLATFORMS` the linter lists. Not waived by `ignore-file`, which lets a document name SQL, never a platform. |
 | `unknown-type` | an attribute inside an `Entity:` pseudo-block uses a type not in the logical vocabulary (the Design Language's Logical Type Vocabulary). |
 | `invariant-id` | an invariant id does not match `INV-<MODULE>-<NNN>` (the Design Language's Invariants section). |
 
@@ -95,8 +94,10 @@ Module and pattern documents must never use either: they are exactly the content
 python -m unittest discover -s tooling/validation/tests
 ```
 
-There are two kinds of test, and the distinction matters when one fails.
+Two kinds of test live there, and the distinction matters when one fails.
 
-**Corpus tests** hold the standards to their own rules: the linter's own behaviour, frontmatter and catalogue currency, the specification linter and resolver, and that every binding conforms to the template rules of the Platform Implementation Authoring Standard: no plain `.sql`, no substitution convention other than Jinja, no product literal, every template reached by a phase, check or caller (`test_binding_package.py`). A failure means a document or a template is wrong.
+**Corpus tests** hold the standards to their own rules: the linter's own behaviour, frontmatter and catalogue currency, and that every SQL template still renders canonical SQL under `StrictUndefined`. A failure means a document or a template is wrong.
 
-**Behavioural tests** live with the bindings, in [`tooling/bindings/tests`](../bindings/README.md). They render each binding from the shared build context and run the result on its engine (DuckDB, PostgreSQL and Teradata), and `test_teradata_dialect.py` holds every statement the Teradata binding renders to its platform profile's dialect rules. A failure there means the *product's* SQL is wrong, not the standards.
+**Behavioural tests** execute shipped SQL. `test_trust_map.py` runs the validation pattern's read path — the trust map views, the consumer's scope reconciliation, and the conformance checks that resolve an area's identity — against stdlib `sqlite3`, through the narrow Teradata translator in `td_sqlite.py`. The SQL is read from `implementation/`, never retyped here, so reverting a fix in the pattern fails these tests. A failure means the *product's* SQL is wrong, not the standards.
+
+`td_sqlite.py` raises `UntranslatedSql` rather than guessing: a Teradata construct it does not handle breaks the harness loudly instead of being dropped from the statement it was load-bearing in. Extend it when the shipped SQL grows one. It is not a Teradata emulator and platform conformance is not its job — that stays the pattern's own `conformance-queries.sql`, run against a deployed product.

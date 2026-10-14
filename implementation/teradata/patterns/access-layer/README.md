@@ -2,38 +2,65 @@
 title: Teradata Access Layer Pattern Implementation
 anchor: access-layer
 type: implementation
-status: draft
-version: 3.0
+status: standard
+version: 2.0
 normative: true
 implements: access-layer
 platform: teradata
 ---
 
-# Teradata: Access Layer
+# Teradata: Access Layer Implementation
 
-Binding of [Access Layer](../../../../design/patterns/access-layer.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
+Teradata binding of [`design/patterns/access-layer.md`](../../../../design/patterns/access-layer.md). Creates the three product roles and grants them access as each module deploys. Read the pattern first for the role model, grant matrix, and two-phase timing.
 
-## Templates
+## Files
 
-`00-implied-grants.sql.j2` is the second phase, before any view. A view in one database compiles, and serves its readers, only once that database holds `SELECT WITH GRANT OPTION` on the database it reads; without it view creation fails with `[5315]`. The template derives each pair from what a view reads, from `entities`, `relations` and their placed `objects`: a base view reads its table; a consumer view reads its base view, or its table where there is none; a discovery view reads the Semantic and Observability tables it is built over. It grants nothing else, and never a database to itself.
+| File | Purpose |
+|------|---------|
+| `access-layer.dcl.sql` | The Phase 1.5a implied grants, then `CREATE ROLE` for the three roles and the phased `GRANT` blocks (schema-neutral tags `{ProductName}_{Module}`). |
+| `dd-access-001.sql` | The mandatory `DD-ACCESS-001` design-decision record inserted into the product's Memory documentation facet. |
 
-`01-grants.sql.j2` is the last phase. It reads `principals` (the name of each of `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN`, and whether the build creates it), `product.name`, `grant_level`, `containers`, `module_containers` and the placed objects of `entities` and `relations`. In order it:
+## Bindings
 
-1. creates each principal the profile says to `create` as a role, with a comment naming who it is for, never what it reaches; an `existing` principal is used by name and not altered;
-2. grants the admin tier `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `DROP TABLE`, `CREATE VIEW`, `DROP VIEW` and `STATISTICS` on every database the product owns (never an adopted one) that holds objects (`ALL` carries `CREATE USER`, which Teradata grants to no role);
-3. grants `SELECT` on consumer views to the read and agent tiers: per view at grant level `object`; at grant level `container`, on each database that holds consumer views and no tables, and per view where a database holds both, so a grant never reaches a table;
-4. grants `SELECT` on the governed base view of every versioned relation with a consumer view to the read and agent tiers, one view at a time, so history is reachable as other bindings make it reachable through point-in-time functions (temporal-lifecycle-metadata §9); base views can share a database with tables, so these are never database grants;
-5. for each table whose primary role is `WRITE_TARGET`: on a runtime Memory relation, `SELECT`, `INSERT` and `UPDATE` for the agent tier; on any other write target (agent outcomes), `INSERT`.
+| Pattern element | Teradata binding |
+|-----------------|------------------|
+| Role | `CREATE ROLE {ProductName}_ROLE_{TIER}` plus a `COMMENT ON ROLE` of **one short sentence naming the role's consumers**. Never the containers it reaches or the rights it holds (see below). |
+| Read | `GRANT SELECT ON {container} TO {role}`. |
+| Write-back (append) | `GRANT INSERT ON {container} TO {role}` (Memory, Observability; `ROLE_AGENT` only). |
+| Module access container | `{ProductName}_{Module}` (standard placement) or the `_V` view container under `STRICT_SEPARATION` (see [object-placement](../object-placement/)). |
+| Implied grant (Phase 1.5a) | `GRANT SELECT ON {module_container} TO {access_container} WITH GRANT OPTION`. |
 
-Runtime Memory is not restricted to the requesting identity's scope: Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported` and every build with runtime relations reports it.
+## What a role comment says
 
-The deploy script does not create users, assign passwords or grant roles to users; those are operator steps. Creating roles needs the `CREATE ROLE` right. Review the members of an `existing` role before binding a product to it.
+One sentence, naming who the role is for:
 
-## Capability bindings
+```sql
+COMMENT ON ROLE {ProductName}_ROLE_AGENT IS
+    '{ProductName} data product - AI agent and automated tool role.';
+```
 
-| Capability | Binding |
-|---|---|
-| `AccessView` | Consumer views, and the governed views that carry history, are the read and agent tiers' only table-like surfaces; the engine tests read the read role's rights from `DBC.AllRoleRightsV`. |
-| `ProductRoleAccess` | Roles named by the profile; grants per object or per database. Runtime scope enforcement is a reported gap. |
+Not what it can reach. The comment previously ran to three lines listing the containers, the write-back rights, and the reason `ROLE_AGENT` is separate, and it failed two ways at once.
 
-Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+It was **rejected on deployment** with `[5550] Comment string is longer than permitted`, the 255-character limit that applies to every `COMMENT ON` in Teradata (see [PLATFORM_PROFILE](../../PLATFORM_PROFILE.md)). Because `CREATE ROLE` runs first in the same block, the roles were created and left undescribed. A deployment that does not read the failure looks like it worked.
+
+More importantly it **published the permission boundary**. `DBC` role comments are readable by principals who cannot read the grants themselves, so enumerating the grant model in one hands out a map of the access design to anyone who can query the catalogue. The grant matrix in the [pattern](../../../../design/patterns/access-layer.md) is the authoritative statement of who reaches what, and `DD-ACCESS-001` already records why the boundary sits where it does, inside the product. The comment was a third copy of both, and the only one exposed this widely.
+
+The product name is the sole variable part, so the rendered length is predictable: keep the descriptor to a handful of words and a long product name still fits.
+
+## Privilege split
+
+The file divides at a privilege boundary, and the division is the point.
+
+**Phase 1.5a needs no DBA.** The implied grants require only ownership of the source and target containers. They are what lets a view in the access container compile against a base table in a module container, so they belong at the end of Phase 1, as soon as the containers exist. Omitting them fails at view-compile time with `[5315] An owner referenced by user does not have SELECT WITH GRANT OPTION access`, which reads as a fault in the view rather than a missing grant two phases earlier.
+
+**Everything from `CREATE ROLE` down needs DBA.** Confirm the privilege before generating the block:
+
+```sql
+SELECT * FROM DBC.AllRightsV WHERE UserName = USER AND AccessRight = 'CG';
+```
+
+Where the deploying account does not hold it, emit that block as a separate DBA-prerequisite artefact and continue: the schema and data are fully functional without roles, and the outstanding step stays visible rather than being swallowed by a failed block. Under co-located placement there is no separate access container, so Phase 1.5a is empty and the split costs nothing.
+
+## Artefact location
+
+In a data product's artefact tree the DCL lives at `00-access/{ProductName}_access_layer.dcl`, the `00-` prefix marking it as a prerequisite alongside the module directories. The roles are product artefacts created once; assigning users/service accounts to them is an operational event, not part of this artefact.

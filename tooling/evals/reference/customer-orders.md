@@ -87,8 +87,6 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
 
-  Description: A customer who orders from the business, as the ordering system knows them.
-
   Keys:
     surrogate: customer_id
 
@@ -117,8 +115,6 @@ Entity: Product                   [kind: History] [profile: SCD2_BITEMPORAL]
   description      : Text [optional]                   // the text Search embeds
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
-
-  Description: A product the business sells, identified by its SKU.
 
   Keys:
     surrogate: product_id
@@ -150,8 +146,6 @@ Entity: Order                     [kind: History] [profile: SCD2_BITEMPORAL]
   change_event_id  : Reference [optional] [-> ChangeEvent]  // per DEC-COLUMN-STRATEGY: reference
   is_current       : Flag [current-flag]               // current version marker
   is_deleted       : Flag [deleted-flag]               // soft-delete marker
-
-  Description: A customer's order, with its status, value and the time it was placed.
 
   Keys:
     surrogate: order_id
@@ -185,8 +179,6 @@ Entity: OrderLine                 [kind: Relationship] [profile: ASSOCIATION_SCD
   line_value       : Decimal(12,2) [required]          // extended line value
   is_current       : Flag [current-flag]               // current version marker
 
-  Description: One product on an order, with the quantity and value ordered.
-
   Keys:
     surrogate: order_line_id
     natural:   order_id, product_id
@@ -215,8 +207,6 @@ Entity: OrderStatus               [kind: Reference] [profile: SCD2_HISTORY] [all
   long_description : Text [optional]                   // definition and usage guidance
   is_current       : Flag [current-flag]               // marks the current version of the code
   sort_order       : Integer [optional]                // display sequence
-
-  Description: The controlled vocabulary of order statuses and their labels.
 
   Keys:
     surrogate: order_status_id
@@ -252,8 +242,6 @@ Entity: CustomerKeymap          [kind: Keymap] [profile: CURRENT_STATE] [allocat
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
 
-  Description: Allocates each customer's stable identifier from their account number, once.
-
   Keys:
     surrogate: customer_id
     natural:   customer_key
@@ -274,8 +262,6 @@ Entity: ProductKeymap           [kind: Keymap] [profile: CURRENT_STATE] [allocat
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
 
-  Description: Allocates each product's stable identifier from its SKU, once.
-
   Keys:
     surrogate: product_id
     natural:   product_key
@@ -295,8 +281,6 @@ Entity: OrderKeymap             [kind: Keymap] [profile: CURRENT_STATE] [allocat
   order_key        : NaturalKey [required] [unique]    // order number from the ordering system
   source_system    : ShortText [optional]              // system that introduced the key
   created_dts      : Timestamp [required]              // allocation time; immutable
-
-  Description: Allocates each order's stable identifier from its order number, once.
 
   Keys:
     surrogate: order_id
@@ -339,28 +323,6 @@ imprecise one. Each is defined in logical terms over the entities above; the pla
 binding generates its expressions. Synonyms cover the terms the business uses that the
 schema does not: *basket* and *sale* for `Order` (declared on the entity), *revenue* for
 `Order Value`.
-
-```
-Decision: DD-SEM-001
-  Title:     Metrics are defined once, over the consumer views
-  Category:  ARCHITECTURE
-  Module:    semantic
-  Applies to: Order Value, Units Sold, Average Order Value
-  Context:   Metrics can be defined over base tables or over the governed consumer surface.
-  Rationale: Defining each metric once over the current consumer surface means every agent and dashboard computes the same number from the same rows.
-  Alternatives: Per-consumer metric definitions, rejected because they drift.
-```
-
-```
-Decision: DD-SEM-002
-  Title:     Average Order Value is derived from Order Value, never stored
-  Category:  SCHEMA
-  Module:    semantic
-  Applies to: Average Order Value
-  Context:   A ratio metric can be stored or derived from its component metrics.
-  Rationale: Deriving it from Order Value and the order count keeps it consistent with its parts at every grain.
-  Alternatives: A stored ratio, rejected because it cannot be re-aggregated.
-```
 
 ```
 Metric: Order Value
@@ -447,21 +409,16 @@ Decision: DD-SEARCH-001
 
 ```
 Entity: ProductEmbedding          [kind: History] [profile: SCD2_HISTORY] [module: search] [allocation: inline]
-  embedding_id         : Identifier                    // surrogate for the embedding record
-  entity_id            : Reference [required] [-> Product] [discriminator: entity_kind]  // the embedded product; key only
-  entity_kind          : Enum{PRODUCT} [required]      // always PRODUCT in this product
-  source_attribute     : ShortText [required]          // which embedding: the Embedding block name
+  product_embedding_id : Identifier                    // surrogate for the embedding
+  product_id           : Reference [required] [-> Product]  // key only; no content duplication
   embedding            : Vector[768] [required]        // dense embedding of the description
-  embedding_dimensions : Integer [required]            // dimensionality, for reproducibility
   embedding_model      : ShortText [required]          // model that produced the vector
-  generated_dts        : Timestamp [required]          // when the vector was generated
-  is_current           : Flag [current-flag]           // current embedding for this product and source
-
-  Description: A vector embedding of a product's description, for similarity search.
+  embedding_dimensions : Integer [required]            // dimensionality, for reproducibility
+  is_current           : Flag [current-flag]           // current embedding for this product
 
   Keys:
-    surrogate: embedding_id
-    natural:   entity_kind, entity_id, source_attribute
+    surrogate: product_embedding_id
+    natural:   product_id, embedding_model
 
   Volume:
     initial: 20000
@@ -506,8 +463,6 @@ Entity: CustomerFeature           [kind: History] [profile: SCD2_HISTORY] [modul
   reorder_propensity  : Decimal(5,4) [optional] [derive: count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)]  // share of the last year's orders placed in the last 90 days
   observation_dts     : Timestamp [required]           // as-at instant for the feature
   is_current          : Flag [current-flag]            // current feature version
-
-  Description: Engineered features about a customer's ordering, as at an observation instant.
 
   Keys:
     surrogate: customer_feature_id
@@ -621,105 +576,6 @@ Glossary: SKU
   Definition: The stock-keeping unit that identifies a product in the ordering system.
   Module:     domain
   Related:    Product
-```
-
-```
-Glossary: Order line
-  Definition: One product on an order, with its quantity and price at the time of ordering.
-  Module:     domain
-  Related:    OrderLine
-```
-
-```
-Glossary: Order status
-  Definition: Where an order is in fulfilment, from placed to delivered or cancelled.
-  Module:     domain
-  Related:    Order, OrderStatus
-```
-
-```
-Glossary: Units Sold
-  Definition: Quantity of products ordered, counted across order lines.
-  Module:     semantic
-  Related:    OrderLine
-```
-
-```
-Glossary: Average Order Value
-  Definition: Order value divided by the number of orders; a ratio, never summed across groups.
-  Module:     semantic
-  Related:    Order
-```
-
-```
-Glossary: Similar product
-  Definition: A product whose description embedding scores at or above the similarity threshold against another's.
-  Module:     search
-  Related:    Product, ProductEmbedding
-```
-
-```
-Glossary: Product embedding
-  Definition: The dense vector of a product's description, produced by the declared encoder.
-  Module:     search
-  Related:    ProductEmbedding
-```
-
-```
-Glossary: Description embedding
-  Definition: The embedding of the product description text, named product_description in this product.
-  Module:     search
-  Related:    ProductEmbedding
-```
-
-```
-Glossary: Reorder window
-  Definition: The 30 days after an order within which another order counts as a reorder.
-  Module:     prediction
-  Related:    Customer
-```
-
-```
-Glossary: Feature snapshot
-  Definition: A customer's engineered features as at one observation instant, for training and scoring.
-  Module:     prediction
-  Related:    CustomerFeature
-```
-
-```
-Glossary: Quality score
-  Definition: The weighted result of the product's quality rules, by dimension.
-  Module:     observability
-```
-
-```
-Glossary: Lineage flow
-  Definition: One source-to-target movement of data through a named job.
-  Module:     observability
-```
-
-```
-Glossary: Validation run
-  Definition: One execution of the product's checks, publishing evidence the trust map reads.
-  Module:     observability
-```
-
-```
-Glossary: Design decision
-  Definition: A recorded choice about this product, with its context, rationale and alternatives.
-  Module:     memory
-```
-
-```
-Glossary: Agent session
-  Definition: One agent's working session, scoped to the user it acts for.
-  Module:     memory
-```
-
-```
-Glossary: Learned strategy
-  Definition: An approach an agent found effective, kept with its success rate for reuse.
-  Module:     memory
 ```
 
 **Invariants:** `INV-MEMORY-001`, `INV-MEMORY-002`, `INV-MEMORY-003`,

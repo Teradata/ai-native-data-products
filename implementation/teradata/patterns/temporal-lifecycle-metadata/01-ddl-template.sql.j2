@@ -1,0 +1,47 @@
+{#
+  SCD2 history table (profile SCD2_HISTORY). Teradata binding of
+  design/patterns/temporal-lifecycle-metadata.md. Canonical columns, flag
+  representation, open-end sentinel, and column comments (TLM-05,06,07,15).
+
+  The temporal columns and their comments come from 00-temporal-macros.sql.j2, the
+  same import every module template uses. This file has no privileged copy of them:
+  it is a worked SCD2 table built the way any table is built, so a change to the
+  canonical block reaches the specimen and the modules in one edit.
+
+  Template variables:
+    db            : container tag (bound by object-placement), e.g. "{{ product }}_Domain"
+    entity        : lower_snake entity name, e.g. "agreement"
+    natural_key   : natural/business key column, e.g. "agreement_bk"
+    surrogate_key : surrogate key column, e.g. "agreement_sk"
+    attributes    : list of { name, type, comment } business attributes
+    supports_deletion (bool)
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+CREATE TABLE {{ db }}.{{ entity }}
+(
+    {{ surrogate_key }}   BIGINT NOT NULL,
+    {{ natural_key }}     VARCHAR(60) CHARACTER SET UNICODE NOT NULL,
+{%- for a in attributes %}
+    {{ a.name }}          {{ a.type }},
+{%- endfor %}
+{{ tlm.columns('SCD2_HISTORY', pad=22, supports_deletion=supports_deletion) }}
+)
+PRIMARY INDEX ({{ natural_key }});
+
+{{ tlm.comments(db ~ '.' ~ entity, 'SCD2_HISTORY', supports_deletion=supports_deletion) }}
+{%- for a in attributes %}
+COMMENT ON COLUMN {{ db }}.{{ entity }}.{{ a.name }} IS '{{ a.comment }}';
+{%- endfor %}
+
+-- Governed full-contract surface: 1:1 locking view exposing every column.
+REPLACE VIEW {{ db }}.v_{{ entity }}
+AS
+LOCKING ROW FOR ACCESS
+SELECT
+      {{ surrogate_key }}
+    , {{ natural_key }}
+{%- for a in attributes %}
+    , {{ a.name }}
+{%- endfor %}
+{{ tlm.select_list('SCD2_HISTORY', supports_deletion=supports_deletion) }}
+FROM {{ db }}.{{ entity }};

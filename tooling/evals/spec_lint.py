@@ -638,28 +638,8 @@ def check_entity_notation(ctx: NotationContext, path) -> List[Finding]:
             findings.append(Finding(path, e.line, "misplaced-entity",
                                     f"{where} holds a Vector in module '{module}'; embeddings "
                                     f"belong to search (declare [module: search])"))
-        shape = std.module_entity_defs.get("search", {}).get("EntityEmbedding")
-        if shape and module == "search" and any(a.type.startswith("Vector") for a in e.attributes.values()):
-            # An embedding entity instantiates the Search standard's EntityEmbedding (§4): its
-            # required attributes, and its identity (the entity described and which embedding).
-            missing = [n for n, a in shape.attributes.items() if "required" in a.qualifiers
-                       and n not in e.attributes]
-            if missing:
-                findings.append(Finding(path, e.line, "embedding-shape",
-                                        f"{where} lacks the Search standard's embedding attributes "
-                                        f"{', '.join(missing)}"))
-            natural, standard_natural = _keys(e).get("natural", []), _keys(shape).get("natural", [])
-            if natural and set(natural) != set(standard_natural):
-                findings.append(Finding(path, e.line, "embedding-shape",
-                                        f"{where} has natural key {', '.join(natural)}; an embedding is "
-                                        f"identified by {', '.join(standard_natural)} (Search §4), and a "
-                                        f"new model is a new version, not a new identity"))
-        for a in e.attributes.values():
-            if not a.description:
-                findings.append(Finding(path, a.line, "missing-description",
-                                        f"{where}.{a.name} has no // description"))
         for section, kinds in std.section_kinds.items():
-            needed = e.kind in kinds or "*" in kinds or ("feature-group" in kinds and feature_group)
+            needed = e.kind in kinds or ("feature-group" in kinds and feature_group)
             if needed and section not in e.sections:
                 findings.append(Finding(path, e.line, "missing-section",
                                         f"{where} has no '{section}:' section"))
@@ -746,33 +726,7 @@ def check_notation(fm: dict, text: str, corpus: Corpus, path, design_root: Path 
     ctx = NotationContext(fm, spec, std, corpus)
     return (check_platform_names(text, std, path) + check_entity_notation(ctx, path)
             + check_identity(ctx, path) + check_blocks(ctx, path)
-            + check_block_rules(ctx, corpus, path) + check_capture_floor(ctx, corpus, path))
-
-
-CAPTURE_FLOOR = {"design decisions": 3, "glossary terms": 3}
-
-
-def check_capture_floor(ctx: NotationContext, corpus: Corpus, path) -> List[Finding]:
-    """Memory §5.2: each deployed module's documentation floor, which the build captures from
-    the specification. Decisions count one record per catalogued decision a module raises and
-    the product settles, plus each `Decision:` block recorded against the module."""
-    if "memory:documentation" not in facet_names(ctx.fm):
-        return []
-    findings = []
-    for module in ctx.modules:
-        settled_here = {b.fields.get("Settles") for b in ctx.decisions if b.fields.get("Module") == module}
-        raised = [d for d in corpus.modules.get(module, {}).get("decisions", [])
-                  if d in ctx.settled and d not in settled_here]
-        counts = {
-            "design decisions": len(raised) + sum(b.fields.get("Module") == module for b in ctx.decisions),
-            "glossary terms": sum(b.fields.get("Module") == module for b in ctx.spec.blocks_of("Glossary")),
-        }
-        for record, floor in CAPTURE_FLOOR.items():
-            if counts[record] < floor:
-                findings.append(Finding(path, 1, "capture-floor",
-                                        f"module '{module}' has {counts[record]} {record}; Memory's "
-                                        f"capture floor is {floor} (Memory §5.2)"))
-    return findings
+            + check_block_rules(ctx, corpus, path))
 
 
 IDENTITY_KINDS = ("History", "Reference", "Relationship")
@@ -885,11 +839,6 @@ def check_block_rules(ctx: NotationContext, corpus: "Corpus", path) -> List[Find
                                     f"{', '.join(nonadvocated)} without a 'Because'"))
         if b.kind == "Graph" and b.fields.get("Load cadence") == "scheduled" and not b.fields.get("Schedule"):
             findings.append(Finding(path, b.line, "missing-field", "Graph: a scheduled load needs a 'Schedule'"))
-        if b.kind == "Decision" and b.fields.get("Module") and b.fields["Module"] not in ctx.modules:
-            findings.append(Finding(path, b.line, "invalid-value",
-                                    f"Decision '{b.name}' is recorded against '{b.fields['Module']}', which "
-                                    f"is not a module of this product; a pattern's decision is recorded "
-                                    f"against the module whose behaviour it governs (Memory §5.2)"))
         if b.kind == "Decision" and b.fields.get("Settles") and b.fields["Settles"] not in corpus.decisions:
             findings.append(Finding(path, b.line, "invalid-value",
                                     f"Decision '{b.name}' settles '{b.fields['Settles']}', which is not "

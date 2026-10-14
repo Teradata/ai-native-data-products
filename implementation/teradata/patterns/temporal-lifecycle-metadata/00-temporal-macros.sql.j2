@@ -1,0 +1,163 @@
+{#
+  Canonical temporal and lifecycle columns (Teradata). The single definition site.
+
+  Binding of design/patterns/temporal-lifecycle-metadata.md, sections 4 and 7. Every
+  persisted table in every module gets its temporal columns from here rather than
+  spelling them out, which is the implementation-side counterpart of the design rule
+  that a module references a pattern and does not restate it (DESIGN_LANGUAGE, authoring
+  checklist). A table that transcribes the block instead is a table whose column names
+  can drift from the pattern, and thirty of them did.
+
+  Three macros:
+
+    columns(profile, ...)          the column definitions, for the CREATE TABLE
+    comments(table, profile, ...)  the matching COMMENT ON COLUMN statements (TLM-15)
+    select_list(profile, ...)      the same columns as a SELECT list, for a view body
+
+  `columns` and `comments` are always used as a pair. `select_list` is for the governed
+  full-contract surface, which exposes every temporal column: a view that lists them by
+  hand is one more place the names are spelled, and it drifts the same way a table does.
+  A *default current* surface does not use it, because that surface deliberately hides
+  most of the block (pattern section 9).
+
+  Usage. Import once at the top of a template, then call. The import path is relative
+  to the Jinja loader root, which is the platform directory `implementation/teradata/`:
+
+    {% raw %}{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+
+    CREATE TABLE {{ product }}_Domain.party (
+        party_id    BIGINT NOT NULL,
+        party_key   VARCHAR(60) NOT NULL,
+    {{ tlm.columns('SCD2_HISTORY', pad=20, supports_deletion=true) }}
+    )
+    PRIMARY INDEX (party_key);
+
+    {{ tlm.comments(product ~ '_Domain.party', 'SCD2_HISTORY', supports_deletion=true) }}{% endraw %}
+
+  `columns` emits the temporal block with a trailing comma on every line except the
+  last, so the caller's preceding column ends with one. Pass `terminal=false` where
+  the block is followed by more columns rather than closing the list: several tables
+  carry their business attributes after the temporal block, and reordering a deployed
+  table's columns to suit a macro would be the tail wagging the dog.
+
+  `pad` is the width of the name field in the caller's block, so the generated columns
+  align with the hand-written ones above them.
+
+  Profiles are the vocabulary of section 7. What each contributes:
+
+    CURRENT_STATE        audit only. Validity pair and is_current are prohibited.
+    EVENT_APPEND_ONLY    audit only. The table supplies its own <event>_dts.
+    OPERATIONAL_LOG      audit only. The table supplies its own event timestamps.
+    ASSOCIATION_CURRENT  audit only: an association on the current-state profile.
+    SCD2_HISTORY         validity pair + is_current + audit.
+    ASSOCIATION_SCD2     as SCD2_HISTORY.
+    SCD2_BITEMPORAL      as SCD2_HISTORY + the transaction-time pair.
+
+  `supports_deletion` adds is_deleted / deleted_dts, per DEC-DELETE-STRATEGY.
+
+  The open-end sentinel is never a DEFAULT: the driver hangs parsing a zone-qualified
+  TIMESTAMP literal in a CREATE TABLE DEFAULT clause (PLATFORM_PROFILE, SQL idioms and
+  driver constraints), and a DEFAULT on a mandatory validity bound reads as though the
+  value were optional. Every statement that opens a version states the sentinel; see
+  02-dml-maintenance.sql.
+
+  An unknown profile emits a line that cannot parse as SQL, rather than emitting
+  nothing. A table whose temporal block silently came out empty is the failure this
+  file exists to prevent, and Jinja has no portable raise: a deploy that fails on the
+  statement is the loudest signal available without depending on how the caller
+  configured its environment.
+#}
+
+{%- set SCD2_PROFILES = ['SCD2_HISTORY', 'ASSOCIATION_SCD2', 'SCD2_BITEMPORAL'] -%}
+{%- set AUDIT_ONLY_PROFILES = ['CURRENT_STATE', 'EVENT_APPEND_ONLY', 'OPERATIONAL_LOG',
+                               'ASSOCIATION_CURRENT'] -%}
+{%- set KNOWN_PROFILES = SCD2_PROFILES + AUDIT_ONLY_PROFILES -%}
+
+{%- macro _check(profile) -%}
+{%- if profile not in KNOWN_PROFILES %}
+### TEMPORAL PROFILE ERROR: '{{ profile }}' is not a temporal profile.
+### Expected one of: {{ KNOWN_PROFILES | join(', ') }}. See 00-temporal-macros.sql.j2.
+{% endif -%}
+{%- endmacro -%}
+
+{%- macro columns(profile, pad=20, indent=4, supports_deletion=false, terminal=true) -%}
+{{- _check(profile) -}}
+{%- set rows = [] -%}
+{%- if profile in SCD2_PROFILES -%}
+  {%- set _ = rows.append(('--', 'Business validity: half-open [valid_from_dts, valid_to_dts)')) -%}
+  {%- set _ = rows.append(('valid_from_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL')) -%}
+  {%- set _ = rows.append(('valid_to_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL')) -%}
+  {%- set _ = rows.append(('is_current', 'BYTEINT NOT NULL DEFAULT 1 CHECK (is_current IN (0, 1))')) -%}
+{%- endif -%}
+{%- if profile == 'SCD2_BITEMPORAL' -%}
+  {%- set _ = rows.append(('--', 'Transaction time: half-open [transaction_from_dts, transaction_to_dts)')) -%}
+  {%- set _ = rows.append(('transaction_from_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL')) -%}
+  {%- set _ = rows.append(('transaction_to_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL')) -%}
+{%- endif -%}
+{%- if supports_deletion -%}
+  {%- set _ = rows.append(('--', 'Logical deletion')) -%}
+  {%- set _ = rows.append(('is_deleted', 'BYTEINT NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1))')) -%}
+  {%- set _ = rows.append(('deleted_dts', 'TIMESTAMP(6) WITH TIME ZONE')) -%}
+{%- endif -%}
+{%- set _ = rows.append(('--', 'Row audit')) -%}
+{%- set _ = rows.append(('created_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)')) -%}
+{%- set _ = rows.append(('updated_dts', 'TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP(6)')) -%}
+{%- set out = [] -%}
+{%- for name, decl in rows -%}
+  {%- if name == '--' -%}
+    {%- set _ = out.append(' ' * indent ~ '-- ' ~ decl) -%}
+  {%- else -%}
+    {#- a name longer than the caller's field still gets one separating space:
+        transaction_from_dts is 20 characters and outruns most blocks. -#}
+    {%- set width = [pad, name | length + 1] | max -%}
+    {%- set comma = '' if (loop.last and terminal) else ',' -%}
+    {%- set _ = out.append(' ' * indent ~ name.ljust(width) ~ decl ~ comma) -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ out | join('\n') }}
+{%- endmacro -%}
+
+{%- macro select_list(profile, indent=4, supports_deletion=false) -%}
+{{- _check(profile) -}}
+{%- set names = [] -%}
+{%- if profile in SCD2_PROFILES -%}
+  {%- set _ = names.extend(['valid_from_dts', 'valid_to_dts', 'is_current']) -%}
+{%- endif -%}
+{%- if profile == 'SCD2_BITEMPORAL' -%}
+  {%- set _ = names.extend(['transaction_from_dts', 'transaction_to_dts']) -%}
+{%- endif -%}
+{%- if supports_deletion -%}
+  {%- set _ = names.extend(['is_deleted', 'deleted_dts']) -%}
+{%- endif -%}
+{%- set _ = names.extend(['created_dts', 'updated_dts']) -%}
+{%- set out = [] -%}
+{%- for name in names -%}
+  {%- set _ = out.append(' ' * indent ~ ', ' ~ name) -%}
+{%- endfor -%}
+{{ out | join('\n') }}
+{%- endmacro -%}
+
+{%- macro comments(table, profile, supports_deletion=false) -%}
+{{- _check(profile) -}}
+{%- set rows = [] -%}
+{%- if profile in SCD2_PROFILES -%}
+  {%- set _ = rows.append(('valid_from_dts', 'Inclusive start of business validity (UTC). Half-open period.')) -%}
+  {%- set _ = rows.append(('valid_to_dts', 'Exclusive end of business validity (UTC); sentinel 9999-12-31 = current, set by the load.')) -%}
+  {%- set _ = rows.append(('is_current', 'Convenience currency flag; must agree with the valid_to_dts sentinel.')) -%}
+{%- endif -%}
+{%- if profile == 'SCD2_BITEMPORAL' -%}
+  {%- set _ = rows.append(('transaction_from_dts', 'Inclusive start of the period this version was believed (UTC).')) -%}
+  {%- set _ = rows.append(('transaction_to_dts', 'Exclusive end of the period this version was believed (UTC); sentinel = still believed.')) -%}
+{%- endif -%}
+{%- if supports_deletion -%}
+  {%- set _ = rows.append(('is_deleted', 'Logical deletion state; 1 requires deleted_dts. History retained.')) -%}
+  {%- set _ = rows.append(('deleted_dts', 'Effective logical deletion time (UTC); NULL until deleted.')) -%}
+{%- endif -%}
+{%- set _ = rows.append(('created_dts', 'Physical row-version creation time (UTC).')) -%}
+{%- set _ = rows.append(('updated_dts', 'Physical row last-change time (UTC).')) -%}
+{%- set out = [] -%}
+{%- for name, text in rows -%}
+  {%- set _ = out.append("COMMENT ON COLUMN " ~ table ~ "." ~ name ~ " IS\n'" ~ text ~ "';") -%}
+{%- endfor -%}
+{{ out | join('\n') }}
+{%- endmacro -%}

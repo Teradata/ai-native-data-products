@@ -1,62 +1,53 @@
 # DuckDB implementation
 
-Reusable binding for **any conforming data product**, following the module and pattern layout of the other platforms. Target: DuckDB 1.4 or later; tested on 1.5 (see [CONFORMANCE.md](CONFORMANCE.md)). These are Jinja templates and binding documents, not a finished deployment or a compiler. There is no plain SQL, Python or JSON in this directory: rendering, validation and the tests live under [`tooling/`](../../tooling/bindings/README.md), shared with the other Jinja bindings.
+A portable binding of the [platform-neutral standards](../../design/), with all six modules and five patterns. The [platform profile](PLATFORM_PROFILE.md) classifies native, adapted, external and unsupported capabilities. DuckDB **1.4.3** is the minimum tested version; the build tooling requires Python **3.10+**.
 
-## How a build reads this binding
+From the repository root:
 
-A build has three inputs: a **design specification** (the product, platform-agnostic), an **organisation profile** (placement, naming, access tiers and classification for one organisation on DuckDB) and this **binding**. [`tooling/build/build_context.py`](../../tooling/build/README.md) resolves the specification, the profile and the binding's declarations into one build context, whose shape is fixed by [`build_context.schema.json`](../../tooling/build/build_context.schema.json) ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3).
+```sh
+python -m pip install -r examples/customer360-duckdb/requirements.txt
+python examples/customer360-duckdb/build.py
+python examples/customer360-duckdb/agent_demo.py examples/customer360-duckdb/customer360.duckdb
+python implementation/duckdb/validate.py examples/customer360-duckdb/customer360.duckdb
+python -m unittest discover -s implementation/duckdb/tests
+```
 
-The templates read only the build context, and derive no names: every container, object, sequence and column name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
+The builder validates a temporary file and publishes only on success. Existing files are protected; `--replace` explicitly rebuilds the synthetic example. Business data and DDL are deterministic; physical audit columns and validation evidence use actual execution instants, and each validation has a unique run id. Database bytes are not expected to be identical.
 
-DuckDB has no principals. The binding declares `Principals: unsupported`, so the organisation profile declares each access tier as `outside <how it is enforced>`, the resolver rejects a tier the profile says to `create` or bind to an `existing` principal, and there is no grants template and no access phase.
+CLI-only creation also works in a **new empty** database:
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the module and pattern directories; each README says what its templates emit and which build-context fields they read.
+```sh
+duckdb customer360.duckdb < examples/customer360-duckdb/build.sql
+duckdb customer360.duckdb < implementation/duckdb/patterns/validation/conformance.sql
+duckdb customer360.duckdb < examples/customer360-duckdb/agent_demo.sql
+```
 
-| Directory | Templates |
+In PowerShell, open `duckdb customer360.duckdb` and use `.read examples/customer360-duckdb/build.sql`. The checked build is ordinary SQL, also executable as a JDBC script. A CLI-only build initially publishes **no evidence / unknown**; run the Python validator to append error-aware wire-schema evidence. SQL conformance output reports counts, not fabricated validation runs.
+
+Open the closed file in DBeaver with its DuckDB connection type and the absolute database path. Use a compatible DuckDB JDBC driver (tested SQL engine 1.4.3), e.g. `jdbc:duckdb:C:/path/customer360.duckdb`, or the equivalent POSIX path. Set `duckdb.read_only=true` for reader connections, and close them before rebuilding. GUI interaction is not part of automated verification; persistent close/reopen and read-only SQL are. The [JDBC connection documentation](https://duckdb.org/docs/stable/clients/java) describes driver properties.
+
+| Schema | Binding |
 |---|---|
-| [patterns/object-placement](patterns/object-placement/README.md) | Schemas |
-| [patterns/temporal-lifecycle-metadata](patterns/temporal-lifecycle-metadata/README.md) | Shared macros, comments, consumer views, point-in-time table macros, caller-rendered maintenance |
-| [modules/*](modules/) | Each module's sequences and tables; Domain key allocation; Search similarity; Semantic registration and discovery; Memory capture |
-| [patterns/validation](patterns/validation/README.md) | Metadata, temporal and reference checks; the trust-map view |
-| [patterns/access-layer](patterns/access-layer/README.md) | None: the access boundary is outside the engine |
+| domain | Permanent keys, history, current views and as-of macros |
+| semantic | Modules, objects, columns, relationships, metrics, synonyms and orientation |
+| search | FLOAT arrays, exact similarity and authoritative content join-back |
+| prediction | Engineered history, source cutoffs, models and outputs |
+| observability | Quality, lineage, executions, validation runs and trust map |
+| memory | Versioned design documentation and scoped runtime process state |
 
-## Render, deploy and validate
+The example is intentionally synthetic: its lexical encoder and toy score make no ML-quality claims. No network/model API, external storage, VSS, or experimental persistent index is needed. **Direct access to the file exposes all data.** Logical roles and runtime privacy require an external authenticated application; views and read-only mode do not provide enterprise RBAC.
 
-The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) with its [DuckDB profile](../../examples/it-service-desk-data-product/profiles/duckdb.md). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under the same profile.
-
-```sh
-python -m pip install -r tooling/bindings/requirements.txt duckdb pytz
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/duckdb.md --output build/itsd-duckdb
-duckdb build/itsd.duckdb < build/itsd-duckdb/deploy.sql
-python tooling/bindings/validate.py build/itsd-duckdb/manifest.json --database build/itsd.duckdb
-```
-
-The profile names the platform. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
-
-- one SQL file per declared phase that renders something for this composition;
-- `deploy.sql`, every phase in one transaction with the session time zone set to UTC;
-- `manifest.json`: the checks, each with a test id `{PRODUCT_CODE}-{CHECK}-{NNN}`, where validation evidence is placed, the gaps the binding reports and the defaults the resolver applied;
-- `context.json`, the resolved build context.
-
-Rendering does not connect to a database. Rendered SQL is not checked into this repository.
-
-Deploy into a **new, empty** database file. The file stem becomes the catalogue name: do not name it after a module (especially `memory`). Use one writing process; close and checkpoint the file before opening readers with `read_only`.
-
-The validator needs an existing file (`--database`). It runs every check in autocommit, so one failing query does not affect the next, and where the product places `ValidationRun` and `ValidationArea` it appends one run and its area records (wire schema 2.1) in a single transaction. `--producer` publishes under a producer id other than the product's designated one. The manifest contains trusted generated SQL: never run one from an untrusted source. Gaps the manifest reports, such as an expression using a function this binding has no fragment for or a composite access object, cap the PRODUCT area at `partial`. A freshly deployed product reads `no-evidence` in the trust map until the validator has published.
-
-**Direct access to the file exposes all data**: views and read-only mode are not access control.
-
-## Verification
+Implementation sources are `model.py`, `render.py`, authored SQL fragments, `checks.py`, `validate.py` and `temporal.py`. To change a schema or comment, edit the model and regenerate:
 
 ```sh
-python -m pip install jinja2 duckdb pytz
-python -m unittest discover -s tooling/bindings/tests -v
-python -m unittest discover -s tooling/validation/tests -v
+python implementation/duckdb/render.py
+python implementation/duckdb/render.py --check
+python tooling/catalogue/build_catalogue.py
 python tooling/validation/design_lint.py design implementation
-python tooling/catalogue/build_catalogue.py --check
+python -m unittest discover -s tooling/validation/tests
 ```
 
-The DuckDB engine tests need the `duckdb` and `pytz` packages. Without `duckdb` they skip, and a skip is a gap. See [CONFORMANCE.md](CONFORMANCE.md) for coverage and declared gaps.
+Each generated module `schema.sql` is reusable after creating its schema; consumer views require their module tables. Cross-module functions/discovery and registrations deploy after their dependencies. The full build concatenates these sources, with no runtime DDL parsing or Jinja dependency. Schema changes in real products require reviewed migrations; the fixture builder is not a production migration engine.
 
 ## Catalogue
 
@@ -66,22 +57,22 @@ The DuckDB engine tests need the `duckdb` and `pytz` packages. Without `duckdb` 
 
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
-| [DuckDB Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `duckdb` | draft | - | - | - |
+| [DuckDB Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `duckdb` | standard | - | - | - |
 
 ### Bindings
 
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
-| [DuckDB Access Layer Implementation](patterns/access-layer/README.md) | `access-layer` | draft | - | - | - |
-| [DuckDB Domain Implementation](modules/domain/README.md) | `domain` | draft | - | - | - |
-| [DuckDB Memory Implementation](modules/memory/README.md) | `memory` | draft | - | - | - |
-| [DuckDB Object Placement Implementation](patterns/object-placement/README.md) | `object-placement` | draft | - | - | - |
-| [DuckDB Observability Implementation](modules/observability/README.md) | `observability` | draft | - | - | - |
-| [DuckDB Physical Storage Implementation](patterns/physical-storage/README.md) | `physical-storage` | draft | - | - | - |
-| [DuckDB Prediction Implementation](modules/prediction/README.md) | `prediction` | draft | - | - | - |
-| [DuckDB Search Implementation](modules/search/README.md) | `search` | draft | - | - | - |
-| [DuckDB Semantic Implementation](modules/semantic/README.md) | `semantic` | draft | - | - | - |
-| [DuckDB Temporal Lifecycle Metadata Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | draft | - | - | - |
-| [DuckDB Validation Implementation](patterns/validation/README.md) | `validation` | draft | - | - | - |
+| [DuckDB Access Layer Implementation](patterns/access-layer/README.md) | `access-layer` | standard | `AccessView` | - | - |
+| [DuckDB Domain Module Implementation](modules/domain/README.md) | `domain` | standard | `AccessView`, `CurrentStateFilter`, `EntityJoinBack`, `NaturalKeyLookup`, `PointInTimeReconstruction`, `SoftDelete` | `DocumentationCapture`, `MetadataCoverageCheck`, `RichMetadata`, `SemanticRegistration`, `SurrogateKeyAllocation` | - |
+| [DuckDB Memory Module Implementation](modules/memory/README.md) | `memory` | standard | `AgentContinuity`, `DocumentationCapture` | - | - |
+| [DuckDB Object Placement Implementation](patterns/object-placement/README.md) | `object-placement` | standard | - | - | - |
+| [DuckDB Observability Module Implementation](modules/observability/README.md) | `observability` | standard | `AgentOutcomeCapture`, `ChangeEventCapture`, `LineageCapture`, `QualityScore` | - | - |
+| [DuckDB Physical Storage Implementation](patterns/physical-storage/README.md) | `physical-storage` | standard | - | - | - |
+| [DuckDB Prediction Module Implementation](modules/prediction/README.md) | `prediction` | standard | `AccessView`, `CurrentStateFilter`, `PointInTimeReconstruction` | - | - |
+| [DuckDB Search Module Implementation](modules/search/README.md) | `search` | standard | `Embed`, `NearestNeighbors` | - | - |
+| [DuckDB Semantic Module Implementation](modules/semantic/README.md) | `semantic` | standard | `SemanticRegistration` | - | - |
+| [DuckDB Temporal Lifecycle Metadata Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | standard | `CurrentStateFilter`, `PointInTimeReconstruction`, `SoftDelete` | - | - |
+| [DuckDB Validation Implementation](patterns/validation/README.md) | `validation` | standard | - | - | - |
 
 <!-- catalogue:end -->

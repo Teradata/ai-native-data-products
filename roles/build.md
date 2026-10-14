@@ -15,9 +15,8 @@ and invariant the design declares.
 2. **`design/core/MASTER_DESIGN.md` §10** - the deployment sequence and its phases.
 3. **`implementation/{platform}/modules/{module}/`** - one per module, as you reach it. Each
    directory's `README.md` carries the capability→binding table, the logical-type bindings,
-   and the invariant→check mapping. The `.sql.j2` files are templates over the build context;
-   `tooling/bindings/render.py` renders them from the approved specification and the
-   organisation profile, in the order the binding's `Phases` declare.
+   and the invariant→check mapping; the numbered `.sql.j2` files are the templates, in
+   deploy order.
 4. **`implementation/{platform}/patterns/{pattern}/`** - one per pattern the design applies.
 
 `design/modules/{module}.md` when you need to know *why* a binding exists. The design
@@ -38,8 +37,6 @@ When adding a platform or changing its binding, read the [Platform Implementatio
 
    ```bash
    python tooling/build/build_context.py design_specification.md organisation-profile.md --out build_context.json
-   # or, for a binding that declares its phases, resolve and render in one step:
-   python tooling/bindings/render.py design_specification.md organisation-profile.md --output build/
    ```
 
    Every container, object and principal name comes from that context; if object storage is
@@ -78,25 +75,22 @@ caught in Phase 1 is cheap, and the same failure found after Phase 3 may have be
 
 Coverage is not uniform, so know what exists before you rely on it:
 
-| Area | Runnable check, as each binding's `PLATFORM_PROFILE.md` `Checks:` declares it |
-|---|---|
-| every persisted relation | `metadata` (every placed column exists and is described) and `temporal` (the temporal profile's invariants) |
-| every relationship | `reference` (every current reference has a current target) |
-| semantic | `module` (every table in the product's containers is registered) |
-| memory | `module` (the capture floor per module) |
-| observability, search, prediction, access-layer, object-placement, physical-storage | **none shipped** (verify against the design document by hand) |
+All paths below are under `implementation/{platform}/`.
 
-The checks are part of the build. `tooling/bindings/render.py` renders every check the binding
-declares into the build's `manifest.json`, with its test id and scope; `tooling/bindings/validate.py`
-runs them and publishes the evidence. The manifest also lists every **gap**: what the
-specification asks for that this binding does not render.
+| Area | Runnable check |
+|---|---|
+| domain, search, prediction, semantic, memory | `implementation/{platform}/modules/{module}/validation.sql.j2` |
+| observability | **none shipped** |
+| temporal-lifecycle-metadata, validation | `implementation/{platform}/patterns/{pattern}/conformance-queries.sql` |
+| access-layer | `implementation/{platform}/patterns/access-layer/dd-access-001.sql` |
+| object-placement, physical-storage | **none shipped** (conformance is a prose checklist) |
 
 Where nothing ships, verify by hand against the design document's Invariants or Conformance
 section and tell the user that area has no automated check.
 
 **Deploy the trust map with the results table.** The validation pattern ships two relations:
 `validation_run` (the run summary) and `validation_area` (the per-area map a consumer reads), plus
-their views. They deploy with the build, wherever the organisation profile places them. Each area you verify above
+their views. Deploy them in file order into the Observability container. Each area you verify above
 is a map entry: an area whose check you ran, an area whose check does not exist
 (`checks_expected = 0`, which publishes as `no-evidence`), and an area you checked by hand. The map
 is what carries that distinction to every consumer that follows you, so record it as you go rather

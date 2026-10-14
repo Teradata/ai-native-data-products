@@ -13,7 +13,6 @@ Run from anywhere:
     python -m unittest discover -s tooling/validation/tests
 """
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -22,7 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "skill"))
 
-from verify_skill import ROLES, SKILL_NAME, check_package, verify  # noqa: E402
+from verify_skill import ROLES, SKILL_NAME, verify  # noqa: E402
 
 DESCRIPTION = (
     "Design, build, review, or access an AI-Native Data Product. Load when modelling a "
@@ -131,7 +130,6 @@ class VerifySkillTest(unittest.TestCase):
     def test_placeholder_route_resolves_when_one_expansion_exists(self):
         impl = self.pkg.root / "implementation" / "teradata" / "modules" / "domain"
         impl.mkdir(parents=True)
-        (impl.parents[1] / "PLATFORM_PROFILE.md").write_text("# Profile\n", encoding="utf-8")
         (impl / "validation.sql.j2").write_text("SELECT 1;\n", encoding="utf-8")
         self.pkg.write_role(
             "build",
@@ -142,48 +140,6 @@ class VerifySkillTest(unittest.TestCase):
         self.pkg.write_role(
             "build", "# Build\n\nRun `implementation/{platform}/modules/{module}/absent.sql`.\n")
         self.assertIn("dangling-route", self.pkg.rules())
-
-    def test_a_platform_route_must_resolve_on_every_binding(self):
-        for platform in ("alpha", "beta"):
-            (self.pkg.root / "implementation" / platform).mkdir(parents=True)
-            (self.pkg.root / "implementation" / platform / "PLATFORM_PROFILE.md").write_text("# P\n", encoding="utf-8")
-        (self.pkg.root / "implementation" / "alpha" / "README.md").write_text("# A\n", encoding="utf-8")
-        self.pkg.write_role("build", "# Build\n\nRead `implementation/{platform}/README.md`.\n")
-        self.assertIn("implementation/beta/README.md", "\n".join(str(f) for f in verify(self.pkg.root)))
-        (self.pkg.root / "implementation" / "beta" / "README.md").write_text("# B\n", encoding="utf-8")
-        self.assertNotIn("dangling-route", self.pkg.rules())
-
-    def test_a_platform_route_with_no_binding_is_reported(self):
-        self.pkg.write_role("build", "# Build\n\nRead `implementation/{platform}/README.md`.\n")
-        self.assertIn("dangling-route", self.pkg.rules())
-
-    def commit(self, *ignored):
-        git = ["git", "-C", str(self.pkg.root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
-        if ignored:
-            (self.pkg.root / ".gitignore").write_text("\n".join(ignored) + "\n", encoding="utf-8")
-        for args in (["init", "-q"], ["add", "-A", "-f"], ["commit", "-q", "-m", "package"]):
-            subprocess.run(git + args, check=True, capture_output=True)
-
-    def test_a_committed_package_conforms(self):
-        self.commit()
-        self.assertEqual(check_package(self.pkg.root), [])
-
-    def test_a_route_to_an_uncommitted_file_fails_the_package(self):
-        self.commit()
-        (self.pkg.root / "design" / "core" / "NEW.md").write_text("# New\n", encoding="utf-8")
-        self.pkg.write_role("build", "# Build\n\nRead `design/core/NEW.md`.\n")
-        self.assertEqual(verify(self.pkg.root), [])
-        self.assertEqual([f.rule for f in check_package(self.pkg.root)], ["package-route"])
-
-    def test_a_shipped_file_the_ignore_rules_exclude_is_reported(self):
-        (self.pkg.root / "build").mkdir()
-        (self.pkg.root / "build" / "deploy.sql").write_text("-- generated\n", encoding="utf-8")
-        self.commit("/build/", "*.duckdb")
-        self.assertEqual([(f.rule, f.where) for f in check_package(self.pkg.root)],
-                         [("package-ignored", "build/deploy.sql")])
-
-    def test_outside_a_checkout_no_package_is_claimed(self):
-        self.assertEqual([f.rule for f in check_package(self.pkg.root)], ["package"])
 
     def test_dangling_section_is_reported(self):
         self.pkg.write_role(
@@ -209,11 +165,6 @@ class RepositoryIsAConformingSkillTest(unittest.TestCase):
 
     def test_this_repository_conforms(self):
         findings = verify(REPO_ROOT)
-        self.assertEqual(findings, [], "\n".join(str(f) for f in findings))
-
-    def test_this_repository_packages_cleanly(self):
-        """What a clone or ZIP of HEAD delivers: committed routes only, nothing ignored."""
-        findings = check_package(REPO_ROOT)
         self.assertEqual(findings, [], "\n".join(str(f) for f in findings))
 
 

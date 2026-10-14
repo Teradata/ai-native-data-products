@@ -1,0 +1,46 @@
+{#
+  Relationship (associative) table. Teradata binding of design/modules/domain.md.
+  Capabilities: CurrentStateFilter, RichMetadata. Invariant support: INV-DOMAIN-007.
+
+  Template variables:
+    database  : Domain database name
+    rel.name  : PascalCase concatenation, e.g. "PartyProduct"
+    rel.lower : lower_snake association id stem, e.g. "party_product"
+    rel.entity1 : { name, lower }   first entity
+    rel.entity2 : { name, lower }   second entity
+    rel.attributes : optional list of { name, type, nullable, comment }
+
+  The open-end sentinel on valid_to_dts is set at INSERT time by the load, never in
+  a DEFAULT clause (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+
+  Temporal profile ASSOCIATION_SCD2: an association versions as the entities it
+  associates do. The columns come from the pattern's macros rather than a copy here.
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+CREATE TABLE {{ database }}.{{ rel.name }}_H (
+    {{ rel.lower }}_id   BIGINT NOT NULL,
+    {{ rel.entity1.lower }}_id     BIGINT NOT NULL,
+    {{ rel.entity2.lower }}_id     BIGINT NOT NULL,
+
+{{ tlm.columns('ASSOCIATION_SCD2', pad=20, supports_deletion=true,
+               terminal=not (rel.attributes | default([]))) }}
+{%- for a in rel.attributes | default([]) %}
+    {{ a.name }}        {{ a.type }}{% if not a.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)
+PRIMARY INDEX ({{ rel.entity1.lower }}_id);  -- co-locate with first entity
+
+COMMENT ON TABLE {{ database }}.{{ rel.name }}_H IS
+'{{ rel.entity1.name }} to {{ rel.entity2.name }} relationship history - associative table with temporal tracking for many-to-many relationships.';
+
+COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ rel.lower }}_id IS
+'Surrogate key for this relationship instance - system generated, unique per association.';
+COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ rel.entity1.lower }}_id IS
+'Foreign key to {{ rel.entity1.name }}_H.{{ rel.entity1.lower }}_id - first entity in the relationship.';
+COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ rel.entity2.lower }}_id IS
+'Foreign key to {{ rel.entity2.name }}_H.{{ rel.entity2.lower }}_id - second entity in the relationship.';
+{{ tlm.comments(database ~ '.' ~ rel.name ~ '_H', 'ASSOCIATION_SCD2', supports_deletion=true) }}
+{%- for a in rel.attributes | default([]) %}
+COMMENT ON COLUMN {{ database }}.{{ rel.name }}_H.{{ a.name }} IS
+'{{ a.comment }}';
+{%- endfor %}

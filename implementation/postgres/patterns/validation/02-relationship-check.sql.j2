@@ -1,0 +1,4 @@
+{# Input: relationship. Validation is current-surface referential coverage, not historical referential proof. #}
+SELECT s.{{ relationship.source_column|ident }} FROM {{ relationship.source_entity.view }} s
+LEFT JOIN {{ relationship.target_entity.view }} t ON s.{{ relationship.source_column|ident }}=t.{{ relationship.target_column|ident }}
+WHERE {% if not relationship.mandatory %}s.{{ relationship.source_column|ident }} IS NOT NULL AND {% endif %}t.{{ relationship.target_column|ident }} IS NULL;

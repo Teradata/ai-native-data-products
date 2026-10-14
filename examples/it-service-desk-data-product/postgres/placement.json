@@ -1,0 +1,16 @@
+{
+  "containers": {
+    "memory": "itsd_memory",
+    "semantic": "itsd_semantic",
+    "domain": "itsd_domain",
+    "observability": "itsd_observability",
+    "search": "itsd_search",
+    "prediction": "itsd_prediction",
+    "access": "itsd_access"
+  },
+  "roles": {
+    "read": "itsd_role_read",
+    "agent": "itsd_role_agent",
+    "admin": "itsd_role_admin"
+  }
+}

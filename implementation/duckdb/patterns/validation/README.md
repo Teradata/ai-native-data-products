@@ -2,43 +2,21 @@
 title: DuckDB Validation Implementation
 anchor: validation
 type: implementation
-status: draft
+status: standard
 version: 2.0
 normative: true
 implements: validation
 platform: duckdb
 ---
 
-# DuckDB: Validation
+# DuckDB validation evidence
 
-Binding of [Validation](../../../../design/patterns/validation.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
+Binding of [validation](../../../../design/patterns/validation.md). [checks.py](../../checks.py) defines executable violation queries with stable test ids, owner scope, category and severity. [validate.py](../../validate.py) executes them and appends `observability.validation_run`, `validation_area` and `validation_check`. The schema is 2.1, with canonical names, producer/profile identity, actual execution instants, authoritative counts and separate status/severity axes.
 
-## Checks
+The count-only producer leaves readiness scores and optional capped JSON null, and proposes no automatic repairs. Full failing counts and execution errors remain in validation_check. SQL failures become ERROR results rather than disappearing. Run and area publication is transactional; prior evidence is retained. `views.sql` selects latest-per-area deterministically by completed_dts/run_id and uses that area's parent expiry, not the newest unrelated run. Expired evidence becomes unknown with a rerun action. The product names exactly one authoritative producer.
 
-Each check is a query whose every row is a defect. The `Checks:` block of [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations) names them, and [`render.py`](../../../../tooling/bindings/README.md) renders them into the manifest with test ids `{PRODUCT_CODE}-{CHECK}-{NNN}`:
+Run `python implementation/duckdb/validate.py <database>` for persisted evidence; use [conformance.sql](conformance.sql) for read-only CLI violation counts. A nonzero count or execution error fails the fixture publication gate. This is a build integrity check, **not** a consumer access gate. `agent_use_allowed` is always `go`, retained only for compatibility; consumers do not branch on it.
 
-| Check | Template | Rendered for | Returns |
-|---|---|---|---|
-| `entity metadata` | `01-entity-metadata.sql.j2` | each persisted relation (`entity`) | each placed column the table lacks or that has no comment, from `duckdb_columns()` |
-| `entity temporal` | `02-entity-temporal.sql.j2` | each persisted relation (`entity`) | identities with an empty interval, a current flag that disagrees with the open ends, overlapping versions (both axes when bitemporal), more than one current version, a deletion flag without its instant, or a non-finite timestamp outside the interval ends |
-| `relationship reference` | `03-relationship-reference.sql.j2` | each entry in `relationships` (`relationship`) | current source references with no current target, read through the consumer views (the tables where no view is placed); an optional reference may be null |
-| `module semantic` | [`modules/semantic/validation.sql.j2`](../../modules/semantic/README.md) | the Semantic module | unregistered base tables |
-| `module memory` | [`modules/memory/validation.sql.j2`](../../modules/memory/README.md) | the Memory module | modules below the capture floor |
+The profile covers every module, temporal metadata, object placement and validation. External security, external storage operations and embedding quality have explicit no-evidence areas. Scores are not fabricated for unassessed quality. Strong means the defined checks passed, not that all possible operational risks were tested. Table-model allowlists detect new content columns outside Domain; code review must still assess the semantic meaning of newly approved fields.
 
-Because DuckDB enforces neither one open version nor non-overlap in its schema, the temporal check is the only proof of both. The reference check is current-surface coverage, not historical proof, and compares the first target column only.
-
-## Trust map
-
-`04-trust-map.sql.j2` is a phase, not a check. Where the product places `TrustMap`, `ValidationRun`, `ValidationArea` and the product registry, it creates one `TrustMap` view:
-
-- evidence is the area records joined to their run, plus one PRODUCT entry for each run at a registered legacy wire version (`quality.legacy_wire_versions`) with no area records, graded on the run's counts by Validation §4.3 and never above `partial` (`no-evidence` and `unknown` if the run had no checks);
-- the registry's designated producer, where one is set, is the only producer read;
-- the latest entry per producer and area wins; it is read at `unknown` confidence once past the run's `evidence_expires_dts`, or, without one, past its completion plus the product's evidence window (`quality.evidence_window_days`, which the resolver defaults to 7 days);
-- where no producer is designated, the most cautious producer's entry stands for each area;
-- a product with no evidence at all reads `no-evidence` and `unknown`.
-
-## Validator
-
-[`validate.py`](../../../../tooling/bindings/README.md) opens the file given by `--database`, runs each check in autocommit so that one failing query does not affect the next, and records an erroring check as `ERROR`, never as zero defects. Where the manifest places `ValidationRun` and `ValidationArea`, it appends one run and one area record per entity, module and the product (wire schema 2.1) in one transaction. Failed `ERROR` or `CRITICAL` checks give weak confidence; a failed `WARNING` leaves partial. The gaps the manifest reports cap the PRODUCT area at partial. The shared fixture `tooling/bindings/tests/trust_cases.json` exercises the summaries. This is a structural profile, not a certification of business rules; add design-specific checks in the product workspace with explicit scope and provenance.
-
-Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+Producer and consumer tests share [trust_cases.json](../../tests/trust_cases.json), testing empty, partial, warning, error and full coverage plus SQL staleness/producer selection. The module [conformance map](../../CONFORMANCE.md) distinguishes SQL checks, behavioural tests and external obligations. No golden wire 1.0/2.0 importer is shipped: this producer accepts native 2.1 only. Clients ingesting other producers must implement the standard's legacy compatibility and cautious fallback before treating those records as authoritative.

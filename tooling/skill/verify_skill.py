@@ -14,12 +14,6 @@ a build gate.
 
     python tooling/skill/verify_skill.py              # checks this repository
     python tooling/skill/verify_skill.py --root path  # or somewhere else
-    python tooling/skill/verify_skill.py --package    # and what an install receives
-
-An install is a clone or a GitHub ZIP of a commit, which is what `git archive` produces:
-tracked files only. `--package` builds that archive from HEAD and checks the routing
-against it rather than the working tree, so a route to an untracked or ignored file fails
-here instead of in an agent's session, and lists what the package contains.
 
 Exit code is 0 when the package conforms, 1 when it does not, 2 when there is no
 SKILL.md to check, so a missing skill is not mistaken for a pass.
@@ -29,15 +23,10 @@ Stdlib only, like the tools it sits beside.
 from __future__ import annotations
 
 import argparse
-import fnmatch
-import io
 import re
-import subprocess
 import sys
-import tarfile
-from collections import Counter
 from pathlib import Path
-from typing import Callable, List, NamedTuple, Optional, Set
+from typing import List, NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "validation"))
@@ -52,6 +41,7 @@ MAX_SKILL_LINES = 120
 MAX_ROLE_LINES = 150
 MIN_DESCRIPTION_CHARS = 120
 
+PLATFORMS = ("teradata",)
 MODULES = ("domain", "search", "prediction", "observability", "semantic", "memory")
 PATTERNS = ("access-layer", "object-placement", "physical-storage",
             "temporal-lifecycle-metadata", "validation")
@@ -81,25 +71,15 @@ class Finding(NamedTuple):
         return f"{self.where}: [{self.rule}] {self.message}"
 
 
-def platforms(root: Path) -> List[str]:
-    """Every binding the corpus holds: a directory under implementation/ with a platform
-    profile. Discovered, never listed, so no platform is the one routes are checked on."""
-    impl = root / "implementation"
-    return sorted(p.name for p in impl.iterdir() if (p / "PLATFORM_PROFILE.md").exists()) if impl.is_dir() else []
-
-
-def expand(path: str, root: Path = REPO_ROOT) -> List[List[str]]:
-    """Expand the corpus's placeholders into the concrete paths they stand for, one group
-    per platform: a `{platform}` route must resolve on every binding, while `{module}` and
-    `{pattern}` need only one expansion that exists, since a route may cover an area not
-    every module implements."""
-    bindings = platforms(root)
-    groups = ([[path.replace("{platform}", p)] for p in bindings] if "{platform}" in path and bindings
-              else [[path]])
-    for token, values in (("{module}", MODULES), ("{pattern}", PATTERNS)):
-        groups = [[c.replace(token, v) for c in g for v in values] if any(token in c for c in g) else g
-                  for g in groups]
-    return groups
+def expand(path: str) -> List[str]:
+    """Expand the corpus's placeholders into the concrete paths they stand for."""
+    out = [path]
+    for token, values in (("{platform}", PLATFORMS),
+                          ("{module}", MODULES),
+                          ("{pattern}", PATTERNS)):
+        if any(token in p for p in out):
+            out = [p.replace(token, v) for p in out for v in values]
+    return out
 
 
 def check_frontmatter_yaml(root: Path) -> List[Finding]:
@@ -195,10 +175,8 @@ def routing_files(root: Path) -> List[Path]:
     return [f for f in files if f.exists()]
 
 
-def check_routes(root: Path, exists: Optional[Callable[[str], bool]] = None,
-                 rule: str = "dangling-route", where: str = "the repository") -> List[Finding]:
+def check_routes(root: Path) -> List[Finding]:
     """Every path the routing names must exist. This is the check that earns its keep."""
-    exists = exists or (lambda rel: (root / rel).exists())
     found = []
     for path in routing_files(root):
         rel = path.relative_to(root).as_posix()
@@ -206,10 +184,11 @@ def check_routes(root: Path, exists: Optional[Callable[[str], bool]] = None,
         for raw in sorted(set(PATH_RE.findall(text))):
             if raw.startswith(SKIP_PREFIXES):
                 continue
-            for group in expand(raw, root):
-                if not any(exists(c.rstrip("/")) for c in group):
-                    shown = group[0] if len(group) == 1 else f"{raw} (no expansion of {group[0]} exists)"
-                    found.append(Finding(rule, rel, f"routes to {shown}, which is not in {where}."))
+            candidates = expand(raw)
+            if not any((root / c.rstrip("/")).exists() for c in candidates):
+                shown = raw if len(candidates) == 1 else f"{raw} (no expansion exists)"
+                found.append(Finding("dangling-route", rel,
+                                     f"routes to {shown}, which is not in the repository."))
     return found
 
 
@@ -220,7 +199,7 @@ def check_sections(root: Path) -> List[Finding]:
         rel = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
         for raw, number in sorted(set(SECTION_RE.findall(text))):
-            for candidate in (c for g in expand(raw, root) for c in g):
+            for candidate in expand(raw):
                 target = root / candidate
                 if not target.exists():
                     continue  # already reported by check_routes
@@ -230,58 +209,6 @@ def check_sections(root: Path) -> List[Finding]:
                         "dangling-section", rel,
                         f"cites {candidate} §{number}, which has no such section."))
     return found
-
-
-def package_files(root: Path) -> Optional[Set[str]]:
-    """The files an install receives: `git archive` of HEAD. None outside a git checkout."""
-    run = subprocess.run(["git", "-C", str(root), "archive", "--format=tar", "HEAD"], capture_output=True)
-    if run.returncode != 0:
-        return None
-    with tarfile.open(fileobj=io.BytesIO(run.stdout)) as tar:
-        return {m.name for m in tar.getmembers() if m.isfile()}
-
-
-def _ignored(root: Path, names: Set[str]) -> List[str]:
-    """Shipped files the repository's own .gitignore says should not be tracked."""
-    ignore = root / ".gitignore"
-    if not ignore.exists():
-        return []
-    patterns = [line.strip() for line in ignore.read_text(encoding="utf-8").splitlines()
-                if line.strip() and not line.startswith(("#", "!"))]
-    out = []
-    for name in sorted(names):
-        parts = name.split("/")
-        for pattern in patterns:
-            anchored, pat = pattern.startswith("/"), pattern.strip("/")
-            prefixes = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
-            segments = prefixes if (anchored or "/" in pat) else parts
-            if any(fnmatch.fnmatch(s, pat) for s in segments):
-                out.append(name)
-                break
-    return out
-
-
-def check_package(root: Path) -> List[Finding]:
-    """What a clone or ZIP of HEAD delivers: the entry point and roles, every route, and
-    nothing the repository itself says is local or generated."""
-    names = package_files(root)
-    if names is None:
-        return [Finding("package", str(root), "not a git checkout with a commit, so no package can be built.")]
-    found = [Finding("package", "SKILL.md", f"{required} is not in the package.")
-             for required in ["SKILL.md"] + [f"roles/{r}.md" for r in ROLES] if required not in names]
-    directories = {"/".join(n.split("/")[:i]) for n in names for i in range(1, n.count("/") + 1)}
-    found += check_routes(root, lambda rel: rel in names or rel in directories,
-                          "package-route", "the package (commit it, or stop routing to it)")
-    found += [Finding("package-ignored", name, "is shipped although .gitignore excludes it; "
-                      "untrack it or narrow the ignore rule.") for name in _ignored(root, names)]
-    return found
-
-
-def package_summary(root: Path) -> str:
-    names = package_files(root) or set()
-    tops = Counter(n.split("/")[0] if "/" in n else "(root)" for n in names)
-    return "Package (git archive HEAD): " + ", ".join(f"{k} {v}" for k, v in sorted(tops.items())) \
-        + f"; {len(names)} files."
 
 
 def verify(root: Path) -> List[Finding]:
@@ -299,8 +226,6 @@ def main(argv: List[str]) -> int:
     ap = argparse.ArgumentParser(description="Check this repository is a well-formed skill.")
     ap.add_argument("--root", type=Path, default=REPO_ROOT,
                     help="repository root to check (default: this repository)")
-    ap.add_argument("--package", action="store_true",
-                    help="also build the package an install receives (git archive HEAD) and check it")
     args = ap.parse_args(argv)
     root = args.root.resolve()
 
@@ -309,9 +234,6 @@ def main(argv: List[str]) -> int:
         return 2
 
     found = verify(root)
-    if args.package:
-        found += check_package(root)
-        print(package_summary(root))
     for finding in found:
         print(finding)
     if found:

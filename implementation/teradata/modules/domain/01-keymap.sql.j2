@@ -1,0 +1,45 @@
+{#
+  Surrogate-key allocation (Keymap). Teradata binding of design/modules/domain.md.
+  Capability: SurrogateKeyAllocation. Invariant support: INV-DOMAIN-003.
+
+  Template variables:
+    database    : Domain database name, e.g. "{{ product }}_Domain"
+    entity.name : PascalCase entity name, e.g. "Party"
+    entity.lower: lower_snake entity name, e.g. "party"
+    entity.natural_key_len : VARCHAR length for the natural key, e.g. 100
+
+  Emit one keymap per FK-target entity. Reference/detail entities that are never
+  FK targets may allocate surrogates directly and skip this template.
+
+  Temporal profile CURRENT_STATE: one row per natural key, allocated once, never
+  versioned. The audit columns come from the pattern's macros, so the canonical
+  spellings arrive by inheritance rather than by being retyped correctly here.
+
+  updated_dts is present because the profile requires the audit pair (TLM-02), and on
+  this table it will equal created_dts for the life of the row. That is the honest
+  reading: the column records when the row last changed, and the answer for a keymap
+  is "when it was allocated". A table that drops it because the value looks redundant
+  is a table stating a private variant of the profile.
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+CREATE TABLE {{ database }}.{{ entity.name }}_Keymap (
+    {{ entity.lower }}_id     BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    {{ entity.lower }}_key    VARCHAR({{ entity.natural_key_len | default(100) }}) NOT NULL,
+    source_system   VARCHAR(50),
+{{ tlm.columns('CURRENT_STATE', pad=16) }}
+)
+UNIQUE PRIMARY INDEX ({{ entity.lower }}_key);
+
+COMMENT ON TABLE {{ database }}.{{ entity.name }}_Keymap IS
+'{{ entity.name }} surrogate key allocation table. One row per unique {{ entity.lower }}_key. Generates the stable {{ entity.lower }}_id referenced by {{ entity.name }}_H and all child tables across all versions.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_id IS
+'System-generated surrogate key for the {{ entity.name }} entity. Allocated once per unique {{ entity.lower }}_key; never reused or recycled.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.{{ entity.lower }}_key IS
+'Natural key from source system. One row per unique source identifier. Maps to {{ entity.lower }}_id for all domain tables.';
+
+COMMENT ON COLUMN {{ database }}.{{ entity.name }}_Keymap.source_system IS
+'Source system that first introduced this natural key.';
+
+{{ tlm.comments(database ~ '.' ~ entity.name ~ '_Keymap', 'CURRENT_STATE') }}

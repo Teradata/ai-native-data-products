@@ -1,0 +1,69 @@
+{#
+  Reference data. Teradata binding of design/modules/domain.md.
+  Capabilities: CurrentStateFilter, PointInTimeReconstruction, RichMetadata.
+  Invariant support: INV-DOMAIN-001.
+
+  Applies temporal-lifecycle-metadata. Default profile SCD2_HISTORY: a code's label
+  and definition change over time, and a record raised in the past must still decode
+  against what its code meant then. The validity columns are therefore the canonical
+  pair, not a private date pair: reference data is versioned data, and a versioned
+  code list that spells its bounds differently is exactly the drift the pattern
+  exists to stop.
+
+  Template variables:
+    database       : Domain database name
+    reference.name : PascalCase reference name, e.g. "CountryCode"
+    reference.lower: lower_snake, e.g. "country_code"
+    reference.versioned (bool, default true) : false emits the CURRENT_STATE variant
+    reference.hierarchical (bool) : emit parent_{ref}_id + sort_order if true
+
+  Set reference.versioned = false only for a set that genuinely carries no history.
+  That variant declares CURRENT_STATE, drops the validity pair and is_current, and
+  is where a day-grain business in-force period may legitimately be carried under
+  the effective_date / expiration_date names (TLM-04 resolves those against the
+  declared profile). Record the choice as a design decision either way.
+
+  The open-end sentinel is set at INSERT time, never in a DEFAULT clause
+  (see PLATFORM_PROFILE, SQL idioms and driver constraints).
+
+  The temporal columns come from the pattern's macros. The profile is the only thing
+  this template decides; what each profile contains is the pattern's to say.
+#}
+{%- import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm -%}
+{%- set profile = 'SCD2_HISTORY' if reference.versioned | default(true) else 'CURRENT_STATE' -%}
+CREATE TABLE {{ database }}.{{ reference.name }}_R (
+    {{ reference.lower }}_id      BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    {{ reference.lower }}_code    VARCHAR(20) NOT NULL,
+    -- UNICODE on the prose columns: descriptions carry typography, codes do not.
+    short_description   VARCHAR(100) CHARACTER SET UNICODE NOT NULL,
+    long_description    VARCHAR(500) CHARACTER SET UNICODE,
+{{ tlm.columns(profile, pad=20, terminal=not reference.hierarchical) }}
+{%- if reference.hierarchical %}
+    parent_{{ reference.lower }}_id BIGINT,
+    sort_order          INTEGER
+{%- endif %}
+)
+{%- if reference.versioned | default(true) %}
+UNIQUE PRIMARY INDEX ({{ reference.lower }}_code, valid_from_dts);
+{%- else %}
+UNIQUE PRIMARY INDEX ({{ reference.lower }}_code);
+{%- endif %}
+
+COMMENT ON TABLE {{ database }}.{{ reference.name }}_R IS
+'{{ reference.name }} reference data - controlled vocabulary and lookup values{% if reference.versioned | default(true) %}, versioned so a historical record decodes against the meaning current when it was written{% else %} holding present values only (CURRENT_STATE){% endif %}.';
+
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.{{ reference.lower }}_id IS
+'Surrogate key for this reference row.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.{{ reference.lower }}_code IS
+'Reference code - the natural key, used by domain tables{% if reference.versioned | default(true) %}; one code, one row per version{% endif %}.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.short_description IS
+'Brief description of reference value - displayed in UI dropdowns and reports.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.long_description IS
+'Detailed description of reference value - complete definition and usage guidance.';
+{{ tlm.comments(database ~ '.' ~ reference.name ~ '_R', profile) }}
+{%- if reference.hierarchical %}
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.parent_{{ reference.lower }}_id IS
+'Optional parent reference for hierarchical taxonomies - references {{ reference.lower }}_id.';
+COMMENT ON COLUMN {{ database }}.{{ reference.name }}_R.sort_order IS
+'Optional display sequence for ordering reference values in UI or reports.';
+{%- endif %}

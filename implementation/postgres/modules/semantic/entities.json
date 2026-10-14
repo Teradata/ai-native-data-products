@@ -1,0 +1,827 @@
+[
+  {
+    "name": "data_product_registry",
+    "key": "product_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Product-first discovery anchor; one row per data product.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "product_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable product name supplied to discovery."
+      },
+      {
+        "name": "product_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Published contract version."
+      },
+      {
+        "name": "product_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Publication lifecycle state."
+      },
+      {
+        "name": "owner_team",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Team responsible for this product."
+      },
+      {
+        "name": "trust_authoritative_producer",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Validator whose latest area evidence defines the trust map."
+      },
+      {
+        "name": "approved_entrypoint",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Fully qualified approved initial business surface."
+      },
+      {
+        "name": "approved_access_mode",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Declared access mode."
+      },
+      {
+        "name": "max_evidence_age_days",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Maximum evidence age before confidence becomes unknown."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "data_product_map",
+    "key": "module_name",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Deployed module discovery map, not design rationale.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "module_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module anchor in the six-module composition."
+      },
+      {
+        "name": "container_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact deployed schema."
+      },
+      {
+        "name": "module_purpose",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Capability supplied by the module."
+      },
+      {
+        "name": "deployment_status",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "DEPLOYED for included modules."
+      },
+      {
+        "name": "module_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Module contract version."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "entity_metadata",
+    "key": "entity_name",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Authored meaning and temporal contract of every governed table.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "entity_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Unique qualified logical entity identity."
+      },
+      {
+        "name": "entity_description",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Purpose and business meaning."
+      },
+      {
+        "name": "module_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owning module anchor."
+      },
+      {
+        "name": "container_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact deployed schema."
+      },
+      {
+        "name": "table_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact deployed base table."
+      },
+      {
+        "name": "view_name",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Canonical consumable view; null for private runtime state."
+      },
+      {
+        "name": "surrogate_key_column",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable identity column."
+      },
+      {
+        "name": "natural_key_column",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Business-key column or record key."
+      },
+      {
+        "name": "temporal_pattern",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Canonical temporal profile for this persisted table."
+      },
+      {
+        "name": "current_flag_column",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Stored currency flag where versioned."
+      },
+      {
+        "name": "deleted_flag_column",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Stored logical deletion flag where supported."
+      },
+      {
+        "name": "standalone_reason",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Reason an entity needs no relationship traversal."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "column_metadata",
+    "key": "column_metadata_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Authored column meaning kept separately from physical catalogue facts.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "column_metadata_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable schema.table.column metadata key."
+      },
+      {
+        "name": "container_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact schema."
+      },
+      {
+        "name": "table_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact object name."
+      },
+      {
+        "name": "column_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact field name."
+      },
+      {
+        "name": "business_description",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Meaning, units and provenance of the value."
+      },
+      {
+        "name": "is_pii",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether real deployments could hold personal information."
+      },
+      {
+        "name": "is_sensitive",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether consumers need handling restrictions."
+      },
+      {
+        "name": "data_classification",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Handling classification; declared by the product owner."
+      },
+      {
+        "name": "source",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Authored source of the semantic description."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "table_relationship",
+    "key": "relationship_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Registered joins including semantic references without physical foreign keys.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "relationship_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Stable relationship identity."
+      },
+      {
+        "name": "source_entity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified referencing entity."
+      },
+      {
+        "name": "source_column",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Referencing field."
+      },
+      {
+        "name": "target_entity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified referenced entity."
+      },
+      {
+        "name": "target_column",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Referenced field."
+      },
+      {
+        "name": "cardinality",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Cardinality on current consumable surfaces."
+      },
+      {
+        "name": "relationship_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "FOREIGN_KEY or semantic association."
+      },
+      {
+        "name": "is_mandatory",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether each source row must resolve."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "access_object",
+    "key": "object_identity",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Authoritative access classification established from generated view structure.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "object_identity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact qualified consumable object."
+      },
+      {
+        "name": "access_role",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "BASE, PASSTHROUGH or COMPOSITE."
+      },
+      {
+        "name": "represents_entity",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Entity represented; null for composite objects."
+      },
+      {
+        "name": "object_grain",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "One row represents this unit."
+      },
+      {
+        "name": "is_agent_consumable",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether this is a public analytical surface."
+      },
+      {
+        "name": "resolves_to_object",
+        "type": "VARCHAR",
+        "nullable": true,
+        "comment": "Base object exposed by a passthrough."
+      },
+      {
+        "name": "access_note",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Filtering and safe-use guidance."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "access_composition",
+    "key": "access_composition_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Declared members of joined surfaces; consumers never parse DDL.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "access_composition_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Composite and member identity."
+      },
+      {
+        "name": "composite_object",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Exact joined view."
+      },
+      {
+        "name": "member_entity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Qualified catalogued member."
+      },
+      {
+        "name": "member_role",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "ANCHOR or joined-member role."
+      },
+      {
+        "name": "join_path",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Explicit join predicate; empty for anchor."
+      },
+      {
+        "name": "is_grain_contributor",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether member changes row grain."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "primary_object",
+    "key": "object_identity",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Module entrypoints with explicit roles and identities.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "object_identity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Verbatim deployed object identity."
+      },
+      {
+        "name": "module_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Owning module."
+      },
+      {
+        "name": "object_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "VIEW in this binding."
+      },
+      {
+        "name": "object_role",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Controlled discovery role."
+      },
+      {
+        "name": "usage_guidance",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "How an agent should use this object."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "data_product_orientation",
+    "key": "resource_role",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Ordered resources resolved before analytical use.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "resource_role",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "One resource role per row."
+      },
+      {
+        "name": "product_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registry product name."
+      },
+      {
+        "name": "object_identity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Verbatim database resource name."
+      },
+      {
+        "name": "discovery_order",
+        "type": "INTEGER",
+        "nullable": false,
+        "comment": "Ascending navigation order; trust precedes analytics."
+      },
+      {
+        "name": "is_required",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Missing required resources fail conformance."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "naming_standard",
+    "key": "standard_value",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Declared signals aid authors; consumers use registered identities.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "standard_value",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Naming token or pattern."
+      },
+      {
+        "name": "meaning",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Meaning of the convention."
+      },
+      {
+        "name": "applies_to",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Object or column scope."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "metric",
+    "key": "metric_name",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Business measures with explicit grain and additivity.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "metric_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Unique business measure."
+      },
+      {
+        "name": "metric_description",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Meaning and exclusions."
+      },
+      {
+        "name": "unit",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Measure unit."
+      },
+      {
+        "name": "aggregation_type",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Aggregation rule."
+      },
+      {
+        "name": "grain_description",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Evaluation grain."
+      },
+      {
+        "name": "is_additive",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "comment": "Whether additive across all dimensions including time."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "metric_expression",
+    "key": "expression_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "One expression per metric and SQL dialect.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "expression_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Metric-dialect key."
+      },
+      {
+        "name": "metric_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registered metric."
+      },
+      {
+        "name": "sql_dialect",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Expression dialect."
+      },
+      {
+        "name": "expression_text",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Calculation expression."
+      }
+    ],
+    "constraints": [
+      "UNIQUE(metric_name, sql_dialect)"
+    ],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "metric_dataset",
+    "key": "metric_dataset_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Datasets required by a metric without expression parsing.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "metric_dataset_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Metric-entity key."
+      },
+      {
+        "name": "metric_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registered metric."
+      },
+      {
+        "name": "entity_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registered dataset."
+      },
+      {
+        "name": "dataset_role",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "PRIMARY or JOINED."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "semantic_synonym",
+    "key": "synonym_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Aliases for resolver matching, distinct from glossary definitions.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "synonym_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Object-alias key."
+      },
+      {
+        "name": "object_kind",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "ENTITY, COLUMN or METRIC."
+      },
+      {
+        "name": "object_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registered entity, field or metric identity."
+      },
+      {
+        "name": "synonym_text",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Alternative consumer term."
+      }
+    ],
+    "constraints": [
+      "UNIQUE(object_kind, object_name, synonym_text)"
+    ],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "model_metadata",
+    "key": "model_key",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Versioned model identity and computation provenance.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "model_key",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Model and version identity."
+      },
+      {
+        "name": "model_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Reproducible model version."
+      },
+      {
+        "name": "model_purpose",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Embedding or scoring purpose and limitations."
+      },
+      {
+        "name": "dimensions",
+        "type": "INTEGER",
+        "nullable": true,
+        "comment": "Embedding dimension; null for scalar scoring."
+      },
+      {
+        "name": "computation_logic",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Reproducible model computation description."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "feature_definition",
+    "key": "feature_name",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Engineering definitions; values belong to Prediction.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "feature_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Registered engineered feature."
+      },
+      {
+        "name": "feature_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Engineering version."
+      },
+      {
+        "name": "computation_logic",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Transformation and leakage cutoff."
+      },
+      {
+        "name": "source_entity",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Authoritative source dataset."
+      },
+      {
+        "name": "refresh_frequency",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Refresh schedule."
+      },
+      {
+        "name": "unit",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Normalised unit and bounds."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
+    "name": "role_policy",
+    "key": "role_name",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Declared roles and their enforcement boundary.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "role_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Product logical tier name."
+      },
+      {
+        "name": "description",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Intended audience only."
+      },
+      {
+        "name": "enforcement",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Documented platform and serving-layer boundary."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  }
+]

@@ -1,203 +1,242 @@
-"""Render a platform binding from a design specification and an organisation profile.
+"""Render reusable DuckDB/PostgreSQL bindings from explicit product inputs.
 
-The build context is resolved first (tooling/build/build_context.py), from the specification,
-the profile and the binding's own declarations. This module then renders the binding's
-declared phases, deploy script and validation checks from that context alone. SQL lives in
-the binding's templates; this module selects and orders them, and never connects to a
-database.
+This helper normalises context and checks contracts. SQL belongs in platform
+Jinja templates, not in this Python module. It never connects to a database.
 """
 import argparse
+import copy
 import json
-import re
-import sys
 from pathlib import Path
+import re
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "tooling" / "build"))
+ORDER = ('memory','semantic','domain','observability','search','prediction')
+PROFILES = {'CURRENT_STATE','EVENT_APPEND_ONLY','OPERATIONAL_LOG','ASSOCIATION_CURRENT',
+            'SCD2_HISTORY','ASSOCIATION_SCD2','SCD2_BITEMPORAL'}
+TEMPORAL = {
+    'created_dts': ('TIMESTAMPTZ','Physical row creation instant.'),
+    'updated_dts': ('TIMESTAMPTZ','Physical row last-change instant.'),
+    'valid_from_dts': ('TIMESTAMPTZ','Inclusive business validity start.'),
+    'valid_to_dts': ('TIMESTAMPTZ','Exclusive business validity end; infinity is open.'),
+    'transaction_from_dts': ('TIMESTAMPTZ','Inclusive knowledge-time start.'),
+    'transaction_to_dts': ('TIMESTAMPTZ','Exclusive knowledge-time end; infinity is open.'),
+    'is_current': ('BOOLEAN','Both applicable temporal axes are open.'),
+    'is_deleted': ('BOOLEAN','Logical deletion tombstone; retained in history.'),
+    'deleted_dts': ('TIMESTAMPTZ','Deletion instant; null before deletion.'),
+}
 
-import build_context  # noqa: E402
-from binding import load_binding  # noqa: E402
 
-RESERVED = ("design", "implementation", "examples", "roles", "tooling")
-
-
-class RenderError(Exception):
-    """The inputs do not resolve, or the binding cannot render them."""
+def ident(value):
+    if not isinstance(value,str) or not re.fullmatch(r'[A-Za-z_][A-Za-z_0-9]{0,62}',value):
+        raise ValueError(f'Invalid identifier: {value!r}')
+    return '"'+value+'"'
 
 
-def environment(binding, context):
-    """A Jinja environment over the binding's templates, with its quoting and the context's
-    relations by logical name. Templates read the context; they derive no names."""
-    env = Environment(loader=FileSystemLoader(REPO / "implementation" / binding.platform),
-                      undefined=StrictUndefined, keep_trailing_newline=True, autoescape=False)
-    by_name = {x["name"]: x for x in context["entities"] + context["relations"]}
-    env.filters.update(
-        ident=binding.ident,
-        literal=lambda v: "NULL" if v is None else binding.literal(v),
-        qualified=lambda obj: binding.qualified(obj["container"], obj["name"]))
-    env.globals.update(named=by_name.get)
+def literal(value):
+    if value is None: return 'NULL'
+    if isinstance(value,bool): return 'TRUE' if value else 'FALSE'
+    if isinstance(value,(int,float)): return str(value)
+    return "'"+str(value).replace("'","''")+"'"
+
+
+def qualified(schema,name):
+    return ident(schema)+'.'+ident(name)
+
+
+def environment(platform):
+    if platform not in ('duckdb','postgres'):
+        raise ValueError('Only duckdb and postgres are handled by this renderer')
+    env=Environment(loader=FileSystemLoader(REPO/'implementation'/platform),
+                    undefined=StrictUndefined,keep_trailing_newline=True,autoescape=False)
+    env.filters.update(ident=ident,literal=literal)
+    env.globals.update(qualified=qualified)
     return env
 
 
-def _tidy(text):
-    return re.sub(r"\n[ \t]*(\n[ \t]*)+", "\n\n", text).strip()
+def prepare(raw,platform):
+    context=copy.deepcopy(raw)
+    context['platform']=platform
+    product=context['product']
+    for field in ('id','version','owner','entrypoint','validator'):
+        if not product[field]: raise ValueError(f'product.{field} is required')
+    product.setdefault('evidence_days',7)
+    modules=context['modules']
+    if not modules or len(set(modules))!=len(modules) or set(modules)-set(ORDER):
+        raise ValueError('Declare a nonempty unique list of module anchors')
+    if any(m in modules for m in ('search','prediction')) and 'domain' not in modules:
+        raise ValueError('Search and Prediction require Domain')
+    containers=context['containers']
+    for module in modules: ident(containers[module])
+    ident(containers['access'])
+    context['schemas']=list(dict.fromkeys([containers[m] for m in ORDER if m in modules]+[containers['access']]))
+    if platform=='postgres':
+        for tier in ('read','agent','admin'): ident(context['roles'][tier])
+        if len(set(context['roles'].values()))!=3: raise ValueError('Role tiers must be distinct')
+    supplied=context.get('entities',[])
+    entities=[]
+    for module in ORDER:
+        if module not in modules: continue
+        standard=REPO/'implementation'/platform/'modules'/module/'entities.json'
+        if standard.exists():
+            for e in json.loads(standard.read_text()):
+                if e.get('runtime') and not context.get('runtime_memory',False): continue
+                e['module']=module
+                entities.append(e)
+        entities.extend(e for e in supplied if e['module']==module)
+    if any(e['module'] not in modules for e in supplied):
+        raise ValueError('An entity belongs to an omitted module')
+    seen=set()
+    for e in entities:
+        e.setdefault('schema',containers[e['module']])
+        if e['schema']!=containers[e['module']]: raise ValueError('Entity schema contradicts placement')
+        e.setdefault('runtime',False)
+        e.setdefault('supports_deletion',e['profile'] in ('SCD2_HISTORY','ASSOCIATION_SCD2','SCD2_BITEMPORAL'))
+        e.setdefault('natural_key',None)
+        e.setdefault('allocation','supplied')
+        e.setdefault('constraints',[])
+        e.setdefault('current_view','v_'+e['name'])
+        e.setdefault('history_function','at_'+e['name'])
+        e['history']=e['profile'] in ('SCD2_HISTORY','ASSOCIATION_SCD2','SCD2_BITEMPORAL')
+        e['bitemporal']=e['profile']=='SCD2_BITEMPORAL'
+        if e['profile'] not in PROFILES: raise ValueError('Unknown temporal profile')
+        for name in (e['name'],e['key'],e['current_view'],e['history_function']): ident(name)
+        if not e['description'].strip(): raise ValueError('Every entity needs authored meaning')
+        e['qualified']=qualified(e['schema'],e['name'])
+        e['identity']=e['schema']+'.'+e['name']
+        e['view']=qualified(containers['access'],e['current_view'])
+        if e['identity'] in seen: raise ValueError('Duplicate entity identity')
+        seen.add(e['identity'])
+        if e['allocation']=='keymap':
+            ident(e['keymap'])
+            if not e['natural_key']: raise ValueError('Keymap requires a natural key')
+        elif e['allocation'] not in ('inline','supplied'): raise ValueError('Unknown allocation mode')
+        names=[]
+        for col in e['columns']:
+            ident(col['name']); names.append(col['name'])
+            if not col['comment'].strip(): raise ValueError('Every column needs authored meaning')
+            if col['name'] in TEMPORAL: raise ValueError('Temporal columns are supplied by the shared pattern')
+            col.setdefault('nullable',False); col.setdefault('check',None)
+            vector=re.fullmatch(r'VECTOR\((\d+)\)',col['type'])
+            if vector:
+                dim=int(vector[1])
+                if not 1<=dim<=65536: raise ValueError('Invalid vector dimension')
+                col['type']=f'FLOAT[{dim}]' if platform=='duckdb' else 'DOUBLE PRECISION[]'
+                col['dimensions']=dim
+                if platform=='postgres':
+                    col['check']=f'array_ndims({ident(col["name"])})=1 AND array_lower({ident(col["name"])},1)=1 AND cardinality({ident(col["name"])})={dim} AND array_position({ident(col["name"])},NULL) IS NULL'
+            if not re.fullmatch(r'(BIGINT|INTEGER|BOOLEAN|DATE|TIMESTAMPTZ|VARCHAR(?:\(\d+\))?|TEXT|JSONB?|DOUBLE PRECISION|FLOAT\[\d+\]|DOUBLE PRECISION\[\]|DECIMAL\(\d+,\d+\))',col['type']):
+                raise ValueError(f'Unsupported bound type: {col["type"]}')
+        if len(names)!=len(set(names)) or e['key'] not in names: raise ValueError('Duplicate columns or missing key')
+        if e['natural_key'] and e['natural_key'] not in names: raise ValueError('Missing natural key')
+        if e['runtime'] and not {'scope_level','scope_identifier'}<=set(names): raise ValueError('Runtime requires explicit scope')
+        temporal=['created_dts','updated_dts']
+        if e['history']:
+            temporal=['valid_from_dts','valid_to_dts']+(['transaction_from_dts','transaction_to_dts'] if e['bitemporal'] else [])+['is_current']+temporal
+        if e['supports_deletion']: temporal+=['is_deleted','deleted_dts']
+        e['temporal_columns']=[dict(name=n,type=TEMPORAL[n][0],nullable=n=='deleted_dts',comment=TEMPORAL[n][1]) for n in temporal]
+        e['all_columns']=e['columns']+e['temporal_columns']
+    views=[e['current_view'] for e in entities if not e['runtime']]
+    if len(views)!=len(set(views)): raise ValueError('Consumer view names must be unique in the access schema')
+    context['entities']=entities
+    # Keymaps are persisted governed entities too; include them in metadata and
+    # validation without duplicating their CREATE statements emitted with Domain.
+    context['keymaps']=[]
+    for e in list(entities):
+        if e['allocation']!='keymap': continue
+        k=copy.deepcopy(e)
+        k.update(name=e['keymap'],profile='CURRENT_STATE',allocation='supplied',history=False,bitemporal=False,
+                 description='Permanent natural-key allocation for '+e['name']+'. Never recycle or delete mappings.',
+                 supports_deletion=False,columns=[c for c in e['columns'] if c['name'] in (e['key'],e['natural_key'])],
+                 temporal_columns=[c for c in e['temporal_columns'] if c['name'] in ('created_dts','updated_dts')],
+                 current_view='v_'+e['keymap'],is_keymap=True)
+        k['qualified']=qualified(k['schema'],k['name']);k['identity']=k['schema']+'.'+k['name']
+        k['view']=qualified(containers['access'],k['current_view'])
+        k['all_columns']=k['columns']+k['temporal_columns']
+        if k['identity'] in seen or k['current_view'] in views: raise ValueError('Keymap name collides with a declared object')
+        seen.add(k['identity']);views.append(k['current_view'])
+        entities.append(k);context['keymaps'].append(k)
+    context.setdefault('relationships',[])
+    by_ref={e['module']+'.'+e['name']:e for e in entities}
+    for rel in context['relationships']:
+        for side in ('source','target'):
+            e=by_ref[rel[side]]
+            if rel[side+'_column'] not in [c['name'] for c in e['columns']]: raise ValueError('Relationship column is absent')
+            rel[side+'_entity']=e
+        rel.setdefault('mandatory',False)
+    context.setdefault('documentation',[])
+    for doc in context['documentation']:
+        if doc['module'] not in modules: raise ValueError('Documentation refers to omitted module')
+    context.setdefault('searches',[])
+    for search in context['searches']:
+        search['source_entity']=by_ref[search['source']]
+        search['embedding_entity']=by_ref[search['embedding']]
+        for name in (search['name'],search['vector_column']): ident(name)
+        if not isinstance(search['dimensions'],int) or not 1<=search['dimensions']<=65536: raise ValueError('Invalid dimensions')
+        vector=next((col for col in search['embedding_entity']['columns'] if col['name']==search['vector_column']),None)
+        if vector is None or vector.get('dimensions')!=search['dimensions']: raise ValueError('Search dimensions must match the declared vector field')
+        if search['source_entity']['module']!='domain' or search['embedding_entity']['module']!='search': raise ValueError('Search must join Search vectors to authoritative Domain')
+        for col in search['content_columns']:
+            if col not in [c['name'] for c in search['source_entity']['columns']]: raise ValueError('Unknown content column')
+    if product['entrypoint'] not in {containers['access']+'.'+e['current_view'] for e in entities if not e['runtime']}:
+        raise ValueError('Entrypoint must be a declared consumer view')
+    return context
 
 
-def persisted(context):
-    """The relations a binding creates: placed tables that are defined and not adopted."""
-    return [x for x in context["entities"] + context["relations"]
-            if "table" in x["objects"] and x.get("defined", True) and not x.get("adopted", False)]
-
-
-def gaps(context):
-    """What the specification asks for that this binding does not render, from the context."""
-    out = []
-
-    def walk(node, where):
-        if isinstance(node, dict):
-            if "text" in node and node.get("unsupported"):
-                out.append(f"{where}: '{node['text']}' uses {', '.join(node['unsupported'])}, "
-                           f"which the binding does not render")
-                return
-            for k, v in node.items():
-                walk(v, f"{where}.{k}" if where else k)
-        elif isinstance(node, list):
-            for i, v in enumerate(node):
-                walk(v, f"{where}[{v.get('name', i) if isinstance(v, dict) else i}]")
-
-    for key in ("entities", "metrics", "embeddings", "quality"):
-        walk(context.get(key), key)
-    for b in context.get("embeddings", []):
-        if not ({"function", "procedure"} & set(b["objects"])):
-            out.append(f"embeddings[{b['name']}]: the binding emits no similarity search object")
-    unread = [x["name"] for x in context["entities"] + context["relations"]
-              if x.get("history") and "consumer_view" in x["objects"]
-              and not {"function", "procedure", "base_view"} & set(x["objects"])]
-    if unread:
-        out.append(f"history: {', '.join(unread)} have no history surface consumers can be granted "
-                   f"(temporal-lifecycle-metadata §9)")
-    for a in context.get("access_objects", []):
-        out.append(f"access_objects[{a['name']}]: composite access objects are not rendered")
-    out += [f"capture: {g}" for g in context.get("capture", {}).get("gaps", [])]
-    binding, _ = load_binding(context["platform"]["name"])
-    runtime = [x["name"] for x in context["relations"] if x.get("runtime")]
-    if runtime and binding.runtime_scope != "enforced":
-        out.append(f"runtime: {', '.join(runtime)} are not restricted to the requesting identity's scope "
-                   f"on this platform (access-layer §4)")
-    if "observability:graph-lineage" in context.get("facets", []):
-        out.append("facets: the graph-lineage exposure is not rendered")
-    if context.get("catalogue"):
-        out.append("catalogue: the organisation catalogue registration is not rendered")
-    protected = sorted({(c["classification"], c["protection"]) for x in context["entities"] + context["relations"]
-                        for c in x.get("columns", [])
-                        if c.get("protection", "none") != "none"})
-    out += [f"classification: {cls} data is to be protected '{how}', which the binding does not render"
-            for cls, how in protected]
-    if context.get("storage"):
-        out.append("storage: the profile holds tables in object storage, which the binding does not render; "
-                   "tables are created in the platform's own storage")
-    return out
-
-
-def render_context(context):
-    """Every file the binding renders for a resolved context: its phases, deploy script and
-    manifest. A phase whose template renders nothing for this composition emits no file."""
-    binding, findings = load_binding(context["platform"]["name"])
-    if findings:
-        raise RenderError("; ".join(str(f) for f in findings))
-    if not binding.phases:
-        raise RenderError(f"the {binding.platform} binding declares no Phases")
-    env = environment(binding, context)
-
-    def render(template, **extra):
-        return _tidy(env.get_template(template).render(**dict(context, **extra)))
-
-    files, phases = {}, []
-    for name, template in binding.phases.items():
-        sql = render(template)
-        if sql:
-            files[name] = sql + "\n"
-            phases.append({"file": name, "sql": sql})
-    if binding.deploy:
-        files["deploy.sql"] = render(binding.deploy, phases=phases) + "\n"
-
-    checks, counters = [], {}
-
-    def add(name, scope_kind, scope_id, module, sql):
-        counters[name] = counters.get(name, 0) + 1
-        checks.append({"test_id": f"{context['product']['code']}-{name.upper()}-{counters[name]:03d}",
-                       "check": name, "scope_kind": scope_kind, "scope_id": scope_id,
-                       "module": module, "category": "STRUCTURAL", "severity": "ERROR",
-                       "sql": sql.rstrip(";").rstrip()})
-
-    for key, template in binding.checks.items():
-        scope, name = key.split(" ", 1)
-        if scope == "entity":
-            for x in persisted(context):
-                add(name, "ENTITY", x["name"], x["module"], render(template, entity=x))
-        elif scope == "relationship":
-            for r in context["relationships"]:
-                add(name, "ENTITY", r["source"], r["source_module"], render(template, relationship=r))
-        elif scope == "module" and name in context["modules"]:
-            add("module", "MODULE", name, name, render(template, module=name))
-
-    def placed(name):
-        x = next((x for x in context["relations"] if x["name"] == name), None)
-        return x and {"objects": x["objects"], "column_names": x.get("column_names", {})}
-
-    manifest = {
-        "platform": binding.platform,
-        "product": context["product"],
-        "modules": context["modules"],
-        "containers": context["containers"],
-        "phases": [p["file"] for p in phases],
-        "checks": checks,
-        "evidence": {"run": placed("ValidationRun"), "area": placed("ValidationArea"),
-                     "evidence_window_days": context["quality"]["evidence_window_days"]},
-        "gaps": gaps(context),
-        "defaults_applied": context["defaults_applied"],
-    }
-    files["manifest.json"] = json.dumps(manifest, indent=2) + "\n"
-    files["context.json"] = json.dumps(context, indent=2) + "\n"
+def render_product(raw,platform):
+    c=prepare(raw,platform); env=environment(platform)
+    def render(path,**extra): return env.get_template(path).render(**dict(c,**extra)).strip()+'\n'
+    files={'00-placement.sql':render('patterns/object-placement/01-schemas.sql.j2')}
+    for i,module in enumerate(ORDER,1):
+        if module not in c['modules']: continue
+        files[f'{i:02}-{module}.sql']=render(f'modules/{module}/01-tables.sql.j2',module_entities=[e for e in c['entities'] if e['module']==module and not e.get('is_keymap')])
+    files['07-comments.sql']=render('patterns/temporal-lifecycle-metadata/02-comments.sql.j2')
+    files['08-views.sql']=render('patterns/temporal-lifecycle-metadata/03-access-views.sql.j2')
+    if 'search' in c['modules']: files['09-search.sql']=render('modules/search/02-similarity.sql.j2')
+    if 'semantic' in c['modules']:
+        files['10-registration.sql']=render('modules/semantic/02-registration.sql.j2')
+        files['11-discovery.sql']=render('modules/semantic/03-discovery.sql.j2')
+    if 'observability' in c['modules'] and 'semantic' in c['modules']:
+        files['12-trust.sql']=render('patterns/validation/04-trust-map.sql.j2')
+    if 'memory' in c['modules']: files['13-documentation.sql']=render('modules/memory/02-capture.sql.j2')
+    files['14-access.sql']=render('patterns/access-layer/01-grants.sql.j2')
+    files['deploy.sql']='BEGIN;\nSET TimeZone=\'UTC\';\n'+''.join(files.values())+'COMMIT;\n'
+    checks=[]
+    for e in c['entities']:
+        for kind in ('metadata','temporal'):
+            checks.append(dict(test_id=e['identity']+':'+kind,scope_kind='ENTITY',scope_id=e['identity'],
+                               sql=render('patterns/validation/01-entity-check.sql.j2',entity=e,check_kind=kind).rstrip(';\n')))
+    for r in c['relationships']:
+        checks.append(dict(test_id=r['source']+':'+r['source_column'],scope_kind='MODULE',scope_id=r['source_entity']['module'],
+                           sql=render('patterns/validation/02-relationship-check.sql.j2',relationship=r).rstrip(';\n')))
+    for module in ('semantic','memory'):
+        if module in c['modules']:
+            checks.append(dict(test_id=module+':coverage',scope_kind='MODULE',scope_id=module,
+                               sql=render(f'modules/{module}/validation.sql.j2').rstrip(';\n')))
+    manifest=dict(platform=platform,product=c['product'],containers=c['containers'],modules=c['modules'],
+                  entities=c['entities'],relationships=c['relationships'],checks=checks)
+    files['manifest.json']=json.dumps(manifest,indent=2)+'\n'
     return files
 
 
-def render_product(spec, profile, environment_name=None, version=None):
-    """Resolve the inputs into a build context and render the binding the profile names."""
-    context, findings = build_context.resolve(Path(spec), Path(profile), environment_name,
-                                              version=version)
-    if findings:
-        raise RenderError("\n".join(str(f) for f in findings))
-    return render_context(context)
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("spec", type=Path, help="the design specification")
-    parser.add_argument("profile", type=Path, help="the organisation profile; it names the platform")
-    parser.add_argument("--environment", help="the lifecycle phase to place for")
-    parser.add_argument("--version", help="the product version, when the specification leaves it open")
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    out = args.output.resolve()
-    if any(out.is_relative_to(REPO / r) for r in RESERVED):
-        parser.error("Generated output must be outside the skill corpus (use build/ or another repository)")
-    if out.exists() and any(out.iterdir()):
-        parser.error("Output directory must be empty; existing products are never overwritten")
-    try:
-        files = render_product(args.spec, args.profile, args.environment, args.version)
-    except RenderError as exc:
-        parser.exit(1, f"render: {exc}\n")
-    out.mkdir(parents=True, exist_ok=True)
-    for name, text in files.items():
-        (out / name).write_text(text, encoding="utf-8", newline="\n")
-    manifest = json.loads(files["manifest.json"])
-    print(f"Rendered {len(files)} files to {out}; no database was modified.")
-    for gap in manifest["gaps"]:
-        print(f"  gap: {gap}")
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--platform',required=True,choices=('duckdb','postgres'))
+    parser.add_argument('--context',type=Path,required=True)
+    parser.add_argument('--placement',type=Path,required=True)
+    parser.add_argument('--output',type=Path,required=True)
+    args=parser.parse_args()
+    raw=json.loads(args.context.read_text(encoding='utf-8'))
+    raw.update(json.loads(args.placement.read_text(encoding='utf-8')))
+    files=render_product(raw,args.platform)
+    out=args.output.resolve()
+    for reserved in ('design','implementation','examples','roles','tooling'):
+        if out.is_relative_to(REPO/reserved): parser.error('Generated output must be outside the skill corpus (use build/ or another repository)')
+    if out.exists() and any(out.iterdir()): parser.error('Output directory must be empty; existing products are never overwritten')
+    out.mkdir(parents=True,exist_ok=True)
+    for name,text in files.items(): (out/name).write_text(text,encoding='utf-8',newline='\n')
+    print(f'Rendered {len(files)} files to {out}; no database was modified.')
 
 
-if __name__ == "__main__":
-    main()
+if __name__=='__main__': main()

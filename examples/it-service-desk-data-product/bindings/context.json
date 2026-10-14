@@ -1,0 +1,692 @@
+{
+  "product": {
+    "id": "ITSD",
+    "version": "1.0",
+    "owner": "Service Desk Product Owner",
+    "entrypoint": "itsd_access.v_ticket",
+    "validator": "binding-conformance"
+  },
+  "modules": [
+    "memory",
+    "semantic",
+    "domain",
+    "observability",
+    "search",
+    "prediction"
+  ],
+  "runtime_memory": true,
+  "entities": [
+    {
+      "module": "domain",
+      "name": "category",
+      "key": "category_id",
+      "description": "IT service desk category.",
+      "profile": "CURRENT_STATE",
+      "allocation": "inline",
+      "columns": [
+        {
+          "name": "category_id",
+          "type": "BIGINT",
+          "comment": "Permanent category identifier.",
+          "nullable": false
+        },
+        {
+          "name": "category_key",
+          "type": "VARCHAR",
+          "comment": "Source taxonomy code.",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "comment": "Category label.",
+          "nullable": false
+        },
+        {
+          "name": "parent_category_id",
+          "type": "BIGINT",
+          "comment": "Parent category; null at root.",
+          "nullable": true
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "comment": "Category meaning.",
+          "nullable": false
+        },
+        {
+          "name": "default_sla_hours",
+          "type": "INTEGER",
+          "comment": "Default response SLA in hours; absent at grouping nodes.",
+          "nullable": true
+        },
+        {
+          "name": "effective_date",
+          "type": "DATE",
+          "comment": "Business date category becomes assignable.",
+          "nullable": true
+        },
+        {
+          "name": "expiration_date",
+          "type": "DATE",
+          "comment": "Business date category ceases to be assignable.",
+          "nullable": true
+        }
+      ],
+      "natural_key": "category_key"
+    },
+    {
+      "module": "domain",
+      "name": "agent",
+      "key": "agent_id",
+      "description": "IT service desk agent.",
+      "profile": "SCD2_BITEMPORAL",
+      "allocation": "keymap",
+      "columns": [
+        {
+          "name": "agent_id",
+          "type": "BIGINT",
+          "comment": "Permanent agent identifier.",
+          "nullable": false
+        },
+        {
+          "name": "agent_key",
+          "type": "VARCHAR",
+          "comment": "Source-system agent identifier.",
+          "nullable": false
+        },
+        {
+          "name": "first_name",
+          "type": "VARCHAR",
+          "comment": "Agent given name.",
+          "nullable": false
+        },
+        {
+          "name": "last_name",
+          "type": "VARCHAR",
+          "comment": "Agent family name.",
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR",
+          "comment": "Agent contact address.",
+          "nullable": false,
+          "pii": true
+        },
+        {
+          "name": "team",
+          "type": "VARCHAR",
+          "comment": "Assigned support team.",
+          "nullable": false
+        },
+        {
+          "name": "level",
+          "type": "VARCHAR",
+          "comment": "Support level.",
+          "nullable": false
+        },
+        {
+          "name": "hire_date",
+          "type": "DATE",
+          "comment": "Employment start date.",
+          "nullable": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "comment": "Employment active flag; workforce owner retires on departure, independent of row currency.",
+          "nullable": false
+        }
+      ],
+      "natural_key": "agent_key",
+      "keymap": "agent_keymap"
+    },
+    {
+      "module": "domain",
+      "name": "customer",
+      "key": "customer_id",
+      "description": "IT service desk customer.",
+      "profile": "SCD2_BITEMPORAL",
+      "allocation": "keymap",
+      "columns": [
+        {
+          "name": "customer_id",
+          "type": "BIGINT",
+          "comment": "Permanent customer identifier.",
+          "nullable": false
+        },
+        {
+          "name": "customer_key",
+          "type": "VARCHAR",
+          "comment": "Source-system customer identifier.",
+          "nullable": false
+        },
+        {
+          "name": "company_name",
+          "type": "VARCHAR",
+          "comment": "Customer organisation.",
+          "nullable": false
+        },
+        {
+          "name": "contact_name",
+          "type": "VARCHAR",
+          "comment": "Named customer contact.",
+          "nullable": false,
+          "pii": true
+        },
+        {
+          "name": "contact_email",
+          "type": "VARCHAR",
+          "comment": "Customer contact address.",
+          "nullable": false,
+          "pii": true
+        },
+        {
+          "name": "tier",
+          "type": "VARCHAR",
+          "comment": "Service entitlement tier.",
+          "nullable": false
+        },
+        {
+          "name": "region",
+          "type": "VARCHAR",
+          "comment": "Customer region.",
+          "nullable": false
+        },
+        {
+          "name": "contract_start_date",
+          "type": "DATE",
+          "comment": "Service agreement start.",
+          "nullable": false
+        }
+      ],
+      "natural_key": "customer_key",
+      "keymap": "customer_keymap"
+    },
+    {
+      "module": "domain",
+      "name": "ticket",
+      "key": "ticket_id",
+      "description": "IT service desk ticket.",
+      "profile": "SCD2_BITEMPORAL",
+      "allocation": "keymap",
+      "columns": [
+        {
+          "name": "ticket_id",
+          "type": "BIGINT",
+          "comment": "Permanent ticket identifier.",
+          "nullable": false
+        },
+        {
+          "name": "ticket_key",
+          "type": "VARCHAR",
+          "comment": "Source-system ticket identifier.",
+          "nullable": false
+        },
+        {
+          "name": "opened_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Source ticket creation instant.",
+          "nullable": false
+        },
+        {
+          "name": "source_updated_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Source-system last-change instant, not physical row audit time.",
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "type": "BIGINT",
+          "comment": "Customer raising the ticket.",
+          "nullable": false
+        },
+        {
+          "name": "assigned_agent_id",
+          "type": "BIGINT",
+          "comment": "Assigned agent; null while unassigned.",
+          "nullable": true
+        },
+        {
+          "name": "category_id",
+          "type": "BIGINT",
+          "comment": "Assigned category.",
+          "nullable": false
+        },
+        {
+          "name": "priority",
+          "type": "VARCHAR",
+          "comment": "P1 through P4 priority.",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR",
+          "comment": "Source ticket workflow status.",
+          "nullable": false
+        },
+        {
+          "name": "subject",
+          "type": "VARCHAR",
+          "comment": "Ticket summary.",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "comment": "Incident description; may contain incidental PII.",
+          "nullable": false,
+          "pii": true
+        },
+        {
+          "name": "resolution_notes",
+          "type": "VARCHAR",
+          "comment": "Resolution text; null before resolution.",
+          "nullable": true,
+          "pii": true
+        },
+        {
+          "name": "sla_hours",
+          "type": "INTEGER",
+          "comment": "SLA allowance in hours.",
+          "nullable": false
+        },
+        {
+          "name": "first_response_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "First response; null before response.",
+          "nullable": true
+        },
+        {
+          "name": "resolved_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Resolution instant; null until resolved.",
+          "nullable": true
+        },
+        {
+          "name": "closed_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Closure instant; null until closed.",
+          "nullable": true
+        },
+        {
+          "name": "sla_breached",
+          "type": "BOOLEAN",
+          "comment": "Source-recorded SLA breach.",
+          "nullable": false
+        },
+        {
+          "name": "escalated",
+          "type": "BOOLEAN",
+          "comment": "Source escalation flag.",
+          "nullable": false
+        },
+        {
+          "name": "escalation_reason",
+          "type": "VARCHAR",
+          "comment": "Escalation rationale.",
+          "nullable": true
+        },
+        {
+          "name": "satisfaction_score",
+          "type": "INTEGER",
+          "comment": "Survey score; null when unanswered.",
+          "nullable": true
+        }
+      ],
+      "natural_key": "ticket_key",
+      "keymap": "ticket_keymap"
+    },
+    {
+      "module": "search",
+      "name": "entity_embedding",
+      "key": "embedding_id",
+      "description": "IT service desk entity embedding.",
+      "profile": "SCD2_HISTORY",
+      "allocation": "supplied",
+      "columns": [
+        {
+          "name": "embedding_id",
+          "type": "BIGINT",
+          "comment": "Permanent entity_embedding identifier.",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "type": "BIGINT",
+          "comment": "Referenced Domain identity, never business content.",
+          "nullable": false
+        },
+        {
+          "name": "entity_kind",
+          "type": "VARCHAR",
+          "comment": "Generic-reference discriminator.",
+          "nullable": false
+        },
+        {
+          "name": "source_attribute",
+          "type": "VARCHAR",
+          "comment": "Source content facet represented by the vector.",
+          "nullable": false
+        },
+        {
+          "name": "embedding",
+          "type": "VECTOR(384)",
+          "comment": "Vector from the declared encoder.",
+          "nullable": false
+        },
+        {
+          "name": "embedding_dimensions",
+          "type": "INTEGER",
+          "comment": "Encoder output dimensions.",
+          "nullable": false
+        },
+        {
+          "name": "embedding_model",
+          "type": "VARCHAR",
+          "comment": "Registered encoder identity.",
+          "nullable": false
+        },
+        {
+          "name": "embedding_model_version",
+          "type": "VARCHAR",
+          "comment": "Encoder version.",
+          "nullable": false
+        },
+        {
+          "name": "generated_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Encoder execution instant.",
+          "nullable": false
+        },
+        {
+          "name": "computation_method",
+          "type": "VARCHAR",
+          "comment": "IN_DATABASE or EXTERNAL_API provenance.",
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "module": "prediction",
+      "name": "ticket_feature_set",
+      "key": "ticket_feature_set_id",
+      "description": "IT service desk ticket feature set.",
+      "profile": "SCD2_HISTORY",
+      "allocation": "supplied",
+      "columns": [
+        {
+          "name": "ticket_feature_set_id",
+          "type": "BIGINT",
+          "comment": "Permanent ticket_feature_set identifier.",
+          "nullable": false
+        },
+        {
+          "name": "ticket_id",
+          "type": "BIGINT",
+          "comment": "Referenced ticket.",
+          "nullable": false
+        },
+        {
+          "name": "observation_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Feature availability and observation cutoff.",
+          "nullable": false
+        },
+        {
+          "name": "f_priority_int",
+          "type": "INTEGER",
+          "comment": "Priority mapping P1=1 through P4=4.",
+          "nullable": false
+        },
+        {
+          "name": "f_sla_hours",
+          "type": "INTEGER",
+          "comment": "SLA hours at observation.",
+          "nullable": false
+        },
+        {
+          "name": "f_customer_tier_int",
+          "type": "INTEGER",
+          "comment": "Tier at ticket creation: Platinum=1,Gold=2,Silver=3,Bronze=4.",
+          "nullable": false
+        },
+        {
+          "name": "f_agent_team_int",
+          "type": "INTEGER",
+          "comment": "Team at assignment: Infrastructure=1,Applications=2,Service Desk=3.",
+          "nullable": true
+        },
+        {
+          "name": "f_category_leaf_int",
+          "type": "INTEGER",
+          "comment": "Leaf CAT-006 through CAT-015 mapped to 1..10.",
+          "nullable": false
+        },
+        {
+          "name": "f_created_hour",
+          "type": "INTEGER",
+          "comment": "UTC opening hour 0..23.",
+          "nullable": false
+        },
+        {
+          "name": "f_created_dow",
+          "type": "INTEGER",
+          "comment": "Opening weekday Monday=0 through Sunday=6.",
+          "nullable": false
+        },
+        {
+          "name": "f_response_hours",
+          "type": "DECIMAL(12,4)",
+          "comment": "Elapsed response hours available at observation; null beforehand.",
+          "nullable": true
+        },
+        {
+          "name": "f_subject_length",
+          "type": "INTEGER",
+          "comment": "Subject character count.",
+          "nullable": false
+        },
+        {
+          "name": "f_is_escalated",
+          "type": "INTEGER",
+          "comment": "Escalation available at observation, 0 or 1.",
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "module": "prediction",
+      "name": "model_prediction",
+      "key": "prediction_id",
+      "description": "IT service desk model prediction.",
+      "profile": "SCD2_HISTORY",
+      "allocation": "supplied",
+      "columns": [
+        {
+          "name": "prediction_id",
+          "type": "BIGINT",
+          "comment": "Permanent model_prediction identifier.",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "type": "BIGINT",
+          "comment": "Referenced ticket.",
+          "nullable": false
+        },
+        {
+          "name": "entity_kind",
+          "type": "VARCHAR",
+          "comment": "Domain entity discriminator.",
+          "nullable": false
+        },
+        {
+          "name": "model_key",
+          "type": "VARCHAR",
+          "comment": "Registered SLA breach model.",
+          "nullable": false
+        },
+        {
+          "name": "model_version",
+          "type": "VARCHAR",
+          "comment": "Model version.",
+          "nullable": false
+        },
+        {
+          "name": "prediction_value",
+          "type": "DECIMAL(5,4)",
+          "comment": "Estimated SLA breach probability; requires a trained model.",
+          "nullable": false,
+          "check": "prediction_value BETWEEN 0 AND 1"
+        },
+        {
+          "name": "prediction_class",
+          "type": "VARCHAR",
+          "comment": "Optional discrete class; unused in this example.",
+          "nullable": true
+        },
+        {
+          "name": "prediction_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Scoring instant.",
+          "nullable": false
+        },
+        {
+          "name": "feature_observation_dts",
+          "type": "TIMESTAMPTZ",
+          "comment": "Exact feature snapshot used.",
+          "nullable": false
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "source": "domain.ticket",
+      "source_column": "customer_id",
+      "target": "domain.customer",
+      "target_column": "customer_id",
+      "mandatory": true
+    },
+    {
+      "source": "domain.ticket",
+      "source_column": "assigned_agent_id",
+      "target": "domain.agent",
+      "target_column": "agent_id",
+      "mandatory": false
+    },
+    {
+      "source": "domain.ticket",
+      "source_column": "category_id",
+      "target": "domain.category",
+      "target_column": "category_id",
+      "mandatory": true
+    },
+    {
+      "source": "domain.category",
+      "source_column": "parent_category_id",
+      "target": "domain.category",
+      "target_column": "category_id",
+      "mandatory": false
+    }
+  ],
+  "searches": [
+    {
+      "name": "similar_tickets",
+      "source": "domain.ticket",
+      "embedding": "search.entity_embedding",
+      "vector_column": "embedding",
+      "dimensions": 384,
+      "entity_kind": "TICKET",
+      "model": "itsd-text-384",
+      "model_version": "configured-at-deployment",
+      "source_attribute": "subject_description",
+      "content_columns": [
+        "subject",
+        "description",
+        "resolution_notes"
+      ]
+    }
+  ],
+  "documentation": [
+    {
+      "id": "DEC-TEMPORAL-PATTERN",
+      "title": "Bitemporal business history",
+      "module": "domain",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Ticket, Agent and Customer corrections must preserve both effective and as-known history; Category is current-state.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-COLUMN-STRATEGY",
+      "title": "Offload operational evidence",
+      "module": "domain",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Operational lineage and quality live in Observability; canonical temporal/audit fields follow the design pattern.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-SURROGATE-ALLOCATION",
+      "title": "Stable keymaps",
+      "module": "domain",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Ticket, Agent and Customer use permanent keymaps; Category is an inline current-state reference.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-DELETE-STRATEGY",
+      "title": "Soft deletion",
+      "module": "domain",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Deletion retains a tombstone and prior effective and knowledge-time history.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-TIMESTAMP-ZONE",
+      "title": "UTC instants",
+      "module": "domain",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Source timestamps are UTC; timezone-aware instants preserve ordering.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-QUALITY-STORAGE",
+      "title": "Separate quality evidence",
+      "module": "observability",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "Quality assessments are separate time-series records in Observability.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    },
+    {
+      "id": "DEC-AUDIT-RETENTION",
+      "title": "Bounded three-year retention",
+      "module": "observability",
+      "context": "ITSD reference brief, section 3b",
+      "alternatives": "See the corresponding advocated standard and the reference brief.",
+      "rationale": "No statutory retention obligation; three years covers operational investigation. Revisit if scope changes.",
+      "consequences": "Preserve this decision in deployment and disclose unverified capabilities.",
+      "category": "ARCHITECTURE",
+      "source": "ITSD_Reference_Brief.md#3b"
+    }
+  ]
+}

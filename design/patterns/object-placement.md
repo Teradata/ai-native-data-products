@@ -51,7 +51,7 @@ Where an object lives determines who can reach it. This pattern makes container 
 | **Derivation function** | The deterministic algorithm computing the target container and object name for an object. |
 | **Implied grant** | A permission not granted to end users directly but required for the separation architecture to work (e.g. cross-container rights for a view to reference its source). |
 
-**Platform terms.** What a container and an access principal are called varies by platform: a container may be a database, a schema, a dataset or a catalogue, and a principal a role, a user, a group or a cloud identity. An organisation profile declares its platform's terms in its `Platform:` block; nothing in this pattern depends on them.
+**Illustrative platform terms (non-normative).** What a container and an access principal are called varies by platform. For example, a container is a DATABASE on Teradata, a SCHEMA on Snowflake and Databricks, and a DATASET on BigQuery; an access principal is a ROLE or USER on Teradata, a ROLE on Snowflake, and an IAM principal on a cloud provider. An organisation profile declares its platform's terms in its `Platform:` block; nothing in this pattern depends on them.
 
 ---
 

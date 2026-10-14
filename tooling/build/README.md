@@ -12,7 +12,7 @@ Stdlib only, Python 3.8+.
 ## Check a profile
 
 ```bash
-python tooling/build/org_profile.py examples/it-service-desk-data-product/profiles/teradata.md
+python tooling/build/org_profile.py examples/it-service-desk-data-product/organisation-profile.md
 ```
 
 Rules come from the tables of the [Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md):
@@ -29,23 +29,16 @@ python tooling/build/build_context.py SPEC.md PROFILE.md [--environment PHASE] [
 The specification is checked by [`spec_lint`](../evals/) and the profile by `org_profile`
 first; resolution does not start on an invalid input. Resolution then:
 
-- assigns every entity to its module and places its table, consumer view and whatever else
-  the binding declares it emits (base views, sequences, point-in-time and similarity
-  functions);
+- assigns every entity to its module and places its table, governed view and consumer view;
 - places the standard-owned relations of each included module (the table in the Design
   Specification Standard §4.1 says which), by facet where the module has them;
 - names attributes, applying the organisation's mapping of standard-owned names;
-- names or binds the principal for each access tier, or records how a tier is enforced
-  outside a platform that has no principals;
+- names or binds the principal for each access tier;
 - maps sensitivity markers to the organisation's classes and protection;
 - substitutes adopted containers and entities;
 - applies the environment's container template where phases share a system;
 - checks names against the platform's length limit and reserved words, checks for
   collisions, and checks audit retention against the organisation's bounds;
-- renders every derivation, metric, condition and quality rule through the binding's
-  declared SQL fragments, carrying unrenderable ones as reported gaps;
-- settles what the build captures into Memory (decision, cookbook, note and change-log ids)
-  and the orientation resources Semantic publishes, so every binding writes the same records;
 - records every default it applied in `defaults_applied`.
 
 Any problem fails the run with a message naming the fact and the input it belongs to, and
@@ -59,7 +52,5 @@ concatenated container names, no in-template defaults (Authoring Standard §6).
 
 | Specification | Profiles |
 |---|---|
-| [`examples/it-service-desk-data-product/design-output/design_specification.md`](../../examples/it-service-desk-data-product/design-output/design_specification.md) | any profile in [`examples/it-service-desk-data-product/profiles/`](../../examples/it-service-desk-data-product/profiles/): [`teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) (one database per module, `ITSD_*`), [`teradata-type-grouped.md`](../../examples/it-service-desk-data-product/profiles/teradata-type-grouped.md) (type-grouped, snake case, mapped column names, an adopted entity, container-isolated environments), [`postgres.md`](../../examples/it-service-desk-data-product/profiles/postgres.md) and [`duckdb.md`](../../examples/it-service-desk-data-product/profiles/duckdb.md) |
-| [`tooling/evals/reference/customer-orders.md`](../evals/reference/customer-orders.md) | any of them: every name derives from the specification's `product_code` |
-
-To render a binding from a resolved context, see [`tooling/bindings`](../bindings/).
+| [`examples/it-service-desk-data-product/design-output/design_specification.md`](../../examples/it-service-desk-data-product/design-output/design_specification.md) | [`organisation-profile.md`](../../examples/it-service-desk-data-product/organisation-profile.md) (one database per module, `ITSD_*`), [`organisation-profile-type-grouped.md`](../../examples/it-service-desk-data-product/organisation-profile-type-grouped.md) (type-grouped, snake case, mapped column names, an adopted entity, container-isolated environments) |
+| [`tooling/evals/reference/customer-orders.md`](../evals/reference/customer-orders.md) | either |

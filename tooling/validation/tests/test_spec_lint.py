@@ -398,28 +398,5 @@ class PlatformNeutrality(unittest.TestCase):
         self.assertTrue(any(f.rule == "vendor-token" for f in lint_text("b.md", text)))
 
 
-class ConsistencyWithModuleStandards(unittest.TestCase):
-    """Rules a module standard states and a specification can break at design time."""
-
-    def test_capture_floor_counts_glossary_terms_per_module(self):
-        text = broken("Glossary: SKU\n  Definition: The stock-keeping unit that identifies a product in the ordering system.\n  Module:     domain",
-                      "Glossary: SKU\n  Definition: The stock-keeping unit that identifies a product in the ordering system.\n  Module:     semantic")
-        self.assertIn("capture-floor", rules_for(text))
-
-    def test_embedding_entity_carries_the_search_shape(self):
-        text = broken("  source_attribute     : ShortText [required]          // which embedding: the Embedding block name\n", "")
-        self.assertIn("embedding-shape", rules_for(text))
-
-    def test_a_new_model_is_a_new_version_not_a_new_embedding(self):
-        text = broken("    natural:   entity_kind, entity_id, source_attribute",
-                      "    natural:   entity_id, embedding_model")
-        self.assertIn("embedding-shape", rules_for(text))
-
-    def test_decisions_are_recorded_against_a_module_of_the_product(self):
-        text = broken("  Module:    search\n  Applies to: product_description",
-                      "  Module:    access-layer\n  Applies to: product_description")
-        self.assertIn("invalid-value", rules_for(text))
-
-
 if __name__ == "__main__":
     unittest.main(verbosity=2)

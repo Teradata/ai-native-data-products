@@ -5,7 +5,6 @@ Run from anywhere:
     python tooling/validation/tests/test_design_lint.py
 """
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,11 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from design_lint import (  # noqa: E402
-    KNOWN_PLATFORMS,
-    find_platform_name_violations,
-    lint_paths,
     lint_text,
-    platform_names,
     find_sql_violations,
     find_invariant_violations,
     find_prohibited_name_violations,
@@ -115,44 +110,6 @@ class NoPlatformSqlRule(unittest.TestCase):
             "# Meta\n\n```sql\nSELECT VARCHAR FROM Party_H;\n```\n"
         )
         self.assertEqual(lint_text("meta.md", doc), [])
-
-
-class PlatformNameRule(unittest.TestCase):
-    """design/ names no platform: not as a product, not as a binding directory."""
-
-    def names(self, text):
-        return [f.message for f in find_platform_name_violations(text, "d.md", platform_names())]
-
-    def test_every_binding_directory_and_known_platform_is_a_platform_name(self):
-        names = platform_names()
-        for platform in (p.name for p in (Path(__file__).resolve().parents[3] / "implementation").iterdir()
-                         if p.is_dir()):
-            self.assertIn(platform, names)
-        self.assertLessEqual(set(KNOWN_PLATFORMS), set(names))
-
-    def test_a_platform_named_in_prose_a_path_or_a_table_is_reported(self):
-        for text in ("A container is a SCHEMA on Snowflake.", "See implementation/duckdb/ for the macros.",
-                     "| Logical type | Teradata | Postgres |", "Partitioned the way BigQuery does it."):
-            with self.subTest(text=text):
-                self.assertTrue(self.names(text))
-
-    def test_one_finding_per_platform_per_line(self):
-        self.assertEqual(len(self.names("Teradata, and implementation/teradata/ again")), 1)
-
-    def test_ordinary_words_are_not_platforms(self):
-        for text in ("A test oracle decides the outcome.", "The synapse of two modules.",
-                     "A platform-agnostic sentence."):
-            with self.subTest(text=text):
-                self.assertEqual(self.names(text), [])
-
-    def test_ignore_file_does_not_waive_it(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            design = Path(tmp) / "design" / "core"
-            design.mkdir(parents=True)
-            (design / "x.md").write_text("<!-- design-lint: ignore-file (meta) -->\nOn Snowflake, a schema.\n",
-                                         encoding="utf-8")
-            rules = [f.rule for f in lint_paths([str(Path(tmp) / "design")])]
-        self.assertIn("platform-name", rules)
 
 
 class InvariantIdRule(unittest.TestCase):

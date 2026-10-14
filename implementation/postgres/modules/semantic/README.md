@@ -13,53 +13,29 @@ platform: postgres
 
 Binding of [Semantic](../../../../design/modules/semantic.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Templates
+`entities.json` declares standard-owned catalogue entities; it is not a business model. `01-tables.sql.j2` uses the same physical and temporal macros as other modules. `02-registration.sql.j2` registers the supplied entities, keymaps, relationships, profiles, comments and consumer surfaces. `03-discovery.sql.j2` publishes a manifest, hybrid column catalogue and bounded relationship paths.
 
-`01-tables.sql.j2` calls `module_tables('semantic')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md) for the catalogue relations the Semantic standard defines and the resolver places.
+Registration uses explicit placement and declared relationships, never name inference. Structural facts come from information_schema; business meanings come from authored metadata. Relationship paths describe base-entity joins and must be resolved through access_object before consumer SQL is issued. Object registries contain datasets, never business instances.
 
-`02-registration.sql.j2` writes the product's description of itself, each block only where its relation is placed:
-
-- the product registry row from `product` (code, name, description, domain, version, owner, trust producer) and `orientation.access_mode`, with the manifest's consumer view as the approved entry point;
-- the module map from `module_containers`, for object types the relation's vocabulary permits;
-- entity and column metadata for every placed relation in `entities` and `relations`: placement, kind, profile, surrogate and natural columns, current and deleted flag columns, and per column the logical name, description, sensitivity marker, `classification`, `required`, declared type and Enum members;
-- table relationships from `relationships`, by base table;
-- access objects for every placed object of each relation and for each similarity function in `embeddings`, with consumer views and functions marked agent-consumable;
-- primary objects for every placed object with a `primary_role`;
-- the orientation sequence from `orientation.resources`;
-- metrics from `metrics`, with the rendered measure and filter as a PostgreSQL expression and the dataset's consumer view;
-- entity and column synonyms;
-- naming standards from `naming`: each object template, the attribute template and each standard-name mapping.
-
-Composite access objects (`access_objects`) are not registered; the manifest reports each as a gap.
-
-`03-discovery.sql.j2` creates the standard-owned discovery views, each only where the composition places it and the relations it reads:
-
-- `ColumnCatalogue`: `information_schema.columns` for the product's containers, left-joined to column metadata, with `description_source` `authored` or `missing`;
-- `DataProductManifest`: the active registry row with one column per orientation resource role;
-- `RelationshipPaths`: a recursive view over active table relationships in both directions, up to the Semantic standard's bound of four hops (the context's `max_hops`) without revisiting a table. Paths join base tables; resolve them through the access objects before issuing consumer SQL;
-- `LineageGraph` and `LineageRunLatest` over Observability's active lineage definitions and their runs.
-
-`validation.sql.j2` is the `module semantic` check: every base table in a container the product places objects in, keymaps included, is registered in entity metadata.
-
-Registration uses the placement and relationships the context carries, never name inference. Structural facts come from `information_schema`; meanings come from the specification.
+`validation.sql.j2` detects unregistered persisted tables in the supplied module containers. Per-entity checks verify column existence and comments. Metric, synonym, primary-object and model registrations are standard-owned schemas ready for product capture; the helper does not invent their content or certify semantic completeness.
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `SemanticRegistration` | Registration inserts for the product, modules, entities, columns, relationships, access and primary objects, orientation, metrics, synonyms and naming standards. |
-| `RichMetadata` | `COMMENT ON` for physical objects, plus authored entity and column metadata and the hybrid column catalogue. |
+| `SemanticRegistration` | Templates and enforcement limits described above. |
+| `RichMetadata` | Templates and enforcement limits described above. |
 
-Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
 
 ## Invariants and checks
 
 | Invariant | Evidence or outstanding check |
 |---|---|
-| `INV-SEMANTIC-001,002` | Standard-owned catalogue structures; registries hold datasets, never business instances. |
-| `INV-SEMANTIC-003,006` | Registration at deployment; `module semantic` check, with an engine test that an unregistered table is found. |
-| `INV-SEMANTIC-004,011,012` | Manifest view over the registry and orientation sequence; consumer workflow verification remains required. |
-| `INV-SEMANTIC-005,007..010` | Declared relationships and access objects; composite access objects are not rendered. |
-| `INV-SEMANTIC-013..015` | Metrics and synonyms registered from the specification; metric recipes execute in engine tests. Reference checks over the registrations remain to be written. |
+| `INV-SEMANTIC-001,002` | Standard-owned catalogue schema; no business-instance registration. |
+| `INV-SEMANTIC-003,006` | Deployment registration plus unregistered-table check. |
+| `INV-SEMANTIC-004,011,012` | Derived manifest and explicit orientation; consumer workflow verification remains required. |
+| `INV-SEMANTIC-005,007..010` | Declared relationships and access rows; completeness/standalone/composite review remains required. |
+| `INV-SEMANTIC-013..015` | Schemas support metrics/synonyms; product registration and reference checks remain required. |
 
-Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal/lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.

@@ -22,13 +22,7 @@ Exit code is `0` when the package conforms, `1` when it does not, and `2` when t
 
 ```bash
 python tooling/skill/verify_skill.py --root /path/to/checkout
-python tooling/skill/verify_skill.py --package
 ```
-
-`--package` also checks what an install actually receives. A clone, or a GitHub ZIP, is the
-tracked files of one commit, which is what `git archive HEAD` produces, so the check builds
-that archive and holds the routing to it rather than to the working tree. It prints what the
-package contains, by top-level directory.
 
 ## What it checks
 
@@ -40,9 +34,6 @@ package contains, by top-level directory.
 | `role-missing` | a role named in `SKILL.md` has no file in `roles/`. |
 | `dangling-route` | a backticked path in `SKILL.md` or a role file does not exist in the repository. |
 | `dangling-section` | a `file.md §N` citation lands on a section that file does not have. |
-| `package` | with `--package`: there is no commit to build a package from, or `SKILL.md` or a role file is not in it. |
-| `package-route` | with `--package`: a route resolves in the working tree but not in the package, because the file is not committed. |
-| `package-ignored` | with `--package`: the package ships a file the repository's own `.gitignore` excludes, such as build output tracked by mistake. |
 
 ## Why `dangling-route` is the one that earns its keep
 
@@ -60,11 +51,9 @@ Reading the corpus directly removes the cause. This check makes sure a later edi
 reintroduce it by moving or renaming a file the routing names.
 
 Placeholders are expanded before checking, so `implementation/{platform}/modules/{module}/`
-is tested against every platform and module the corpus defines. The platforms are discovered
-(every directory under `implementation/` with a `PLATFORM_PROFILE.md`), never listed. A
-`{platform}` route must resolve on every binding, since a builder may target any of them.
-Within one binding, a path passes if at least one `{module}` or `{pattern}` expansion exists,
-because a route may legitimately cover an area that not every module implements.
+is tested against every platform and module the corpus defines. A path passes if at least one
+expansion exists, because a route may legitimately cover an area that not every module
+implements.
 
 ## Keep frontmatter values on one line
 

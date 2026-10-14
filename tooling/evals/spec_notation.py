@@ -15,13 +15,9 @@ Stdlib only, like the linters beside it.
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "validation"))
-from design_lint import platform_names  # noqa: E402
 
 BACKTICK = re.compile(r"`([^`]+)`")
 ENUM_LEAD = re.compile(r"^`[^`]+`(?:(?:, | or )`[^`]+`)*")
@@ -85,9 +81,6 @@ class Standard:
     profiles: Set[str] = field(default_factory=set)
     kind_defaults: Dict[str, Set[str]] = field(default_factory=dict)
     canonical_attributes: Set[str] = field(default_factory=set)
-    canonical_meaning: Dict[str, str] = field(default_factory=dict)
-    module_entity_defs: Dict[str, Dict[str, "Entity"]] = field(default_factory=dict)
-    pattern_entity_defs: Dict[str, "Entity"] = field(default_factory=dict)
     conditional_prohibited: Dict[str, str] = field(default_factory=dict)  # name -> profile
     module_entities: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
     patterns: Set[str] = field(default_factory=set)
@@ -210,7 +203,6 @@ def load_standard(design_root: Path) -> Standard:
                 std.implicit_relations[key] = imp
             elif heading == "Entity sections":
                 std.section_kinds[key] = (["feature-group"] if "feature group" in cell
-                                          else ["*"] if cell.strip() == "every entity"
                                           else BACKTICK.findall(cell))
 
     for m in re.finditer(r"with the `([a-z]+:[a-z-]+)` facet also requires ((?:an? `\w+` block(?: and )?)+)",
@@ -221,18 +213,19 @@ def load_standard(design_root: Path) -> Standard:
     m = re.search(r"Weight dimensions are (.+?)\.", text)
     if m:
         std.weight_dimensions = set(BACKTICK.findall(m.group(1)))
-    std.platforms = set(platform_names(design_root.parent))
+    m = re.search(r"or one of (.+?);", text)
+    if m:
+        std.platforms = {p.strip() for p in re.split(r",\s*|\s+or\s+", m.group(1)) if p.strip()}
+    impl = design_root.parent / "implementation"
+    if impl.is_dir():
+        std.platforms |= {p.name for p in impl.iterdir() if p.is_dir()}
 
     _load_temporal(std, design_root / "patterns" / "temporal-lifecycle-metadata.md")
     std.patterns = {p.stem for p in (design_root / "patterns").glob("*.md")}
-    for p in sorted((design_root / "patterns").glob("*.md")):
-        defined = parse_specification(p.read_text(encoding="utf-8"), std=None).entities
-        std.pattern_entity_defs.update({e.name: e for e in defined})
     for p in sorted((design_root / "modules").glob("*.md")):
         module_text = p.read_text(encoding="utf-8")
         spec = parse_specification(module_text, std=None)
         std.module_entities[p.stem] = {e.name: set(e.attributes) for e in spec.entities}
-        std.module_entity_defs[p.stem] = {e.name: e for e in spec.entities}
         # Entities under an `Entity Model: <X> Facet` heading belong to that facet.
         facet, lines = None, module_text.split("\n")
         starts = {e.line: e.name for e in spec.entities}
@@ -263,7 +256,6 @@ def _load_temporal(std: Standard, path: Path) -> None:
             for name in BACKTICK.findall(cells[0]):
                 if "<" not in name:
                     std.canonical_attributes.add(name)
-                    std.canonical_meaning[name] = re.sub(r"\*\*|`", "", cells[1]).strip()
         elif heading.startswith("Prohibited generic names") and len(cells) >= 3:
             scope = cells[2]
             if "except on" in scope:
@@ -294,7 +286,6 @@ class Attribute:
     type: str
     qualifiers: Dict[str, str]  # flag qualifiers map to ""
     line: int
-    description: str = ""  # the trailing `// ...` text
 
 
 @dataclass
@@ -366,7 +357,7 @@ def _parse_attribute(line: str, lineno: int) -> Optional[Attribute]:
     t = LOGICAL_TYPE.match(rest)
     if not t:
         return None
-    quals, description = split_qualifiers(rest[t.end():])
+    quals, _ = split_qualifiers(rest[t.end():])
     parsed = {}
     for q in quals:
         if q.startswith("->"):
@@ -376,7 +367,7 @@ def _parse_attribute(line: str, lineno: int) -> Optional[Attribute]:
             parsed[key.strip()] = value.strip()
         else:
             parsed[q] = ""
-    return Attribute(name, t.group(1), parsed, lineno, description)
+    return Attribute(name, t.group(1), parsed, lineno)
 
 
 def parse_specification(text: str, std: Optional[Standard]) -> Specification:

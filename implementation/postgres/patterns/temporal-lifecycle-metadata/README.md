@@ -13,39 +13,12 @@ platform: postgres
 
 Binding of [Temporal Lifecycle Metadata](../../../../design/patterns/temporal-lifecycle-metadata.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Templates
+`00-temporal-macros.sql.j2` owns canonical fields, current filters and point-in-time predicates. `01-entity.sql.j2` emits generic DDL; `02-comments.sql.j2` is a separate metadata step; `03-access-views.sql.j2` emits explicit consumer projections and historical functions/macros. All supported profiles are selected by input, never by table name.
 
-`00-macros.sql.j2` holds the macros every other template imports. Each takes a relation from the context (an entity or a standard-owned relation, with its `columns`, `column_names`, `key_columns`, `version_columns` and placed `objects`) and composes no name:
+Validity and knowledge intervals are half-open. For bitemporal history, overlap is prohibited only where both axes overlap; different knowledge-time versions may cover the same valid time. is_current requires both applicable ends to be open. PostgreSQL uses two-dimensional GiST exclusion via btree_gist; DuckDB uses conformance checks and serialized writer discipline.
 
-| Macro | Emits |
-|---|---|
-| `cols`, `column` | A quoted column list; one column definition with type, identity, `NOT NULL`, `UNIQUE`, Enum and vector checks |
-| `primary_key`, `constraints` | The key (version columns plus interval starts for history); interval-order, current-flag and deletion-flag checks |
-| `current`, `at` | The current-row predicate; the half-open point-in-time predicate on `valid_at` and, when bitemporal, `known_at` |
-| `table` | `CREATE TABLE`, the keymap foreign key, and for history the partial unique index on the current row and the `btree_gist` exclusion constraint |
-| `module_tables` | Every persisted, defined, non-adopted relation of one module, keymaps first |
-| `value`, `ref`, `insert`, `member` | A Python value as SQL; a subquery for a current row's key; an insert by logical attribute name with open-row defaults for temporal columns; whether an Enum permits a value |
+`04-maintenance.sql.j2` is a transaction body for a caller-planned replacement timeline. For bitemporal corrections it closes open knowledge intervals and inserts the complete new known business timeline. It is not an automatic change planner: the caller must detect unchanged replay, preserve unaffected segments and tombstones, reject non-finite/non-monotonic correction instants, serialize DuckDB writes and run conformance before commit. SCD2 replacements must preserve the predecessor end and split late changes without losing successors.
 
-`02-comments.sql.j2` applies `COMMENT ON TABLE` and `COMMENT ON COLUMN` to every persisted relation from its `description` and each column's description (or its logical name), after the tables and before anything depends on them.
+Generated checks verify physical columns/comments, finite non-validity timestamps, non-overlap, ordered bounds and flags. Native tests prove two-axis reconstruction. Full replay, late-change planning, concurrent writer stress and data-specific temporal completeness remain deployment obligations.
 
-`03-access-views.sql.j2` creates, for every relation with a `consumer_view` object, a view of its current rows (the `current` macro) carrying every column except the open interval ends `valid_to_dts` and `transaction_to_dts`. Runtime relations have no consumer view. For every relation with a `function` object it creates a point-in-time function `(valid_at TIMESTAMPTZ)`, or `(valid_at, known_at)` when bitemporal, returning the table's rows at that instant; it is `SECURITY DEFINER` with `search_path` fixed to `pg_catalog, pg_temp`.
-
-`04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls `BEGIN` and `COMMIT` and runs the checks before committing. It takes a transaction-level advisory lock on the table and key, then:
-
-- for a bitemporal relation, closes every open knowledge interval of the identity at `recorded_at` and clears its current flag;
-- otherwise, closes the version whose validity covers `effective_at` at that instant;
-- inserts every replacement row with every column, each value through the literal filter.
-
-It is not a change planner. The caller supplies complete, non-overlapping intervals (for a bitemporal correction, the whole new known timeline), detects unchanged replay, preserves unaffected segments and tombstones, and rejects non-finite or non-monotonic correction instants.
-
-Validity and knowledge intervals are half-open; infinity appears only as an open end. For bitemporal history, overlap is prohibited only where both axes overlap. The current flag is true exactly when every applicable end is open.
-
-## Capability bindings
-
-| Capability | Binding |
-|---|---|
-| `CurrentStateFilter` | `current` macro behind the consumer views and reference checks. |
-| `PointInTimeReconstruction` | `at` macro behind the point-in-time functions. |
-| `SoftDelete` | `is_deleted` and `deleted_dts` with a consistency check; deleted rows are excluded from current and point-in-time reads. |
-
-Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
+See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
