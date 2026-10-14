@@ -71,7 +71,8 @@ FROM {{ db }}.validation_area AS a
 WHERE a.scope_kind = 'ENTITY'
   AND POSITION('.' IN a.scope_id) = 0;
 
--- VAL-14 (ENTITY scope resolves): every entity-scoped area names a catalogued entity.
+-- VAL-14 (ENTITY scope resolves): every entity-scoped area names a catalogued entity by its
+-- logical identity (module.entity), compared without regard to case.
 -- The product's Semantic container is {{ semantic_db }}.
 SELECT a.run_id, a.scope_kind, a.scope_id
 FROM {{ db }}.validation_area AS a
@@ -80,10 +81,7 @@ WHERE a.scope_kind = 'ENTITY'
   AND NOT EXISTS (
         SELECT 1
         FROM {{ semantic_db }}.entity_metadata AS e
-        WHERE UPPER(e.module_name) = UPPER(SUBSTRING(a.scope_id FROM 1
-                                            FOR POSITION('.' IN a.scope_id) - 1))
-          AND UPPER(e.entity_name) = UPPER(SUBSTRING(a.scope_id FROM
-                                            POSITION('.' IN a.scope_id) + 1))
+        WHERE UPPER(e.entity_name) = UPPER(a.scope_id)
       );
 
 -- VAL-14 (MODULE scope resolves): every module-scoped area names a module the product actually

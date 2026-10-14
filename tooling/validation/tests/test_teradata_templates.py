@@ -275,5 +275,51 @@ class SpelledOutTemporalBlockMatchesTheMacros(unittest.TestCase):
                         "%s.%s differs from the macro definition" % (table, name))
 
 
+@unittest.skipIf(Environment is None, "jinja2 not installed")
+class MetadataContract2(unittest.TestCase):
+    """The 2.0.0 Semantic shapes: grouped keys, paths as rows, access mappings, declaration."""
+
+    def view_columns(self, out, view):
+        match = re.search(r"REPLACE VIEW \S+\.%s\s*\((.*?)\)\s*AS\b" % view, out, re.S)
+        self.assertIsNotNone(match, view)
+        return [c.strip() for c in match.group(1).replace("\n", " ").split(",") if c.strip()]
+
+    def test_new_tables_exist_and_removed_columns_are_gone(self):
+        catalogue = render("modules/semantic/01-catalog-tables.sql.j2")
+        access = render("modules/semantic/07-access-object.sql.j2")
+        discovery = render("modules/semantic/02-discovery-tables.sql.j2")
+        for table in ("key_definition", "key_column", "relationship_column"):
+            self.assertIn("_Semantic.%s (" % table, catalogue)
+        self.assertIn("_Semantic.access_column (", access)
+        self.assertIn("_Semantic.standard_declaration (", discovery)
+        for gone in ("surrogate_key_column", "natural_key_column", "source_table",
+                     "target_table"):
+            self.assertNotIn(gone + " ", catalogue)
+        self.assertNotIn("join_path", access)
+        self.assertIn("via_relationship_id", access)
+
+    def test_path_views_carry_the_contract_columns_in_order(self):
+        out = render("modules/semantic/04-path-discovery.sql.j2")
+        self.assertEqual(self.view_columns(out, "relationship_edges"),
+                         ["relationship_id", "key_ordinal", "direction", "from_entity",
+                          "from_column", "to_entity", "to_column"])
+        self.assertEqual(self.view_columns(out, "relationship_paths"),
+                         ["path_id", "origin_entity", "destination_entity", "hop_count",
+                          "hop", "key_ordinal", "from_entity", "from_column", "to_entity",
+                          "to_column", "relationship_id", "direction"])
+        self.assertNotIn("path_joins", out)
+        self.assertIn("hop_count < 4", out)
+
+    def test_manifest_ends_with_standard_version(self):
+        out = render("modules/semantic/09-orientation-manifest.sql.j2")
+        self.assertEqual(self.view_columns(out, "data_product_manifest")[-1],
+                         "standard_version")
+
+    def test_every_semantic_check_for_the_new_invariants_is_present(self):
+        out = render("modules/semantic/validation.sql.j2")
+        for invariant in range(16, 21):
+            self.assertIn("INV-SEMANTIC-0%d" % invariant, out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

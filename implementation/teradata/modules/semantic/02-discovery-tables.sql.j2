@@ -40,6 +40,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.data_product_map.is_active IS '1 = acti
 CREATE TABLE {{ product }}_Semantic.data_product_map_primary_objects (
     primary_object_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     module_id INTEGER NOT NULL,             -- logical parent -> data_product_map.module_id
+    object_identity VARCHAR(200) CHARACTER SET UNICODE NOT NULL,   -- logical identity; location is database_name.object_name
     database_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
     object_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
     object_type VARCHAR(50) NOT NULL,       -- TABLE, VIEW, PROCEDURE, FUNCTION
@@ -54,6 +55,7 @@ PRIMARY INDEX (module_id);
 COMMENT ON TABLE {{ product }}_Semantic.data_product_map_primary_objects IS
 'Primary object registry - one row per agent-facing object; authoritative fully qualified identities.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.module_id IS 'Logical parent -> data_product_map.module_id (validated by trust checks, no physical FK).';
+COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.object_identity IS 'Logical, placement-independent identity of the object - module.entity:surface, module:object or composite:name. Physical location is database_name and object_name.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.database_name IS 'Exact deployed container - used verbatim as database_name.object_name.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.object_name IS 'Exact deployed object name - never derived from naming conventions.';
 COMMENT ON COLUMN {{ product }}_Semantic.data_product_map_primary_objects.object_type IS 'TABLE, VIEW, PROCEDURE, FUNCTION.';
@@ -107,3 +109,29 @@ PRIMARY INDEX (view_name);
 
 COMMENT ON TABLE {{ product }}_Semantic.view_column_type IS
 'Curated data types for view columns - supplies what the dictionary cannot report; consumed by column_catalogue.';
+
+-- standard_declaration: which version of the standard each component implements -
+-- A declaration is an assertion, not evidence; evidence is the trust map. The manifest
+-- reads the STANDARD row so the bootstrap read answers which contract the product follows.
+CREATE TABLE {{ product }}_Semantic.standard_declaration (
+    declaration_id VARCHAR(300) NOT NULL,   -- product_id:component_kind:component_name
+    product_id VARCHAR(128) NOT NULL,       -- data_product_registry.product_id
+    component_kind VARCHAR(10) NOT NULL CHECK (component_kind IN ('STANDARD', 'MODULE', 'PATTERN')),
+    component_name VARCHAR(128) NOT NULL,   -- 'standard', a module name or a pattern name
+    platform VARCHAR(30) NOT NULL,          -- binding implementing the component
+    standard_version VARCHAR(20) NOT NULL,  -- release the component conforms to
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (product_id);
+
+COMMENT ON TABLE {{ product }}_Semantic.standard_declaration IS
+'Version declaration - one row per implemented component (the standard, each deployed module, each applied pattern) naming the standard release it conforms to. An assertion, not evidence.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.declaration_id IS 'Key of the declaration: product_id, component_kind and component_name joined by colons.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.product_id IS 'Product making the declaration - matches data_product_registry.product_id.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.component_kind IS 'STANDARD, MODULE or PATTERN.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.component_name IS 'standard for the STANDARD row, otherwise the module or pattern name.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.platform IS 'Binding that implements the component - teradata.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.standard_version IS 'Release of the standard the component conforms to - 2.0.0.';
+COMMENT ON COLUMN {{ product }}_Semantic.standard_declaration.is_active IS '1 = current declaration, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.standard_declaration', 'CURRENT_STATE') }}

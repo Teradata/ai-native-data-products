@@ -42,6 +42,8 @@ Every artefact in this binding is a Jinja template (`*.sql.j2`). Render with a `
 | Prediction | `group`, `pred_db`, `domain_db`, `entity`. |
 | Search | `entity_kinds`, `metric`, `top_k`, `rag_k`, `entity` (`content_columns`, `kind`). |
 
+The Semantic templates added for metadata contract 2.0.0 (`key_definition`, `key_column`, `relationship_column`, `access_column`, `standard_declaration`, `relationship_edges`, `relationship_paths`) read only `product`; no input was added. Logical identities, key columns, relationship column pairs and declaration rows are registration data written by the build, not template inputs.
+
 Macro-internal names (`_`, `comma`, `width`) are not inputs.
 
 Known gaps against section 6: the Domain, Prediction, Search and Semantic templates still compose container names as `product` plus a module suffix, and `03-similarity.sql.j2` supplies defaults for `metric`, `top_k` and `rag_k`. They are reported as gaps, not as conformance.

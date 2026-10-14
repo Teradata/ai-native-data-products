@@ -143,11 +143,13 @@ VALUES
  'Queries Semantic.table_relationship to produce a full relationship listing; render as Mermaid erDiagram or plain listing.',
  'Data model documentation, onboarding, design review',
  'SEMANTIC',
- 'SELECT r.from_database, r.from_table, r.from_column, r.relationship_type, r.cardinality,
-        r.to_database, r.to_table, r.to_column, r.join_type, r.is_mandatory, r.relationship_desc
+ 'SELECT r.relationship_id, r.source_entity, r.target_entity, r.relationship_type, r.cardinality,
+        c.ordinal, c.source_column, c.target_column, r.is_mandatory, r.relationship_description
  FROM {{ semantic_db }}.table_relationship r
+ INNER JOIN {{ semantic_db }}.relationship_column c
+    ON c.relationship_id = r.relationship_id AND c.is_active = 1
  WHERE r.is_active = 1
- ORDER BY r.from_table, r.to_table;',
+ ORDER BY r.source_entity, r.target_entity, c.ordinal;',
  'None - reads the Semantic relationship metadata.',
  'Lightweight query on a small metadata table.',
  'SIMPLE', 0,

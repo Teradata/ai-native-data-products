@@ -5,14 +5,12 @@
 -- entity_metadata: the entity (table) catalogue -------------------------------
 CREATE TABLE {{ product }}_Semantic.entity_metadata (
     entity_metadata_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
-    entity_name VARCHAR(128) NOT NULL,
+    entity_name VARCHAR(200) NOT NULL,      -- logical identity: module.entity, lower case, no container
     entity_description VARCHAR(1000) NOT NULL,
     module_name VARCHAR(50) NOT NULL,
     database_name VARCHAR(128),
     table_name VARCHAR(128) NOT NULL,
     view_name VARCHAR(128),
-    surrogate_key_column VARCHAR(128),
-    natural_key_column VARCHAR(128),
     temporal_pattern VARCHAR(50),           -- temporal-lifecycle profile: CURRENT_STATE, SCD2_HISTORY, EVENT_APPEND_ONLY, ...
     current_flag_column VARCHAR(128),
     deleted_flag_column VARCHAR(128),
@@ -24,20 +22,57 @@ PRIMARY INDEX (entity_metadata_id);
 
 COMMENT ON TABLE {{ product }}_Semantic.entity_metadata IS
 'Entity (table) catalogue - describes all tables across all modules for agent discovery.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.entity_name IS 'Business name of the entity - Party, Product, Customer.';
+COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.entity_name IS 'Logical identity of the entity, module.entity in lower case, with no container or object-type affix - domain.party. Never changes when a container is renamed.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.entity_description IS 'Business purpose and scope.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.module_name IS 'Owning module - DOMAIN, SEARCH, PREDICTION, OBSERVABILITY, SEMANTIC, MEMORY.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.database_name IS 'Container the table lives in.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.table_name IS 'Physical table name - Party_H, Product_H.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.view_name IS 'Standard current view name - Party_Current.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.surrogate_key_column IS 'Surrogate key column - party_id.';
-COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.natural_key_column IS 'Natural key column - party_key.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.temporal_pattern IS 'Temporal-lifecycle profile the entity declares (the temporal-lifecycle-metadata pattern).';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.current_flag_column IS 'Name of the current-version flag - typically is_current.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.deleted_flag_column IS 'Name of the soft-delete flag - typically is_deleted.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.industry_standard IS 'Industry model used - FIBO, HL7, CUSTOM.';
 COMMENT ON COLUMN {{ product }}_Semantic.entity_metadata.is_active IS '1 = active, 0 = deprecated.';
 {{ tlm.comments(product ~ '_Semantic.entity_metadata', 'CURRENT_STATE') }}
+
+-- key_definition: the keys an entity declares ---------------------------------
+-- One row per key role per entity. A composite key is the ordered rows of key_column.
+CREATE TABLE {{ product }}_Semantic.key_definition (
+    key_id VARCHAR(220) NOT NULL,           -- entity_name#key_role
+    entity_name VARCHAR(200) NOT NULL,      -- entity_metadata.entity_name
+    key_role VARCHAR(10) NOT NULL CHECK (key_role IN ('SURROGATE', 'NATURAL', 'ALTERNATE')),
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (key_id);
+
+COMMENT ON TABLE {{ product }}_Semantic.key_definition IS
+'Keys of each entity by role. Every entity has a SURROGATE key (INV-SEMANTIC-017); the columns of a key, in order, are the rows of key_column.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_definition.key_id IS 'Key of the definition: entity_name, a hash sign, then key_role - domain.party#SURROGATE.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_definition.entity_name IS 'Entity the key belongs to - entity_metadata.entity_name, the logical identity.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_definition.key_role IS 'SURROGATE, NATURAL or ALTERNATE.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_definition.is_active IS '1 = current, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.key_definition', 'CURRENT_STATE') }}
+
+-- key_column: the ordered columns of a key -----------------------------------
+CREATE TABLE {{ product }}_Semantic.key_column (
+    key_column_id VARCHAR(230) NOT NULL,    -- key_id:ordinal
+    key_id VARCHAR(220) NOT NULL,           -- key_definition.key_id
+    ordinal SMALLINT NOT NULL CHECK (ordinal >= 1),
+    column_name VARCHAR(128) NOT NULL,
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (key_id);
+
+COMMENT ON TABLE {{ product }}_Semantic.key_column IS
+'Ordered columns of each key. Ordinals run 1..n without gaps and each column exists on the entity (INV-SEMANTIC-017).';
+COMMENT ON COLUMN {{ product }}_Semantic.key_column.key_column_id IS 'Key of the row: key_id, a colon, then ordinal - domain.party#SURROGATE:1.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_column.key_id IS 'Key the column belongs to - key_definition.key_id (validated by the module checks, no physical constraint).';
+COMMENT ON COLUMN {{ product }}_Semantic.key_column.ordinal IS 'Position of the column within the key, from 1.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_column.column_name IS 'Physical column on the entity table.';
+COMMENT ON COLUMN {{ product }}_Semantic.key_column.is_active IS '1 = current, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.key_column', 'CURRENT_STATE') }}
 
 -- column_metadata: the column (attribute) catalogue --------------------------
 CREATE TABLE {{ product }}_Semantic.column_metadata (
@@ -102,12 +137,8 @@ CREATE TABLE {{ product }}_Semantic.table_relationship (
     relationship_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     relationship_name VARCHAR(128) NOT NULL,
     relationship_description VARCHAR(1000),
-    source_database VARCHAR(128),
-    source_table VARCHAR(100) NOT NULL,
-    source_column VARCHAR(128) NOT NULL,
-    target_database VARCHAR(128),
-    target_table VARCHAR(100) NOT NULL,
-    target_column VARCHAR(128) NOT NULL,
+    source_entity VARCHAR(200) NOT NULL,    -- entity_metadata.entity_name of the referencing side
+    target_entity VARCHAR(200) NOT NULL,    -- entity_metadata.entity_name of the referenced side
     relationship_type VARCHAR(50) NOT NULL, -- FOREIGN_KEY, HIERARCHY, ASSOCIATIVE
     cardinality VARCHAR(20),                -- ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY
     relationship_meaning VARCHAR(500),
@@ -120,12 +151,36 @@ PRIMARY INDEX (relationship_id);
 COMMENT ON TABLE {{ product }}_Semantic.table_relationship IS
 'Table-level relationship metadata - how tables join, for correct agent SQL generation. Must be complete (INV-SEMANTIC-005).';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_name IS 'Descriptive relationship name.';
-COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.source_table IS 'Table holding the referencing (foreign) key.';
-COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.source_column IS 'The referencing key column.';
-COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.target_table IS 'The referenced table.';
-COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.target_column IS 'The referenced key column.';
+COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.source_entity IS 'Entity holding the referencing (foreign) key - the logical identity. The column pairs are the rows of relationship_column.';
+COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.target_entity IS 'The referenced entity - the logical identity.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_type IS 'FOREIGN_KEY, HIERARCHY, ASSOCIATIVE.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.cardinality IS 'ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.is_mandatory IS '1 = referencing key is required, 0 = optional.';
 COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.is_active IS '1 = valid, 0 = deprecated.';
+COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_id IS 'Key of the relationship; referenced by relationship_column and by access_composition.via_relationship_id.';
+COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_description IS 'What the relationship connects and why.';
+COMMENT ON COLUMN {{ product }}_Semantic.table_relationship.relationship_meaning IS 'Business meaning of the relationship, in one sentence.';
 {{ tlm.comments(product ~ '_Semantic.table_relationship', 'CURRENT_STATE') }}
+
+-- relationship_column: the ordered column pairs of a relationship --------------
+-- A relationship is a join group: one or more pairs, joined with AND.
+CREATE TABLE {{ product }}_Semantic.relationship_column (
+    relationship_column_id VARCHAR(30) NOT NULL,    -- relationship_id:ordinal
+    relationship_id INTEGER NOT NULL,       -- table_relationship.relationship_id
+    ordinal SMALLINT NOT NULL CHECK (ordinal >= 1),
+    source_column VARCHAR(128) NOT NULL,    -- column on source_entity
+    target_column VARCHAR(128) NOT NULL,    -- column on target_entity
+    is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+{{ tlm.columns('CURRENT_STATE', pad=8) }}
+)
+PRIMARY INDEX (relationship_id);
+
+COMMENT ON TABLE {{ product }}_Semantic.relationship_column IS
+'Ordered column pairs of each relationship. Ordinals run 1..n without gaps and each column exists on its entity (INV-SEMANTIC-018).';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.relationship_column_id IS 'Key of the row: relationship_id, a colon, then ordinal - 12:1.';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.relationship_id IS 'Relationship the pair belongs to - table_relationship.relationship_id (validated by the module checks, no physical constraint).';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.ordinal IS 'Position of the pair within the join group, from 1.';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.source_column IS 'The referencing key column, on source_entity.';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.target_column IS 'The referenced key column, on target_entity.';
+COMMENT ON COLUMN {{ product }}_Semantic.relationship_column.is_active IS '1 = current, 0 = withdrawn.';
+{{ tlm.comments(product ~ '_Semantic.relationship_column', 'CURRENT_STATE') }}

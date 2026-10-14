@@ -1,7 +1,7 @@
 -- Catalogue Interface: semantic model extraction (Teradata).
 -- Binding of design/patterns/catalogue-interface.md, section Semantic Model Export.
 --
--- Six result sets that together are one product's semantic model: datasets, fields,
+-- Seven result sets that together are one product's semantic model: datasets, keys, fields,
 -- relationships, metrics, metric expressions, and synonyms. An emitter runs these in order
 -- and renders the target format; the shaping of the output belongs to the emitter, and the
 -- selection of what is in the model belongs here.
@@ -25,8 +25,6 @@ SELECT e.entity_name
      , e.module_name
      , COALESCE(i.container_name, e.database_name) AS source_container
      , COALESCE(i.object_name, e.table_name)       AS source_object
-     , e.surrogate_key_column
-     , e.natural_key_column
      , e.temporal_pattern
      , e.table_name                                AS base_table
      , e.database_name                             AS base_container
@@ -37,6 +35,25 @@ LEFT OUTER JOIN {{ governance_db }}.data_product_consumer_interface AS i
     AND i.is_primary  = 1
 WHERE e.is_active = 1
 ORDER BY e.module_name, e.entity_name;
+
+-- ---------------------------------------------------------------------------
+-- 1b. Keys
+-- ---------------------------------------------------------------------------
+-- One row per key column, in key order. A dataset's primary key is the SURROGATE key where
+-- it has one, otherwise the NATURAL key; the emitter takes the columns in ordinal order.
+SELECT k.entity_name
+     , k.key_role
+     , c.ordinal
+     , c.column_name
+FROM {{ semantic_db }}.key_definition AS k
+INNER JOIN {{ semantic_db }}.key_column AS c
+    ON  c.key_id    = k.key_id
+    AND c.is_active = 1
+INNER JOIN {{ semantic_db }}.entity_metadata AS e
+    ON  e.entity_name = k.entity_name
+    AND e.is_active   = 1
+WHERE k.is_active = 1
+ORDER BY k.entity_name, k.key_role, c.ordinal;
 
 -- ---------------------------------------------------------------------------
 -- 2. Fields
@@ -83,14 +100,15 @@ ORDER BY c.table_name, c.column_name;
 --
 -- A MANY_TO_MANY row is returned rather than filtered out, so the emitter can report it.
 -- Silently dropping it would leave a model that looks complete and is not.
-SELECT r.relationship_name
+-- One row per column pair; an emitter groups the rows of one relationship_id into its join group.
+SELECT r.relationship_id
+     , r.relationship_name
      , r.relationship_description
-     , r.source_database
-     , r.source_table
-     , r.source_column
-     , r.target_database
-     , r.target_table
-     , r.target_column
+     , r.source_entity
+     , r.target_entity
+     , p.ordinal
+     , p.source_column
+     , p.target_column
      , r.relationship_type
      , r.cardinality
      , r.is_mandatory
@@ -102,8 +120,11 @@ SELECT r.relationship_name
            ELSE 'REPORT'
        END AS emit_direction
 FROM {{ semantic_db }}.table_relationship AS r
+INNER JOIN {{ semantic_db }}.relationship_column AS p
+    ON  p.relationship_id = r.relationship_id
+    AND p.is_active       = 1
 WHERE r.is_active = 1
-ORDER BY r.relationship_name;
+ORDER BY r.relationship_name, p.ordinal;
 
 -- ---------------------------------------------------------------------------
 -- 4. Metrics
@@ -119,8 +140,7 @@ SELECT m.metric_name
      , m.unit
      , m.grain_description
      , m.is_additive
-     , d.container_name AS primary_container
-     , d.table_name     AS primary_table
+     , d.entity_name    AS primary_entity
 FROM {{ semantic_db }}.metric_metadata AS m
 INNER JOIN {{ semantic_db }}.metric_dataset AS d
     ON  d.metric_name  = m.metric_name
@@ -130,23 +150,22 @@ WHERE m.is_active = 1
   AND EXISTS (
       SELECT 1
       FROM {{ semantic_db }}.entity_metadata AS e
-      WHERE e.table_name = d.table_name
-        AND e.is_active  = 1
+      WHERE e.entity_name = d.entity_name
+        AND e.is_active   = 1
   )
 ORDER BY m.metric_name;
 
 -- Every dataset each metric reads, primary and joined. An emitter uses this to place a
 -- metric only in a model that contains all the entities it needs.
 SELECT d.metric_name
-     , d.container_name
-     , d.table_name
+     , d.entity_name
      , d.dataset_role
 FROM {{ semantic_db }}.metric_dataset AS d
 INNER JOIN {{ semantic_db }}.metric_metadata AS m
     ON  m.metric_name = d.metric_name
     AND m.is_active   = 1
 WHERE d.is_active = 1
-ORDER BY d.metric_name, d.dataset_role, d.table_name;
+ORDER BY d.metric_name, d.dataset_role, d.entity_name;
 
 -- ---------------------------------------------------------------------------
 -- 5. Metric expressions
@@ -172,7 +191,6 @@ ORDER BY x.metric_name, x.sql_dialect;
 -- resolves to; an orphaned synonym is reported by the module check (INV-SEMANTIC-015) and
 -- is excluded here by the resolution predicates.
 SELECT s.object_kind
-     , s.container_name
      , s.object_name
      , s.column_name
      , s.synonym_text
@@ -181,12 +199,16 @@ WHERE s.is_active = 1
   AND (   (s.object_kind = 'ENTITY'
            AND EXISTS (SELECT 1
                        FROM {{ semantic_db }}.entity_metadata AS e
-                       WHERE e.table_name = s.object_name
-                         AND e.is_active  = 1))
+                       WHERE e.entity_name = s.object_name
+                         AND e.is_active   = 1))
        OR (s.object_kind = 'COLUMN'
            AND EXISTS (SELECT 1
-                       FROM {{ semantic_db }}.column_metadata AS c
-                       WHERE c.table_name  = s.object_name
+                       FROM {{ semantic_db }}.entity_metadata AS e
+                       INNER JOIN {{ semantic_db }}.column_metadata AS c
+                           ON  c.database_name = e.database_name
+                           AND c.table_name    = e.table_name
+                       WHERE e.entity_name = s.object_name
+                         AND e.is_active   = 1
                          AND c.column_name = s.column_name
                          AND c.is_active   = 1))
        OR (s.object_kind = 'METRIC'

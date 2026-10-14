@@ -57,8 +57,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.metric_expression.is_active IS '1 = cur
 CREATE TABLE {{ product }}_Semantic.metric_dataset (
     metric_dataset_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     metric_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
-    container_name VARCHAR(128) CHARACTER SET UNICODE,
-    table_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    entity_name VARCHAR(200) CHARACTER SET UNICODE NOT NULL,   -- entity_metadata.entity_name, the logical identity
     dataset_role VARCHAR(20) NOT NULL CHECK (dataset_role IN ('PRIMARY', 'JOINED')),
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
 {{ tlm.columns('CURRENT_STATE', pad=8) }}
@@ -68,8 +67,7 @@ PRIMARY INDEX (metric_name);
 COMMENT ON TABLE {{ product }}_Semantic.metric_dataset IS
 'Entities each metric reads - resolves a metric to its datasets by join rather than by parsing its expression.';
 COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.metric_name IS 'Logical parent -> metric_metadata.metric_name.';
-COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.container_name IS 'Container of the entity read.';
-COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.table_name IS 'Entity read - must be registered in entity_metadata.';
+COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.entity_name IS 'Entity read, by logical identity - must be registered in entity_metadata.entity_name.';
 COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.dataset_role IS 'PRIMARY = the entity the metric is grained on; JOINED = read to complete the calculation. Exactly one PRIMARY per metric.';
 COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.is_active IS '1 = current, 0 = no longer read.';
 {{ tlm.comments(product ~ '_Semantic.metric_dataset', 'CURRENT_STATE') }}
@@ -80,8 +78,7 @@ COMMENT ON COLUMN {{ product }}_Semantic.metric_dataset.is_active IS '1 = curren
 CREATE TABLE {{ product }}_Semantic.semantic_synonym (
     synonym_id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
     object_kind VARCHAR(10) NOT NULL CHECK (object_kind IN ('ENTITY', 'COLUMN', 'METRIC')),
-    container_name VARCHAR(128) CHARACTER SET UNICODE,
-    object_name VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
+    object_name VARCHAR(200) CHARACTER SET UNICODE NOT NULL,
     column_name VARCHAR(128) CHARACTER SET UNICODE,
     synonym_text VARCHAR(128) CHARACTER SET UNICODE NOT NULL,
     is_active BYTEINT NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
@@ -92,8 +89,7 @@ PRIMARY INDEX (object_name);
 COMMENT ON TABLE {{ product }}_Semantic.semantic_synonym IS
 'Alternative terms for entities, columns and metrics - the aliases a natural-language resolver matches on, separate from the Memory glossary.';
 COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.object_kind IS 'ENTITY, COLUMN or METRIC - which catalogue the synonym resolves into.';
-COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.container_name IS 'Container of the object; absent for a metric, which is model-level.';
-COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.object_name IS 'Table name for ENTITY and COLUMN, metric name for METRIC.';
+COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.object_name IS 'Entity logical identity (entity_metadata.entity_name) for ENTITY and COLUMN, metric name for METRIC.';
 COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.column_name IS 'Column the synonym applies to; present when object_kind is COLUMN.';
 COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.synonym_text IS 'The alternative term a consumer is expected to use.';
 COMMENT ON COLUMN {{ product }}_Semantic.semantic_synonym.is_active IS '1 = current, 0 = withdrawn.';
@@ -115,7 +111,7 @@ ON {{ product }}_Semantic.metric_expression;
 COLLECT STATISTICS
     COLUMN (metric_name)
    ,COLUMN (dataset_role)
-   ,COLUMN (container_name, table_name)
+   ,COLUMN (entity_name)
 ON {{ product }}_Semantic.metric_dataset;
 
 COLLECT STATISTICS

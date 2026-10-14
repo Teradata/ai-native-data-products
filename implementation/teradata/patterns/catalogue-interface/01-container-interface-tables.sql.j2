@@ -91,7 +91,7 @@ CREATE MULTISET TABLE {{ governance_db }}.data_product_interface
    ,interface_layer     VARCHAR(20)                -- layer of the container the object lives in
    ,exposure_type       VARCHAR(20)                -- Semantic view catalogue: BUSINESS, CURRENT, ENRICHED, PIT, DERIVED
    ,module_name         VARCHAR(50)
-   ,entity_name         VARCHAR(128) CHARACTER SET UNICODE
+   ,entity_name         VARCHAR(200) CHARACTER SET UNICODE
    ,interface_purpose   VARCHAR(500) CHARACTER SET UNICODE
    ,object_role         VARCHAR(50)                -- Semantic primary-object role vocabulary
    ,is_primary          BYTEINT NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1))
@@ -120,7 +120,7 @@ COMMENT ON COLUMN {{ governance_db }}.data_product_interface.object_kind IS 'TAB
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.interface_layer IS 'Layer of the container the object lives in, taken from the container feed. Comparable across products whatever the container is named.';
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.exposure_type IS 'What kind of exposure the object is, from the Semantic view catalogue: BUSINESS, CURRENT, ENRICHED, PIT, DERIVED.';
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.module_name IS 'Module that owns the object.';
-COMMENT ON COLUMN {{ governance_db }}.data_product_interface.entity_name IS 'Business entity the object exposes - the name a consumer recognises.';
+COMMENT ON COLUMN {{ governance_db }}.data_product_interface.entity_name IS 'Entity the object exposes, by logical identity (module.entity) - copied from entity_metadata.entity_name.';
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.interface_purpose IS 'What this surface is for and any consumer constraint on using it.';
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.object_role IS 'How agents should use the object - the Semantic primary-object role vocabulary.';
 COMMENT ON COLUMN {{ governance_db }}.data_product_interface.is_primary IS '1 = recommended surface for its entity; at most one current primary per entity.';
