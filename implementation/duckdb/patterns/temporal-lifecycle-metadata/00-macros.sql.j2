@@ -1,0 +1,125 @@
+{#- Shared macros for the DuckDB binding. Every name comes from the build context:
+    `x` is an entity or a standard-owned relation, with its `columns`, `column_names`,
+    key and versioning columns and placed `objects`. Nothing here composes a name. -#}
+
+{% macro cols(names) -%}
+{%- for n in names %}{{ n|ident }}{% if not loop.last %}, {% endif %}{% endfor -%}
+{%- endmacro %}
+
+{% macro required(col) -%}
+{{- col.required or (col.canonical and col.name != 'deleted_dts') -}}
+{%- endmacro %}
+
+{% macro column(x, col) -%}
+{{ col.physical_name|ident }} {{ col.physical_type }}
+{%- if x.objects.sequence is defined and col.physical_name in x.key_columns %} DEFAULT nextval({{ (x.objects.sequence.container ~ '.' ~ x.objects.sequence.name)|literal }}){% endif %}
+{%- if required(col) == 'True' or col.physical_name in x.key_columns or col.physical_name in x.version_columns %} NOT NULL{% endif %}
+{%- if col.unique and not x.history %} UNIQUE{% endif %}
+{%- if col.members %} CHECK ({{ col.physical_name|ident }} IN ({% for m in col.members %}{{ m|literal }}{% if not loop.last %}, {% endif %}{% endfor %})){% endif %}
+{%- endmacro %}
+
+{% macro primary_key(x) -%}
+{%- set cn = x.column_names -%}
+{%- if x.history -%}
+{{ cols(x.version_columns) }}, {{ cn.valid_from_dts|ident }}{% if x.bitemporal %}, {{ cn.transaction_from_dts|ident }}{% endif %}
+{%- else -%}
+{{ cols(x.key_columns) }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro current(x, alias='') -%}
+{%- set cn = x.column_names -%}
+{%- if x.history %}{{ alias }}{{ cn.is_current|ident }} AND {{ alias }}{{ cn.valid_to_dts|ident }} = 'infinity'::TIMESTAMPTZ{% if x.bitemporal %} AND {{ alias }}{{ cn.transaction_to_dts|ident }} = 'infinity'::TIMESTAMPTZ{% endif %}{% else %}TRUE{% endif -%}
+{%- if x.supports_deletion %} AND NOT {{ alias }}{{ cn.is_deleted|ident }}{% endif -%}
+{%- endmacro %}
+
+{% macro at(x, alias='') -%}
+{%- set cn = x.column_names -%}
+{{ alias }}{{ cn.valid_from_dts|ident }} <= valid_at AND valid_at < {{ alias }}{{ cn.valid_to_dts|ident }}
+{%- if x.bitemporal %} AND {{ alias }}{{ cn.transaction_from_dts|ident }} <= known_at AND known_at < {{ alias }}{{ cn.transaction_to_dts|ident }}{% endif -%}
+{%- if x.supports_deletion %} AND NOT {{ alias }}{{ cn.is_deleted|ident }}{% endif -%}
+{%- endmacro %}
+
+{% macro constraints(x) -%}
+{%- set cn = x.column_names -%}
+{%- if x.history %},
+    CHECK ({{ cn.valid_from_dts|ident }} < {{ cn.valid_to_dts|ident }}),
+    CHECK ({{ cn.is_current|ident }} = ({{ cn.valid_to_dts|ident }} = 'infinity'::TIMESTAMPTZ{% if x.bitemporal %} AND {{ cn.transaction_to_dts|ident }} = 'infinity'::TIMESTAMPTZ{% endif %}))
+{%- if x.bitemporal %},
+    CHECK ({{ cn.transaction_from_dts|ident }} < {{ cn.transaction_to_dts|ident }}){% endif -%}
+{%- endif -%}
+{%- if x.supports_deletion and 'deleted_dts' in cn %},
+    CHECK ({{ cn.is_deleted|ident }} = ({{ cn.deleted_dts|ident }} IS NOT NULL)){% endif -%}
+{%- endmacro %}
+
+{% macro keymap_of(x) -%}
+{%- for k in entities if k.name == x.identity.keymap -%}{{ k.objects.table|qualified }} ({{ cols(k.key_columns) }}){%- endfor -%}
+{%- endmacro %}
+
+{% macro table(x) -%}
+CREATE TABLE {{ x.objects.table|qualified }} (
+{%- for col in x.columns %}
+    {{ column(x, col) }},
+{%- endfor %}
+    PRIMARY KEY ({{ primary_key(x) }}){{ constraints(x) }}
+{%- if x.identity.keymap %},
+    FOREIGN KEY ({{ cols(x.key_columns) }}) REFERENCES {{ keymap_of(x) }}{% endif %}
+);
+{#- DuckDB has neither partial unique indexes nor exclusion constraints: one open version
+    per identity and non-overlapping intervals are proved by the temporal check instead. -#}
+{%- endmacro %}
+
+{% macro value(v) -%}
+{%- if v is none %}NULL{% elif v is sameas true %}TRUE{% elif v is sameas false %}FALSE{% elif v is number %}{{ v }}{% else %}{{ v|literal }}{% endif -%}
+{%- endmacro %}
+
+{#- A subquery for the key of the current row of `target` whose logical attributes match
+    `match`, so a Reference is written as the identifier it refers to. -#}
+{% macro ref(target, match) -%}
+(SELECT {{ target.key_columns[0]|ident }} FROM {{ target.objects.table|qualified }} WHERE
+{%- for k, v in match|dictsort %} {{ target.column_names[k]|ident }} = {{ value(v) }} AND{% endfor %} {{ current(target) }})
+{%- endmacro %}
+
+{#- Insert one row into a standard-owned relation by logical attribute name. `values` maps
+    logical names to Python values; `sql` maps logical names to SQL expressions. Temporal
+    columns not supplied take their open-row defaults. -#}
+{% macro insert(rel, values, sql={}) -%}
+{%- set cn = rel.column_names -%}
+{%- set defaults = {'created_dts': 'current_timestamp', 'updated_dts': 'current_timestamp',
+                    'valid_from_dts': 'current_timestamp', 'valid_to_dts': "'infinity'::TIMESTAMPTZ",
+                    'transaction_from_dts': 'current_timestamp', 'transaction_to_dts': "'infinity'::TIMESTAMPTZ",
+                    'is_current': 'TRUE', 'is_deleted': 'FALSE', 'is_active': 'TRUE'} -%}
+{%- set names = [] -%}{%- set exprs = [] -%}
+{%- for col in rel.columns -%}
+{%- if col.name in values -%}{%- set _ = names.append(col.physical_name) -%}{%- set _ = exprs.append(value(values[col.name])) -%}
+{%- elif col.name in sql -%}{%- set _ = names.append(col.physical_name) -%}{%- set _ = exprs.append(sql[col.name]) -%}
+{%- elif col.name in defaults and (col.origin == 'temporal' or col.name in ('is_active', 'is_deleted')) -%}{%- set _ = names.append(col.physical_name) -%}{%- set _ = exprs.append(defaults[col.name]) -%}
+{%- endif -%}
+{%- endfor -%}
+INSERT INTO {{ rel.objects.table|qualified }} ({{ cols(names) }})
+VALUES ({{ exprs|join(', ') }});
+{%- endmacro %}
+
+{#- Non-empty when a relation's Enum attribute permits the value, so a row is only written
+    where the standard's vocabulary has a value for it. -#}
+{% macro member(rel, attribute, value) -%}
+{%- for col in rel.columns if col.name == attribute and value in col.members %}yes{% endfor -%}
+{%- endmacro %}
+
+{#- Every persisted relation of a module, keymaps first so references to them resolve. -#}
+{% macro module_tables(module) -%}
+{%- for keymaps in (true, false) -%}
+{%- for x in entities + relations if x.module == module and x.relation == 'table' and (x.defined|default(true)) and not (x.adopted|default(false)) and ((x.kind == 'Keymap') == keymaps) %}
+{% if x.objects.sequence is defined %}CREATE SEQUENCE {{ x.objects.sequence|qualified }};
+{% endif %}{{ table(x) }}
+{%- endfor -%}
+{%- endfor -%}
+{%- endmacro %}
+
+{#- True for an object of the product: anything in a container it owns, and, in a container it
+    adopted, only the tables it adopted. The organisation's other objects there are not the
+    product's to register, catalogue or check (Authoring Standard §4.3). -#}
+{% macro in_product(container, name) -%}
+({{ container }} IN ({% for k in containers if k.holds_objects and not k.adopted %}{{ k.name|literal }}{% if not loop.last %}, {% endif %}{% endfor %})
+{%- for x in entities + relations if x.adopted|default(false) and x.objects.table is defined %} OR ({{ container }} = {{ x.objects.table.container|literal }} AND {{ name }} = {{ x.objects.table.name|literal }}){% endfor %})
+{%- endmacro %}

@@ -1,56 +1,154 @@
-{# Inputs: product, modules, containers, entities, relationships, declarations. No product-specific records.
-   Identities are logical (module.entity); the physical location is registered beside them. #}
-INSERT INTO {{ qualified(containers.semantic,'data_product_registry') }} VALUES
- ({{ product.id|literal }},{{ product.version|literal }},'ACTIVE',{{ product.owner|literal }},{{ product.validator|literal }},{{ product.entrypoint|literal }},'VIEW',{{ product.evidence_days }},current_timestamp,current_timestamp);
-{% for kind,name in declarations %}
-INSERT INTO {{ qualified(containers.semantic,'standard_declaration') }} VALUES
- ({{ (product.id ~ ':' ~ kind ~ ':' ~ name)|literal }},{{ product.id|literal }},{{ kind|literal }},{{ name|literal }},{{ platform|literal }},{{ standard_version|literal }},current_timestamp,current_timestamp);
+{# The product's own description of itself (Semantic): registry, module map, entity, column and
+   relationship catalogues, access objects, primary objects, the orientation sequence, metrics,
+   synonyms and naming standards. Every row is read from the build context. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% set registry = named('DataProductRegistry') %}{% set manifest = named('DataProductManifest') %}
+{% if registry and manifest %}
+{{ m.insert(registry, {
+    'product_id': product.code, 'product_name': product.name,
+    'product_description': product.description, 'product_domain': product.domain,
+    'product_version': product.version, 'product_status': 'ACTIVE', 'owner_team': product.owner,
+    'technical_contact': product.technical_contact|default(none),
+    'trust_authoritative_producer': product.trust_producer,
+    'approved_entrypoint': manifest.objects.consumer_view.container ~ '.' ~ manifest.objects.consumer_view.name,
+    'approved_access_mode': orientation.access_mode|default('VIEW')}) }}
+{% endif %}
+{% set map = named('DataProductMap') %}
+{% if map %}
+{% for mc in module_containers if m.member(map, 'object_type', mc.role|upper) %}
+{{ m.insert(map, {'module_name': mc.module|upper, 'object_type': mc.role|upper,
+                  'container_name': mc.container, 'module_version': product.version,
+                  'deployment_status': 'DEPLOYED'}) }}
 {% endfor %}
-{% for m in modules %}
-INSERT INTO {{ qualified(containers.semantic,'data_product_map') }} VALUES
- ({{ m|literal }},{{ containers[m]|literal }},{{ ('Capabilities declared by the ' ~ m ~ ' module')|literal }},'DEPLOYED',{{ product.version|literal }},current_timestamp,current_timestamp);
+{% endif %}
+{% set meta = named('EntityMetadata') %}{% set colmeta = named('ColumnMetadata') %}
+{% for x in entities + relations if x.objects.table is defined %}
+{% set t = x.objects.table %}
+{% if meta %}
+{{ m.insert(meta, {
+    'entity_name': x.name, 'logical_name': x.name, 'entity_description': x.description,
+    'entity_kind': x.kind|upper, 'module_name': x.module|upper, 'container_name': t.container,
+    'table_name': t.name,
+    'view_name': (x.objects.consumer_view.name if x.objects.consumer_view is defined else none),
+    'surrogate_key_column': (x.surrogate_columns|join(', ') or none),
+    'natural_key_column': (x.natural_columns|join(', ') or none),
+    'temporal_pattern': x.profile,
+    'current_flag_column': (x.column_names.is_current if x.history else none),
+    'deleted_flag_column': (x.column_names.is_deleted if x.supports_deletion else none)}) }}
+{% endif %}
+{% if colmeta %}
+{% for col in x.columns %}
+{{ m.insert(colmeta, {
+    'container_name': t.container, 'table_name': t.name, 'column_name': col.physical_name,
+    'logical_name': col.name, 'business_description': col.description or none,
+    'is_pii': col.marker == 'pii',
+    'sensitivity_marker': (col.marker|upper|replace('-', '_') if col.marker else none),
+    'data_classification': col.classification, 'is_required': col.required,
+    'declared_type': col.type, 'allowed_values': (col.members|tojson if col.members else none)}) }}
 {% endfor %}
-{% for e in entities %}
-INSERT INTO {{ qualified(containers.semantic,'entity_metadata') }} VALUES
- ({{ e.identity|literal }},{{ e.description|literal }},{{ e.module|literal }},{{ e.schema|literal }},{{ e.name|literal }},{{ (e.current_view if not e.runtime else none)|literal }},{{ e.profile|literal }},{{ ('is_current' if e.history else none)|literal }},{{ ('is_deleted' if e.supports_deletion else none)|literal }},NULL,current_timestamp,current_timestamp);
-{% for k in e.key_defs %}
-INSERT INTO {{ qualified(containers.semantic,'key_definition') }} VALUES
- ({{ k.id|literal }},{{ e.identity|literal }},{{ k.role|literal }},current_timestamp,current_timestamp);
-{% for c in k.columns %}
-INSERT INTO {{ qualified(containers.semantic,'key_column') }} VALUES
- ({{ (k.id ~ ':' ~ loop.index)|literal }},{{ k.id|literal }},{{ loop.index }},{{ c|literal }},current_timestamp,current_timestamp);
-{% endfor %}
-{% endfor %}
-{% for c in e.all_columns %}
-INSERT INTO {{ qualified(containers.semantic,'column_metadata') }} VALUES
- ({{ (e.identity ~ '.' ~ c.name)|literal }},{{ e.schema|literal }},{{ e.name|literal }},{{ c.name|literal }},{{ c.comment|literal }},{{ c.pii|default(false)|literal }},{{ e.runtime|literal }},{{ c.classification|default('INTERNAL')|literal }},'Approved design',current_timestamp,current_timestamp);
-{% endfor %}
-INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
- ({{ (e.identity ~ ':base')|literal }},{{ e.schema|literal }},{{ e.name|literal }},'BASE',{{ e.identity|literal }},'One physical version or record',false,NULL,'Maintainer surface',current_timestamp,current_timestamp);
-{% if not e.runtime %}
-INSERT INTO {{ qualified(containers.semantic,'access_object') }} VALUES
- ({{ (e.identity ~ ':current')|literal }},{{ containers.access|literal }},{{ e.current_view|literal }},'PASSTHROUGH',{{ e.identity|literal }},'One current non-deleted record',true,{{ (e.identity ~ ':base')|literal }},'Declared consumer surface',current_timestamp,current_timestamp);
-{% for c in e.access_columns %}
-INSERT INTO {{ qualified(containers.semantic,'access_column') }} VALUES
- ({{ (e.identity ~ ':current:' ~ c.ordinal)|literal }},{{ (e.identity ~ ':current')|literal }},{{ c.ordinal }},{{ c.name|literal }},{{ e.identity|literal }},{{ c.source|literal }},'PASSTHROUGH',NULL,current_timestamp,current_timestamp);
-{% endfor %}
-INSERT INTO {{ qualified(containers.semantic,'primary_object') }} VALUES
- ({{ (e.identity ~ ':current')|literal }},{{ e.module|literal }},'VIEW','REFERENCE_LOOKUP',{{ e.description|literal }},current_timestamp,current_timestamp);
 {% endif %}
 {% endfor %}
-{% for r in relationships %}
-INSERT INTO {{ qualified(containers.semantic,'table_relationship') }} VALUES
- ({{ r.id|literal }},{{ r.source_entity.identity|literal }},{{ r.target_entity.identity|literal }},'MANY_TO_ONE','SEMANTIC',{{ r.mandatory|literal }},current_timestamp,current_timestamp);
-{% for p in r.columns %}
-INSERT INTO {{ qualified(containers.semantic,'relationship_column') }} VALUES
- ({{ (r.id ~ ':' ~ p.ordinal)|literal }},{{ r.id|literal }},{{ p.ordinal }},{{ p.source|literal }},{{ p.target|literal }},current_timestamp,current_timestamp);
+{% set rel = named('TableRelationship') %}
+{% if rel %}
+{% for r in relationships if r.source_table and r.target_table %}
+{{ m.insert(rel, {
+    'relationship_name': r.source ~ '.' ~ r.source_attribute,
+    'source_container': r.source_table.container, 'source_table': r.source_table.name,
+    'source_column': r.source_column, 'target_container': r.target_table.container,
+    'target_table': r.target_table.name, 'target_column': r.target_columns|join(', '),
+    'relationship_type': 'FOREIGN_KEY', 'cardinality': 'MANY_TO_ONE', 'is_mandatory': r.mandatory}) }}
+{% endfor %}
+{% endif %}
+{% set access = named('AccessObject') %}
+{% if access %}
+{% for x in entities + relations %}
+{% for role, obj in x.objects|dictsort if obj and m.member(access, 'object_type', role|upper) %}
+{{ m.insert(access, {
+    'container_name': obj.container, 'object_name': obj.name, 'object_type': role|upper,
+    'access_role': ('BASE' if role in ('table', 'base_view') else 'PASSTHROUGH'),
+    'represents_entity': x.name,
+    'is_agent_consumable': role in ('consumer_view', 'function'),
+    'is_primary': role == 'consumer_view',
+    'resolves_to_object': (x.objects.table.container ~ '.' ~ x.objects.table.name
+                           if role != 'table' and x.objects.table is defined else none),
+    'access_note': x.description}) }}
 {% endfor %}
 {% endfor %}
-{% for role,name in [('MANIFEST','data_product_manifest'),('MODULE_MAP','v_data_product_map'),('OBJECT_CATALOGUE','v_access_object'),('ENTITY_CATALOGUE','v_entity_metadata'),('COLUMN_CATALOGUE','column_catalogue'),('RELATIONSHIP_CATALOGUE','v_table_relationship')] %}
-INSERT INTO {{ qualified(containers.semantic,'data_product_orientation') }} VALUES
- ({{ role|literal }},{{ product.id|literal }},{{ containers.access|literal }},{{ name|literal }},{{ loop.index+2 }},true,current_timestamp,current_timestamp);
+{% for b in embeddings %}
+{% for role, obj in b.objects|dictsort if role in ('function', 'procedure') %}
+{{ m.insert(access, {
+    'container_name': obj.container, 'object_name': obj.name,
+    'object_type': role|upper, 'access_role': 'PASSTHROUGH', 'represents_entity': b.entity,
+    'is_agent_consumable': true, 'is_primary': false,
+    'access_note': 'Similarity search over the ' ~ b.name ~ ' embedding of ' ~ b.entity ~ '.'}) }}
 {% endfor %}
-{% if 'observability' in modules %}
-INSERT INTO {{ qualified(containers.semantic,'data_product_orientation') }} VALUES
- ('TRUST_MAP',{{ product.id|literal }},{{ containers.access|literal }},'trust_map',2,true,current_timestamp,current_timestamp);
+{% endfor %}
+{% endif %}
+{% set primary = named('PrimaryObject') %}
+{% if primary and map %}
+{% for x in entities + relations %}
+{% for role, obj in x.objects|dictsort if obj and obj.primary_role is defined %}
+{{ m.insert(primary, {
+    'container_name': obj.container, 'object_name': obj.name, 'object_type': role|upper,
+    'object_role': obj.primary_role, 'usage_guidance': x.description},
+  {'module_id': m.ref(map, {'module_name': x.module|upper, 'object_type': role|upper,
+                            'container_name': obj.container})}) }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% set orient = named('DataProductOrientation') %}
+{% if orient and orientation %}
+{% for res in orientation.resources %}
+{{ m.insert(orient, {
+    'product_id': product.code, 'resource_role': res.role, 'container_name': res.object.container,
+    'object_name': res.object.name, 'is_required': res.required, 'discovery_order': res.order}) }}
+{% endfor %}
+{% endif %}
+{% set metric = named('Metric') %}
+{% if metric %}
+{% for x in metrics %}
+{{ m.insert(metric, {'metric_name': x.name, 'metric_description': x.description,
+                     'metric_definition': x.measure.text}) }}
+{% if x.measure.sql %}
+{{ m.insert(named('MetricExpression'), {'sql_dialect': platform.name,
+    'expression_text': x.measure.sql ~ ((' WHERE ' ~ x.filter.sql) if x.filter and x.filter.sql else '')},
+  {'metric_name': m.ref(metric, {'metric_name': x.name})}) }}
+{% endif %}
+{% set ds = named(x.dataset) %}
+{% if ds and ds.objects.consumer_view is defined %}
+{{ m.insert(named('MetricDataset'), {'container_name': ds.objects.consumer_view.container,
+    'table_name': ds.objects.consumer_view.name, 'dataset_role': 'PRIMARY'},
+  {'metric_name': m.ref(metric, {'metric_name': x.name})}) }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% set syn = named('SemanticSynonym') %}
+{% if syn and meta and colmeta %}
+{% for x in entities if x.objects.table is defined %}
+{% for s in x.synonyms|default([]) %}
+{{ m.insert(syn, {'object_kind': 'ENTITYMETADATA', 'synonym_text': s},
+  {'synonym_object': m.ref(meta, {'entity_name': x.name})}) }}
+{% endfor %}
+{% for col in x.columns if col.synonyms %}
+{% for s in col.synonyms %}
+{{ m.insert(syn, {'object_kind': 'COLUMNMETADATA', 'synonym_text': s},
+  {'synonym_object': m.ref(colmeta, {'container_name': x.objects.table.container,
+                                     'table_name': x.objects.table.name, 'column_name': col.physical_name})}) }}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% set naming_rel = named('NamingStandard') %}
+{% if naming_rel %}
+{% for role, template in naming.objects|dictsort if m.member(naming_rel, 'applies_to', role.split(' ')[0]|upper) %}
+{{ m.insert(naming_rel, {'standard_type': 'TEMPLATE', 'applies_to': role.split(' ')[0]|upper,
+    'name_template': template, 'meaning': 'How the organisation names a ' ~ role ~ ' object.'}) }}
+{% endfor %}
+{{ m.insert(naming_rel, {'standard_type': 'TEMPLATE', 'applies_to': 'ATTRIBUTE',
+    'name_template': naming.attributes, 'meaning': 'How the organisation names an attribute.'}) }}
+{% for name, mapped in naming.standard_names|dictsort %}
+{{ m.insert(naming_rel, {'standard_type': 'STANDARD_NAME', 'applies_to': 'ALL',
+    'standard_value': name, 'mapped_value': mapped,
+    'meaning': "The organisation's name for a standard-owned name."}) }}
+{% endfor %}
 {% endif %}

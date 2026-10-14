@@ -1,13 +1,33 @@
-{# Inputs: searches, each declaring source/embedding entities, model, dimensions and content fields.
-   Embeddings come from a declared external or in-database encoder. No toy encoder is substituted.
-   Exact scan over current vectors; callers validate shape, finiteness and nonzero norm at the encoder boundary. #}
-{% for s in searches %}
-CREATE MACRO {{ qualified(containers.search,s.name) }}(query_vector,result_limit) AS TABLE
-SELECT e.entity_id,list_cosine_similarity(e.{{ s.vector_column|ident }},query_vector) AS similarity
-{% for name in s.content_columns %},d.{{ name|ident }}{% endfor %}
-FROM {{ s.embedding_entity.view }} e JOIN {{ s.source_entity.view }} d ON e.entity_id=d.{{ s.source_entity.key|ident }}
-WHERE e.entity_kind={{ s.entity_kind|literal }} AND e.embedding_model={{ s.model|literal }} AND e.embedding_model_version={{ s.model_version|literal }}
- AND e.source_attribute={{ s.source_attribute|literal }}
-ORDER BY similarity DESC,e.entity_id LIMIT greatest(0,least(result_limit,1000));
-COMMENT ON MACRO TABLE {{ qualified(containers.search,s.name) }} IS {{ ('Cosine-similarity search of ' ~ s.embedding ~ ' vectors joined back to authoritative ' ~ s.source ~ ' rows. Takes a query vector and a result limit (maximum 1000).')|literal }};
+{# One similarity table macro per `Embedding:` block (Search). Vectors come from the declared
+   encoder outside the database; this binding never substitutes one. The macro ranks the
+   current vectors of its block by the declared similarity, keeps those at or above the
+   declared threshold, and returns the embedded entity's identifier with the score. #}
+{% for b in embeddings if b.objects.function is defined %}
+{% set store = named(b.store) %}{% set sc = store.column_names %}{% set v = 'e.' ~ b.vector_column|ident %}
+{% set q = 'query_vector::FLOAT[' ~ b.dimensions ~ ']' %}
+{% set score -%}
+{%- if b.similarity == 'cosine' -%}
+array_cosine_similarity({{ v }}, {{ q }})
+{%- elif b.similarity == 'dot' -%}
+array_inner_product({{ v }}, {{ q }})
+{%- elif b.similarity == 'euclidean' -%}
+1.0 / (1.0 + array_distance({{ v }}, {{ q }}))
+{%- else -%}
+1.0 / (1.0 + list_sum(list_transform(range(1, {{ b.dimensions|int + 1 }}), lambda i: abs({{ v }}[i] - ({{ q }})[i]))))
+{%- endif -%}
+{%- endset %}
+CREATE MACRO {{ b.objects.function|qualified }}(query_vector, result_limit) AS TABLE
+SELECT ranked.entity_id, ranked.similarity FROM (
+    SELECT e.{{ sc.entity_id|ident }} AS entity_id, {{ score }} AS similarity
+    FROM {{ store.objects.consumer_view|qualified }} e
+    WHERE e.{{ sc.source_attribute|ident }} = {{ b.name|literal }}
+{%- if b.model is defined and b.model %}
+      AND e.{{ sc.embedding_model|ident }} = {{ b.model|literal }}
+{%- endif %}
+) ranked
+{%- if b.threshold is defined and b.threshold %}
+WHERE ranked.similarity >= {{ b.threshold }}
+{%- endif %}
+ORDER BY ranked.similarity DESC NULLS LAST, ranked.entity_id
+LIMIT greatest(0, least(result_limit, 1000));
 {% endfor %}

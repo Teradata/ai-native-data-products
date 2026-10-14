@@ -3,7 +3,14 @@ name: validate
 # Required check for merging to main (see design/core/IMPLEMENTATION_AUTHORING.md
 # section 8). Runs every repository validation suite: design and specification
 # lint, template hygiene (Jinja only), template rendering for every binding,
-# and native engine tests for DuckDB and PostgreSQL.
+# and native engine tests for DuckDB, PostgreSQL and Teradata.
+#
+# Teradata has no container image, so its engine tests run against a disposable
+# system named by the TERADATA_TEST_DSN repository secret (teradatasql connection
+# parameters as JSON). Until the secret is set those tests skip, and the job
+# fails: missing engine coverage is a gap, never a pass. The tests own every
+# database and role prefixed `anptest_` on that system, so runs that use it are
+# serialised across branches.
 #
 # A skipped test is a gap, not a pass (standard section 8). The suites are run
 # with engines available, and the job fails if any test reports a skip.
@@ -24,7 +31,10 @@ jobs:
   validate:
     name: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
+    concurrency:
+      group: teradata-engine
+      cancel-in-progress: false
 
     services:
       postgres:
@@ -42,6 +52,7 @@ jobs:
 
     env:
       POSTGRES_TEST_DSN: postgresql://postgres:ci-only-disposable@localhost:5432/ci
+      TERADATA_TEST_DSN: ${{ secrets.TERADATA_TEST_DSN }}
 
     defaults:
       run:
@@ -55,13 +66,24 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python -m pip install -r tooling/bindings/requirements.txt duckdb "psycopg[binary]"
+        run: python -m pip install -r tooling/bindings/requirements.txt duckdb pytz "psycopg[binary]" teradatasql
 
       - name: Validation suite (design lint, template hygiene, rendering)
         run: python -m unittest discover -s tooling/validation/tests -v 2>&1 | tee validation.log
 
-      - name: Binding suite (DuckDB and PostgreSQL engine tests)
-        run: python -m unittest discover -s tooling/bindings/tests -v 2>&1 | tee bindings.log
+      # Runs the binding and package tests once and regenerates each binding's
+      # CONFORMANCE.md from them. Fails on any failing or skipped test, and when a
+      # committed report differs from the regenerated one (Authoring Standard 8.1);
+      # the regenerated reports are uploaded, to be committed when they change.
+      - name: Binding suite and conformance reports (DuckDB, PostgreSQL and Teradata engine tests)
+        run: python tooling/bindings/conformance.py --check --output build/conformance 2>&1 | tee bindings.log
+
+      - name: Upload the regenerated conformance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-reports
+          path: build/conformance/
 
       - name: Fail on skipped tests
         run: |

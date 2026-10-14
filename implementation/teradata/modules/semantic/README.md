@@ -2,85 +2,66 @@
 title: Teradata Semantic Module Implementation
 anchor: semantic
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: semantic
 platform: teradata
 ---
 
-# Teradata: Semantic Module Implementation
+# Teradata: Semantic
 
-Teradata binding of [`design/modules/semantic.md`](../../../../design/modules/semantic.md). Semantic is the discovery map that provides `SemanticRegistration` and the product orientation layer. Read the design document first. Replace `{{ product }}` with the product name; catalogue tables live in `{{ product }}_Semantic`, the product registry in a shared `governance` container.
+Binding of [Semantic](../../../../design/modules/semantic.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Purpose |
-|------|---------|
-| `01-catalog-tables.sql.j2` | `entity_metadata`, `key_definition`, `key_column`, `column_metadata`, `naming_standard`, `table_relationship`, `relationship_column`. |
-| `02-discovery-tables.sql.j2` | `data_product_map`, `data_product_map_primary_objects`, `view_metadata`, `view_column_type`, `standard_declaration`. |
-| `03-registry.sql.j2` | `governance.data_product_registry`: the orientation-layer anchor. |
-| `04-path-discovery.sql.j2` | `relationship_edges` (one row per direction per key position) and `relationship_paths` (bounded, cycle-free multi-hop paths as rows). |
-| `05-column-catalogue.sql.j2` | `column_catalogue`: live hybrid column catalogue with value provenance. |
-| `06-orientation.md` | MCP resource/tool shapes and the discovery manifest (orientation layer). |
-| `07-access-object.sql.j2` | `access_object`, `access_composition`, `access_column`: the access-object layer (which object a consumer queries, what composites encapsulate, where each output column comes from). |
-| `07-metric-tables.sql.j2` | `metric_metadata`, `metric_expression`, `metric_dataset`, `semantic_synonym`. |
-| `08-access-relationship-paths.sql.j2` | `access_relationship_paths`: `relationship_paths` rows with each step endpoint resolved to a consumable object. |
-| `09-orientation-manifest.sql.j2` | `data_product_orientation` (ordered resource relation) and `data_product_manifest` (generated view over registry, orientation and the `STANDARD` declaration; `standard_version` is its last column). |
-| `validation.sql.j2` | Canonical validator sources: primary-object, view, relationship, access-object, orientation, metric, synonym, identity, key, relationship-column, access-column and composition checks. |
+`01-tables.sql.j2` calls `module_tables('semantic')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md) for the catalogue relations the Semantic standard defines and the resolver places.
 
-## Metadata contract 2.0.0
+`02-registration.sql.j2` writes the product's description of itself, each block only where its relation is placed:
 
-| Change | Teradata shape |
-|--------|----------------|
-| Logical identities | `entity_metadata.entity_name` is `module.entity` (lower case, no container). `access_object.object_identity` is `module.entity:surface`, `module:object` or `composite:name`; its location stays in `database_name` and `object_name`. `data_product_map_primary_objects` gains `object_identity` beside its verbatim location. Every identity-bearing reference (`source_entity`, `target_entity`, `member_entity`, `represents_entity`, `resolves_to_object`, `metric_dataset.entity_name`, `semantic_synonym.object_name`, `composite_object`) holds the logical identity. |
-| Grouped keys | `key_definition` (`entity_name#role`) and `key_column` (ordered). The single-column key columns of `entity_metadata` are gone. |
-| Join groups | `table_relationship` names the two entities; `relationship_column` holds the ordered column pairs. |
-| Paths as rows | `relationship_paths` columns, in order: `path_id`, `origin_entity`, `destination_entity`, `hop_count`, `hop`, `key_ordinal`, `from_entity`, `from_column`, `to_entity`, `to_column`, `relationship_id`, `direction`. `path_id` is the legs of the path, each a relationship id and `>` (FORWARD) or `<` (REVERSE), such as `12>7<`. Four hops at most; no entity is revisited. No concatenated join string exists. |
-| Composites | `access_composition.via_relationship_id` and `via_direction` replace `join_path`; `member_seq` runs from 1. |
-| Column mappings | `access_column`: one row per output column, `mapping_kind` of `PASSTHROUGH`, `RENAMED` or `DERIVED`. |
-| Declaration | `standard_declaration` (component kind `STANDARD`, `MODULE` or `PATTERN`); the manifest reads the `STANDARD` row. Registration, a builder step, writes the rows. |
+- the product registry row from `product` (code, name, description, domain, version, owner, trust producer) and `orientation.access_mode`, with the manifest's consumer view as the approved entry point;
+- the module map from `module_containers`, for object types the relation's vocabulary permits;
+- entity and column metadata for every placed relation in `entities` and `relations`: placement, kind, profile, surrogate and natural columns, current and deleted flag columns, and per column the logical name, description, sensitivity marker, `classification`, `required`, declared type and Enum members;
+- table relationships from `relationships`, by base table;
+- access objects for every placed object of each relation, with consumer views marked agent-consumable;
+- primary objects for every placed object with a `primary_role`;
+- the orientation sequence from `orientation.resources`;
+- metrics from `metrics`, with the rendered measure and filter as a Teradata expression and the dataset's consumer view;
+- entity and column synonyms;
+- naming standards from `naming`: each object template, the attribute template and each standard-name mapping.
 
-Renamed views: `v_relationship_paths` is `relationship_paths` and `v_access_relationship_paths` is `access_relationship_paths`.
+Composite access objects (`access_objects`) are not registered; the manifest reports each as a gap.
+
+`03-discovery.sql.j2` creates the standard-owned discovery views with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, each only where the composition places it and the relations it reads:
+
+- `ColumnCatalogue`: `DBC.ColumnsV` for the product's databases, left-joined to column metadata, with `description_source` `authored` or `missing`;
+- `DataProductManifest`: the active registry row with one column per orientation resource role;
+- `RelationshipPaths`: active table relationships in both directions, up to the Semantic standard's bound of `max_hops` hops (§5) without revisiting a table. Teradata views take no recursion, so each path length is its own branch of a `UNION ALL`, unrolled from the context's bound. Paths join base tables; resolve them through the access objects before issuing consumer SQL;
+- `LineageGraph` and `LineageRunLatest` over Observability's active lineage definitions and their runs, the latest run chosen with `QUALIFY`.
+
+Every text column a union produces is cast, because a union takes its column types from its first branch.
+
+`validation.sql.j2` is the `module semantic` check: every table in a database the product places objects in (`DBC.TablesV`, kinds `T` and `O`), keymaps included, is registered in entity metadata.
+
+Registration uses the placement and relationships the context carries, never name inference. Structural facts come from the `DBC` dictionary views; meanings come from the specification.
 
 ## Capability bindings
 
-| Capability (design) | Teradata binding |
-|---------------------|------------------|
-| `SemanticRegistration` | On deploy, every module `INSERT`s its entity/column/relationship/primary-object rows into `{{ product }}_Semantic`. |
-| Agent discovery | The catalogue tables + `relationship_paths` + `column_catalogue`; product-first via `governance.data_product_registry`. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN` on every catalogue object. |
+| Capability | Binding |
+|---|---|
+| `SemanticRegistration` | Registration inserts for the product, modules, entities, columns, relationships, access and primary objects, orientation, metrics, synonyms and naming standards. |
+| `RichMetadata` | `COMMENT ON` for physical objects, plus authored entity and column metadata and the hybrid column catalogue. |
 
-## Logical-type bindings used here
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
-| Logical type | Teradata type |
-|--------------|---------------|
-| `Identifier` | `INTEGER GENERATED ALWAYS AS IDENTITY` |
-| `NaturalKey` / `ShortText` / `Text` | `VARCHAR(n)` |
-| `LongText` | `CLOB` |
-| `Json` | `JSON` |
-| `Enum{…}` | `VARCHAR(n)` with a documented value set |
-| `Flag` | `BYTEINT` with `CHECK (col IN (0,1))` |
-| `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
+## Invariants and checks
 
-New catalogue tables use the canonical `created_dts`/`updated_dts` audit columns from the [temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/); `temporal_pattern` on `entity_metadata` carries each entity's temporal profile for the whole product.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-SEMANTIC-001,002` | Standard-owned catalogue structures; registries hold datasets, never business instances. |
+| `INV-SEMANTIC-003,006` | Registration at deployment; `module semantic` check, with an engine test that an unregistered table is found. |
+| `INV-SEMANTIC-004,011,012` | Manifest view over the registry and orientation sequence; consumer workflow verification remains required. |
+| `INV-SEMANTIC-005,007..010` | Declared relationships and access objects; composite access objects are not rendered. |
+| `INV-SEMANTIC-013..015` | Metrics and synonyms registered from the specification; metric recipes execute in engine tests. Reference checks over the registrations remain to be written. |
 
-## Invariants → checks
-
-| Invariant | Check |
-|-----------|-------|
-| `INV-SEMANTIC-003` (registered primary objects, verbatim identity) | `validation.sql.j2`: orphan modules, missing/kind-mismatched objects, invalid roles, duplicates. |
-| `INV-SEMANTIC-005` (relationship completeness) | `validation.sql.j2`: isolated entities; path existence per expected pair. |
-| `INV-SEMANTIC-007` (one primary per base table) | `validation.sql.j2`: more than one active primary exposure per base table. |
-| `INV-SEMANTIC-008` (resolve through the registry) | `validation.sql.j2`: registered access object not deployed. |
-| `INV-SEMANTIC-009` (consumable objects resolve to a catalogued entity) | `validation.sql.j2`: non-composite with no entity; `represents_entity` / `member_entity` not catalogued. |
-| `INV-SEMANTIC-010` (composite structure recorded, one anchor) | `validation.sql.j2`: COMPOSITE without a composition; composition without exactly one `ANCHOR`. |
-| `INV-SEMANTIC-011` (ordered orientation, trust map first) | `validation.sql.j2`: missing required role, duplicate role, duplicate order, undeployed object, unordered trust map. Also `VAL-13`: the registry names the trust-authoritative producer. |
-| `INV-SEMANTIC-012` (manifest generated, cannot drift) | `validation.sql.j2`: a manifest entrypoint with no backing active orientation row. |
-| `INV-SEMANTIC-016` (identity grammar, no container, unique) | `validation.sql.j2`: malformed entity or access identity, identity containing a container name, duplicate entity identity. |
-| `INV-SEMANTIC-017` (keys) | `validation.sql.j2`: entity with no `SURROGATE` key, key with no columns or ordinal gaps, key column missing from the entity table. |
-| `INV-SEMANTIC-018` (relationship columns) | `validation.sql.j2`: relationship with no column pair or ordinal gaps, column missing from its entity table. |
-| `INV-SEMANTIC-019` (access columns) | `validation.sql.j2`: output column with no mapping, duplicate or orphan mapping, non-derived source missing. |
-| `INV-SEMANTIC-020` (composite structure) | `validation.sql.j2`: not exactly one `ANCHOR`, `member_seq` gaps, `via_relationship_id` that does not join the member to a prior member. |
-
-The checks read `DBC.ColumnsV` for physical columns and use `REGEXP_SIMILAR` for the identity grammar. Each returns zero rows for a conforming deployment. Rendering is verified by `tooling/validation/tests`; execution on Teradata has not been run.
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

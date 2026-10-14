@@ -13,31 +13,33 @@ platform: duckdb
 
 Binding of [Observability](../../../../design/modules/observability.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-`entities.json` declares standard-owned event, quality, lineage-definition, lineage-run, model-performance, outcome, retention and validation structures. `01-tables.sql.j2` renders only the selected module. Event and current-state profiles are distinct; definitions do not receive event retention by accident.
+## Templates
 
-Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. There is no automatic audit trigger or synthetic quality score, and the maintenance template does not emit change events. DuckDB cannot make a table append-only for a principal, so append-only intent is a convention of the writing application; enforcement is external.
+`01-tables.sql.j2` calls `module_tables('observability')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The relations are those the Observability standard defines and the resolver places: change events, quality metrics, lineage definitions and runs, model performance, agent outcomes, and the validation relations `ValidationRun` and `ValidationArea`. Event relations are append-only by profile; lineage definitions are current-state. Each gets a consumer view from the temporal pattern.
 
-The shared validator (`tooling/bindings/validate.py`) publishes run, area and check evidence using the standard wire 2.1 fields, including severity-aware area summaries. Missing checks, execution errors and missing ML or operational evidence remain visible. Retention is a supplied design decision and an operator-managed process; templates never silently delete historical records.
+The module's views are rendered elsewhere: `LineageGraph` and `LineageRunLatest` by [Semantic discovery](../semantic/README.md), and `TrustMap` by [Validation](../../patterns/validation/README.md).
+
+Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. No trigger or synthetic quality score is emitted, and the maintenance template emits no change event. DuckDB cannot make a table append-only for one writer, so append-only intent is a convention of the writing application. Validation evidence is written by [`validate.py`](../../../../tooling/bindings/README.md) using the placement the manifest carries. Retention is a settled design decision and an operator-managed process; no template deletes records.
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `ChangeEventCapture` | Append-only `change_event` table. The writer must emit events; no trigger is emitted. |
-| `AgentOutcomeCapture` | Append-only `agent_outcome` table of aggregate outcomes. The host supplies actor identity and redacts parameters. |
-| `LineageCapture` | Active-only `lineage_graph` and `lineage_run_latest` views over separate definition and run tables. |
-| `QualityScore` | Independent `data_quality_metric` time series, not conflated with validation coverage. |
+| `ChangeEventCapture` | Append-only change-event table; the writer must emit events. |
+| `AgentOutcomeCapture` | Append-only agent-outcome table; the host supplies actor identity and redacts parameters. |
+| `LineageCapture` | Separate definition and run tables, with the lineage graph and latest-run views over active definitions. |
+| `QualityScore` | Quality-metric time series, separate from validation evidence. |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## Invariants and checks
 
 | Invariant | Evidence or outstanding check |
 |---|---|
-| `INV-OBS-001,002` | Standard-owned event schemas contain table-level references and counts; producer payload review required. |
-| `INV-OBS-003,006` | Separate definition and run tables; active-only distinct lineage views are mutation-tested. |
-| `INV-OBS-004` | Separate retention declaration; operators prove enforcement. |
-| `INV-OBS-005` | Wire 2.1 append publisher; execution-error, severity and evidence tests on DuckDB. |
-| `INV-OBS-007..009` | Optional graph-native facet not selected; no adapter or graph identity guarantee claimed. |
+| `INV-OBS-001,002` | Standard-owned event structures hold table-level references and counts; producer payload review required. |
+| `INV-OBS-003,006` | Separate definition and run tables; lineage views read active definitions only. |
+| `INV-OBS-004` | Retention is a settled decision; operators prove enforcement. |
+| `INV-OBS-005` | Wire 2.1 run and area records appended by the validator; engine tests of failures, errors, staleness and producer selection. |
+| `INV-OBS-007..009` | Optional graph-native facet not rendered; no graph identity guarantee claimed. |
 
-Logical types follow the [platform type table](../../PLATFORM_PROFILE.md#2-type-bindings). Temporal and lifecycle fields come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and are omitted when those modules are absent.
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

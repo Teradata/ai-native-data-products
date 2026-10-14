@@ -1,32 +1,23 @@
--- Temporal & Lifecycle Metadata: access views (Teradata).
--- Binding of the access exposure policy in design/patterns/temporal-lifecycle-metadata.md. Default current
--- surface selects from the governed view, never the base table (TLM-14).
-{#
-  Template variables (build context):
-    db            : container holding the views
-    current_view  : name of the default current access view
-    governed_view : name of the governed full-contract view
-    natural_key   : natural/business key column
-    attributes    : list of { name } business attributes the current surface exposes
-#}
-
--- Default current access view: authoritative sentinel predicate PLUS the
--- convenience flag (any disagreement is a TLM-10 defect validation catches).
--- Hides valid_to_dts, is_current, deletion metadata, and audit timestamps.
-REPLACE VIEW {{ db }}.{{ current_view }}
-AS
+{# The governed base view of every persisted relation (this binding emits `base_view: all`):
+   every column, every row, the full temporal contract. Then the consumer view: current rows
+   only, without the open interval ends, which are always open on this surface. Point-in-time
+   reads go through the base view with the profile's predicates; Teradata SQL has no table
+   functions. Runtime relations have no consumer view. Views read with an access lock so a
+   consumer never blocks a load. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.base_view is defined %}
+REPLACE VIEW {{ x.objects.base_view|qualified }} AS
 LOCKING ROW FOR ACCESS
-SELECT
-      a.{{ natural_key }}
-{%- for a in attributes %}
-    , a.{{ a.name }}
-{%- endfor %}
-    , a.valid_from_dts AS effective_since   -- optional exposure (access exposure policy)
-FROM {{ db }}.{{ governed_view }} AS a
-WHERE a.valid_to_dts = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
-  AND a.is_current = 1
-  AND a.is_deleted = 0;
-
--- Point-in-time (as-of) access uses the half-open predicate:
---   WHERE a.valid_from_dts <= :as_of_dts
---     AND :as_of_dts < a.valid_to_dts
+SELECT {{ m.cols(x.columns|map(attribute='physical_name')) }}
+FROM {{ x.objects.table|qualified }};
+COMMENT ON VIEW {{ x.objects.base_view|qualified }} IS {{ m.comment('Governed full contract: ' ~ x.description) }};
+{% endfor %}
+{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and x.objects.consumer_view is defined %}
+{% set source = x.objects.base_view if x.objects.base_view is defined else x.objects.table %}
+REPLACE VIEW {{ x.objects.consumer_view|qualified }} AS
+LOCKING ROW FOR ACCESS
+SELECT {{ m.cols(x.columns|rejectattr('name', 'in', ('valid_to_dts', 'transaction_to_dts'))|map(attribute='physical_name')) }}
+FROM {{ source|qualified }}
+WHERE {{ m.current(x) }};
+COMMENT ON VIEW {{ x.objects.consumer_view|qualified }} IS {{ m.comment('Current consumer surface: ' ~ x.description) }};
+{% endfor %}

@@ -213,7 +213,7 @@ WHERE c.database_name = 'CustExp_DOM_STD_T'
   AND c.table_name    = 'customer_interaction'
   AND c.column_name   = 'satisfaction_score';
 
--- Expected: 4 rows. The database does retain that the change happened, when, under which
+-- Expected: 3 rows. The database does retain that the change happened, when, under which
 -- release, and why - including the warning that the two series are not comparable. Between
 -- this and the exports either side of 2025-06-10, a catalogue can show a user both
 -- wordings and the reason for the change.
@@ -236,15 +236,13 @@ WHERE c.database_name = 'CustExp_DOM_STD_T'
   AND c.column_name   = 'resolution_channel_code';
 
 SELECT r.relationship_name
-     , r.source_entity
-     , c.source_column
-     , r.target_entity
-     , c.target_column
+     , r.source_table
+     , r.source_column
+     , r.target_table
+     , r.target_column
      , r.cardinality
      , r.created_dts
 FROM CustExp_SEM_STD_T.table_relationship AS r
-INNER JOIN CustExp_SEM_STD_T.relationship_column AS c
-    ON c.relationship_id = r.relationship_id
 WHERE r.relationship_name = 'interaction_resolution_channel';
 
 -- ---------------------------------------------------------------------------

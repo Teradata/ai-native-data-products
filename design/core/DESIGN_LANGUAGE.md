@@ -6,7 +6,7 @@ status: standard
 version: 2.0
 normative: true
 lint: ignore-file
-lint_reason: meta document - necessarily names SQL keywords and shows platform bindings to define the boundary
+lint_reason: meta document - necessarily names SQL keywords to define the boundary
 ---
 
 # Design Language
@@ -49,7 +49,7 @@ Design documents are written as **interface specifications**: they declare what 
 
 Every sentence in a design document must pass one test:
 
-> **Would this sentence change if the target platform changed from Teradata to Postgres to DuckDB?**
+> **Would this sentence change if the target platform changed?**
 >
 > - **No**: it stays true on every platform → it belongs in `design/`.
 > - **Yes**: it changes with the platform → it belongs in `implementation/{platform}/`.
@@ -113,7 +113,7 @@ status: standard          # draft | standard | deprecated
 version: 2.0
 normative: true           # false marks the document advisory, not conformance-binding
 implements: search        # implementation documents only: the design anchor satisfied
-platform: teradata        # implementation and platform-profile documents only
+platform: {platform}      # implementation and platform-profile documents only: a directory under implementation/
 supersedes: []            # anchors this document replaces, when deprecating
 ---
 ```
@@ -258,7 +258,7 @@ A design document lists the capabilities it requires. Each platform implementati
 | `LineageCapture` | Record the origin of an entity instance: source system, source record, and the run that produced it. | insert into the Observability lineage entities. |
 | `AgentOutcomeCapture` | Record which tables and agent touched, when, and with what outcome, as a queryable event separate from the tables themselves. | insert into the Observability `AgentOutcome` entity. |
 | `QualityScore` | Obtain a reliability score in `0.00`-`1.00` for an entity instance or set, decomposed into the rule categories that produced it, so an agent can judge fitness before use. | quality metric entity plus a scoring view. |
-| `MetadataCoverageCheck` | Confirm programmatically that every container, object and attribute of the product carries metadata. The sweep covers everything the product owns, not only what its declared entities name. | catalogue query returning every uncommented container, table, view, routine or column. |
+| `MetadataCoverageCheck` | Confirm programmatically that every attribute carries metadata. | catalogue query returning uncommented columns. |
 | `SemanticRegistration` | Register the module's entities, columns, and relationships in the product's Semantic map so agents can discover them. | inserts into the Semantic discovery entities. |
 | `DocumentationCapture` | Record the module's design decisions, glossary terms, and change history in the product's Memory store. | inserts into the Memory documentation entities. |
 | `AgentContinuity` | Carry agent state across sessions: retrieve prior sessions, interactions, learned strategies, and preferences for a given scope, so an agent resumes rather than restarts. | inserts and reads over the Memory runtime entities. |
@@ -380,6 +380,8 @@ A design document **fails** the linter if any of the following appear:
 2. **SQL statements inside any fenced block.** Within any code block, a line beginning with a SQL statement keyword, `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `ALTER`, `DROP`, `GRANT`, `REVOKE`, is a violation. (The pseudo-notation in the Entity Notation section uses none of these, so it passes.)
 3. **Platform data types or vendor tokens, anywhere.** High-precision tokens that are never ordinary English and only ever appear in SQL: `VARCHAR`, `BIGINT`, `BYTEINT`, `SMALLINT`, `DECIMAL(`, `FLOAT32`, `TIMESTAMP(`, `PRIMARY INDEX`, `UNIQUE PRIMARY INDEX`, `GENERATED ALWAYS AS IDENTITY`, `NOT NULL`, `DEFAULT `, `COMMENT ON`, and any `TD_`-prefixed function. Use the logical types of the Logical Type Vocabulary section instead.
 
+4. **A platform's name, anywhere.** Any platform with a binding under `implementation/`, or one the linter lists as known. A design sentence that names a platform fails the boundary test of The Design / Implementation Boundary by construction. Unlike the three rules above, this one has no escape hatch.
+
 **Escape hatch.** A core/meta document that must legitimately name SQL (this document; the linter's own README) carries an ignore directive on its first line:
 
 ```
@@ -409,29 +411,9 @@ Before a design document is considered conforming:
 
 ---
 
-## Appendix A: Illustrative Platform Bindings
+## Appendix A: Where the Bindings Live
 
-This appendix is illustrative only. Authoritative bindings live in each platform's implementation. It is here to make the boundary concrete; it is why this document carries the `ignore-file` directive.
-
-| Logical type | Teradata | Postgres | DuckDB |
-|---|---|---|---|
-| `Identifier` | `BIGINT` via keymap (stable across versions) | `BIGINT` + identity/keymap | `BIGINT` + sequence |
-| `NaturalKey` | `VARCHAR(n)` | `VARCHAR(n)` / `TEXT` | `VARCHAR` |
-| `Reference -> E` | `BIGINT` | `BIGINT` | `BIGINT` |
-| `ShortText` / `Text` / `LongText` | `VARCHAR(n)` / `CLOB` | `VARCHAR(n)` / `TEXT` | `VARCHAR` |
-| `Json` | `JSON` | `JSONB` | `JSON` / `STRUCT` |
-| `Decimal(p,s)` | `DECIMAL(p,s)` | `NUMERIC(p,s)` | `DECIMAL(p,s)` |
-| `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` | `TIMESTAMPTZ` | `TIMESTAMPTZ` |
-| `Date` | `DATE` | `DATE` | `DATE` |
-| `Flag` | `BYTEINT` | `BOOLEAN` | `BOOLEAN` |
-| `Vector[dim]` | native `VECTOR` (`FLOAT32(dim)`) | `vector(dim)` (pgvector) | `FLOAT[dim]` (vss) |
-
-| Capability | Teradata | Postgres | DuckDB |
-|---|---|---|---|
-| `NearestNeighbors` | `TD_VectorDistance` | `ORDER BY emb <=> q LIMIT k` (pgvector) | `array_cosine_similarity` / vss |
-| `ApproxIndex` | KMEANS / HNSW via Vector Store | `ivfflat` / `hnsw` index | vss HNSW |
-| `Embed(text, model)` | in-database ONNX embedding | external API | external API |
-| `CurrentStateFilter` | flag predicate | flag predicate | flag predicate |
+How each logical type and capability is realised is the binding's, declared once as data in each `implementation/{platform}/PLATFORM_PROFILE.md`: its `Types:` block gives the physical type of every logical type, its `Functions:` block the SQL for every expression function, and its module and pattern directories the capability bindings. This document deliberately carries no copy of them, which would drift from the bindings it describes.
 
 ---
 

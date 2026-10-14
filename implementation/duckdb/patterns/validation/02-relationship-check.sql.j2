@@ -1,5 +1,0 @@
-{# Input: relationship. Validation is current-surface referential coverage, not historical referential proof.
-   A composite relationship is one join group: every pair must match, so the pairs are joined with AND. #}
-SELECT {% for p in relationship.columns %}s.{{ p.source|ident }}{% if not loop.last %},{% endif %}{% endfor %} FROM {{ relationship.source_entity.view }} s
-LEFT JOIN {{ relationship.target_entity.view }} t ON {% for p in relationship.columns %}s.{{ p.source|ident }}=t.{{ p.target|ident }}{% if not loop.last %} AND {% endif %}{% endfor %}
-WHERE {% if not relationship.mandatory %}{% for p in relationship.columns %}s.{{ p.source|ident }} IS NOT NULL AND {% endfor %}{% endif %}t.{{ relationship.columns[0].target|ident }} IS NULL;

@@ -1,5 +1,0 @@
-{# Inputs: schemas (explicit resolved placement), platform. No inferred containers. #}
-{% if platform=='postgres' %}CREATE EXTENSION IF NOT EXISTS btree_gist;{% endif %}
-{% for schema in schemas %}CREATE SCHEMA {{ schema|ident }};
-{% if platform=='postgres' %}COMMENT ON SCHEMA {{ schema|ident }} IS {{ ('Container for the ' ~ ('consumer access surface' if schema==containers.access else containers|dictsort|selectattr(1,'equalto',schema)|map(attribute=0)|first ~ ' module') ~ ' of data product ' ~ product.id ~ '.')|literal }};
-{% endif %}{% endfor %}

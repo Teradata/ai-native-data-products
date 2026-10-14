@@ -13,17 +13,19 @@ platform: duckdb
 
 Binding of [Access Layer](../../../../design/patterns/access-layer.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-DuckDB has no roles, GRANT, REVOKE or row-level security. `01-grants.sql.j2` therefore emits no simulated privilege statements. It renders a comment-only record of the enforcement boundary and lists the consumer surfaces (access views, search macros, the discovery entry point) and the runtime stores that an authenticated serving application must expose or withhold. The design's READ, AGENT and ADMIN tiers are an external obligation: the binding does not claim that any tier is enforced.
+DuckDB has no roles, `GRANT`, `REVOKE` or row-level security. The binding declares `Principals: unsupported` in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations), so this pattern has **no template and no access phase**, and nothing simulates privilege statements.
 
-Opening the database file read-only prevents writes. It does not hide base tables, historical macros, runtime memory or PII, nor does it constrain host file or network access. Schema separation and naming are not authorisation. Direct file or JDBC users see everything; DuckDB documents its [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview). A production service must authorise queries, derive runtime scope from authenticated identity, bound append rights and expose no arbitrary SQL channel; real private runtime data belongs in separate protected storage.
+The organisation profile declares each tier (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) as `outside <how it is enforced>`, for example read-only file access for the read tier. The resolver records that text in the context's `principals` and rejects a profile that asks the build to `create` a principal or bind an `existing` one for this binding. The tiers are an external obligation: the binding does not claim that any tier is enforced.
 
-The access-layer trust area stays unknown until a deployment owner supplies evidence of external enforcement. This is declared in [conformance scope](../../CONFORMANCE.md), not reported as conformance.
+Opening the database file read-only prevents writes. It does not hide base tables, point-in-time macros, runtime Memory or PII, nor does it constrain host file or network access. Schema separation and naming are not authorisation; direct file users see everything. See DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview). A production service must authorise queries, derive runtime scope from authenticated identity, bound append rights and expose no arbitrary SQL channel; private runtime data belongs in separate protected storage.
+
+No check covers access, and no evidence is published for it. This is declared in [conformance scope](../../CONFORMANCE.md), not reported as conformance.
 
 ## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `AccessView` | Explicit consumer projections in the access container (see temporal-lifecycle-metadata). Not a security boundary. |
-| `ProductRoleAccess` | Unsupported natively; external application enforcement. |
+| `AccessView` | Consumer views in the containers the profile places (see temporal-lifecycle-metadata). Not a security boundary. |
+| `ProductRoleAccess` | Unsupported natively; enforced outside the engine as the profile declares. |
 
-See [template inputs](../../TEMPLATE_INPUTS.md) and [conformance scope](../../CONFORMANCE.md). Every SQL template is rendered with StrictUndefined; SQL types, predicates and constraints are trusted builder-authored inputs.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

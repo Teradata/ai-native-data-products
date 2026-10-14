@@ -1,4 +1,11 @@
-{# All persisted tables in declared module containers must be registered, including keymaps. #}
-SELECT t.table_schema,t.table_name FROM information_schema.tables t
-LEFT JOIN {{ qualified(containers.semantic,'entity_metadata') }} e ON e.container_name=t.table_schema AND e.table_name=t.table_name
-WHERE t.table_catalog=current_database() AND t.table_type='BASE TABLE' AND t.table_schema IN ({% for m in modules %}{{ containers[m]|literal }}{% if not loop.last %},{% endif %}{% endfor %}) AND e.entity_name IS NULL;
+{# Every table of the product is registered in EntityMetadata, keymaps included: every table
+   in a container it owns, and each table it adopted. Every returned row is an unregistered
+   table. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% set meta = named('EntityMetadata') %}{% set c = meta.column_names %}
+SELECT t.table_schema, t.table_name FROM information_schema.tables t
+LEFT JOIN {{ meta.objects.table|qualified }} e
+  ON e.{{ c.container_name|ident }} = t.table_schema AND e.{{ c.table_name|ident }} = t.table_name
+WHERE t.table_type = 'BASE TABLE' AND t.table_catalog = current_database()
+  AND {{ m.in_product('t.table_schema', 't.table_name') }}
+  AND e.{{ c.entity_name|ident }} IS NULL

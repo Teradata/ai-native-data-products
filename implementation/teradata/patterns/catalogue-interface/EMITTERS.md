@@ -21,15 +21,15 @@ A connector reads a native database object. Snowflake has `SEMANTIC VIEW`; Terad
 |---|---|---|
 | `name` | product identifier | one model per product per version |
 | `version` | the format's own schema version | not the product version; that goes in the descriptor and in an extension field |
-| `datasets[].name` | `entity_name` | the logical identity (`module.entity`), not the table name |
+| `datasets[].name` | `entity_name` | business name, not the table name |
 | `datasets[].source` | `source_container` + `source_object` | the consumer exposure where one is declared, base table otherwise |
-| `datasets[].primary_key` | query 1b: the `SURROGATE` key columns in `ordinal` order, else the `NATURAL` key's | omitted when neither is declared; a composite key lists every column |
+| `datasets[].primary_key` | `surrogate_key_column`, else `natural_key_column` | omitted when neither is declared |
 | `datasets[].description` | `entity_description` | |
 | `datasets[].fields[].name` | `column_name` | |
 | `datasets[].fields[].expression` | the column name, in the configured dialect | a field maps to a physical column; only metrics carry real expressions |
 | `datasets[].fields[].datatype` | `data_type`, mapped | see the type map below |
 | `datasets[].fields[].dimension.is_time` | `is_time` from query 2 | resolved from the declared type, never the column name |
-| `relationships[]` | query 3 | direction per `emit_direction`; see below. One row per column pair: group by `relationship_id` and join the pairs in `ordinal` order |
+| `relationships[]` | query 3 | direction per `emit_direction`; see below |
 | `metrics[].name` / `.description` / `.datatype` | query 4 | |
 | `metrics[].expression.dialects[]` | query 5 | one entry per declared dialect |
 | `ai_context.synonyms` | query 6 | grouped onto the entity, field or metric it resolves to |

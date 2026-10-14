@@ -1,0 +1,7 @@
+{# Rendered per relationship, with `relationship`. Current-surface referential coverage, not
+   historical proof: every returned row is a current reference with no current target. A generic
+   reference is checked only for the rows its discriminator points at this target. #}
+{% set r = relationship %}{% set source = named(r.source) %}
+SELECT s.{{ r.source_column|ident }} FROM {{ (r.source_view or r.source_table)|qualified }} s
+LEFT JOIN {{ (r.target_view or r.target_table)|qualified }} t ON s.{{ r.source_column|ident }} = t.{{ r.target_columns[0]|ident }}
+WHERE {% if r.discriminator %}s.{{ source.column_names[r.discriminator]|ident }} = {{ r.discriminator_value|literal }} AND {% endif %}{% if not r.mandatory %}s.{{ r.source_column|ident }} IS NOT NULL AND {% endif %}t.{{ r.target_columns[0]|ident }} IS NULL

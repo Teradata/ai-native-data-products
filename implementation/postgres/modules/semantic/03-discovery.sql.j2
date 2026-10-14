@@ -1,117 +1,87 @@
-{# Inputs: containers, modules. Consumers bootstrap at access.data_product_manifest. #}
-CREATE VIEW {{ qualified(containers.access,'column_catalogue') }} AS
-SELECT c.table_schema AS container_name,c.table_name,c.column_name,c.data_type,c.is_nullable,
- m.business_description,m.is_pii,m.is_sensitive,m.data_classification,
- 'information_schema.columns' AS declared_type_source,
- CASE WHEN m.business_description IS NULL THEN 'missing' ELSE 'authored' END AS description_source
-FROM information_schema.columns c LEFT JOIN {{ qualified(containers.semantic,'column_metadata') }} m
-ON m.container_name=c.table_schema AND m.table_name=c.table_name AND m.column_name=c.column_name
-WHERE c.table_schema IN ({% for schema in schemas %}{{ schema|literal }}{% if not loop.last %},{% endif %}{% endfor %});
-COMMENT ON VIEW {{ qualified(containers.access,'column_catalogue') }} IS {{ 'Column-level catalogue of every product container: declared type, nullability and authored business description.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.container_name IS {{ "Container (schema) that holds the column's table or view."|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.table_name IS {{ 'Table or view that holds the column.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.column_name IS {{ 'Column name.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.data_type IS {{ 'Declared platform data type of the column.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.is_nullable IS {{ 'YES when the column accepts nulls, otherwise NO.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.business_description IS {{ 'Authored business meaning of the column; null when none is registered.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.is_pii IS {{ 'True when the column holds personally identifiable information.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.is_sensitive IS {{ 'True when the column holds sensitive data requiring restricted use.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.data_classification IS {{ 'Authored data classification label for the column.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.declared_type_source IS {{ 'Catalogue that supplied the declared type.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.description_source IS {{ 'authored when a business description is registered, missing otherwise.'|literal }};
-CREATE VIEW {{ qualified(containers.access,'data_product_manifest') }} AS
-SELECT p.product_id,p.product_version,p.approved_entrypoint,p.trust_authoritative_producer,
- o.resource_role,o.container_name,o.object_name,o.discovery_order,o.is_required,
- (SELECT d.standard_version FROM {{ qualified(containers.semantic,'standard_declaration') }} d
-  WHERE d.product_id=p.product_id AND d.component_kind='STANDARD') AS standard_version
-FROM {{ qualified(containers.semantic,'data_product_registry') }} p
-JOIN {{ qualified(containers.semantic,'data_product_orientation') }} o USING(product_id);
-COMMENT ON VIEW {{ qualified(containers.access,'data_product_manifest') }} IS {{ 'Bootstrap manifest: the approved entrypoint, trust producer and ordered discovery resources of the data product.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_id IS {{ 'Identifier of the data product.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_version IS {{ 'Published contract version of the data product.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.approved_entrypoint IS {{ 'Consumer object an agent should start from.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.trust_authoritative_producer IS {{ 'Validation producer whose evidence is authoritative for trust.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.resource_role IS {{ 'Role the listed resource plays in discovery, for example MANIFEST or TRUST_MAP.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.container_name IS {{ 'Exact deployed container of the discovery resource; use as given.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.object_name IS {{ 'Exact deployed object name of the discovery resource; use as given.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.discovery_order IS {{ 'Order in which a consumer should read the resources, lowest first.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.is_required IS {{ 'True when the resource must exist for the deployment to conform.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.standard_version IS {{ 'Release of the standard the deployment declares it implements; null when no declaration is registered.'|literal }};
-CREATE VIEW {{ qualified(containers.access,'relationship_edges') }} AS
-SELECT r.relationship_id,c.ordinal AS key_ordinal,'FORWARD' AS direction,
- r.source_entity AS from_entity,c.source_column AS from_column,r.target_entity AS to_entity,c.target_column AS to_column
-FROM {{ qualified(containers.semantic,'table_relationship') }} r
-INNER JOIN {{ qualified(containers.semantic,'relationship_column') }} c ON c.relationship_id=r.relationship_id
-UNION ALL
-SELECT r.relationship_id,c.ordinal,'REVERSE',r.target_entity,c.target_column,r.source_entity,c.source_column
-FROM {{ qualified(containers.semantic,'table_relationship') }} r
-INNER JOIN {{ qualified(containers.semantic,'relationship_column') }} c ON c.relationship_id=r.relationship_id;
-COMMENT ON VIEW {{ qualified(containers.access,'relationship_edges') }} IS {{ 'Relationships as traversable steps in both directions: one row per key position, grouped by relationship.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.relationship_id IS {{ 'Relationship, which is the join group, this row belongs to.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.key_ordinal IS {{ 'Position of the column pair within the join, from 1.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.direction IS {{ "FORWARD when crossing from the relationship's source to its target, REVERSE for the other way."|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.from_entity IS {{ 'Logical identity of the entity the step leaves.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.from_column IS {{ 'Join column on the entity the step leaves.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.to_entity IS {{ 'Logical identity of the entity the step arrives at.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_edges') }}.to_column IS {{ 'Join column on the entity the step arrives at.'|literal }};
-CREATE VIEW {{ qualified(containers.access,'relationship_paths') }} AS
-WITH RECURSIVE steps AS (
- SELECT DISTINCT relationship_id,direction,from_entity,to_entity,
-  relationship_id||CASE direction WHEN 'FORWARD' THEN '>' ELSE '<' END AS leg
- FROM {{ qualified(containers.access,'relationship_edges') }}
+{# The standard-owned discovery views (Design Specification Standard §4.1): Semantic's column
+   catalogue, manifest and relationship paths, and Observability's lineage views. Each is
+   created only where the composition places it, and reads only relations the build context
+   places. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% set colmeta = named('ColumnMetadata') %}{% set catalogue = named('ColumnCatalogue') %}
+{% if catalogue and colmeta %}{% set c = colmeta.column_names %}
+CREATE VIEW {{ catalogue.objects.consumer_view|qualified }} AS
+SELECT col.table_schema AS container_name, col.table_name, col.column_name, col.data_type,
+       col.is_nullable, m.{{ c.logical_name|ident }} AS logical_name,
+       m.{{ c.business_description|ident }} AS business_description, m.{{ c.is_pii|ident }} AS is_pii,
+       m.{{ c.sensitivity_marker|ident }} AS sensitivity_marker,
+       m.{{ c.data_classification|ident }} AS data_classification,
+       m.{{ c.declared_type|ident }} AS declared_type,
+       'information_schema.columns' AS structural_source,
+       CASE WHEN m.{{ c.business_description|ident }} IS NULL THEN 'missing' ELSE 'authored' END AS description_source
+FROM information_schema.columns col
+LEFT JOIN {{ colmeta.objects.table|qualified }} m
+  ON m.{{ c.container_name|ident }} = col.table_schema AND m.{{ c.table_name|ident }} = col.table_name
+ AND m.{{ c.column_name|ident }} = col.column_name
+WHERE {{ m.in_product('col.table_schema', 'col.table_name') }};
+{% endif %}
+{% set registry = named('DataProductRegistry') %}{% set orient = named('DataProductOrientation') %}
+{% set manifest = named('DataProductManifest') %}
+{% if manifest and registry and orient %}{% set p = registry.column_names %}{% set o = orient.column_names %}
+CREATE VIEW {{ manifest.objects.consumer_view|qualified }} AS
+SELECT r.{{ p.product_id|ident }} AS product_id, r.{{ p.product_name|ident }} AS product_name,
+       r.{{ p.product_version|ident }} AS product_version, r.{{ p.product_status|ident }} AS product_status,
+       r.{{ p.approved_entrypoint|ident }} AS approved_entrypoint,
+       r.{{ p.approved_access_mode|ident }} AS approved_access_mode,
+       r.{{ p.trust_authoritative_producer|ident }} AS trust_authoritative_producer
+{%- for res in orientation.resources %},
+       max(CASE WHEN o.{{ o.resource_role|ident }} = {{ res.role|literal }} THEN o.{{ o.container_name|ident }} || '.' || o.{{ o.object_name|ident }} END) AS {{ res.role|lower|ident }}
+{%- endfor %}
+FROM {{ registry.objects.table|qualified }} r
+JOIN {{ orient.objects.table|qualified }} o ON o.{{ o.product_id|ident }} = r.{{ p.product_id|ident }}
+WHERE r.{{ p.is_active|ident }} AND NOT r.{{ p.is_deleted|ident }} AND o.{{ o.is_active|ident }}
+GROUP BY 1, 2, 3, 4, 5, 6, 7;
+{% endif %}
+{% set rel = named('TableRelationship') %}{% set paths = named('RelationshipPaths') %}
+{% if paths and rel %}{% set t = rel.column_names %}
+CREATE VIEW {{ paths.objects.consumer_view|qualified }} AS
+WITH RECURSIVE edges AS (
+    SELECT {{ t.source_container|ident }} || '.' || {{ t.source_table|ident }} AS from_object, {{ t.source_column|ident }} AS from_column,
+           {{ t.target_container|ident }} || '.' || {{ t.target_table|ident }} AS to_object, {{ t.target_column|ident }} AS to_column
+    FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }}
+    UNION ALL
+    SELECT {{ t.target_container|ident }} || '.' || {{ t.target_table|ident }}, {{ t.target_column|ident }},
+           {{ t.source_container|ident }} || '.' || {{ t.source_table|ident }}, {{ t.source_column|ident }}
+    FROM {{ rel.objects.table|qualified }} WHERE {{ t.is_active|ident }}
 ), paths AS (
- SELECT s.from_entity AS origin_entity,s.to_entity AS destination_entity,
-  ARRAY[s.from_entity::TEXT,s.to_entity::TEXT] AS visited,ARRAY[s.leg::TEXT] AS legs,1 AS hops
- FROM steps s
- UNION ALL
- SELECT p.origin_entity,s.to_entity,array_append(p.visited,s.to_entity::TEXT),array_append(p.legs,s.leg::TEXT),p.hops+1
- FROM paths p INNER JOIN steps s ON s.from_entity=p.destination_entity
- WHERE p.hops<4 AND NOT (s.to_entity=ANY(p.visited))
+    SELECT from_object, to_object, ARRAY[from_object, to_object] AS visited,
+           from_object || '.' || from_column || ' = ' || to_object || '.' || to_column AS join_path, 1 AS hops
+    FROM edges
+    UNION ALL
+    SELECT p.from_object, e.to_object, p.visited || e.to_object,
+           p.join_path || ' AND ' || e.from_object || '.' || e.from_column || ' = ' || e.to_object || '.' || e.to_column,
+           p.hops + 1
+    FROM paths p JOIN edges e ON e.from_object = p.to_object
+    WHERE p.hops < {{ paths.max_hops }} AND NOT e.to_object = ANY(p.visited)
 )
-SELECT array_to_string(p.legs,'') AS path_id,p.origin_entity,p.destination_entity,p.hops AS hop_count,h.hop,
- e.key_ordinal,e.from_entity,e.from_column,e.to_entity,e.to_column,e.relationship_id,e.direction
-FROM paths p
-CROSS JOIN LATERAL generate_series(1,cardinality(p.legs)) AS h(hop)
-INNER JOIN {{ qualified(containers.access,'relationship_edges') }} e
- ON e.relationship_id=substr(p.legs[h.hop],1,length(p.legs[h.hop])-1)
- AND e.direction=CASE substr(p.legs[h.hop],length(p.legs[h.hop]),1) WHEN '>' THEN 'FORWARD' ELSE 'REVERSE' END;
-COMMENT ON VIEW {{ qualified(containers.access,'relationship_paths') }} IS {{ 'Join paths of up to four steps between entities, one row per step and key position, ready for a consumer to assemble the join.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.path_id IS {{ 'Ordered legs of the path, each a relationship id followed by > for FORWARD or < for REVERSE.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.origin_entity IS {{ 'Logical identity of the entity the path starts from.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.destination_entity IS {{ 'Logical identity of the entity the path ends at.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.hop_count IS {{ 'Number of relationship steps in the path, at most four.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.hop IS {{ 'Position of this step in the path, from 1.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.key_ordinal IS {{ 'Position of the column pair within the join, from 1.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.from_entity IS {{ 'Logical identity of the entity the step leaves.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.from_column IS {{ 'Join column on the entity the step leaves.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.to_entity IS {{ 'Logical identity of the entity the step arrives at.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.to_column IS {{ 'Join column on the entity the step arrives at.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.relationship_id IS {{ 'Relationship, which is the join group, this row belongs to.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'relationship_paths') }}.direction IS {{ "FORWARD when crossing from the relationship's source to its target, REVERSE for the other way."|literal }};
-
-{% if 'observability' in modules %}
-CREATE VIEW {{ qualified(containers.access,'lineage_graph') }} AS
-SELECT DISTINCT source_table AS source_node,job_name AS target_node,'produces' AS edge_type
-FROM {{ qualified(containers.observability,'data_lineage') }} WHERE is_active
-UNION SELECT DISTINCT job_name,target_table,'produces'
-FROM {{ qualified(containers.observability,'data_lineage') }} WHERE is_active;
-COMMENT ON VIEW {{ qualified(containers.access,'lineage_graph') }} IS {{ 'Table-and-job lineage graph: one edge from each active source table to its job and from the job to its target table.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_graph') }}.source_node IS {{ 'Node the edge leaves: a source table or a job.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_graph') }}.target_node IS {{ 'Node the edge arrives at: a job or a target table.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_graph') }}.edge_type IS {{ 'Kind of relationship the edge records; produces for data flow.'|literal }};
-CREATE VIEW {{ qualified(containers.access,'lineage_run_latest') }} AS
-SELECT lineage_id,source_table,target_table,job_name,run_dts,run_status FROM (
- SELECT d.lineage_id,d.source_table,d.target_table,d.job_name,r.run_dts,r.run_status,
- row_number() OVER(PARTITION BY d.lineage_id ORDER BY r.run_dts DESC,r.lineage_run_id DESC) AS rank
- FROM {{ qualified(containers.observability,'data_lineage') }} d
- LEFT JOIN {{ qualified(containers.observability,'lineage_run') }} r USING(lineage_id)
- WHERE d.is_active
-) latest WHERE rank=1;
-COMMENT ON VIEW {{ qualified(containers.access,'lineage_run_latest') }} IS {{ 'Latest recorded run of each active lineage definition.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.lineage_id IS {{ 'Identifier of the lineage definition.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.source_table IS {{ 'Table the job reads.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.target_table IS {{ 'Table the job writes.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.job_name IS {{ 'Name of the job that moves the data.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.run_dts IS {{ 'When the latest run was recorded; null when never run.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'lineage_run_latest') }}.run_status IS {{ 'Outcome of the latest run; null when never run.'|literal }};
+SELECT from_object, to_object, join_path, hops FROM paths;
+{% endif %}
+{% set lineage = named('DataLineage') %}{% set graph_view = named('LineageGraph') %}
+{% if graph_view and lineage %}{% set d = lineage.column_names %}
+CREATE VIEW {{ graph_view.objects.consumer_view|qualified }} AS
+SELECT DISTINCT coalesce({{ d.source_container|ident }} || '.', '') || coalesce({{ d.source_table|ident }}, {{ d.source_system|ident }}) AS source_node,
+       {{ d.job_name|ident }} AS target_node, 'produces' AS edge_type
+FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} AND {{ d.job_name|ident }} IS NOT NULL
+UNION
+SELECT DISTINCT {{ d.job_name|ident }}, coalesce({{ d.target_container|ident }} || '.', '') || {{ d.target_table|ident }}, 'produces'
+FROM {{ lineage.objects.table|qualified }} WHERE {{ d.is_active|ident }} AND {{ d.job_name|ident }} IS NOT NULL;
+{% endif %}
+{% set run = named('LineageRun') %}{% set latest = named('LineageRunLatest') %}
+{% if latest and lineage and run %}{% set d = lineage.column_names %}{% set r = run.column_names %}
+CREATE VIEW {{ latest.objects.consumer_view|qualified }} AS
+SELECT lineage_id, source_table, target_table, job_name, run_dts, run_status FROM (
+    SELECT d.{{ d.lineage_id|ident }} AS lineage_id, d.{{ d.source_table|ident }} AS source_table,
+           d.{{ d.target_table|ident }} AS target_table, d.{{ d.job_name|ident }} AS job_name,
+           r.{{ r.run_dts|ident }} AS run_dts, r.{{ r.run_status|ident }} AS run_status,
+           row_number() OVER (PARTITION BY d.{{ d.lineage_id|ident }}
+                              ORDER BY r.{{ r.run_dts|ident }} DESC NULLS LAST, r.{{ r.lineage_run_id|ident }} DESC) AS rank
+    FROM {{ lineage.objects.table|qualified }} d
+    LEFT JOIN {{ run.objects.table|qualified }} r ON r.{{ r.lineage_id|ident }} = d.{{ d.lineage_id|ident }}
+    WHERE d.{{ d.is_active|ident }}
+) ranked WHERE rank = 1;
 {% endif %}

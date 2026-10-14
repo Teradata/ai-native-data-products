@@ -2,56 +2,41 @@
 title: Teradata Prediction Module Implementation
 anchor: prediction
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: prediction
 platform: teradata
 ---
 
-# Teradata: Prediction Module Implementation
+# Teradata: Prediction
 
-Teradata binding of [`design/modules/prediction.md`](../../../../design/modules/prediction.md). The feature store: engineered features, model predictions, point-in-time training data. Hard-depends on Domain. Read the design document first. Replace `{{ product }}`; tables live in `{{ product }}_Prediction`.
+Binding of [Prediction](../../../../design/modules/prediction.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Purpose |
-|------|---------|
-| `01-feature-group.sql.j2` | Wide-format feature group table (dense engineered features, SCD2). |
-| `02-feature-value.sql.j2` | Tall-format feature-value table (sparse/dynamic/mixed-type features, SCD2). |
-| `03-model-prediction.sql.j2` | Model prediction outputs with confidence and reproducibility linkage. |
-| `04-views.sql.j2` | `v_entity_features_current` / `_enriched` / `_pit` (`AccessView`). |
-| `validation.sql.j2` | Invariant checks (no raw-copy columns; point-in-time columns present). |
+`01-tables.sql.j2` calls `module_tables('prediction')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). It creates the feature and prediction entities the specification assigns to Prediction, with the columns, keys and temporal profile the context resolves for each. The temporal pattern adds their governed and consumer views.
+
+No template computes features or scores. Product feature SQL must apply both effective and knowledge-time cutoffs to each source and respect observation and availability time. Definitions belong to Semantic and monitoring to Observability; Domain context is reached by identifier join-back, not copied into feature or prediction rows. Prediction tables begin empty: no score or model quality is fabricated.
+
+Feature derivations the specification declares are rendered in the Teradata dialect where the binding declares every function they use. `hours_between` and `days_between` take both instants in UTC and are exact to the microsecond; `as_of` is not declared on any binding, so derivations using it are carried unrendered and reported.
 
 ## Capability bindings
 
-| Capability (design) | Teradata binding |
-|---------------------|------------------|
-| `EntityJoinBack` *(hard → Domain)* | `INNER JOIN Domain.Entity_H ON entity_id`, current-filtered. Prediction cannot deploy without Domain. |
-| `PointInTimeReconstruction` | `observation_dts` + the temporal-lifecycle validity predicate. |
-| `CurrentStateFilter` | `WHERE is_current = 1`. |
-| `AccessView` | `v_entity_features_current` / `_enriched` / `_pit`. |
-| `RichMetadata` | `COMMENT ON TABLE` / `COMMENT ON COLUMN`. |
-| `SemanticRegistration` *(soft)* | Feature *definitions* registered in `{{ product }}_Semantic.column_metadata`; feature *values* here. |
+| Capability | Binding |
+|---|---|
+| `PointInTimeReconstruction` | The governed base view carries the full temporal contract and is granted to the read and agent tiers; reads as at an instant apply the profile's predicates to it. Cutoff correctness is a product obligation. |
+| `CurrentStateFilter` | Consumer view over current, undeleted rows. |
+| `AccessView` | One consumer view per relation with a `consumer_view` object. |
 
-## Logical-type bindings used here
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
-| Logical type | Teradata type |
-|--------------|---------------|
-| `Identifier` | `INTEGER GENERATED ALWAYS AS IDENTITY` |
-| `Reference -> E` | `BIGINT` |
-| `Decimal(p,s)` | `DECIMAL(p,s)` (normalised features `DECIMAL(5,4)`) |
-| `Json` | `JSON` |
-| `Enum{…}` | `VARCHAR(n)` with a documented value set |
-| `Timestamp` | `TIMESTAMP(6) WITH TIME ZONE` |
-| `Flag` | `BYTEINT` |
+## Invariants and checks
 
-Temporal columns (`valid_from_dts`/`valid_to_dts`/`is_current`) follow the [temporal-lifecycle pattern](../../patterns/temporal-lifecycle-metadata/) `SCD2_HISTORY` profile.
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-PRED-001,003` | Review the specification's features; only engineered values and Domain identifiers belong here. |
+| `INV-PRED-002` | The governed views support reconstruction; the product's feature pipeline must prove cutoff correctness. |
+| `INV-PRED-004,005` | Semantic and Observability stores are separate; product capture and lineage checks remain required. |
 
-## Invariants → checks
-
-| Invariant | Check |
-|-----------|-------|
-| `INV-PRED-001` (engineered, not raw copies) | `validation.sql.j2` §1: no raw domain-content column names on feature tables. |
-| `INV-PRED-002` (point-in-time) | `validation.sql.j2` §2: `observation_dts` + validity columns present. |
-| `INV-PRED-003` (join-back, no dup) | Enforced by schema + reviewed at design time. |
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

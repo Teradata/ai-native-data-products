@@ -2,85 +2,57 @@
 title: Teradata Temporal Lifecycle Metadata Pattern Implementation
 anchor: temporal-lifecycle-metadata
 type: implementation
-status: standard
-version: 2.0
+status: draft
+version: 3.0
 normative: true
 implements: temporal-lifecycle-metadata
 platform: teradata
 ---
 
-# Teradata: Temporal & Lifecycle Metadata Implementation
+# Teradata: Temporal Lifecycle Metadata
 
-Teradata binding of [`design/patterns/temporal-lifecycle-metadata.md`](../../../../design/patterns/temporal-lifecycle-metadata.md). Read the pattern first; nothing here changes its semantics. Targets Teradata v20.0; conformance queries use `DBC` dictionary views.
+Binding of [Temporal Lifecycle Metadata](../../../../design/patterns/temporal-lifecycle-metadata.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-## Files
+## Templates
 
-| File | Purpose |
-|------|---------|
-| `00-temporal-macros.sql.j2` | **The single definition site for the temporal and lifecycle columns.** Every table in every module imports it. |
-| `01-ddl-template.sql.j2` | SCD2 history table (`SCD2_HISTORY`) with the canonical columns, flags, and column comments; plus the 1:1 governed locking view. Built from the macros, like any other table. |
-| `02-dml-maintenance.sql.j2` | Version change (close + insert, one transaction), logical deletion, late-arriving change. |
-| `03-access-views.sql.j2` | Default current access view and point-in-time (as-of) predicate. |
-| `04-statistics.sql.j2` | Primary-index and `COLLECT STATISTICS` guidance. |
-| `conformance-queries.sql.j2` | `DBC` and data-level checks for the pattern's conformance rules (TLM-04…11). |
+`00-macros.sql.j2` holds the macros every other template imports. Each takes a relation from the context (an entity or a standard-owned relation, with its `columns`, `column_names`, `key_columns`, `version_columns` and placed `objects`) and composes no name:
 
-## How a table gets its temporal columns
+| Macro | Emits |
+|---|---|
+| `sentinel` | The open end of an interval, `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'`, written by every statement that opens a version and never as a `DEFAULT` (PLATFORM_PROFILE §7) |
+| `cols`, `column`, `unicode`, `vector_pattern` | A quoted column list; one column definition with type, `CHARACTER SET UNICODE` for text, identity, `NOT NULL`, `UNIQUE`, and Enum, flag and vector-dimension checks |
+| `primary_index`, `uniqueness`, `constraints` | The primary index chosen from the access path; uniqueness of each version (or a keymap's key); interval-order checks |
+| `current` | The current-row predicate |
+| `table` | `CREATE MULTISET TABLE`, the keymap foreign key (`WITH NO CHECK OPTION`) and the primary index |
+| `module_tables` | Every persisted, defined, non-adopted relation of one module, keymaps first |
+| `value`, `ref`, `insert`, `member` | A Python value as SQL; a subquery for a current row's key; an insert by logical attribute name with open-row values for temporal columns; whether an Enum permits a value |
+| `comment` | A comment literal held to the dictionary's 255 characters |
 
-A table does not spell them out. It declares a profile and imports the macros:
+`02-comments.sql.j2` applies `COMMENT ON TABLE` and `COMMENT ON COLUMN` to every persisted relation from its `description` and each column's description (or its logical name), after the tables and before anything depends on them.
 
-```jinja
-{% import 'patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2' as tlm %}
+`03-access-views.sql.j2` creates two views per persisted relation, each with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, so a consumer never blocks a load:
 
-CREATE TABLE {{ product }}_Domain.party (
-    party_id    BIGINT NOT NULL,
-    party_key   VARCHAR(60) NOT NULL,
-{{ tlm.columns('SCD2_HISTORY', pad=20, supports_deletion=true) }}
-)
-PRIMARY INDEX (party_key);
+- the **governed base view**, for every relation with a `base_view` object (this binding emits `base_view: all`): every column and every row, the full temporal contract. Teradata SQL has no table functions, so a read as at an instant applies the profile's predicates to this view. For versioned relations it is granted to the read and agent tiers ([access-layer](../access-layer/README.md));
+- the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` macro) over the base view, carrying every column except the open interval ends `valid_to_dts` and `transaction_to_dts`. Runtime relations have no consumer view.
 
-{{ tlm.comments(product ~ '_Domain.party', 'SCD2_HISTORY', supports_deletion=true) }}
-```
+`04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls the transaction and runs the checks before ending it. It:
 
-Three macros: `columns` for the definitions, `comments` for the matching `COMMENT ON COLUMN` statements (TLM-15), and `select_list` for a governed full-contract view body. The macro file documents the arguments and what each profile contributes.
+- for a bitemporal relation, closes every open knowledge interval of the identity at `recorded_at` and clears its current flag;
+- otherwise, closes the version whose validity covers `effective_at` at that instant;
+- inserts every replacement row with every column: an open end given as `infinity` is written as the sentinel, an instant is cast to its timestamp type, and any other value goes through the literal filter.
 
-**This is the implementation-side counterpart of a design rule.** The [Design Language](../../../../design/core/DESIGN_LANGUAGE.md) authoring checklist requires that cross-cutting concerns are *referenced* by pattern anchor and never restated inline, and the module documents follow it: a `History` entity does not list its validity pair, because the pattern supplies it. Until these macros existed, that rule stopped at the design boundary. Every implementation table transcribed the block as literal text, conformance was a matter of typing it correctly, and thirty tables across six modules drifted to `created_at`, `created_timestamp`, and a DATE-grain `valid_from`/`valid_to`. Renaming them was the smaller half of the fix; the reason they could drift was that nothing owned the names on this side.
+It is not a change planner. The caller supplies complete, non-overlapping intervals (for a bitemporal correction, the whole new known timeline), detects unchanged replay, preserves unaffected segments and tombstones, and rejects non-monotonic correction instants. Teradata enforces none of the cross-row rules in its schema; the `entity temporal` check finds them.
 
-Two consequences worth stating plainly:
+`05-statistics.sql.j2` collects statistics on every persisted relation's key and version columns and its currency, deletion and interval-start columns (PLATFORM_PROFILE §6).
 
-- **A macro argument must be an expression, not a quoted placeholder.** `tlm.comments('{{ product }}_Memory.Change_Log', …)` renders the placeholder literally, because it is already inside a Jinja expression. Write `product ~ '_Memory.Change_Log'`.
-- **An unknown profile emits a line that cannot parse as SQL.** Jinja has no portable raise, and a table whose temporal block came out empty is precisely the failure this file exists to prevent, so the deploy fails on the statement instead.
+Validity and knowledge intervals are half-open; the sentinel appears only as an open end. For bitemporal history, overlap is prohibited only where both axes overlap. The current flag is true exactly when every applicable end is open.
 
-Every artefact in this binding is a Jinja template, but not every one imports the macros. `conformance-queries.sql.j2`, `02-dml-maintenance.sql.j2` and the other specimen templates reference temporal columns by name rather than defining them. `modules/semantic/03-registry.sql.j2` and the two catalogue feed tables define them in leading-comma style so that a deployed table is not restyled; `tooling/validation/tests/test_teradata_templates.py` holds that spelled-out block to the macros' column set. All of them are covered by the `tlm-04` check in `tooling/validation/design_lint.py`, which reads the prohibited names from the pattern document and scans every SQL artifact: composition where the mechanism exists, enforcement everywhere.
+## Capability bindings
 
-## Type and flag bindings
+| Capability | Binding |
+|---|---|
+| `CurrentStateFilter` | `current` macro behind the consumer views and reference checks. |
+| `PointInTimeReconstruction` | The governed base view, granted to the read and agent tiers; the profile's predicates select the rows at an instant. |
+| `SoftDelete` | `is_deleted` and `deleted_dts`; the `entity temporal` check finds a disagreement; deleted rows are excluded from current reads. |
 
-| Pattern concept | Teradata binding |
-|-----------------|------------------|
-| All `*_dts` columns | `TIMESTAMP(6) WITH TIME ZONE`, persisted normalised to UTC (`+00:00`). |
-| Day-grain event (`*_date`) | `DATE`: never for validity bounds or audit. |
-| Flags (`is_current`, `is_deleted`, `is_active`) | `BYTEINT NOT NULL` with `CHECK (col IN (0,1))`. |
-| Open-end sentinel | `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'` (always with `+00:00`), written at INSERT time. |
-| Row audit defaults | `NOT NULL DEFAULT CURRENT_TIMESTAMP(6)`. |
-
-**The sentinel is an INSERT-time value, never a `DEFAULT` clause.** The driver hangs parsing a zone-qualified timestamp literal inside a `DEFAULT` clause during `CREATE TABLE`: a silent timeout rather than an error, so the failure surfaces minutes later with nothing to read (see [PLATFORM_PROFILE](../../PLATFORM_PROFILE.md), SQL idioms and driver constraints). Independently of the driver, a `DEFAULT` on a mandatory validity bound reads as though the value were optional, which it is not: every statement that opens a version states the sentinel, as `02-dml-maintenance.sql.j2` does.
-
-`TIMESTAMP(6)` **without** `WITH TIME ZONE` is non-conformant (TLM-05): it makes the UTC persistence rule unverifiable and the sentinel ambiguous under session-zone changes. Single-character `'Y'/'N'` encodings and nullable flags are non-conformant (TLM-06).
-
-## Surface bindings (pattern: Access Exposure Policy)
-
-| Object | Pattern surface | Responsibility |
-|--------|-----------------|----------------|
-| Physical table (`db` and `entity`) | - | Full canonical column contract; no direct consumer access. |
-| Governed view (`db` and `governed_view`) | Governed full-contract surface | 1:1 `LOCKING ROW FOR ACCESS` view exposing every column. |
-| Access views (`db` and `current_view`, …) | Default current / purpose-specific | Select from the governed view, never the base table (TLM-14). |
-
-Database/layer naming is owned by the [object-placement](../object-placement/) implementation; the container names reach these templates as the context values `db` and `semantic_db`.
-
-## Conformance rules → checks
-
-| Rule | Check |
-|------|-------|
-| TLM-04 (prohibited names) | Two checks, at different times. `tooling/validation/design_lint.py` (`tlm-04`) scans every `.sql` and `.sql.j2` artifact at commit time, reading the prohibited names from the pattern document itself so the list is never copied. `conformance-queries.sql.j2` §1 is the catalogue scan of a deployed database; §1b resolves `effective_date` / `expiration_date` against the declared temporal profile, since they are permitted on `CURRENT_STATE` and prohibited elsewhere. The linter deliberately checks only the names decidable from a file alone, which is why its set matches §1 exactly. |
-| TLM-05 (type/precision) | `conformance-queries.sql.j2` §2: `*_dts` columns not `TIMESTAMP(6) WITH TIME ZONE`. |
-| TLM-06 (flag representation) | `conformance-queries.sql.j2` §3: `is_*` columns not `BYTEINT NOT NULL`. |
-| TLM-08/09/10/11 (data invariants) | `conformance-queries.sql.j2` §4: overlap, multiple current, flag disagreement, deletion without time. |
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

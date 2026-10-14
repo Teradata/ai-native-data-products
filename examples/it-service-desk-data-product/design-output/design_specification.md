@@ -115,6 +115,8 @@ Entity: Ticket                    [kind: History] [profile: SCD2_BITEMPORAL]
   is_current         : Flag [current-flag]                 // current version marker
   is_deleted         : Flag [deleted-flag]                 // soft-delete marker
 
+  Description: A request or incident raised with the service desk, through its lifecycle to closure.
+
   Keys:
     surrogate: ticket_id
 
@@ -152,6 +154,8 @@ Entity: Agent                     [kind: History] [profile: SCD2_BITEMPORAL]
   is_current : Flag [current-flag]                 // current version marker
   is_deleted : Flag [deleted-flag]                 // soft-delete marker
 
+  Description: A service desk agent who works tickets.
+
   Keys:
     surrogate: agent_id
 
@@ -187,6 +191,8 @@ Entity: Customer                  [kind: History] [profile: SCD2_BITEMPORAL]
   is_current          : Flag [current-flag]                        // current version marker
   is_deleted          : Flag [deleted-flag]                        // soft-delete marker
 
+  Description: A customer organisation the service desk supports.
+
   Keys:
     surrogate: customer_id
 
@@ -221,6 +227,8 @@ Entity: Category                  [kind: Reference] [profile: CURRENT_STATE] [al
   effective_date     : Date [optional]                      // first day the category may be assigned
   expiration_date    : Date [optional]                      // last day the category may be assigned
 
+  Description: The two-level taxonomy tickets are classified by.
+
   Keys:
     surrogate: category_id
     natural:   category_code
@@ -246,6 +254,8 @@ Entity: TicketKeymap              [kind: Keymap] [profile: CURRENT_STATE] [alloc
   ticket_key    : NaturalKey [required] [unique]   // source ticket identifier
   source_system : ShortText [optional]             // system that introduced the key
 
+  Description: Allocates each ticket's stable identifier from its source ticket id, once.
+
   Keys:
     surrogate: ticket_id
     natural:   ticket_key
@@ -265,6 +275,8 @@ Entity: AgentKeymap               [kind: Keymap] [profile: CURRENT_STATE] [alloc
   agent_key     : NaturalKey [required] [unique]   // source agent identifier; the agent's email is not used as a key
   source_system : ShortText [optional]             // system that introduced the key
 
+  Description: Allocates each agent's stable identifier from its source agent id, once.
+
   Keys:
     surrogate: agent_id
     natural:   agent_key
@@ -283,6 +295,8 @@ Entity: CustomerKeymap            [kind: Keymap] [profile: CURRENT_STATE] [alloc
   customer_id   : Identifier                       // allocated once per natural key; never reused
   customer_key  : NaturalKey [required] [unique]   // source customer identifier
   source_system : ShortText [optional]             // system that introduced the key
+
+  Description: Allocates each customer's stable identifier from its source customer id, once.
 
   Keys:
     surrogate: customer_id
@@ -453,7 +467,7 @@ Decision: DD-SEM-002
 **Invariants:** `INV-SEMANTIC-001`, `INV-SEMANTIC-002`, `INV-SEMANTIC-003`,
 `INV-SEMANTIC-004`, `INV-SEMANTIC-005`, `INV-SEMANTIC-006`, `INV-SEMANTIC-007`,
 `INV-SEMANTIC-008`, `INV-SEMANTIC-009`, `INV-SEMANTIC-010`, `INV-SEMANTIC-011`,
-`INV-SEMANTIC-012`, `INV-SEMANTIC-013`, `INV-SEMANTIC-014`, `INV-SEMANTIC-015`, `INV-SEMANTIC-016`, `INV-SEMANTIC-017`, `INV-SEMANTIC-018`, `INV-SEMANTIC-019`, `INV-SEMANTIC-020`.
+`INV-SEMANTIC-012`, `INV-SEMANTIC-013`, `INV-SEMANTIC-014`, `INV-SEMANTIC-015`.
 
 ---
 
@@ -465,7 +479,7 @@ ticket discriminated by `source_attribute`. Absence is no row, never a null vect
 ```
 Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [allocation: inline]
   embedding_id            : Identifier                         // surrogate for the embedding record
-  entity_id               : Reference [required] [-> Ticket]   // the embedded ticket; key only
+  entity_id               : Reference [required] [-> Ticket] [discriminator: entity_kind]  // the embedded ticket; key only
   entity_kind             : Enum{TICKET} [required]            // always TICKET in this product
   source_attribute        : ShortText [required]               // which embedding: the Embedding block name
   embedding               : Vector[384] [required]             // dense text embedding
@@ -475,9 +489,11 @@ Entity: EntityEmbedding           [kind: History] [profile: SCD2_HISTORY] [alloc
   generated_dts           : Timestamp [required]               // when the vector was generated
   is_current              : Flag [current-flag]                // current embedding per ticket and source
 
+  Description: Vector embeddings of ticket text, one per ticket and embedded source.
+
   Keys:
     surrogate: embedding_id
-    natural:   entity_id, source_attribute, embedding_model
+    natural:   entity_kind, entity_id, source_attribute
 
   Volume:
     initial: 250
@@ -503,6 +519,7 @@ Embedding: subject_description
   Entity:     Ticket
   Source:     concat(Ticket.subject, Ticket.description)
   Dimensions: 384
+  Model:      bge-small-en-v1.5
   Similarity: cosine
   Index:      exact
   Threshold:  0.75
@@ -515,6 +532,7 @@ Embedding: resolution_notes
   Source:     Ticket.resolution_notes
   Where:      is_not_null(Ticket.resolution_notes)
   Dimensions: 384
+  Model:      bge-small-en-v1.5
   Similarity: cosine
   Index:      exact
   Threshold:  0.75
@@ -573,6 +591,8 @@ Entity: TicketFeatureSet          [kind: History] [profile: SCD2_HISTORY] [modul
   feature_group_version : ShortText [optional]                // feature logic version
   is_current            : Flag [current-flag]                 // current feature row per ticket
 
+  Description: Engineered features about a ticket, as at an observation instant, for SLA breach prediction.
+
   Keys:
     surrogate: feature_group_id
     natural:   entity_id
@@ -615,6 +635,8 @@ Entity: ModelPrediction           [kind: History] [profile: SCD2_HISTORY] [alloc
   prediction_dts          : Timestamp [required]              // when scored
   feature_observation_dts : Timestamp [optional]              // the feature row scored
   is_current              : Flag [current-flag]               // latest score per ticket
+
+  Description: Scores the SLA breach model produces for tickets, one version per scoring event.
 
   Keys:
     surrogate: prediction_id
@@ -902,7 +924,7 @@ organisation profile.
 Decision: DD-ACCESS-001
   Title:      Three access tiers, with agent write-back append-only
   Category:   SECURITY
-  Module:     access-layer
+  Module:     memory
   Context:    The access-layer pattern requires the role model to be recorded so agents can read the access contract from Memory.
   Rationale:  ROLE_READ serves analysts, managers and BI; ROLE_AGENT serves agents and automated tools with the same read scope plus append-only write-back to Memory's runtime entities and Observability's usage and quality events; ROLE_ADMIN serves the product owner and data steward. Analysts and read-only users need identical grants, and separating agent write-back keeps the agent lifecycle independently manageable.
   Alternatives: Two tiers (read and write), rejected because agent write-back must be manageable on its own; four tiers adding an analyst tier, rejected because analysts need no grant read-only users lack.

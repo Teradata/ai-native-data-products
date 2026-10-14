@@ -21,7 +21,7 @@ Teradata binding of [`design/patterns/catalogue-interface.md`](../../../../desig
 | `02-lifecycle-dml.sql.j2` | One parameterised transition covering every lifecycle event, plus first registration and the two feed refreshes. |
 | `03-catalogue-views.sql.j2` | The five surfaces a catalogue reads. |
 | `04-resolution-queries.sql.j2` | Orientation, the consumer object list from both the feed and the product's Semantic catalogue, the projection that populates the feed, the change query, and point-in-time. |
-| `05-semantic-model-export.sql.j2` | The seven extractions that make up a product's semantic model, plus the product descriptor reads. |
+| `05-semantic-model-export.sql.j2` | The six extractions that make up a product's semantic model, plus the product descriptor reads. |
 | `EMITTERS.md` | What the two YAML renderers must produce from those extractions, and how they behave when something is missing. |
 | `conformance-queries.sql.j2` | One check per invariant; every query is expected to return zero rows. |
 

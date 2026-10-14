@@ -38,7 +38,7 @@ EXAMPLE = re.compile(
     r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)\.(\S+)$")
 PATH_EXAMPLE = re.compile(
     r"^-\s+(\w+)\s+([a-z-]+)\s+([A-Z]\w*)(?:\s+([A-Z][a-z]+))?\s*->\s*(\S+)$")
-PRINCIPAL = re.compile(r"^(create|existing)\s+(\S.*)$")
+PRINCIPAL = re.compile(r"^(create|existing|outside)\s+(\S.*)$")
 PROTECTION = re.compile(r"^(none|(mask|exclude) for (.+))$")
 
 
@@ -206,7 +206,7 @@ def container_name(profile: Profile, key: str, variables: Dict[str, str],
 def object_name(profile: Profile, role: str, entity: str, kind: str = None,
                 variables: Dict[str, str] = None, standard: bool = False) -> str:
     """An object's physical name. A standard-owned relation takes its mapped name first."""
-    if standard and role in ("table", "base_view"):
+    if standard and role in ("table", "base_view", "consumer_view"):
         mapped = profile.mapping("Naming", "Standard names").get(entity)
         if mapped:
             return mapped
@@ -221,13 +221,20 @@ def object_name(profile: Profile, role: str, entity: str, kind: str = None,
 
 def derive(profile: Profile, role: str, module: str, entity: str, kind: str = None,
            variables: Dict[str, str] = None, environment: str = None,
-           standard: bool = False, classification: str = None) -> Tuple[str, str]:
-    """`(container, object)` for an object: the profile's derivation function."""
+           standard: bool = False, classification: str = None,
+           relation_rule: bool = None) -> Tuple[str, str]:
+    """`(container, object)` for an object: the profile's derivation function.
+
+    A standard-owned relation's own placement rule and mapped name apply to the relation
+    itself (its table, or the view that is the relation); its other views follow the role
+    rules. `relation_rule` says which this object is; it defaults to `standard`.
+    """
+    own = standard if relation_rule is None else relation_rule
     variables = dict(variables or {}, module=module,
                      _abbrev=profile.mapping("Naming", "Abbreviations"))
-    key = container_key(profile, role, module, entity if standard else None, classification)
+    key = container_key(profile, role, module, entity if own else None, classification)
     container = container_name(profile, key, variables, environment)
-    return container, object_name(profile, role, entity, kind, variables, standard)
+    return container, object_name(profile, role, entity, kind, variables, own)
 
 
 def has_storage(profile: Profile) -> bool:

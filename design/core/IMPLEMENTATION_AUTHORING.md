@@ -98,6 +98,41 @@ Each platform directory provides:
 
 Unsupported capabilities, compositions, profile settings and adoption modes are declared explicitly. An absent binding, a skipped check or an unexecuted engine test is never reported as conformance. Support for a minimal composition does not imply support for every module.
 
+### 5.1 Binding declarations
+
+A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when it builds a context for that platform. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. Each block opens `<Block>: -` in a fenced code block, as in an organisation profile.
+
+#### `Binding:`
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `Identifier quote` | yes | text | The character that quotes an identifier. |
+| `Literal quote` | yes | text | The character that quotes a text literal; it is doubled inside one. |
+| `Principals` | yes | enum | `native` or `unsupported`: whether the platform grants to principals. |
+| `Runtime scope` | yes | enum | `enforced` or `unsupported`: whether the binding restricts runtime Memory records to the requesting identity's scope at the access surface ([access-layer](../patterns/access-layer.md) §4). `unsupported` is reported as a gap in every build with runtime relations. |
+| `Emits` | no | mappings | Object roles the binding emits beyond `table` and `consumer_view`, each with what it emits them for: `base_view: all`, `sequence: <allocations>`, or `function: <profiles>`; and `embedding` under `function` or `procedure` for one similarity search object per `Embedding:` block, as the platform can express it. |
+| `Settings` | no | mappings | Each binding setting an organisation profile may set, with its permitted values and default, as `<setting>: <values>; default <value>`. |
+| `Phases` | no | mappings | The deployment phases in order, each as `<file>: <template>`. A template that renders nothing for a composition emits no file. |
+| `Deploy` | no | text | The template that joins the rendered phases into one deployable script. It reads `phases`, the rendered files in order, each with its `file` and `sql`. |
+| `Gaps` | no | mappings | Each known gap no check can detect, as `<area>: <what is not covered>`: an untested composition or adoption mode, a constraint the engine cannot enforce, evidence the binding cannot produce. The conformance report lists them with the gaps the builds report (§8.1). |
+| `Checks` | no | mappings | The validation checks a build manifest carries, each as `<scope> <check>: <template>`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
+
+#### `Types:`
+
+One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension, and `{dim*n}` for the dimension times `n`, as for a binary encoding of `n` bytes an element. A logical type with no line is unsupported, and a context that needs it fails with a reported gap.
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `*` | yes | text | One line per logical type. |
+
+#### `Functions:`
+
+One field per function of the [Design Specification Standard](DESIGN_SPECIFICATION.md)'s expression vocabulary the binding can render, as a SQL fragment in which `{0}`, `{1}` ... stand for rendered arguments and `{args}` for all of them, comma-separated. A name may carry an arity, `name/2`, for a form that differs by argument count. `duration` renders a duration from `{n}` and `{unit}`; `map case` renders one `{key}`/`{value}` pair of a `map`; `true`, `false` and `null` render literals; and `flag test`, on a platform with no boolean type, renders a `Flag` that stands as a condition. A function with no line is unsupported: expressions using it carry no rendered SQL, and the binding reports the gap.
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `*` | yes | text | One line per function. |
+
 ## 6. Template rules
 
 - **Jinja is the only template language.** Every platform artefact a binding maintains is a Jinja template. No other substitution convention (format placeholders, angle-bracket or brace tokens, find-and-replace markers) appears in a binding.
@@ -137,7 +172,7 @@ Static naming and file-extension checks alone cannot establish portability. Revi
 
 ### 8.1 Conformance status follows evidence
 
-The checks produce a conformance report per binding: what passes, what fails, and each gap. A binding document, and the binding as a whole, may carry `status: standard` only when its report shows no gaps; otherwise it is `draft`. The report is generated from the checks, never maintained by hand.
+The checks produce a conformance report per binding: what passes, what fails, and each gap. A binding document, and the binding as a whole, may carry `status: standard` only when its report shows no gaps; otherwise it is `draft`. The report is generated from the checks, never maintained by hand: `tooling/bindings/conformance.py` runs the tests, renders the reference builds, and writes each binding's `CONFORMANCE.md` with every outcome, every gap the builds report, every gap the binding declares (`Gaps`, §5.1) and every skipped engine.
 
 A pull request must not increase any binding's reported gaps. A binding with gaps can still be improved, used and merged into; it cannot be described as conforming. The same rule applies to every platform, existing and new.
 

@@ -90,6 +90,40 @@ One logical record per product per producer per run; consumers read the **latest
 
 A simple test harness populates the identity, status, and count fields and leaves scores, JSON blobs, and profile fields null: a fully conformant result. Runs are **appended**, never overwritten.
 
+In the entity notation, which is what a build creates the relation from:
+
+```
+Entity: ValidationRun             [kind: Record] [profile: EVENT_APPEND_ONLY]
+  product_code: ShortText [required]  // the specification's product_code the run evaluated
+  producer_id: ShortText [required]  // identity of the producing validator or harness
+  producer_version: ShortText [optional]  // version of the producing validator
+  profile_id: ShortText [optional]  // check profile evaluated
+  profile_version: ShortText [optional]  // version of the check profile
+  source_format: ShortText [required]  // NATIVE, or the interchange format ingested from
+  payload_schema_version: ShortText [required]  // wire schema version of this record
+  run_id: ShortText [required]  // deterministic run identifier
+  started_dts: Timestamp [required]  // when the run started
+  completed_dts: Timestamp [required]  // when the run completed
+  trust_status: Enum{TRUSTED|DEGRADED|UNTRUSTED} [required]  // advisory product-level summary
+  agent_use_allowed: ShortText [optional]  // deprecated at schema 2.1; wire compatibility only
+  total_checks: Integer [required]  // checks the run executed
+  passed_count: Integer [required]  // checks with status PASSED
+  failed_count: Integer [required]  // checks with status FAILED
+  error_count: Integer [required]  // checks with status ERROR
+  critical_failure_count: Integer [required]  // failed or errored checks of severity CRITICAL
+  error_failure_count: Integer [required]  // failed or errored checks of severity ERROR
+  data_product_trust_score: Decimal(5,2) [optional]  // conformance score, 0 to 100
+  performance_readiness_score: Decimal(5,2) [optional]  // performance readiness, 0 to 100
+  operational_readiness_score: Decimal(5,2) [optional]  // operational readiness, 0 to 100
+  repair_candidate_count: Integer [required]  // true, uncapped number of repair candidates
+  failed_checks_json: Json [optional]  // machine-readable failure detail, capped
+  repair_candidates_json: Json [optional]  // machine-readable repair proposals, capped
+  evidence_expires_dts: Timestamp [optional]  // producer-declared expiry of this evidence
+
+  Keys:
+    natural: product_code, producer_id, run_id
+```
+
 ### 3.2 The area record
 
 The trust-map entity is **`ValidationArea`**, and that entity name is its logical name. One logical record per run per area; consumers read the **latest** per (product, producer, area). Its logical name is part of the contract, and its physical name comes from the organisation profile and is resolved through Semantic, on the same terms as `ValidationRun`.
@@ -107,6 +141,30 @@ The trust-map entity is **`ValidationArea`**, and that entity name is its logica
 | `open_gaps` | What is uncovered or unproven here; required unless `confidence` is `strong` |
 | `recommended_action` | What would raise confidence in this area; required unless `confidence` is `strong` |
 | `completed_dts` | Inherited from the run, so the latest-per-area projection is deterministic |
+
+```
+Entity: ValidationArea            [kind: Record] [profile: EVENT_APPEND_ONLY]
+  product_code: ShortText [required]  // the run's product_code
+  producer_id: ShortText [required]  // the run's producer
+  run_id: ShortText [required]  // the run this entry belongs to
+  scope_kind: Enum{MODULE|ENTITY|PATTERN|CAPABILITY|PRODUCT} [required]  // the kind of area described
+  scope_id: ShortText [required]  // the area within its kind
+  checks_expected: Integer [required]  // checks the profile defines for this area; 0 means none
+  checks_ran: Integer [required]  // checks that executed in this run
+  passed_count: Integer [required]  // checks in the area with status PASSED
+  failed_count: Integer [required]  // checks in the area with status FAILED
+  error_count: Integer [required]  // checks in the area with status ERROR
+  critical_failure_count: Integer [required]  // failed or errored checks of severity CRITICAL
+  error_failure_count: Integer [required]  // failed or errored checks of severity ERROR
+  area_status: Enum{pass|fail|partial|not-validated|no-evidence} [required]  // the area's status
+  confidence: Enum{strong|partial|weak|unknown} [required]  // how far the area can be trusted
+  open_gaps: Text [optional]  // what is uncovered or unproven; required unless confidence is strong
+  recommended_action: Text [optional]  // what would raise confidence; required unless strong
+  completed_dts: Timestamp [required]  // inherited from the run
+
+  Keys:
+    natural: product_code, producer_id, run_id, scope_kind, scope_id
+```
 
 Coverage is `checks_ran / checks_expected`. It is **derived on read**, not stored, so there is no second copy of it to drift from the counts.
 

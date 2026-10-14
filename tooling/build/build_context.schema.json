@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Teradata/ai-native-data-products/tooling/build/build_context.schema.json",
   "title": "Build context",
-  "description": "The single resolved input every platform binding's templates read (Platform Implementation Authoring Standard \u00a73). Produced by tooling/build/build_context.py from a design specification and an organisation profile. Its shape is the same for every platform; the names it carries are one organisation's, for one target.",
+  "description": "The single resolved input every platform binding's templates read (Platform Implementation Authoring Standard §3). Produced by tooling/build/build_context.py from a design specification and an organisation profile. Its shape is the same for every platform; the names it carries are one organisation's, for one target.",
   "type": "object",
   "required": [
     "schema_version",
@@ -20,6 +20,8 @@
     "containers",
     "principals",
     "grant_level",
+    "binding",
+    "relationships",
     "entities",
     "relations",
     "standard_names",
@@ -58,6 +60,10 @@
         },
         "path": {
           "type": "string"
+        },
+        "primary_role": {
+          "type": "string",
+          "description": "The Semantic primary-object role the object is registered under."
         }
       },
       "additionalProperties": false
@@ -73,19 +79,19 @@
         },
         "consumer_view": {
           "$ref": "#/$defs/placed"
+        },
+        "function": {
+          "$ref": "#/$defs/placed"
+        },
+        "sequence": {
+          "$ref": "#/$defs/placed"
         }
       },
       "additionalProperties": false,
       "minProperties": 1
     },
     "block": {
-      "type": "object",
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ]
-      }
+      "type": "object"
     },
     "principal": {
       "type": "object",
@@ -95,13 +101,199 @@
       ],
       "properties": {
         "name": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "create": {
           "type": "boolean"
+        },
+        "outside": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "text",
+            "ast",
+            "references",
+            "sql",
+            "unsupported"
+          ],
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "ast": {
+              "type": "object"
+            },
+            "references": {
+              "type": "array"
+            },
+            "sql": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unsupported": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "temporal": {
+      "type": "object",
+      "required": [
+        "name",
+        "physical_name",
+        "type",
+        "physical_type",
+        "required",
+        "description"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "physical_name": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "Timestamp",
+            "Flag"
+          ]
+        },
+        "physical_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "required": [
+        "name",
+        "physical_name",
+        "type",
+        "required",
+        "unique",
+        "references",
+        "discriminator",
+        "derive",
+        "synonyms",
+        "flags",
+        "classification",
+        "protection",
+        "physical_type",
+        "description",
+        "canonical"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "physical_name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discriminator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "derive": {
+          "$ref": "#/$defs/expression"
+        },
+        "synonyms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "current-flag",
+              "deleted-flag"
+            ]
+          }
+        },
+        "classification": {
+          "type": "string"
+        },
+        "protection": {
+          "type": "string"
+        },
+        "physical_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "canonical": {
+          "type": "boolean"
+        },
+        "members": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "dimensions": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
     }
   },
   "properties": {
@@ -131,7 +323,8 @@
         "description",
         "domain",
         "owner",
-        "trust_producer"
+        "trust_producer",
+        "version"
       ],
       "properties": {
         "name": {
@@ -308,7 +501,12 @@
           "patterns",
           "capabilities",
           "objects",
-          "adopted"
+          "adopted",
+          "description",
+          "history",
+          "bitemporal",
+          "supports_deletion",
+          "temporal"
         ],
         "properties": {
           "name": {
@@ -332,77 +530,7 @@
           "attributes": {
             "type": "array",
             "items": {
-              "type": "object",
-              "required": [
-                "name",
-                "physical_name",
-                "type",
-                "required",
-                "unique",
-                "references",
-                "discriminator",
-                "derive",
-                "synonyms",
-                "flags",
-                "classification",
-                "protection"
-              ],
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "physical_name": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string"
-                },
-                "required": {
-                  "type": "boolean"
-                },
-                "unique": {
-                  "type": "boolean"
-                },
-                "references": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "discriminator": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "derive": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "synonyms": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "flags": {
-                  "type": "array",
-                  "items": {
-                    "enum": [
-                      "current-flag",
-                      "deleted-flag"
-                    ]
-                  }
-                },
-                "classification": {
-                  "type": "string"
-                },
-                "protection": {
-                  "type": "string"
-                }
-              }
+              "$ref": "#/$defs/attribute"
             }
           },
           "volume": {
@@ -489,6 +617,24 @@
           },
           "classification": {
             "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "history": {
+            "type": "boolean"
+          },
+          "bitemporal": {
+            "type": "boolean"
+          },
+          "supports_deletion": {
+            "type": "boolean"
+          },
+          "temporal": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/temporal"
+            }
           }
         }
       }
@@ -501,6 +647,13 @@
           "name",
           "module",
           "kind",
+          "relation",
+          "defined",
+          "profile",
+          "description",
+          "identity",
+          "attributes",
+          "temporal",
           "objects"
         ],
         "properties": {
@@ -510,14 +663,87 @@
           "module": {
             "type": "string"
           },
-          "objects": {
-            "$ref": "#/$defs/objects"
-          },
           "kind": {
+            "type": "string"
+          },
+          "relation": {
             "enum": [
               "table",
               "view"
             ]
+          },
+          "defined": {
+            "type": "boolean"
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "object",
+            "required": [
+              "allocation",
+              "surrogate",
+              "natural",
+              "keymap",
+              "allocates"
+            ],
+            "properties": {
+              "allocation": {
+                "enum": [
+                  "keymap",
+                  "external-allocator",
+                  "inline",
+                  "natural-key",
+                  null
+                ]
+              },
+              "surrogate": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "natural": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "keymap": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allocates": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/attribute"
+            }
+          },
+          "temporal": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/temporal"
+            }
+          },
+          "objects": {
+            "$ref": "#/$defs/objects"
           }
         }
       }
@@ -699,6 +925,150 @@
           "type": "null"
         }
       ]
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source",
+          "source_attribute",
+          "source_column",
+          "target",
+          "target_columns",
+          "mandatory"
+        ],
+        "properties": {
+          "target_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mandatory": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "required": [
+        "platform",
+        "principals",
+        "emits",
+        "identifier_quote",
+        "literal_quote"
+      ],
+      "properties": {
+        "principals": {
+          "enum": [
+            "native",
+            "unsupported"
+          ]
+        }
+      }
+    },
+    "module_containers": {
+      "type": "array",
+      "description": "Each module's containers by object role, for the module map.",
+      "items": {
+        "type": "object",
+        "required": [
+          "module",
+          "role",
+          "container"
+        ],
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "naming": {
+      "type": "object",
+      "description": "The organisation's naming rules, as Semantic's NamingStandard records them.",
+      "required": [
+        "objects",
+        "attributes",
+        "standard_names"
+      ],
+      "properties": {
+        "objects": {
+          "type": "object"
+        },
+        "attributes": {
+          "type": "string"
+        },
+        "standard_names": {
+          "type": "object"
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "description": "The design-memory records the build writes (Memory §5.2), each with its settled id.",
+      "required": [
+        "modules",
+        "decisions",
+        "glossary",
+        "cookbook",
+        "change_log",
+        "notes",
+        "gaps"
+      ],
+      "properties": {
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "glossary": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "cookbook": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "change_log": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

@@ -17,8 +17,9 @@ Four entities. `Ticket`, `Agent` and `Customer` are `History` entities on the bi
 | File | What it is |
 |---|---|
 | [`ITSD_Reference_Brief.md`](ITSD_Reference_Brief.md) | The fixed input. Intake blocks for each phase, every catalogued decision pre-settled with its reason, the entity and feature models, the physical design, and the deployment sequence. |
-| [`organisation-profile.md`](organisation-profile.md) | The organisation profile: the eight object-placement sections, `STRICT_SEPARATION`, seven `ITSD_*` databases and three roles, plus classification and environments, as rules the build-context resolver executes. The build refuses to invent containers, so this is a hard prerequisite. |
-| [`organisation-profile-type-grouped.md`](organisation-profile-type-grouped.md) | A contrasting profile for the portability test: type-grouped placement, snake-case names, mapped column names, an adopted entity and container-isolated environments. |
+| [`profiles/teradata.md`](profiles/teradata.md) | The organisation profile for Teradata: the eight object-placement sections, `STRICT_SEPARATION`, seven `ITSD_*` databases and three roles, plus classification and environments, as rules the build-context resolver executes. The build refuses to invent containers, so a profile is a hard prerequisite. |
+| [`profiles/teradata-type-grouped.md`](profiles/teradata-type-grouped.md) | A contrasting Teradata profile for the portability test: type-grouped placement, snake-case names, mapped column names, an adopted entity and container-isolated environments. |
+| [`profiles/postgres.md`](profiles/postgres.md), [`profiles/duckdb.md`](profiles/duckdb.md) | The same organisation's profiles for PostgreSQL (a schema per module, created roles) and DuckDB (a schema per module, sequences, access enforced outside the database). Any profile here builds the same specification. |
 | [`design-output/design_specification.md`](design-output/design_specification.md) | The reference design specification: what the design phase should produce from the brief, and the build input every platform binding must build. Validated by `spec_lint`. |
 | `data/tickets.csv` | 150 tickets, June to July 2026. Open, in-progress, resolved and closed, with nulls on resolution time, closure time, resolution notes and satisfaction score where the lifecycle has not reached them. |
 | `data/agents.csv` | 12 agents across three teams, L1 to L3. `email` is `[pii]`. |
@@ -75,7 +76,7 @@ Create the repository and copy the inputs across:
 ```bash
 mkdir -p itsd-data-product/{data,standards,design,build,review,validation,logs}
 cp examples/it-service-desk-data-product/data/*.csv          itsd-data-product/data/
-cp examples/it-service-desk-data-product/organisation-profile.md \
+cp examples/it-service-desk-data-product/profiles/teradata.md \
    itsd-data-product/standards/organisation-profile.md
 ```
 
