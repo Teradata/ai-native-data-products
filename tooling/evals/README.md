@@ -39,6 +39,10 @@ Exit code is `0` when the specification conforms, `1` when it does not. The refe
 | `unrecorded-departure` | an entity's profile falls outside its kind's defaults, or its allocation differs from the product's, with no `Decision:` applying to it. |
 | `unresolved-reference` | a reference target is neither in the specification nor defined by an included module. |
 | `missing-discriminator` | a reference with several targets has no `Enum` discriminator listing them. |
+| `composite-join-target` | a `[-> Target.attribute]` names an attribute the target lacks, or names one twice in a join. |
+| `composite-join-key` | the target attributes of a named join are not exactly one key (surrogate or natural) of the target. |
+| `composite-join-type` | a pair in a named join has different logical types (`Reference` counts as `Identifier`). |
+| `multi-target-join` | a reference with several targets names target attributes. |
 | `invalid-expression` | a `[derive:]` expression uses a function outside the vocabulary, an aggregate in a row context, or an attribute that does not resolve. |
 | `timestamp-name` / `prohibited-name` | a `Timestamp` is not named `<event>_dts`, or an attribute takes a name the temporal pattern prohibits. |
 | `missing-section` | an entity lacks a section its kind requires (`Volume:`), or a feature group lacks `Features:`. |

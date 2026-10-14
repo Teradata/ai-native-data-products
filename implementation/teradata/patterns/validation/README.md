@@ -27,7 +27,7 @@ Each check is a query whose every row is a defect. The `Checks:` block of [PLATF
 | `contract identity`, `contract keys`, `contract relationships`, `contract access-columns`, `contract composition` | [`modules/semantic/contract/`](../../modules/semantic/README.md) | once, for the Semantic module (`contract` scope); rendered as `contract-identity` and so on | the defects of the Semantic metadata contract (`INV-SEMANTIC-016` to `020`), as `object_identity` and `defect` |
 | `product comment-coverage` | `05-comment-coverage.sql.j2` | once, for the product (`product` scope) | each database, table, view, macro, procedure, function and table or view column with no comment, read from `DBC.DatabasesV`, `DBC.TablesV` and `DBC.ColumnsV` over the containers the product creates (databases) and those that hold objects (objects and columns); an adopted container is not swept |
 
-The reference check is current-surface coverage, not historical proof, and compares the first target column only.
+The reference check is current-surface coverage, not historical proof. A join of several columns resolves only when every pair matches, so the check tests all of them.
 
 ## Trust map
 

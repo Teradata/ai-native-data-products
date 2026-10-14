@@ -462,6 +462,32 @@ class SharedBuildDecisions(unittest.TestCase):
     def setUpClass(cls):
         cls.ctx = Resolved(profile=POSTGRES_PROFILE).context
 
+    def test_the_standard_owned_relations_contribute_their_joins(self):
+        names = {r["name"] for r in self.ctx["relationships"]}
+        for expected in ("LineageRun.lineage_id", "KeyColumn.key_definition_id", "ValidationArea.run",
+                         "Ticket.customer_id"):
+            self.assertIn(expected, names)
+        self.assertEqual(len(names), len(self.ctx["relationships"]), "relationship names are unique")
+
+    def test_a_named_join_resolves_to_one_relationship_of_ordered_pairs(self):
+        join = next(r for r in self.ctx["relationships"] if r["name"] == "ValidationArea.run")
+        self.assertEqual((join["join_kind"], join["source"], join["target"]), ("named", "ValidationArea", "ValidationRun"))
+        self.assertEqual([(p["ordinal"], p["source_column"], p["target_column"]) for p in join["pairs"]],
+                         [(1, "product_code", "product_code"), (2, "producer_id", "producer_id"), (3, "run_id", "run_id")])
+        self.assertEqual(join["unpaired_target_columns"], [])
+        self.assertTrue(join["mandatory"])
+
+    def test_a_bare_reference_stays_one_pair_with_the_targets_identity(self):
+        join = next(r for r in self.ctx["relationships"] if r["name"] == "Ticket.customer_id")
+        self.assertEqual(join["join_kind"], "bare")
+        self.assertEqual(len(join["pairs"]), 1)
+
+    def test_a_multi_target_reference_is_one_relationship_per_target(self):
+        synonyms = [r for r in self.ctx["relationships"] if r["source"] == "SemanticSynonym"]
+        self.assertEqual({r["target"] for r in synonyms}, {"EntityMetadata", "ColumnMetadata", "Metric"})
+        self.assertEqual({r["join_kind"] for r in synonyms}, {"multi"})
+        self.assertEqual(len({r["name"] for r in synonyms}), 3)
+
     def test_orientation_publishes_the_trust_map_before_analytical_resources(self):
         resources = self.ctx["orientation"]["resources"]
         self.assertEqual([r["role"] for r in resources[:2]], ["MANIFEST", "TRUST_MAP"])

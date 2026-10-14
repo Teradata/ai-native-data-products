@@ -50,6 +50,7 @@ from binding import load_binding  # noqa: E402
 from expressions import ExpressionError, Node, Unrenderable, functions_used, parse as parse_expression  # noqa: E402
 from expressions import references as expression_references, render as render_expression  # noqa: E402
 from org_profile import _snake  # noqa: E402
+from joins import join_groups  # noqa: E402
 from spec_lint import Corpus, _keys, facet_names, lint_spec, standard  # noqa: E402
 from spec_notation import entity_module, parse_specification  # noqa: E402
 
@@ -262,7 +263,9 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
             "description": a.description,
             "required": "required" in a.qualifiers,
             "unique": "unique" in a.qualifiers,
-            "references": [t.strip() for t in target.split("|")] if target else [],
+            "references": [t.strip().partition(".")[0] for t in target.split("|")] if target else [],
+            "reference": target,
+            "join": a.qualifiers.get("join"),
             "discriminator": a.qualifiers.get("discriminator"),
             "derive": a.qualifiers.get("derive"),
             "synonyms": [s.strip() for s in a.qualifiers.get("synonyms", "").split(",") if s.strip()],
@@ -558,22 +561,29 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         return [physical.get((target["name"], n), n) for n in names]
 
     relationships = []
-    for x in entities:
-        for a in x["attributes"]:
-            for target_name in a["references"]:
+    for x in entities + relations:
+        by_attribute = {a["name"]: a for a in x["attributes"]}
+        for group in join_groups((a["name"], a["reference"], a["join"]) for a in x["attributes"]):
+            sources = [by_attribute[n] for n in group["attributes"]]
+            for target_name in group["targets"]:
                 target = by_name.get(target_name)
                 if target is None:
                     continue  # a module entity this composition does not include
+                if group["kind"] == "named":
+                    target_columns = [physical.get((target_name, t), t) for t in group["target_attributes"]]
+                else:
+                    target_columns = identity_column(target)
                 relationships.append({
-                    "source": x["name"], "source_attribute": a["name"],
+                    "source": x["name"], "source_attribute": group["name"], "join_kind": group["kind"],
                     "source_module": x["module"], "target_module": target["module"],
                     "source_table": x["objects"].get("table"), "target_table": target["objects"].get("table"),
                     "source_view": x["objects"].get("consumer_view"),
                     "target_view": target["objects"].get("consumer_view"),
-                    "source_column": a["physical_name"], "target": target_name,
-                    "target_columns": identity_column(target), "mandatory": a["required"],
-                    "discriminator": a["discriminator"],
-                    "discriminator_value": target_name.upper() if a["discriminator"] else None})
+                    "source_column": sources[0]["physical_name"],
+                    "source_columns": [a["physical_name"] for a in sources], "target": target_name,
+                    "target_columns": target_columns, "mandatory": all(a["required"] for a in sources),
+                    "discriminator": sources[0]["discriminator"],
+                    "discriminator_value": target_name.upper() if sources[0]["discriminator"] else None})
 
     # ---- the metadata contract (release 2.0.0): identities, keys, joins, view columns ------
     for x in entities + relations:
@@ -588,14 +598,25 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                              for n, c in enumerate((c for c in x.get("columns", [])
                                                     if c["name"] not in HIDDEN_ON_VIEW), 1)]
     for rel in relationships:
-        rel["name"] = f"{rel['source']}.{rel['source_attribute']}"
+        rel["name"] = f"{rel['source']}.{rel['source_attribute']}" + (
+            f"->{rel['target']}" if rel["join_kind"] == "multi" else "")
         rel["source_identity"] = by_name[rel["source"]]["logical_id"]
         rel["target_identity"] = by_name[rel["target"]]["logical_id"]
-        # A reference carries one source column, so a join pairs it with the first target column;
-        # any further column of a composite target identity is reported as a gap, never dropped.
-        rel["pairs"] = [{"ordinal": 1, "source_column": rel["source_column"],
-                         "target_column": rel["target_columns"][0]}]
-        rel["unpaired_target_columns"] = list(rel["target_columns"][1:])
+        if rel["join_kind"] == "named":
+            # A named join pairs each source column with the target attribute it names, in order.
+            rel["pairs"] = [{"ordinal": n, "source_column": s, "target_column": t}
+                            for n, (s, t) in enumerate(zip(rel["source_columns"], rel["target_columns"]), 1)]
+            rel["unpaired_target_columns"] = []
+        else:
+            # A bare reference carries one source column, so it pairs with the first target column;
+            # any further column of a composite target identity is reported as a gap, never dropped.
+            rel["pairs"] = [{"ordinal": 1, "source_column": rel["source_column"],
+                             "target_column": rel["target_columns"][0]}]
+            rel["unpaired_target_columns"] = list(rel["target_columns"][1:])
+    for name, count in Counter(rel["name"] for rel in relationships).items():
+        if count > 1:
+            r.fail("duplicate-relationship", f"relationship '{name}' is declared {count} times; "
+                                             f"name the joins apart with [join: <name>]")
 
     # ---- expressions, rendered in the binding's dialect ---------------------------------
     measures = {b.name: b.fields.get("Measure") for b in spec.blocks_of("Metric")}

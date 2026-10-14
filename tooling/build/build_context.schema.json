@@ -1060,7 +1060,9 @@
           "source_identity",
           "target_identity",
           "pairs",
-          "unpaired_target_columns"
+          "unpaired_target_columns",
+          "source_columns",
+          "join_kind"
         ],
         "properties": {
           "target_columns": {
@@ -1110,6 +1112,20 @@
             "items": {
               "type": "string"
             }
+          },
+          "source_columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "join_kind": {
+            "enum": [
+              "bare",
+              "named",
+              "multi"
+            ]
           }
         }
       }

@@ -654,17 +654,35 @@ class EngineTests:
         self.assertEqual(int(kinds["STANDARD"]), 1)
         self.assertEqual(int(kinds["MODULE"]), len(self.ctx["modules"]))
 
-    def test_a_composite_join_is_one_ordered_group_in_the_paths(self):
+    def test_a_composite_join_the_standard_declares_is_one_ordered_group(self):
         self.deploy()
-        rel = "Ticket.customer_id"
-        self.register("RelationshipColumn", {"ordinal": 2, "source_column": "subject", "target_column": "display_name"},
-                      {"relationship_id": f"(SELECT {self.pk('TableRelationship')} FROM {self.table('TableRelationship')} "
-                                          f"WHERE {self.col('TableRelationship', 'relationship_name')} = '{rel}')"})
-        rows = self.q(f"SELECT path_id, hop, key_ordinal FROM {self.view('RelationshipPaths')} "
-                      f"WHERE origin_entity = 'domain.ticket' AND destination_entity = 'domain.customer' AND hop_count = 1 "
-                      f"ORDER BY key_ordinal")
-        self.assertEqual([(r[1], r[2]) for r in rows], [(1, 1), (1, 2)])
+        join = next(r for r in self.ctx["relationships"] if r["source"] == "ValidationArea")
+        self.assertEqual((join["name"], join["join_kind"], join["target"]), ("ValidationArea.run", "named", "ValidationRun"))
+        self.assertEqual([p["source_column"] for p in join["pairs"]], ["product_code", "producer_id", "run_id"])
+        self.assertEqual([p["ordinal"] for p in join["pairs"]], [1, 2, 3])
+        rows = self.q(f"SELECT path_id, hop, key_ordinal, from_column, to_column FROM {self.view('RelationshipPaths')} "
+                      f"WHERE origin_entity = 'observability.validation_area' AND destination_entity = 'observability.validation_run' "
+                      f"AND hop_count = 1 ORDER BY key_ordinal")
+        self.assertEqual([(r[1], r[2], r[3], r[4]) for r in rows],
+                         [(1, 1, "product_code", "product_code"), (1, 2, "producer_id", "producer_id"), (1, 3, "run_id", "run_id")])
         self.assertEqual(len({r[0] for r in rows}), 1)
+
+    def test_the_reference_check_tests_every_pair_of_a_composite_join(self):
+        self.deploy()
+        validate(self.con, self.manifest)  # publishes a run and its areas, which join on all three columns
+        check = next(c for c in self.manifest["checks"] if c["check"] == "reference" and c["scope_id"] == "ValidationArea")
+        self.assertEqual(self.q(check["sql"]), [])
+        area = named(self.ctx, "ValidationArea")["column_names"]
+        # Break only the second pair: a check that compared the first column alone would not notice.
+        self.con.execute(f"UPDATE {self.table('ValidationArea')} SET {self.binding.ident(area['producer_id'])} = 'someone-else'")
+        self.assertTrue(self.q(check["sql"]))
+
+    def test_every_relationship_pairs_a_source_column_with_a_target_column(self):
+        self.deploy()
+        pairs = self.q(f"SELECT COUNT(*) FROM {self.table('RelationshipColumn')}")[0][0]
+        self.assertEqual(int(pairs), sum(len(r["pairs"]) for r in self.ctx["relationships"]))
+        self.assertEqual(int(self.q(f"SELECT COUNT(*) FROM {self.table('TableRelationship')}")[0][0]), len(self.ctx["relationships"]))
+        self.assertEqual(len({r["name"] for r in self.ctx["relationships"]}), len(self.ctx["relationships"]))
 
     def breaks(self, check, mutation):
         """A contract check returns nothing on a clean deployment and something once one rule is broken."""

@@ -8,7 +8,7 @@ Engine evidence: DuckDB v1.5.6 through the duckdb 1.5.6 Python driver.
 
 | Outcome | Count |
 |---|---|
-| Passed | 46 |
+| Passed | 48 |
 | Failed | 0 |
 | Skipped | 0 |
 | Gaps reported by the builds | 14 |
@@ -59,7 +59,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 
 | Test | Outcome |
 |---|---|
-| A composite join is one ordered group in the paths | pass |
+| A composite join the standard declares is one ordered group | pass |
 | A fixed size vector rejects the wrong dimension | pass |
 | A legacy run is graded by its counts and capped | pass |
 | A product file reopens read only | pass |
@@ -70,6 +70,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | Designated producer then cautious fallback | pass |
 | Errors and failures are never successes | pass |
 | Every consumer view column has a mapping row | pass |
+| Every relationship pairs a source column with a target column | pass |
 | Evidence publishes and the trust map reads it | pass |
 | Identities are logical and a composite key is ordered rows | pass |
 | ITSD deploys and every check passes | pass |
@@ -88,6 +89,7 @@ What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](
 | The engine reports its version | pass |
 | The identity check detects a placement bound identity | pass |
 | The keys check detects an entity with no key | pass |
+| The reference check tests every pair of a composite join | pass |
 | The relationships check detects a relationship with no columns | pass |
 
 ### Rendering and portability

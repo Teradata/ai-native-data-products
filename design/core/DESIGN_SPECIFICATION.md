@@ -93,6 +93,8 @@ An entity with no business identifier of its own (an embedding, a feature row, a
 | Qualifier | Meaning |
 |---|---|
 | `[-> A \| B]` | A reference whose target is one of several entities. Requires `[discriminator: <attribute>]`. |
+| `[-> A.<attribute>]` | A join on a named attribute of the target. The named attributes of one entity that point at the same target form one join, paired in declaration order, and must be exactly one key of the target (its surrogate or its natural key) with the same logical types. A bare `[-> A]` stays a whole join on the target's identity. |
+| `[join: <name>]` | Names a join of several named attributes, so one entity can hold two joins to the same target. Without it the attributes pointing at one target are one join. |
 | `[discriminator: <attribute>]` | Names the `Enum` attribute recording which target a reference points at. Its members are the target entity names in upper case. |
 | `[derive: <expression>]` | The attribute is computed, in the expression vocabulary of section 5. |
 | `[synonyms: <term>, <term>]` | Business terms consumers use for this attribute. |

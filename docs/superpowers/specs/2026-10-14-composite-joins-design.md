@@ -37,7 +37,9 @@ The lint rejects a group when:
 - a target attribute does not exist, or is named twice;
 - the target attributes are not exactly one key of the target (its surrogate or its natural key);
 - the two sides of a pair have different logical types (`Reference` and `Identifier` count as the same);
-- the group uses a multi-target `A | B` reference, or mixes a bare and a named reference to one target.
+- the group uses a multi-target `A | B` reference.
+
+A bare reference is always its own group, so a bare and a named join to the same target can sit side by side.
 
 A join is mandatory only when every source attribute of the group is required.
 

@@ -31,7 +31,7 @@ Each check is a query whose every row is a defect. The `Checks:` block of [PLATF
 | `contract composition` | `modules/semantic/contract/composition.sql.j2` | the Semantic module | composites without exactly one anchor, gapped member order, and members not joined to a prior member through a registered relationship |
 | `product comment-coverage` | `05-comment-coverage.sql.j2` | the product | every container, object and column of the product's containers with no comment (the catalogue-wide `MetadataCoverageCheck`) |
 
-The reference check is current-surface coverage, not historical proof, and compares the first target column only.
+The reference check is current-surface coverage, not historical proof. A join of several columns resolves only when every pair matches, so the check tests all of them.
 
 ## Trust map
 
