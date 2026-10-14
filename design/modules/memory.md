@@ -94,12 +94,12 @@ Entity: AgentSession              [kind: Record] [profile: CURRENT_STATE] [alloc
   session_key: NaturalKey [required]  // business session identifier
   agent_key: ShortText [required]  // which agent instance
   user_key: ShortText [optional]  // which user
-  session_start_dts: Timestamp [required]
+  session_start_dts: Timestamp [required]  // When the session began.
   session_end_dts: Timestamp [optional]  // null while active
-  session_status: Enum{ACTIVE|COMPLETED|ABANDONED}
-  session_goal: Text [optional]
+  session_status: Enum{ACTIVE|COMPLETED|ABANDONED}  // Whether the session is active, completed or abandoned.
+  session_goal: Text [optional]  // What the session set out to do.
   session_context: Json [optional]  // flexible context, processed by the consumer
-  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]
+  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]  // Whose scope the record belongs to: a user, a team, the organisation or an agent.
   scope_identifier: ShortText [required]  // user/team/org/agent key matching scope_level
 
   Keys:
@@ -107,59 +107,59 @@ Entity: AgentSession              [kind: Record] [profile: CURRENT_STATE] [alloc
     natural:   session_key
 
 Entity: AgentInteraction          [kind: Record] [profile: EVENT_APPEND_ONLY]
-  interaction_id: Identifier
-  session_id: Reference [required] [-> AgentSession]
+  interaction_id: Identifier  // Generated identifier of the row.
+  session_id: Reference [required] [-> AgentSession]  // The session the interaction belongs to.
   interaction_seq: Integer [required]  // order within the session
-  interaction_type: Enum{QUERY|ACTION|DECISION|EXPLANATION}
-  interaction_dts: Timestamp [required]
+  interaction_type: Enum{QUERY|ACTION|DECISION|EXPLANATION}  // Kind of interaction: a query, an action, a decision or an explanation.
+  interaction_dts: Timestamp [required]  // When the interaction happened.
   user_input: Text [optional] [pii-incidental]  // what the user asked, as written
-  agent_response: Text [optional] [pii-incidental]
-  action_taken: Text [optional]
+  agent_response: Text [optional] [pii-incidental]  // What the agent replied; it can incidentally contain personal information.
+  action_taken: Text [optional]  // The action the agent took, when it took one.
   referenced_tables: Text [optional]  // logical entity names (<product_code>.<Entity>), comma-separated; ENTITY-LEVEL only, resolved through Semantic (INV-MEMORY-001)
   query_executed: Text [optional]  // the query text, not its results
   query_result_count: Integer [optional]  // aggregate count only, never the ids
-  execution_time_ms: Integer [optional]
-  outcome_status: Enum{SUCCESS|PARTIAL|FAILED}
-  user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE} [optional]
-  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]
-  scope_identifier: ShortText [required]
+  execution_time_ms: Integer [optional]  // How long the interaction took, in milliseconds.
+  outcome_status: Enum{SUCCESS|PARTIAL|FAILED}  // Whether the interaction succeeded, partly succeeded or failed.
+  user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE} [optional]  // The user's reaction, when one was given.
+  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]  // Whose scope the record belongs to: a user, a team, the organisation or an agent.
+  scope_identifier: ShortText [required]  // The user, team, organisation or agent that the scope level names.
 
 Entity: LearnedStrategy           [kind: Record] [profile: CURRENT_STATE]
-  strategy_id: Identifier
-  strategy_name: ShortText [required]
+  strategy_id: Identifier  // Generated identifier of the row.
+  strategy_name: ShortText [required]  // Name of the strategy the agent learned.
   strategy_category: Enum{QUERY_OPTIMIZATION|FEATURE_SELECTION|ERROR_HANDLING}  // fixed by this standard
   strategy_pattern: Text [optional]  // the pattern/approach, described
-  strategy_metadata: Json [optional]
+  strategy_metadata: Json [optional]  // Details of the strategy, as JSON.
   success_rate: Decimal(5,4) [optional]  // 0.0-1.0
-  times_used: Integer [optional]
+  times_used: Integer [optional]  // How often the strategy has been applied.
   is_active: Flag  // lifecycle state: the strategy is offered to agents; cleared when retired
   is_validated: Flag  // the strategy has been confirmed against observed outcomes
-  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]
-  scope_identifier: ShortText [required]
+  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]  // Whose scope the record belongs to: a user, a team, the organisation or an agent.
+  scope_identifier: ShortText [required]  // The user, team, organisation or agent that the scope level names.
 
 Entity: UserPreference            [kind: Record] [profile: CURRENT_STATE]
-  preference_id: Identifier
-  user_key: ShortText [required]
-  preference_category: Enum{REPORT_FORMAT|DATA_FILTER|AGGREGATION_LEVEL|VISUALIZATION_TYPE}
-  preference_name: ShortText [required]
-  preference_value: Text [optional]
-  preference_json: Json [optional]
-  confidence: Decimal(5,4) [optional]
+  preference_id: Identifier  // Generated identifier of the row.
+  user_key: ShortText [required]  // The user the preference belongs to.
+  preference_category: Enum{REPORT_FORMAT|DATA_FILTER|AGGREGATION_LEVEL|VISUALIZATION_TYPE}  // What the preference is about: report format, data filter, aggregation level or visualisation type.
+  preference_name: ShortText [required]  // Name of the preference.
+  preference_value: Text [optional]  // The preference as text.
+  preference_json: Json [optional]  // The preference as JSON, where it is structured.
+  confidence: Decimal(5,4) [optional]  // How confident the agent is in the preference, from 0 to 1.
   is_active: Flag  // lifecycle state: the preference is applied; cleared when the user withdraws it
-  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]
-  scope_identifier: ShortText [required]
+  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]  // Whose scope the record belongs to: a user, a team, the organisation or an agent.
+  scope_identifier: ShortText [required]  // The user, team, organisation or agent that the scope level names.
 
 Entity: DiscoveredPattern         [kind: Record] [profile: CURRENT_STATE]
-  pattern_id: Identifier
-  pattern_name: ShortText [required]
-  pattern_type: Enum{CORRELATION|TEMPORAL|TABLE_RELATIONSHIP|ANOMALY}
-  pattern_definition: Json [optional]
+  pattern_id: Identifier  // Generated identifier of the row.
+  pattern_name: ShortText [required]  // Name of the pattern.
+  pattern_type: Enum{CORRELATION|TEMPORAL|TABLE_RELATIONSHIP|ANOMALY}  // Kind of pattern: a correlation, a temporal pattern, a table relationship or an anomaly.
+  pattern_definition: Json [optional]  // The pattern's definition, as JSON.
   sample_size: Integer [optional]  // how many records analysed (summary, not the records)
-  confidence_score: Decimal(5,4) [optional]
+  confidence_score: Decimal(5,4) [optional]  // How confident the agent is in the pattern, from 0 to 1.
   involved_tables: Text [optional]  // logical entity names only, resolved through Semantic (INV-MEMORY-001)
   is_validated: Flag  // the pattern has been confirmed
-  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]
-  scope_identifier: ShortText [required]
+  scope_level: Enum{USER|TEAM|ORGANIZATION|AGENT} [required]  // Whose scope the record belongs to: a user, a team, the organisation or an agent.
+  scope_identifier: ShortText [required]  // The user, team, organisation or agent that the scope level names.
 ```
 
 All runtime entities apply `temporal-lifecycle-metadata`, `object-placement` and `access-layer`, and require `RichMetadata`.
@@ -180,14 +180,14 @@ Each has one identity, declared in its `Keys:` section. A record whose business 
 
 ```
 Entity: ModuleRegistry            [kind: History] [profile: SCD2_HISTORY] [allocation: inline]
-  module_registry_id: Identifier
-  module_name: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY} [required]
+  module_registry_id: Identifier  // Generated identifier of the module entry.
+  module_name: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY} [required]  // The module the entry describes.
   container_name: ShortText [required]  // where the module is deployed; filled by the build from the build context, never by the design
-  deployment_status: Enum{DEPLOYED|PLANNED|DEPRECATED} [required]
-  module_version: ShortText [required]
-  module_purpose: LongText [required]
+  deployment_status: Enum{DEPLOYED|PLANNED|DEPRECATED} [required]  // Whether the module is deployed, planned or deprecated.
+  module_version: ShortText [required]  // The deployed version of the module.
+  module_purpose: LongText [required]  // What the module supplies.
   key_entities: Text [optional]  // logical entity names
-  dependencies: Text [optional]
+  dependencies: Text [optional]  // Other modules this module depends on.
 
   Keys:
     surrogate: module_registry_id
@@ -196,14 +196,14 @@ Entity: ModuleRegistry            [kind: History] [profile: SCD2_HISTORY] [alloc
 Entity: DesignDecision            [kind: History] [profile: SCD2_HISTORY] [allocation: natural-key]
   decision_id: NaturalKey [required]  // DD-{MODULE}-{NNN}
   decision_version: Integer [required]  // revision number; increases with each superseding version
-  decision_title: ShortText [required]
-  context: LongText [optional]
-  alternatives: LongText [optional]
-  rationale: LongText [optional]
-  consequences: LongText [optional]
-  decision_status: Enum{PROPOSED|ACCEPTED|SUPERSEDED|DEPRECATED} [required]
-  decision_category: Enum{ARCHITECTURE|SCHEMA|NAMING|PERFORMANCE|SECURITY|INTEGRATION|OPERATIONAL} [required]
-  source_module: ShortText [required]
+  decision_title: ShortText [required]  // Short title of the decision.
+  context: LongText [optional]  // Why the decision was needed.
+  alternatives: LongText [optional]  // The options that were considered.
+  rationale: LongText [optional]  // Why the chosen option was chosen.
+  consequences: LongText [optional]  // What follows from the decision.
+  decision_status: Enum{PROPOSED|ACCEPTED|SUPERSEDED|DEPRECATED} [required]  // Where the decision stands: proposed, accepted, superseded or deprecated.
+  decision_category: Enum{ARCHITECTURE|SCHEMA|NAMING|PERFORMANCE|SECURITY|INTEGRATION|OPERATIONAL} [required]  // The area the decision concerns.
+  source_module: ShortText [required]  // Module the decision belongs to.
   superseded_by: Reference [optional] [-> DesignDecision]  // the superseding decision's id
 
   Keys:
@@ -211,43 +211,43 @@ Entity: DesignDecision            [kind: History] [profile: SCD2_HISTORY] [alloc
 
 Entity: BusinessGlossary          [kind: History] [profile: SCD2_HISTORY] [allocation: natural-key]
   term: NaturalKey [required]  // the Glossary block's name
-  term_category: Enum{ENTITY|ATTRIBUTE|METRIC|BUSINESS_RULE|CLASSIFICATION|REFERENCE_CODE} [required]
-  definition: LongText [required]
-  source_module: ShortText [required]
+  term_category: Enum{ENTITY|ATTRIBUTE|METRIC|BUSINESS_RULE|CLASSIFICATION|REFERENCE_CODE} [required]  // Kind of term: entity, attribute, metric, business rule, classification or reference code.
+  definition: LongText [required]  // What the term means.
+  source_module: ShortText [required]  // Module the term belongs to.
 
   Keys:
     natural: term
 
 Entity: QueryCookbook             [kind: History] [profile: SCD2_HISTORY] [allocation: natural-key]
   recipe_id: NaturalKey [required]  // QC-{MODULE}-{NNN}
-  recipe_title: ShortText [required]
-  use_case: ShortText [required]
-  target_module: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY|CROSS} [required]
+  recipe_title: ShortText [required]  // Title of the recipe.
+  use_case: ShortText [required]  // The question the recipe answers.
+  target_module: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY|CROSS} [required]  // Module the recipe queries, or CROSS when it spans several.
   query_template: LongText [required]  // parameterised query in the platform's dialect, generated by the binding; consumed by agents
-  complexity: Enum{SIMPLE|MODERATE|COMPLEX|ADVANCED} [required]
+  complexity: Enum{SIMPLE|MODERATE|COMPLEX|ADVANCED} [required]  // How hard the recipe is: simple, moderate, complex or advanced.
   is_batch: Flag  // set: batch only; clear: safe for interactive agent use
-  source_module: ShortText [required]
+  source_module: ShortText [required]  // Module the recipe belongs to.
 
   Keys:
     natural: recipe_id
 
 Entity: ImplementationNote        [kind: History] [profile: SCD2_HISTORY] [allocation: natural-key]
   note_id: NaturalKey [required]  // IN-{MODULE}-{NNN}
-  note_title: ShortText [required]
-  note_content: LongText [required]
-  note_category: Enum{DEPLOYMENT|WORKAROUND|KNOWN_ISSUE|PERFORMANCE_TIP|OPERATIONAL|SECURITY} [required]
-  severity: Enum{LOW|MEDIUM|HIGH|CRITICAL} [optional]
-  source_module: ShortText [required]
+  note_title: ShortText [required]  // Short title of the note.
+  note_content: LongText [required]  // The note itself.
+  note_category: Enum{DEPLOYMENT|WORKAROUND|KNOWN_ISSUE|PERFORMANCE_TIP|OPERATIONAL|SECURITY} [required]  // Kind of note: deployment, workaround, known issue, performance tip, operational or security.
+  severity: Enum{LOW|MEDIUM|HIGH|CRITICAL} [optional]  // How serious the issue is, where the note describes one.
+  source_module: ShortText [required]  // Module the note belongs to.
 
   Keys:
     natural: note_id
 
 Entity: ChangeLog                 [kind: History] [profile: SCD2_HISTORY] [allocation: natural-key]
   change_id: NaturalKey [required]  // CL-{MODULE}-{NNN}
-  version_number: ShortText [required]
-  change_title: ShortText [required]
-  change_type: Enum{INITIAL_RELEASE|SCHEMA_CHANGE|FEATURE_ADDITION|BUG_FIX|PERFORMANCE|DEPRECATION} [required]
-  source_module: ShortText [required]
+  version_number: ShortText [required]  // Version the change belongs to.
+  change_title: ShortText [required]  // Short title of the change.
+  change_type: Enum{INITIAL_RELEASE|SCHEMA_CHANGE|FEATURE_ADDITION|BUG_FIX|PERFORMANCE|DEPRECATION} [required]  // Kind of change: initial release, schema change, feature addition, bug fix, performance or deprecation.
+  source_module: ShortText [required]  // Module the change belongs to.
   related_decision_id: Reference [optional] [-> DesignDecision]  // the decision's id
 
   Keys:
