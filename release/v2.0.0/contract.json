@@ -23,8 +23,8 @@
     },
     {
       "kind": "entity surface",
-      "form": "module.entity:surface",
-      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|current)$",
+      "form": "module.entity:surface (base, governed, current or history)",
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|governed|current|history)$",
       "example": "domain.ticket:current"
     },
     {
@@ -43,1648 +43,2263 @@
   "metadata_entities": {
     "memory": [
       {
-        "name": "module_registry",
-        "key": "module_name",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: module registry.",
-        "columns": [
+        "name": "AgentInteraction",
+        "identity": "memory.agent_interaction",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
           {
-            "name": "module_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module whose design is documented."
-          },
-          {
-            "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Deployment schema."
-          },
-          {
-            "name": "deployment_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Deployment decision."
-          },
-          {
-            "name": "module_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Release version."
-          },
-          {
-            "name": "module_purpose",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Why the module is included."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "interaction_id"
+            ]
           }
-        ]
-      },
-      {
-        "name": "design_decision",
-        "key": "decision_id",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: design decision.",
-        "columns": [
-          {
-            "name": "decision_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable decision reference."
-          },
-          {
-            "name": "decision_version",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Decision revision."
-          },
-          {
-            "name": "decision_title",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Question settled."
-          },
-          {
-            "name": "context",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Constraints motivating this decision."
-          },
-          {
-            "name": "alternatives",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Other choices considered."
-          },
-          {
-            "name": "rationale",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Reason for the selected choice."
-          },
-          {
-            "name": "consequences",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Limits and obligations of this choice."
-          },
-          {
-            "name": "decision_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Approval state."
-          },
-          {
-            "name": "decision_category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Decision concern."
-          },
-          {
-            "name": "source_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module whose design this affects."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
-          }
-        ]
-      },
-      {
-        "name": "business_glossary",
-        "key": "term",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: business glossary.",
-        "columns": [
-          {
-            "name": "term",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Business term being defined."
-          },
-          {
-            "name": "term_category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Kind of term."
-          },
-          {
-            "name": "definition",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Business definition and usage."
-          },
-          {
-            "name": "source_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module owning the definition."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
-          }
-        ]
-      },
-      {
-        "name": "query_cookbook",
-        "key": "recipe_id",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: query cookbook.",
-        "columns": [
-          {
-            "name": "recipe_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable recipe identity."
-          },
-          {
-            "name": "recipe_title",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Question the recipe answers."
-          },
-          {
-            "name": "use_case",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Intended consumer use."
-          },
-          {
-            "name": "target_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module or CROSS composition."
-          },
-          {
-            "name": "query_template",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Executable platform SQL SQL, never result data."
-          },
-          {
-            "name": "complexity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Expected query complexity."
-          },
-          {
-            "name": "is_batch",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether intended for batch only."
-          },
-          {
-            "name": "source_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module responsible for recipe correctness."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
-          }
-        ]
-      },
-      {
-        "name": "implementation_note",
-        "key": "note_id",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: implementation note.",
-        "columns": [
-          {
-            "name": "note_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable operational note identity."
-          },
-          {
-            "name": "note_title",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Operational concern."
-          },
-          {
-            "name": "note_content",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "How to operate within this constraint."
-          },
-          {
-            "name": "note_category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Type of guidance."
-          },
-          {
-            "name": "source_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module affected."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
-          }
-        ]
-      },
-      {
-        "name": "change_log",
-        "key": "change_id",
-        "profile": "SCD2_HISTORY",
-        "description": "Versioned design memory: change log.",
-        "columns": [
-          {
-            "name": "change_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable change identity."
-          },
-          {
-            "name": "version_number",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Product release."
-          },
-          {
-            "name": "change_title",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "What changed and why."
-          },
-          {
-            "name": "change_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Release change category."
-          },
-          {
-            "name": "source_module",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module affected."
-          },
-          {
-            "name": "related_decision_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Decision explaining the change."
-          },
-          {
-            "name": "authored_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Accountable design author."
-          },
-          {
-            "name": "source_artifact",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Source design or deployment artefact."
-          },
-          {
-            "name": "authored_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Instant this documentation revision was authored."
-          }
-        ]
-      },
-      {
-        "name": "agent_session",
-        "key": "session_id",
-        "profile": "CURRENT_STATE",
-        "description": "Private runtime process metadata: agent session.",
-        "columns": [
-          {
-            "name": "session_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying session; never recycled."
-          },
-          {
-            "name": "session_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "External session identity."
-          },
-          {
-            "name": "agent_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Executing agent."
-          },
-          {
-            "name": "user_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Pseudonymous user identity."
-          },
-          {
-            "name": "session_start_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Session start."
-          },
-          {
-            "name": "session_end_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": true,
-            "comment": "Session end; null while active."
-          },
-          {
-            "name": "session_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "ACTIVE, COMPLETED or ABANDONED."
-          },
-          {
-            "name": "session_goal",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Process goal, never query results."
-          },
-          {
-            "name": "session_context",
-            "type": "JSONB",
-            "nullable": true,
-            "comment": "Process context only."
-          },
-          {
-            "name": "scope_level",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Privacy boundary kind, enforced by the serving application."
-          },
-          {
-            "name": "scope_identifier",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owner identity within the declared privacy boundary."
-          }
-        ]
-      },
-      {
-        "name": "agent_interaction",
-        "key": "interaction_id",
-        "profile": "CURRENT_STATE",
-        "description": "Private runtime process metadata: agent interaction.",
+        ],
         "columns": [
           {
             "name": "interaction_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying interaction; never recycled."
+            "type": "Identifier",
+            "required": false
           },
           {
             "name": "session_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying memory.agent_session; never recycled."
+            "type": "Reference",
+            "required": true
           },
           {
             "name": "interaction_seq",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Ordering within session."
-          },
-          {
-            "name": "interaction_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Interaction occurred."
+            "type": "Integer",
+            "required": true
           },
           {
             "name": "interaction_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "QUERY, ACTION, DECISION or EXPLANATION."
+            "type": "Enum{QUERY|ACTION|DECISION|EXPLANATION}",
+            "required": false
+          },
+          {
+            "name": "interaction_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "user_input",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "agent_response",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "action_taken",
+            "type": "Text",
+            "required": false
           },
           {
             "name": "referenced_tables",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Table-level references only."
+            "type": "Text",
+            "required": false
           },
           {
             "name": "query_executed",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "SQL performed; parameter values must be redacted."
+            "type": "Text",
+            "required": false
           },
           {
             "name": "query_result_count",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Aggregate result count only."
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "execution_time_ms",
+            "type": "Integer",
+            "required": false
           },
           {
             "name": "outcome_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Execution result status."
+            "type": "Enum{SUCCESS|PARTIAL|FAILED}",
+            "required": false
+          },
+          {
+            "name": "user_feedback",
+            "type": "Enum{POSITIVE|NEUTRAL|NEGATIVE}",
+            "required": false
           },
           {
             "name": "scope_level",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Privacy boundary kind, enforced by the serving application."
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
           },
           {
             "name": "scope_identifier",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owner identity within the declared privacy boundary."
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "learned_strategy",
-        "key": "strategy_id",
+        "name": "AgentSession",
+        "identity": "memory.agent_session",
         "profile": "CURRENT_STATE",
-        "description": "Private runtime process metadata: learned strategy.",
-        "columns": [
+        "keys": [
           {
-            "name": "strategy_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying strategy; never recycled."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "session_id"
+            ]
           },
           {
-            "name": "strategy_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Reusable process strategy."
-          },
-          {
-            "name": "strategy_category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Type of process learning."
-          },
-          {
-            "name": "strategy_pattern",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Approach, without business content."
-          },
-          {
-            "name": "success_rate",
-            "type": "DECIMAL(5,4)",
-            "nullable": true,
-            "comment": "Observed success fraction."
-          },
-          {
-            "name": "times_used",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Observed usage count."
-          },
-          {
-            "name": "is_validated",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether strategy has supporting evidence."
-          },
-          {
-            "name": "scope_level",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Privacy boundary kind, enforced by the serving application."
-          },
-          {
-            "name": "scope_identifier",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owner identity within the declared privacy boundary."
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "session_key"
+            ]
           }
-        ]
-      },
-      {
-        "name": "user_preference",
-        "key": "preference_id",
-        "profile": "CURRENT_STATE",
-        "description": "Private runtime process metadata: user preference.",
+        ],
         "columns": [
           {
-            "name": "preference_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying preference; never recycled."
+            "name": "session_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "session_key",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "agent_key",
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "user_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Pseudonymous preference owner."
+            "type": "ShortText",
+            "required": false
           },
           {
-            "name": "preference_category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Presentation or analysis preference kind."
+            "name": "session_start_dts",
+            "type": "Timestamp",
+            "required": true
           },
           {
-            "name": "preference_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Preference setting."
+            "name": "session_end_dts",
+            "type": "Timestamp",
+            "required": false
           },
           {
-            "name": "preference_value",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Preference value, never Domain content."
+            "name": "session_status",
+            "type": "Enum{ACTIVE|COMPLETED|ABANDONED}",
+            "required": false
+          },
+          {
+            "name": "session_goal",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "session_context",
+            "type": "Json",
+            "required": false
           },
           {
             "name": "scope_level",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Privacy boundary kind, enforced by the serving application."
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
           },
           {
             "name": "scope_identifier",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owner identity within the declared privacy boundary."
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "discovered_pattern",
-        "key": "pattern_id",
+        "name": "BusinessGlossary",
+        "identity": "memory.business_glossary",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "term"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "term",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "term_category",
+            "type": "Enum{ENTITY|ATTRIBUTE|METRIC|BUSINESS_RULE|CLASSIFICATION|REFERENCE_CODE}",
+            "required": true
+          },
+          {
+            "name": "definition",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ChangeLog",
+        "identity": "memory.change_log",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "change_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "change_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "version_number",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_type",
+            "type": "Enum{INITIAL_RELEASE|SCHEMA_CHANGE|FEATURE_ADDITION|BUG_FIX|PERFORMANCE|DEPRECATION}",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "related_decision_id",
+            "type": "Reference",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DesignDecision",
+        "identity": "memory.design_decision",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "decision_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "decision_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "decision_version",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "decision_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "context",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "alternatives",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "rationale",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "consequences",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "decision_status",
+            "type": "Enum{PROPOSED|ACCEPTED|SUPERSEDED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "decision_category",
+            "type": "Enum{ARCHITECTURE|SCHEMA|NAMING|PERFORMANCE|SECURITY|INTEGRATION|OPERATIONAL}",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "superseded_by",
+            "type": "Reference",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DiscoveredPattern",
+        "identity": "memory.discovered_pattern",
         "profile": "CURRENT_STATE",
-        "description": "Private runtime process metadata: discovered pattern.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "pattern_id"
+            ]
+          }
+        ],
         "columns": [
           {
             "name": "pattern_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying pattern; never recycled."
+            "type": "Identifier",
+            "required": false
           },
           {
             "name": "pattern_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Observed process pattern."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "pattern_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Pattern class."
+            "type": "Enum{CORRELATION|TEMPORAL|TABLE_RELATIONSHIP|ANOMALY}",
+            "required": false
           },
           {
             "name": "pattern_definition",
-            "type": "JSONB",
-            "nullable": true,
-            "comment": "Table-level pattern metadata."
+            "type": "Json",
+            "required": false
           },
           {
             "name": "sample_size",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Aggregate count analysed."
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "confidence_score",
+            "type": "Decimal(5,4)",
+            "required": false
           },
           {
             "name": "involved_tables",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Table-level references only."
+            "type": "Text",
+            "required": false
           },
           {
             "name": "is_validated",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether evidence supports the pattern."
+            "type": "Flag",
+            "required": false
           },
           {
             "name": "scope_level",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Privacy boundary kind, enforced by the serving application."
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
           },
           {
             "name": "scope_identifier",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owner identity within the declared privacy boundary."
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ImplementationNote",
+        "identity": "memory.implementation_note",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "note_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "note_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "note_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "note_content",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "note_category",
+            "type": "Enum{DEPLOYMENT|WORKAROUND|KNOWN_ISSUE|PERFORMANCE_TIP|OPERATIONAL|SECURITY}",
+            "required": true
+          },
+          {
+            "name": "severity",
+            "type": "Enum{LOW|MEDIUM|HIGH|CRITICAL}",
+            "required": false
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "LearnedStrategy",
+        "identity": "memory.learned_strategy",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "strategy_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "strategy_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "strategy_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "strategy_category",
+            "type": "Enum{QUERY_OPTIMIZATION|FEATURE_SELECTION|ERROR_HANDLING}",
+            "required": false
+          },
+          {
+            "name": "strategy_pattern",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "strategy_metadata",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "success_rate",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "times_used",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_validated",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ModuleRegistry",
+        "identity": "memory.module_registry",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "module_registry_id"
+            ]
+          },
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "module_name"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "module_registry_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "deployment_status",
+            "type": "Enum{DEPLOYED|PLANNED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "module_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "module_purpose",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "key_entities",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "dependencies",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "QueryCookbook",
+        "identity": "memory.query_cookbook",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "recipe_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "recipe_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "recipe_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "use_case",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_module",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY|CROSS}",
+            "required": true
+          },
+          {
+            "name": "query_template",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "complexity",
+            "type": "Enum{SIMPLE|MODERATE|COMPLEX|ADVANCED}",
+            "required": true
+          },
+          {
+            "name": "is_batch",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "UserPreference",
+        "identity": "memory.user_preference",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "preference_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "preference_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "user_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "preference_category",
+            "type": "Enum{REPORT_FORMAT|DATA_FILTER|AGGREGATION_LEVEL|VISUALIZATION_TYPE}",
+            "required": false
+          },
+          {
+            "name": "preference_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "preference_value",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "preference_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "confidence",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       }
     ],
     "semantic": [
       {
-        "name": "data_product_registry",
-        "key": "product_id",
+        "name": "AccessColumn",
+        "identity": "semantic.access_column",
         "profile": "CURRENT_STATE",
-        "description": "Product-first discovery anchor; one row per data product.",
-        "columns": [
+        "keys": [
           {
-            "name": "product_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable product name supplied to discovery."
-          },
-          {
-            "name": "product_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Published contract version."
-          },
-          {
-            "name": "product_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Publication lifecycle state."
-          },
-          {
-            "name": "owner_team",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Team responsible for this product."
-          },
-          {
-            "name": "trust_authoritative_producer",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validator whose latest area evidence defines the trust map."
-          },
-          {
-            "name": "approved_entrypoint",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Fully qualified approved initial business surface."
-          },
-          {
-            "name": "approved_access_mode",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Declared access mode."
-          },
-          {
-            "name": "max_evidence_age_days",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Maximum evidence age before confidence becomes unknown."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_column_id"
+            ]
           }
-        ]
-      },
-      {
-        "name": "data_product_map",
-        "key": "module_name",
-        "profile": "CURRENT_STATE",
-        "description": "Deployed module discovery map, not design rationale.",
-        "columns": [
-          {
-            "name": "module_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module anchor in the six-module composition."
-          },
-          {
-            "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed schema."
-          },
-          {
-            "name": "module_purpose",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Capability supplied by the module."
-          },
-          {
-            "name": "deployment_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "DEPLOYED for included modules."
-          },
-          {
-            "name": "module_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Module contract version."
-          }
-        ]
-      },
-      {
-        "name": "standard_declaration",
-        "key": "declaration_id",
-        "profile": "CURRENT_STATE",
-        "description": "Declared standard version and implemented components of the deployed product. A declaration is an assertion, not evidence; evidence is the trust map.",
-        "columns": [
-          {
-            "name": "declaration_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Key in the form product_id:component_kind:component_name."
-          },
-          {
-            "name": "product_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Data product making the declaration."
-          },
-          {
-            "name": "component_kind",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "STANDARD for the release as a whole, MODULE for a deployed module, PATTERN for an applied pattern."
-          },
-          {
-            "name": "component_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "standard, a module anchor or a pattern anchor."
-          },
-          {
-            "name": "platform",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Platform binding implementing the component."
-          },
-          {
-            "name": "standard_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Release of the standard the component conforms to."
-          }
-        ]
-      },
-      {
-        "name": "entity_metadata",
-        "key": "entity_name",
-        "profile": "CURRENT_STATE",
-        "description": "Authored meaning and temporal contract of every governed table.",
-        "columns": [
-          {
-            "name": "entity_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical entity identity, module.entity; independent of placement."
-          },
-          {
-            "name": "entity_description",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Purpose and business meaning."
-          },
-          {
-            "name": "module_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owning module anchor."
-          },
-          {
-            "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed container (location, not identity)."
-          },
-          {
-            "name": "table_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed base table (location, not identity)."
-          },
-          {
-            "name": "view_name",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Canonical consumable view; null for private runtime state."
-          },
-          {
-            "name": "temporal_pattern",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Canonical temporal profile for this persisted table."
-          },
-          {
-            "name": "current_flag_column",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Stored currency flag where versioned."
-          },
-          {
-            "name": "deleted_flag_column",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Stored logical deletion flag where supported."
-          },
-          {
-            "name": "standalone_reason",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Reason an entity needs no relationship traversal."
-          }
-        ]
-      },
-      {
-        "name": "key_definition",
-        "key": "key_id",
-        "profile": "CURRENT_STATE",
-        "description": "One key of an entity: its surrogate key, natural key or an alternate key.",
-        "columns": [
-          {
-            "name": "key_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Key identity in the form entity_name#role, for example domain.ticket#natural."
-          },
-          {
-            "name": "entity_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the entity that owns the key."
-          },
-          {
-            "name": "key_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "SURROGATE for the stable identity, NATURAL for the business key, ALTERNATE for another unique key."
-          }
-        ]
-      },
-      {
-        "name": "key_column",
-        "key": "key_column_id",
-        "profile": "CURRENT_STATE",
-        "description": "Ordered columns of a key; a single-column key has one row.",
-        "columns": [
-          {
-            "name": "key_column_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Synthetic key in the form key_id:ordinal."
-          },
-          {
-            "name": "key_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Key the column belongs to."
-          },
-          {
-            "name": "ordinal",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Position of the column in the key, from 1 with no gaps."
-          },
-          {
-            "name": "column_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact column of the owning entity."
-          }
-        ]
-      },
-      {
-        "name": "column_metadata",
-        "key": "column_metadata_id",
-        "profile": "CURRENT_STATE",
-        "description": "Authored column meaning kept separately from physical catalogue facts.",
-        "columns": [
-          {
-            "name": "column_metadata_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable module.entity.column metadata key."
-          },
-          {
-            "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact schema."
-          },
-          {
-            "name": "table_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact object name."
-          },
-          {
-            "name": "column_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact field name."
-          },
-          {
-            "name": "business_description",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Meaning, units and provenance of the value."
-          },
-          {
-            "name": "is_pii",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether real deployments could hold personal information."
-          },
-          {
-            "name": "is_sensitive",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether consumers need handling restrictions."
-          },
-          {
-            "name": "data_classification",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Handling classification; declared by the product owner."
-          },
-          {
-            "name": "source",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Authored source of the semantic description."
-          }
-        ]
-      },
-      {
-        "name": "table_relationship",
-        "key": "relationship_id",
-        "profile": "CURRENT_STATE",
-        "description": "Registered joins including semantic references without physical foreign keys. A relationship is a join group; its column pairs are in relationship_column.",
-        "columns": [
-          {
-            "name": "relationship_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable relationship identity."
-          },
-          {
-            "name": "source_entity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the referencing entity."
-          },
-          {
-            "name": "target_entity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the referenced entity."
-          },
-          {
-            "name": "cardinality",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Cardinality on current consumable surfaces."
-          },
-          {
-            "name": "relationship_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "FOREIGN_KEY or semantic association."
-          },
-          {
-            "name": "is_mandatory",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether each source row must resolve."
-          }
-        ]
-      },
-      {
-        "name": "relationship_column",
-        "key": "relationship_column_id",
-        "profile": "CURRENT_STATE",
-        "description": "Ordered column pairs of a relationship; a composite join has one row per pair.",
-        "columns": [
-          {
-            "name": "relationship_column_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Synthetic key in the form relationship_id:ordinal."
-          },
-          {
-            "name": "relationship_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Relationship, which is the join group, the pair belongs to."
-          },
-          {
-            "name": "ordinal",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Position of the pair in the join, from 1 with no gaps."
-          },
-          {
-            "name": "source_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Referencing field on the source entity."
-          },
-          {
-            "name": "target_column",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Referenced field on the target entity."
-          }
-        ]
-      },
-      {
-        "name": "access_object",
-        "key": "object_identity",
-        "profile": "CURRENT_STATE",
-        "description": "Authoritative access classification established from generated view structure.",
-        "columns": [
-          {
-            "name": "object_identity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical object identity: module.entity:surface, module:object or composite:name; independent of placement."
-          },
-          {
-            "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed container of the object (location, not identity)."
-          },
-          {
-            "name": "object_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed object name (location, not identity)."
-          },
-          {
-            "name": "access_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "BASE, PASSTHROUGH or COMPOSITE."
-          },
-          {
-            "name": "represents_entity",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Logical identity of the entity represented; null for composite objects."
-          },
-          {
-            "name": "object_grain",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "One row represents this unit."
-          },
-          {
-            "name": "is_agent_consumable",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether this is a public analytical surface."
-          },
-          {
-            "name": "resolves_to_object",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Logical identity of the base object exposed by a passthrough."
-          },
-          {
-            "name": "access_note",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Filtering and safe-use guidance."
-          }
-        ]
-      },
-      {
-        "name": "access_column",
-        "key": "access_column_id",
-        "profile": "CURRENT_STATE",
-        "description": "Where each output column of an access object comes from; consumers never parse view definitions.",
+        ],
         "columns": [
           {
             "name": "access_column_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Synthetic key in the form object_identity:ordinal."
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "object_identity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the access object."
+            "name": "access_object_id",
+            "type": "Reference",
+            "required": true
           },
           {
             "name": "ordinal",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Position of the output column in the object, from 1 with no gaps."
+            "type": "Integer",
+            "required": true
           },
           {
             "name": "column_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Output column name as a consumer sees it."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "source_entity",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Logical identity of the entity the column derives from; null when derived from several."
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "source_column",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Source column on that entity; null when derived."
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "mapping_kind",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "PASSTHROUGH when unchanged, RENAMED when only the name differs, DERIVED when computed."
+            "type": "Enum{PASSTHROUGH|RENAMED|DERIVED}",
+            "required": true
           },
           {
             "name": "derivation_note",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "How a derived column is computed; null otherwise."
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "access_composition",
-        "key": "access_composition_id",
+        "name": "AccessComposition",
+        "identity": "semantic.access_composition",
         "profile": "CURRENT_STATE",
-        "description": "Declared members of joined surfaces; consumers never parse DDL or join strings.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_composition_id"
+            ]
+          }
+        ],
         "columns": [
           {
             "name": "access_composition_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Composite and member identity."
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "composite_container",
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "composite_object",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the joined view, composite:name."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "member_seq",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Order of the member within the composite, from 1 with no gaps."
+            "type": "Integer",
+            "required": true
           },
           {
             "name": "member_entity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the catalogued member."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "member_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "ANCHOR or joined-member role."
+            "type": "Enum{ANCHOR|INNER|LEFT|RIGHT|FULL}",
+            "required": true
           },
           {
             "name": "via_relationship_id",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Relationship that joins this member to a prior member; null for the anchor."
+            "type": "Reference",
+            "required": false
           },
           {
             "name": "via_direction",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "FORWARD to cross the relationship from source to target, REVERSE the other way; null for the anchor."
+            "type": "Enum{FORWARD|REVERSE}",
+            "required": false
           },
           {
             "name": "is_grain_contributor",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether member changes row grain."
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "member_note",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "primary_object",
-        "key": "object_identity",
+        "name": "AccessObject",
+        "identity": "semantic.access_object",
         "profile": "CURRENT_STATE",
-        "description": "Module entrypoints with explicit roles and identities.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_object_id"
+            ]
+          }
+        ],
         "columns": [
+          {
+            "name": "access_object_id",
+            "type": "Identifier",
+            "required": false
+          },
           {
             "name": "object_identity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Logical identity of the access object; its location is on access_object."
-          },
-          {
-            "name": "module_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Owning module."
-          },
-          {
-            "name": "object_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "VIEW in this binding."
-          },
-          {
-            "name": "object_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Controlled discovery role."
-          },
-          {
-            "name": "usage_guidance",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "How an agent should use this object."
-          }
-        ]
-      },
-      {
-        "name": "data_product_orientation",
-        "key": "resource_role",
-        "profile": "CURRENT_STATE",
-        "description": "Ordered resources resolved before analytical use.",
-        "columns": [
-          {
-            "name": "resource_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "One resource role per row."
-          },
-          {
-            "name": "product_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registry product name."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "container_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed container of the resource; use as given."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "object_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Exact deployed object name of the resource; use as given."
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "discovery_order",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Ascending navigation order; trust precedes analytics."
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION}",
+            "required": true
+          },
+          {
+            "name": "access_role",
+            "type": "Enum{BASE|PASSTHROUGH|COMPOSITE}",
+            "required": true
+          },
+          {
+            "name": "represents_entity",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "object_grain",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_agent_consumable",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_primary",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "resolves_to_object",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "access_note",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ColumnMetadata",
+        "identity": "semantic.column_metadata",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "column_metadata_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "column_metadata_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "logical_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "business_description",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_pii",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "sensitivity_marker",
+            "type": "Enum{PII|PII_INCIDENTAL}",
+            "required": false
+          },
+          {
+            "name": "data_classification",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "is_required",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Missing required resources fail conformance."
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "declared_type",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "allowed_values",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "naming_standard",
-        "key": "standard_value",
+        "name": "DataProductMap",
+        "identity": "semantic.data_product_map",
         "profile": "CURRENT_STATE",
-        "description": "Declared signals aid authors; consumers use registered identities.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "module_id"
+            ]
+          }
+        ],
         "columns": [
           {
-            "name": "standard_value",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Naming token or pattern."
+            "name": "module_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "meaning",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Meaning of the convention."
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
           },
           {
-            "name": "applies_to",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Object or column scope."
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE}",
+            "required": true
+          },
+          {
+            "name": "module_purpose",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "module_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "deployment_status",
+            "type": "Enum{DEPLOYED|PLANNED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "graph_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "metric",
-        "key": "metric_name",
+        "name": "DataProductOrientation",
+        "identity": "semantic.data_product_orientation",
         "profile": "CURRENT_STATE",
-        "description": "Business measures with explicit grain and additivity.",
-        "columns": [
+        "keys": [
           {
-            "name": "metric_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Unique business measure."
-          },
-          {
-            "name": "metric_description",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Meaning and exclusions."
-          },
-          {
-            "name": "unit",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Measure unit."
-          },
-          {
-            "name": "aggregation_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Aggregation rule."
-          },
-          {
-            "name": "grain_description",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Evaluation grain."
-          },
-          {
-            "name": "is_additive",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Whether additive across all dimensions including time."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "orientation_id"
+            ]
           }
-        ]
-      },
-      {
-        "name": "metric_expression",
-        "key": "expression_id",
-        "profile": "CURRENT_STATE",
-        "description": "One expression per metric and SQL dialect.",
+        ],
         "columns": [
           {
-            "name": "expression_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Metric-dialect key."
+            "name": "orientation_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "metric_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registered metric."
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
           },
           {
-            "name": "sql_dialect",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Expression dialect."
+            "name": "resource_role",
+            "type": "Enum{MANIFEST|TRUST_MAP|MODULE_MAP|OBJECT_CATALOGUE|ENTITY_CATALOGUE|COLUMN_CATALOGUE|RELATIONSHIP_CATALOGUE|RELATIONSHIP_PATHS|LINEAGE|QUERY_COOKBOOK|GLOSSARY|DESIGN_DECISIONS|POLICY|QUALITY}",
+            "required": true
           },
           {
-            "name": "expression_text",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Calculation expression."
-          }
-        ]
-      },
-      {
-        "name": "metric_dataset",
-        "key": "metric_dataset_id",
-        "profile": "CURRENT_STATE",
-        "description": "Datasets required by a metric without expression parsing.",
-        "columns": [
-          {
-            "name": "metric_dataset_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Metric-entity key."
-          },
-          {
-            "name": "metric_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registered metric."
-          },
-          {
-            "name": "entity_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registered dataset."
-          },
-          {
-            "name": "dataset_role",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "PRIMARY or JOINED."
-          }
-        ]
-      },
-      {
-        "name": "semantic_synonym",
-        "key": "synonym_id",
-        "profile": "CURRENT_STATE",
-        "description": "Aliases for resolver matching, distinct from glossary definitions.",
-        "columns": [
-          {
-            "name": "synonym_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Object-alias key."
-          },
-          {
-            "name": "object_kind",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "ENTITY, COLUMN or METRIC."
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "object_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registered entity, field or metric identity."
+            "type": "ShortText",
+            "required": false
           },
           {
-            "name": "synonym_text",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Alternative consumer term."
+            "name": "resource_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "usage_guidance",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_required",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "discovery_order",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "model_metadata",
-        "key": "model_key",
+        "name": "DataProductRegistry",
+        "identity": "semantic.data_product_registry",
         "profile": "CURRENT_STATE",
-        "description": "Versioned model identity and computation provenance.",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_id"
+            ]
+          }
+        ],
         "columns": [
           {
-            "name": "model_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Model and version identity."
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
           },
           {
-            "name": "model_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Reproducible model version."
+            "name": "product_name",
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "model_purpose",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Embedding or scoring purpose and limitations."
+            "name": "product_description",
+            "type": "Text",
+            "required": true
           },
           {
-            "name": "dimensions",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Embedding dimension; null for scalar scoring."
+            "name": "product_domain",
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "computation_logic",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Reproducible model computation description."
+            "name": "product_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "product_status",
+            "type": "Enum{DRAFT|ACTIVE|DEPRECATED|RETIRED}",
+            "required": true
+          },
+          {
+            "name": "owner_team",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "technical_contact",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "trust_authoritative_producer",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "manifest",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "contract_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "policy_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "quality_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "lineage_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "approved_entrypoint",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "approved_access_mode",
+            "type": "Enum{VIEW|MCP_TOOL|SEMANTIC_QUERY}",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_deleted",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "deleted_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "feature_definition",
-        "key": "feature_name",
+        "name": "EntityMetadata",
+        "identity": "semantic.entity_metadata",
         "profile": "CURRENT_STATE",
-        "description": "Engineering definitions; values belong to Prediction.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "entity_metadata_id"
+            ]
+          }
+        ],
         "columns": [
           {
-            "name": "feature_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Registered engineered feature."
+            "name": "entity_metadata_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "feature_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Engineering version."
+            "name": "entity_name",
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "computation_logic",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Transformation and leakage cutoff."
+            "name": "logical_name",
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "source_entity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Authoritative source dataset."
+            "name": "entity_description",
+            "type": "Text",
+            "required": true
           },
           {
-            "name": "refresh_frequency",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Refresh schedule."
+            "name": "entity_kind",
+            "type": "Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD}",
+            "required": true
+          },
+          {
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "view_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "temporal_pattern",
+            "type": "Enum{CURRENT_STATE|EVENT_APPEND_ONLY|SCD2_HISTORY|SCD2_BITEMPORAL|ASSOCIATION_CURRENT|ASSOCIATION_SCD2|OPERATIONAL_LOG}",
+            "required": true
+          },
+          {
+            "name": "current_flag_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "deleted_flag_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "assumed_zone",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "industry_standard",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "KeyColumn",
+        "identity": "semantic.key_column",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "key_column_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "key_column_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "key_definition_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "ordinal",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "KeyDefinition",
+        "identity": "semantic.key_definition",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "key_definition_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "key_definition_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "entity_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "key_role",
+            "type": "Enum{SURROGATE|NATURAL|ALTERNATE}",
+            "required": true
+          },
+          {
+            "name": "key_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "Metric",
+        "identity": "semantic.metric",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "metric_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "metric_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "metric_description",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "metric_definition",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "metric_datatype",
+            "type": "Code",
+            "required": false
+          },
+          {
+            "name": "aggregation_type",
+            "type": "Enum{SUM|AVERAGE|COUNT|COUNT_DISTINCT|MIN|MAX|RATIO|DERIVED}",
+            "required": false
           },
           {
             "name": "unit",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Normalised unit and bounds."
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "grain_description",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_additive",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "role_policy",
-        "key": "role_name",
+        "name": "MetricDataset",
+        "identity": "semantic.metric_dataset",
         "profile": "CURRENT_STATE",
-        "description": "Declared roles and their enforcement boundary.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_dataset_id"
+            ]
+          }
+        ],
         "columns": [
           {
-            "name": "role_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Product logical tier name."
+            "name": "metric_dataset_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "description",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Intended audience only."
+            "name": "metric_name",
+            "type": "Reference",
+            "required": true
           },
           {
-            "name": "enforcement",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Documented platform and serving-layer boundary."
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "dataset_role",
+            "type": "Enum{PRIMARY|JOINED}",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "MetricExpression",
+        "identity": "semantic.metric_expression",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_expression_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "metric_expression_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "metric_name",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "sql_dialect",
+            "type": "Code",
+            "required": true
+          },
+          {
+            "name": "expression_text",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "NamingStandard",
+        "identity": "semantic.naming_standard",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "naming_standard_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "naming_standard_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "standard_type",
+            "type": "Enum{TEMPLATE|STANDARD_NAME|ABBREVIATION|SUFFIX|PREFIX|PATTERN}",
+            "required": true
+          },
+          {
+            "name": "applies_to",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE|ATTRIBUTE|GRAPH_KEY|ALL}",
+            "required": false
+          },
+          {
+            "name": "module_scope",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": false
+          },
+          {
+            "name": "kind_scope",
+            "type": "Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD}",
+            "required": false
+          },
+          {
+            "name": "name_template",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "standard_value",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "mapped_value",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "meaning",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "PrimaryObject",
+        "identity": "semantic.primary_object",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "primary_object_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "primary_object_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "module_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION}",
+            "required": true
+          },
+          {
+            "name": "object_role",
+            "type": "Enum{AGENT_ENTRYPOINT|ANALYTICAL_QUERY|REFERENCE_LOOKUP|RELATIONSHIP_BRIDGE|LINEAGE_EVIDENCE|OPERATIONAL_METRIC|WRITE_TARGET|INTERNAL_SUPPORT}",
+            "required": true
+          },
+          {
+            "name": "usage_guidance",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "RelationshipColumn",
+        "identity": "semantic.relationship_column",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "relationship_column_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "relationship_column_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "relationship_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "ordinal",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "source_column",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_column",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "SemanticSynonym",
+        "identity": "semantic.semantic_synonym",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "synonym_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "synonym_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "synonym_object",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "object_kind",
+            "type": "Enum{ENTITYMETADATA|COLUMNMETADATA|METRIC}",
+            "required": true
+          },
+          {
+            "name": "synonym_text",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "StandardDeclaration",
+        "identity": "semantic.standard_declaration",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "standard_declaration_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "standard_declaration_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "component_kind",
+            "type": "Enum{STANDARD|MODULE|PATTERN}",
+            "required": true
+          },
+          {
+            "name": "component_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "platform",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "standard_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TableRelationship",
+        "identity": "semantic.table_relationship",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "relationship_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "relationship_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "relationship_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "source_entity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_entity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "relationship_type",
+            "type": "Enum{FOREIGN_KEY|HIERARCHY|ASSOCIATIVE}",
+            "required": true
+          },
+          {
+            "name": "cardinality",
+            "type": "Enum{ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY}",
+            "required": false
+          },
+          {
+            "name": "is_mandatory",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       }
@@ -1692,706 +2307,761 @@
     "domain": [],
     "observability": [
       {
-        "name": "change_event",
-        "key": "change_event_id",
+        "name": "AgentOutcome",
+        "identity": "observability.agent_outcome",
         "profile": "EVENT_APPEND_ONLY",
-        "description": "Append-only operational evidence: change event.",
-        "columns": [
+        "keys": [
           {
-            "name": "change_event_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying change event; never recycled."
-          },
-          {
-            "name": "table_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Qualified changed table; no row identifiers."
-          },
-          {
-            "name": "change_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Mutation kind."
-          },
-          {
-            "name": "change_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Change occurred."
-          },
-          {
-            "name": "changed_by",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Responsible producer."
-          },
-          {
-            "name": "records_affected",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Aggregate count only."
-          },
-          {
-            "name": "batch_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Producing run identity."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "outcome_id"
+            ]
           }
-        ]
-      },
-      {
-        "name": "data_quality_metric",
-        "key": "quality_metric_id",
-        "profile": "EVENT_APPEND_ONLY",
-        "description": "Append-only operational evidence: data quality metric.",
-        "columns": [
-          {
-            "name": "quality_metric_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying quality measurement; never recycled."
-          },
-          {
-            "name": "table_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Qualified measured table."
-          },
-          {
-            "name": "metric_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Data quality dimension."
-          },
-          {
-            "name": "metric_value",
-            "type": "DECIMAL(10,4)",
-            "nullable": false,
-            "comment": "Measured fraction, independently of validation coverage."
-          },
-          {
-            "name": "measured_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Measurement instant."
-          },
-          {
-            "name": "quality_threshold",
-            "type": "DECIMAL(5,4)",
-            "nullable": false,
-            "comment": "Acceptance threshold."
-          },
-          {
-            "name": "is_threshold_met",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Measurement meets declared threshold."
-          },
-          {
-            "name": "sample_size",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Measured population size."
-          }
-        ]
-      },
-      {
-        "name": "lineage_run",
-        "key": "lineage_run_id",
-        "profile": "EVENT_APPEND_ONLY",
-        "description": "Append-only operational evidence: lineage run.",
-        "columns": [
-          {
-            "name": "lineage_run_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying flow execution; never recycled."
-          },
-          {
-            "name": "lineage_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying observability.data_lineage; never recycled."
-          },
-          {
-            "name": "run_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Execution instant."
-          },
-          {
-            "name": "run_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "SUCCESS, FAILED, PARTIAL or RUNNING."
-          },
-          {
-            "name": "records_read",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Input count."
-          },
-          {
-            "name": "records_written",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Output count."
-          },
-          {
-            "name": "batch_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Execution batch identity."
-          }
-        ]
-      },
-      {
-        "name": "model_performance",
-        "key": "performance_id",
-        "profile": "EVENT_APPEND_ONLY",
-        "description": "Append-only operational evidence: model performance.",
-        "columns": [
-          {
-            "name": "performance_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying model measurement; never recycled."
-          },
-          {
-            "name": "model_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Measured model."
-          },
-          {
-            "name": "model_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Measured revision."
-          },
-          {
-            "name": "metric_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Performance dimension, separate from predictions."
-          },
-          {
-            "name": "metric_value",
-            "type": "DECIMAL(10,6)",
-            "nullable": true,
-            "comment": "Measured metric in named units."
-          },
-          {
-            "name": "evaluation_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Evaluation instant."
-          },
-          {
-            "name": "sample_size",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Evaluation population."
-          }
-        ]
-      },
-      {
-        "name": "agent_outcome",
-        "key": "outcome_id",
-        "profile": "EVENT_APPEND_ONLY",
-        "description": "Append-only operational evidence: agent outcome.",
+        ],
         "columns": [
           {
             "name": "outcome_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying agent outcome; never recycled."
+            "type": "Identifier",
+            "required": false
           },
           {
             "name": "agent_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Acting agent."
+            "type": "ShortText",
+            "required": true
           },
           {
             "name": "session_key",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Process session identifier."
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "action_type",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Process action."
+            "type": "Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION}",
+            "required": true
           },
           {
             "name": "action_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Action instant."
+            "type": "Timestamp",
+            "required": true
           },
           {
             "name": "tables_accessed",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Table-level references only."
+            "type": "Text",
+            "required": false
           },
           {
             "name": "outcome_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Execution result."
+            "type": "Enum{SUCCESS|PARTIAL|FAILED}",
+            "required": true
+          },
+          {
+            "name": "user_feedback",
+            "type": "Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION}",
+            "required": false
           },
           {
             "name": "records_processed",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Aggregate count, never result rows."
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "data_lineage",
-        "key": "lineage_id",
+        "name": "ChangeEvent",
+        "identity": "observability.change_event",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "change_event_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "change_event_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_type",
+            "type": "Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE}",
+            "required": true
+          },
+          {
+            "name": "change_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "changed_by",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_source",
+            "type": "Enum{ETL|API|MANUAL|AGENT}",
+            "required": false
+          },
+          {
+            "name": "records_affected",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "columns_changed",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "batch_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataLineage",
+        "identity": "observability.data_lineage",
         "profile": "CURRENT_STATE",
-        "description": "Flow definitions retained independently of executions.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "lineage_id"
+            ]
+          }
+        ],
         "columns": [
           {
             "name": "lineage_id",
-            "type": "BIGINT",
-            "nullable": false,
-            "comment": "Stable surrogate identifying flow; never recycled."
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "source_container",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "source_table",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Qualified source table."
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_system",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "target_container",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "target_table",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Qualified target table."
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_column",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "job_name",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Producing transformation."
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "transformation_type",
+            "type": "Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT}",
+            "required": false
           },
           {
             "name": "transformation_logic",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Transformation definition, without business data."
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "openlineage_job_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "openlineage_namespace",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "is_active",
-            "type": "BOOLEAN",
-            "nullable": false,
-            "comment": "Owner enables or retires a flow; transitions true to false on retirement."
+            "type": "Flag",
+            "required": false
           },
           {
             "name": "registered_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Flow registered."
+            "type": "Timestamp",
+            "required": false
           },
           {
             "name": "retired_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": true,
-            "comment": "Retirement; null while active."
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "retention_policy",
-        "key": "policy_id",
-        "profile": "CURRENT_STATE",
-        "description": "Operator-applied retention obligations, not automatic deletion.",
-        "columns": [
-          {
-            "name": "policy_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Table or facet retention identity."
-          },
-          {
-            "name": "retention_days",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Null means product lifetime."
-          },
-          {
-            "name": "rationale",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Why this retention period is used."
-          },
-          {
-            "name": "owner",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Operator accountable for archival and deletion."
-          }
-        ]
-      },
-      {
-        "name": "validation_run",
-        "key": "run_id",
+        "name": "DataQualityMetric",
+        "identity": "observability.data_quality_metric",
         "profile": "EVENT_APPEND_ONLY",
-        "description": "Validation wire schema 2.1 run evidence; advisory, never an access gate.",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "quality_metric_id"
+            ]
+          }
+        ],
         "columns": [
           {
-            "name": "product_prefix",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Product evaluated."
+            "name": "quality_metric_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "producer_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validator identity."
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
           },
           {
-            "name": "run_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Unique append-only execution identity."
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
           },
           {
-            "name": "producer_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validator version."
+            "name": "column_name",
+            "type": "ShortText",
+            "required": false
           },
           {
-            "name": "profile_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Executed profile."
+            "name": "quality_dimension",
+            "type": "Enum{COMPLETENESS|VALIDITY|CONSISTENCY|ACCURACY|TIMELINESS}",
+            "required": true
           },
           {
-            "name": "profile_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Profile version."
+            "name": "check_function",
+            "type": "Enum{COMPLETENESS|VALIDITY|CONSISTENCY|INTEGRITY|UNIQUENESS|FRESHNESS}",
+            "required": true
           },
           {
-            "name": "source_format",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Evidence interchange format."
+            "name": "rule_text",
+            "type": "Text",
+            "required": true
           },
           {
-            "name": "payload_schema_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validation wire schema version."
+            "name": "metric_value",
+            "type": "Decimal(10,4)",
+            "required": false
           },
           {
-            "name": "started_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Validation started."
+            "name": "pass_threshold",
+            "type": "Decimal(5,4)",
+            "required": false
           },
           {
-            "name": "completed_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Validation completed."
+            "name": "warn_threshold",
+            "type": "Decimal(5,4)",
+            "required": false
           },
           {
-            "name": "trust_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Advisory product summary."
+            "name": "check_outcome",
+            "type": "Enum{PASS|WARN|FAIL}",
+            "required": true
           },
           {
-            "name": "agent_use_allowed",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Deprecated compatibility field; always go, never authoritative."
+            "name": "measured_dts",
+            "type": "Timestamp",
+            "required": true
           },
           {
-            "name": "total_checks",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Executed check count."
+            "name": "sample_size",
+            "type": "Integer",
+            "required": false
           },
           {
-            "name": "passed_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks with PASSED status."
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
           },
           {
-            "name": "failed_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks with FAILED status."
-          },
-          {
-            "name": "error_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks that could not execute."
-          },
-          {
-            "name": "critical_failure_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Failed or errored CRITICAL checks."
-          },
-          {
-            "name": "error_failure_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Failed or errored ERROR-severity checks."
-          },
-          {
-            "name": "data_product_trust_score",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Optional readiness score; null means unassessed."
-          },
-          {
-            "name": "performance_readiness_score",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Optional readiness score; null means unassessed."
-          },
-          {
-            "name": "operational_readiness_score",
-            "type": "INTEGER",
-            "nullable": true,
-            "comment": "Optional readiness score; null means unassessed."
-          },
-          {
-            "name": "repair_candidate_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "True repair proposal count."
-          },
-          {
-            "name": "failed_checks_json",
-            "type": "JSONB",
-            "nullable": true,
-            "comment": "Optional capped failure detail; counts remain authoritative."
-          },
-          {
-            "name": "repair_candidates_json",
-            "type": "JSONB",
-            "nullable": true,
-            "comment": "Optional capped proposals, never executable authority."
-          },
-          {
-            "name": "evidence_expires_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": true,
-            "comment": "Evidence expiry."
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       },
       {
-        "name": "validation_area",
-        "key": "area_id",
+        "name": "LineageRun",
+        "identity": "observability.lineage_run",
         "profile": "EVENT_APPEND_ONLY",
-        "description": "Per-area check coverage and confidence for each validation run.",
-        "columns": [
+        "keys": [
           {
-            "name": "product_prefix",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Product evaluated."
-          },
-          {
-            "name": "producer_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validator identity."
-          },
-          {
-            "name": "run_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Unique append-only execution identity."
-          },
-          {
-            "name": "area_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Run-scope composite identity."
-          },
-          {
-            "name": "payload_schema_version",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Validation wire schema version."
-          },
-          {
-            "name": "scope_kind",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "PRODUCT, MODULE, ENTITY, PATTERN or CAPABILITY."
-          },
-          {
-            "name": "scope_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Resolvable area identity."
-          },
-          {
-            "name": "checks_expected",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks defined by the profile."
-          },
-          {
-            "name": "checks_ran",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks executed."
-          },
-          {
-            "name": "passed_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks with PASSED status."
-          },
-          {
-            "name": "failed_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks with FAILED status."
-          },
-          {
-            "name": "error_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Checks that could not execute."
-          },
-          {
-            "name": "critical_failure_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Failed or errored CRITICAL checks."
-          },
-          {
-            "name": "error_failure_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "Failed or errored ERROR-severity checks."
-          },
-          {
-            "name": "area_status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "pass, fail, partial, not-validated or no-evidence."
-          },
-          {
-            "name": "confidence",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "strong, partial, weak or unknown."
-          },
-          {
-            "name": "open_gaps",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Coverage limits, required below strong."
-          },
-          {
-            "name": "recommended_action",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "How to raise confidence."
-          },
-          {
-            "name": "completed_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Parent run completion instant."
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "lineage_run_id"
+            ]
           }
-        ]
-      },
-      {
-        "name": "validation_check",
-        "key": "check_result_id",
-        "profile": "EVENT_APPEND_ONLY",
-        "description": "Individual executed check identity and error evidence.",
+        ],
         "columns": [
           {
-            "name": "check_result_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Run and test identity."
+            "name": "lineage_run_id",
+            "type": "Identifier",
+            "required": false
           },
           {
-            "name": "run_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Parent validation run."
+            "name": "lineage_id",
+            "type": "Reference",
+            "required": true
           },
           {
-            "name": "test_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Stable product-family check identifier."
+            "name": "run_dts",
+            "type": "Timestamp",
+            "required": true
           },
           {
-            "name": "scope_kind",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Area kind."
+            "name": "run_status",
+            "type": "Enum{SUCCESS|FAILED|PARTIAL|RUNNING}",
+            "required": true
           },
           {
-            "name": "scope_id",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Area identity."
+            "name": "run_duration_ms",
+            "type": "Integer",
+            "required": false
           },
           {
-            "name": "category",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Check family."
+            "name": "records_read",
+            "type": "Integer",
+            "required": false
           },
           {
-            "name": "severity",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "Failure impact."
+            "name": "records_written",
+            "type": "Integer",
+            "required": false
           },
           {
-            "name": "status",
-            "type": "VARCHAR",
-            "nullable": false,
-            "comment": "PASSED, FAILED or ERROR."
+            "name": "records_rejected",
+            "type": "Integer",
+            "required": false
           },
           {
-            "name": "row_count",
-            "type": "INTEGER",
-            "nullable": false,
-            "comment": "True violating row count."
+            "name": "batch_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "openlineage_run_id",
+            "type": "ShortText",
+            "required": false
           },
           {
             "name": "error_message",
-            "type": "VARCHAR",
-            "nullable": true,
-            "comment": "Execution error only."
+            "type": "Text",
+            "required": false
           },
           {
-            "name": "checked_dts",
-            "type": "TIMESTAMPTZ",
-            "nullable": false,
-            "comment": "Check execution time."
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ModelPerformance",
+        "identity": "observability.model_performance",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "performance_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "performance_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "model_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "model_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "metric_name",
+            "type": "Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE}",
+            "required": true
+          },
+          {
+            "name": "metric_value",
+            "type": "Decimal(10,6)",
+            "required": false
+          },
+          {
+            "name": "evaluation_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "sample_size",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "is_sla_met",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ValidationArea",
+        "identity": "observability.validation_area",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_code",
+              "producer_id",
+              "run_id",
+              "scope_kind",
+              "scope_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "product_code",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "run_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "scope_kind",
+            "type": "Enum{MODULE|ENTITY|PATTERN|CAPABILITY|PRODUCT}",
+            "required": true
+          },
+          {
+            "name": "scope_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "checks_expected",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "checks_ran",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "passed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "area_status",
+            "type": "Enum{pass|fail|partial|not-validated|no-evidence}",
+            "required": true
+          },
+          {
+            "name": "confidence",
+            "type": "Enum{strong|partial|weak|unknown}",
+            "required": true
+          },
+          {
+            "name": "open_gaps",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "recommended_action",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "completed_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ValidationRun",
+        "identity": "observability.validation_run",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_code",
+              "producer_id",
+              "run_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "product_code",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "profile_id",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "profile_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_format",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "payload_schema_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "run_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "started_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "completed_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "trust_status",
+            "type": "Enum{TRUSTED|DEGRADED|UNTRUSTED}",
+            "required": true
+          },
+          {
+            "name": "agent_use_allowed",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "total_checks",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "passed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "data_product_trust_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "performance_readiness_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "operational_readiness_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "repair_candidate_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_checks_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "repair_candidates_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "evidence_expires_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
           }
         ]
       }
@@ -2401,21 +3071,38 @@
   },
   "access_surface": [
     {
-      "name": "v_module_registry",
+      "relation": "BusinessGlossary",
+      "identity": "memory.business_glossary:current",
       "columns": [
-        "module_name",
-        "container_name",
-        "deployment_status",
-        "module_version",
-        "module_purpose",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
+        "term",
+        "term_category",
+        "definition",
+        "source_module",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_design_decision",
+      "relation": "ChangeLog",
+      "identity": "memory.change_log:current",
+      "columns": [
+        "change_id",
+        "version_number",
+        "change_title",
+        "change_type",
+        "source_module",
+        "related_decision_id",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DesignDecision",
+      "identity": "memory.design_decision:current",
       "columns": [
         "decision_id",
         "decision_version",
@@ -2427,27 +3114,50 @@
         "decision_status",
         "decision_category",
         "source_module",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
+        "superseded_by",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_business_glossary",
+      "relation": "ImplementationNote",
+      "identity": "memory.implementation_note:current",
       "columns": [
-        "term",
-        "term_category",
-        "definition",
+        "note_id",
+        "note_title",
+        "note_content",
+        "note_category",
+        "severity",
         "source_module",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_query_cookbook",
+      "relation": "ModuleRegistry",
+      "identity": "memory.module_registry:current",
+      "columns": [
+        "module_registry_id",
+        "module_name",
+        "container_name",
+        "deployment_status",
+        "module_version",
+        "module_purpose",
+        "key_entities",
+        "dependencies",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "QueryCookbook",
+      "identity": "memory.query_cookbook:current",
       "columns": [
         "recipe_id",
         "recipe_title",
@@ -2457,329 +3167,15 @@
         "complexity",
         "is_batch",
         "source_module",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_implementation_note",
-      "columns": [
-        "note_id",
-        "note_title",
-        "note_content",
-        "note_category",
-        "source_module",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
-      ]
-    },
-    {
-      "name": "v_change_log",
-      "columns": [
-        "change_id",
-        "version_number",
-        "change_title",
-        "change_type",
-        "source_module",
-        "related_decision_id",
-        "authored_by",
-        "source_artifact",
-        "authored_dts",
-        "valid_from_dts"
-      ]
-    },
-    {
-      "name": "v_data_product_registry",
-      "columns": [
-        "product_id",
-        "product_version",
-        "product_status",
-        "owner_team",
-        "trust_authoritative_producer",
-        "approved_entrypoint",
-        "approved_access_mode",
-        "max_evidence_age_days"
-      ]
-    },
-    {
-      "name": "v_data_product_map",
-      "columns": [
-        "module_name",
-        "container_name",
-        "module_purpose",
-        "deployment_status",
-        "module_version"
-      ]
-    },
-    {
-      "name": "v_standard_declaration",
-      "columns": [
-        "declaration_id",
-        "product_id",
-        "component_kind",
-        "component_name",
-        "platform",
-        "standard_version"
-      ]
-    },
-    {
-      "name": "v_entity_metadata",
-      "columns": [
-        "entity_name",
-        "entity_description",
-        "module_name",
-        "container_name",
-        "table_name",
-        "view_name",
-        "temporal_pattern",
-        "current_flag_column",
-        "deleted_flag_column",
-        "standalone_reason"
-      ]
-    },
-    {
-      "name": "v_key_definition",
-      "columns": [
-        "key_id",
-        "entity_name",
-        "key_role"
-      ]
-    },
-    {
-      "name": "v_key_column",
-      "columns": [
-        "key_column_id",
-        "key_id",
-        "ordinal",
-        "column_name"
-      ]
-    },
-    {
-      "name": "v_column_metadata",
-      "columns": [
-        "column_metadata_id",
-        "container_name",
-        "table_name",
-        "column_name",
-        "business_description",
-        "is_pii",
-        "is_sensitive",
-        "data_classification",
-        "source"
-      ]
-    },
-    {
-      "name": "v_table_relationship",
-      "columns": [
-        "relationship_id",
-        "source_entity",
-        "target_entity",
-        "cardinality",
-        "relationship_type",
-        "is_mandatory"
-      ]
-    },
-    {
-      "name": "v_relationship_column",
-      "columns": [
-        "relationship_column_id",
-        "relationship_id",
-        "ordinal",
-        "source_column",
-        "target_column"
-      ]
-    },
-    {
-      "name": "v_access_object",
-      "columns": [
-        "object_identity",
-        "container_name",
-        "object_name",
-        "access_role",
-        "represents_entity",
-        "object_grain",
-        "is_agent_consumable",
-        "resolves_to_object",
-        "access_note"
-      ]
-    },
-    {
-      "name": "v_access_column",
-      "columns": [
-        "access_column_id",
-        "object_identity",
-        "ordinal",
-        "column_name",
-        "source_entity",
-        "source_column",
-        "mapping_kind",
-        "derivation_note"
-      ]
-    },
-    {
-      "name": "v_access_composition",
-      "columns": [
-        "access_composition_id",
-        "composite_object",
-        "member_seq",
-        "member_entity",
-        "member_role",
-        "via_relationship_id",
-        "via_direction",
-        "is_grain_contributor"
-      ]
-    },
-    {
-      "name": "v_primary_object",
-      "columns": [
-        "object_identity",
-        "module_name",
-        "object_type",
-        "object_role",
-        "usage_guidance"
-      ]
-    },
-    {
-      "name": "v_data_product_orientation",
-      "columns": [
-        "resource_role",
-        "product_id",
-        "container_name",
-        "object_name",
-        "discovery_order",
-        "is_required"
-      ]
-    },
-    {
-      "name": "v_naming_standard",
-      "columns": [
-        "standard_value",
-        "meaning",
-        "applies_to"
-      ]
-    },
-    {
-      "name": "v_metric",
-      "columns": [
-        "metric_name",
-        "metric_description",
-        "unit",
-        "aggregation_type",
-        "grain_description",
-        "is_additive"
-      ]
-    },
-    {
-      "name": "v_metric_expression",
-      "columns": [
-        "expression_id",
-        "metric_name",
-        "sql_dialect",
-        "expression_text"
-      ]
-    },
-    {
-      "name": "v_metric_dataset",
-      "columns": [
-        "metric_dataset_id",
-        "metric_name",
-        "entity_name",
-        "dataset_role"
-      ]
-    },
-    {
-      "name": "v_semantic_synonym",
-      "columns": [
-        "synonym_id",
-        "object_kind",
-        "object_name",
-        "synonym_text"
-      ]
-    },
-    {
-      "name": "v_model_metadata",
-      "columns": [
-        "model_key",
-        "model_version",
-        "model_purpose",
-        "dimensions",
-        "computation_logic"
-      ]
-    },
-    {
-      "name": "v_feature_definition",
-      "columns": [
-        "feature_name",
-        "feature_version",
-        "computation_logic",
-        "source_entity",
-        "refresh_frequency",
-        "unit"
-      ]
-    },
-    {
-      "name": "v_role_policy",
-      "columns": [
-        "role_name",
-        "description",
-        "enforcement"
-      ]
-    },
-    {
-      "name": "v_change_event",
-      "columns": [
-        "change_event_id",
-        "table_name",
-        "change_type",
-        "change_dts",
-        "changed_by",
-        "records_affected",
-        "batch_key"
-      ]
-    },
-    {
-      "name": "v_data_quality_metric",
-      "columns": [
-        "quality_metric_id",
-        "table_name",
-        "metric_name",
-        "metric_value",
-        "measured_dts",
-        "quality_threshold",
-        "is_threshold_met",
-        "sample_size"
-      ]
-    },
-    {
-      "name": "v_lineage_run",
-      "columns": [
-        "lineage_run_id",
-        "lineage_id",
-        "run_dts",
-        "run_status",
-        "records_read",
-        "records_written",
-        "batch_key"
-      ]
-    },
-    {
-      "name": "v_model_performance",
-      "columns": [
-        "performance_id",
-        "model_key",
-        "model_version",
-        "metric_name",
-        "metric_value",
-        "evaluation_dts",
-        "sample_size"
-      ]
-    },
-    {
-      "name": "v_agent_outcome",
+      "relation": "AgentOutcome",
+      "identity": "observability.agent_outcome:current",
       "columns": [
         "outcome_id",
         "agent_key",
@@ -2788,42 +3184,147 @@
         "action_dts",
         "tables_accessed",
         "outcome_status",
-        "records_processed"
+        "user_feedback",
+        "records_processed",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_data_lineage",
+      "relation": "ChangeEvent",
+      "identity": "observability.change_event:current",
+      "columns": [
+        "change_event_id",
+        "container_name",
+        "table_name",
+        "change_type",
+        "change_dts",
+        "changed_by",
+        "change_source",
+        "records_affected",
+        "columns_changed",
+        "batch_key",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataLineage",
+      "identity": "observability.data_lineage:current",
       "columns": [
         "lineage_id",
+        "source_container",
         "source_table",
+        "source_column",
+        "source_system",
+        "target_container",
         "target_table",
+        "target_column",
         "job_name",
+        "transformation_type",
         "transformation_logic",
+        "openlineage_job_name",
+        "openlineage_namespace",
         "is_active",
         "registered_dts",
-        "retired_dts"
+        "retired_dts",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_retention_policy",
+      "relation": "DataQualityMetric",
+      "identity": "observability.data_quality_metric:current",
       "columns": [
-        "policy_id",
-        "retention_days",
-        "rationale",
-        "owner"
+        "quality_metric_id",
+        "container_name",
+        "table_name",
+        "column_name",
+        "quality_dimension",
+        "check_function",
+        "rule_text",
+        "metric_value",
+        "pass_threshold",
+        "warn_threshold",
+        "check_outcome",
+        "measured_dts",
+        "sample_size",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_validation_run",
+      "relation": "LineageRun",
+      "identity": "observability.lineage_run:current",
       "columns": [
-        "product_prefix",
+        "lineage_run_id",
+        "lineage_id",
+        "run_dts",
+        "run_status",
+        "run_duration_ms",
+        "records_read",
+        "records_written",
+        "records_rejected",
+        "batch_key",
+        "openlineage_run_id",
+        "error_message",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ModelPerformance",
+      "identity": "observability.model_performance:current",
+      "columns": [
+        "performance_id",
+        "model_key",
+        "model_version",
+        "metric_name",
+        "metric_value",
+        "evaluation_dts",
+        "sample_size",
+        "is_sla_met",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ValidationArea",
+      "identity": "observability.validation_area:current",
+      "columns": [
+        "product_code",
         "producer_id",
         "run_id",
+        "scope_kind",
+        "scope_id",
+        "checks_expected",
+        "checks_ran",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "area_status",
+        "confidence",
+        "open_gaps",
+        "recommended_action",
+        "completed_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ValidationRun",
+      "identity": "observability.validation_run:current",
+      "columns": [
+        "product_code",
+        "producer_id",
         "producer_version",
         "profile_id",
         "profile_version",
         "source_format",
         "payload_schema_version",
+        "run_id",
         "started_dts",
         "completed_dts",
         "trust_status",
@@ -2840,94 +3341,432 @@
         "repair_candidate_count",
         "failed_checks_json",
         "repair_candidates_json",
-        "evidence_expires_dts"
+        "evidence_expires_dts",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "v_validation_area",
+      "relation": "LineageGraph",
+      "identity": "observability:lineage_graph",
       "columns": [
-        "product_prefix",
+        "source_node",
+        "target_node",
+        "edge_type"
+      ]
+    },
+    {
+      "relation": "LineageRunLatest",
+      "identity": "observability:lineage_run_latest",
+      "columns": [
+        "lineage_id",
+        "source_table",
+        "target_table",
+        "job_name",
+        "run_dts",
+        "run_status"
+      ]
+    },
+    {
+      "relation": "TrustMap",
+      "identity": "observability:trust_map",
+      "columns": [
+        "product_code",
         "producer_id",
         "run_id",
-        "area_id",
-        "payload_schema_version",
         "scope_kind",
         "scope_id",
+        "area_status",
+        "confidence",
         "checks_expected",
         "checks_ran",
+        "coverage",
         "passed_count",
         "failed_count",
         "error_count",
         "critical_failure_count",
         "error_failure_count",
-        "area_status",
-        "confidence",
         "open_gaps",
         "recommended_action",
-        "completed_dts"
+        "completed_dts",
+        "derived"
       ]
     },
     {
-      "name": "v_validation_check",
+      "relation": "AccessColumn",
+      "identity": "semantic.access_column:current",
       "columns": [
-        "check_result_id",
-        "run_id",
-        "test_id",
-        "scope_kind",
-        "scope_id",
-        "category",
-        "severity",
-        "status",
-        "row_count",
-        "error_message",
-        "checked_dts"
+        "access_column_id",
+        "access_object_id",
+        "ordinal",
+        "column_name",
+        "source_entity",
+        "source_column",
+        "mapping_kind",
+        "derivation_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
       ]
     },
     {
-      "name": "column_catalogue",
+      "relation": "AccessComposition",
+      "identity": "semantic.access_composition:current",
+      "columns": [
+        "access_composition_id",
+        "composite_container",
+        "composite_object",
+        "member_seq",
+        "member_entity",
+        "member_role",
+        "via_relationship_id",
+        "via_direction",
+        "is_grain_contributor",
+        "member_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "AccessObject",
+      "identity": "semantic.access_object:current",
+      "columns": [
+        "access_object_id",
+        "object_identity",
+        "container_name",
+        "object_name",
+        "object_type",
+        "access_role",
+        "represents_entity",
+        "object_grain",
+        "is_agent_consumable",
+        "is_primary",
+        "resolves_to_object",
+        "access_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ColumnMetadata",
+      "identity": "semantic.column_metadata:current",
+      "columns": [
+        "column_metadata_id",
+        "container_name",
+        "table_name",
+        "column_name",
+        "logical_name",
+        "business_description",
+        "is_pii",
+        "sensitivity_marker",
+        "data_classification",
+        "is_required",
+        "declared_type",
+        "allowed_values",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductMap",
+      "identity": "semantic.data_product_map:current",
+      "columns": [
+        "module_id",
+        "module_name",
+        "object_type",
+        "module_purpose",
+        "container_name",
+        "module_version",
+        "deployment_status",
+        "graph_key",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductOrientation",
+      "identity": "semantic.data_product_orientation:current",
+      "columns": [
+        "orientation_id",
+        "product_id",
+        "resource_role",
+        "container_name",
+        "object_name",
+        "resource_uri",
+        "usage_guidance",
+        "is_required",
+        "discovery_order",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductRegistry",
+      "identity": "semantic.data_product_registry:current",
+      "columns": [
+        "product_id",
+        "product_name",
+        "product_description",
+        "product_domain",
+        "product_version",
+        "product_status",
+        "owner_team",
+        "technical_contact",
+        "trust_authoritative_producer",
+        "manifest",
+        "contract_uri",
+        "policy_uri",
+        "quality_uri",
+        "lineage_uri",
+        "approved_entrypoint",
+        "approved_access_mode",
+        "is_active",
+        "is_deleted",
+        "deleted_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "EntityMetadata",
+      "identity": "semantic.entity_metadata:current",
+      "columns": [
+        "entity_metadata_id",
+        "entity_name",
+        "logical_name",
+        "entity_description",
+        "entity_kind",
+        "module_name",
+        "container_name",
+        "table_name",
+        "view_name",
+        "temporal_pattern",
+        "current_flag_column",
+        "deleted_flag_column",
+        "assumed_zone",
+        "industry_standard",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "KeyColumn",
+      "identity": "semantic.key_column:current",
+      "columns": [
+        "key_column_id",
+        "key_definition_id",
+        "ordinal",
+        "column_name",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "KeyDefinition",
+      "identity": "semantic.key_definition:current",
+      "columns": [
+        "key_definition_id",
+        "entity_id",
+        "key_role",
+        "key_name",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "Metric",
+      "identity": "semantic.metric:current",
+      "columns": [
+        "metric_id",
+        "metric_name",
+        "metric_description",
+        "metric_definition",
+        "metric_datatype",
+        "aggregation_type",
+        "unit",
+        "grain_description",
+        "is_additive",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "MetricDataset",
+      "identity": "semantic.metric_dataset:current",
+      "columns": [
+        "metric_dataset_id",
+        "metric_name",
+        "container_name",
+        "table_name",
+        "dataset_role",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "MetricExpression",
+      "identity": "semantic.metric_expression:current",
+      "columns": [
+        "metric_expression_id",
+        "metric_name",
+        "sql_dialect",
+        "expression_text",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "NamingStandard",
+      "identity": "semantic.naming_standard:current",
+      "columns": [
+        "naming_standard_id",
+        "standard_type",
+        "applies_to",
+        "module_scope",
+        "kind_scope",
+        "name_template",
+        "standard_value",
+        "mapped_value",
+        "meaning",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "PrimaryObject",
+      "identity": "semantic.primary_object:current",
+      "columns": [
+        "primary_object_id",
+        "module_id",
+        "container_name",
+        "object_name",
+        "object_type",
+        "object_role",
+        "usage_guidance",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "RelationshipColumn",
+      "identity": "semantic.relationship_column:current",
+      "columns": [
+        "relationship_column_id",
+        "relationship_id",
+        "ordinal",
+        "source_column",
+        "target_column",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "SemanticSynonym",
+      "identity": "semantic.semantic_synonym:current",
+      "columns": [
+        "synonym_id",
+        "synonym_object",
+        "object_kind",
+        "synonym_text",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "StandardDeclaration",
+      "identity": "semantic.standard_declaration:current",
+      "columns": [
+        "standard_declaration_id",
+        "product_id",
+        "component_kind",
+        "component_name",
+        "platform",
+        "standard_version",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "TableRelationship",
+      "identity": "semantic.table_relationship:current",
+      "columns": [
+        "relationship_id",
+        "relationship_name",
+        "source_entity",
+        "target_entity",
+        "relationship_type",
+        "cardinality",
+        "is_mandatory",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ColumnCatalogue",
+      "identity": "semantic:column_catalogue",
       "columns": [
         "container_name",
         "table_name",
         "column_name",
         "data_type",
         "is_nullable",
+        "logical_name",
         "business_description",
         "is_pii",
-        "is_sensitive",
+        "sensitivity_marker",
         "data_classification",
-        "declared_type_source",
+        "declared_type",
+        "structural_source",
         "description_source"
       ]
     },
     {
-      "name": "data_product_manifest",
+      "relation": "DataProductManifest",
+      "identity": "semantic:data_product_manifest",
       "columns": [
         "product_id",
+        "product_name",
         "product_version",
+        "product_status",
         "approved_entrypoint",
+        "approved_access_mode",
         "trust_authoritative_producer",
-        "resource_role",
-        "container_name",
-        "object_name",
-        "discovery_order",
-        "is_required",
+        "manifest",
+        "trust_map",
+        "module_map",
+        "object_catalogue",
+        "entity_catalogue",
+        "column_catalogue",
+        "relationship_catalogue",
+        "relationship_paths",
+        "lineage",
+        "query_cookbook",
+        "glossary",
+        "design_decisions",
+        "quality",
         "standard_version"
       ]
     },
     {
-      "name": "relationship_edges",
-      "columns": [
-        "relationship_id",
-        "key_ordinal",
-        "direction",
-        "from_entity",
-        "from_column",
-        "to_entity",
-        "to_column"
-      ]
-    },
-    {
-      "name": "relationship_paths",
+      "relation": "RelationshipPaths",
+      "identity": "semantic:relationship_paths",
       "columns": [
         "path_id",
         "origin_entity",
@@ -2942,85 +3781,86 @@
         "relationship_id",
         "direction"
       ]
-    },
-    {
-      "name": "lineage_graph",
-      "columns": [
-        "source_node",
-        "target_node",
-        "edge_type"
-      ]
-    },
-    {
-      "name": "lineage_run_latest",
-      "columns": [
-        "lineage_id",
-        "source_table",
-        "target_table",
-        "job_name",
-        "run_dts",
-        "run_status"
-      ]
-    },
-    {
-      "name": "trust_map",
-      "columns": [
-        "product_prefix",
-        "producer_id",
-        "run_id",
-        "scope_kind",
-        "scope_id",
-        "area_status",
-        "confidence",
-        "checks_expected",
-        "checks_ran",
-        "passed_count",
-        "failed_count",
-        "error_count",
-        "critical_failure_count",
-        "error_failure_count",
-        "coverage",
-        "open_gaps",
-        "recommended_action",
-        "completed_dts"
-      ]
     }
   ],
   "discovery_roles": [
     {
+      "role": "MANIFEST",
+      "relation": "DataProductManifest",
+      "required": true,
+      "discovery_order": 1
+    },
+    {
       "role": "TRUST_MAP",
-      "object": "trust_map",
+      "relation": "TrustMap",
+      "required": true,
       "discovery_order": 2
     },
     {
-      "role": "MANIFEST",
-      "object": "data_product_manifest",
+      "role": "MODULE_MAP",
+      "relation": "DataProductMap",
+      "required": true,
       "discovery_order": 3
     },
     {
-      "role": "MODULE_MAP",
-      "object": "v_data_product_map",
+      "role": "OBJECT_CATALOGUE",
+      "relation": "AccessObject",
+      "required": true,
       "discovery_order": 4
     },
     {
-      "role": "OBJECT_CATALOGUE",
-      "object": "v_access_object",
+      "role": "ENTITY_CATALOGUE",
+      "relation": "EntityMetadata",
+      "required": true,
       "discovery_order": 5
     },
     {
-      "role": "ENTITY_CATALOGUE",
-      "object": "v_entity_metadata",
+      "role": "COLUMN_CATALOGUE",
+      "relation": "ColumnCatalogue",
+      "required": true,
       "discovery_order": 6
     },
     {
-      "role": "COLUMN_CATALOGUE",
-      "object": "column_catalogue",
+      "role": "RELATIONSHIP_CATALOGUE",
+      "relation": "TableRelationship",
+      "required": true,
       "discovery_order": 7
     },
     {
-      "role": "RELATIONSHIP_CATALOGUE",
-      "object": "v_table_relationship",
+      "role": "RELATIONSHIP_PATHS",
+      "relation": "RelationshipPaths",
+      "required": false,
       "discovery_order": 8
+    },
+    {
+      "role": "LINEAGE",
+      "relation": "LineageGraph",
+      "required": false,
+      "discovery_order": 9
+    },
+    {
+      "role": "QUERY_COOKBOOK",
+      "relation": "QueryCookbook",
+      "required": false,
+      "discovery_order": 10
+    },
+    {
+      "role": "GLOSSARY",
+      "relation": "BusinessGlossary",
+      "required": false,
+      "discovery_order": 11
+    },
+    {
+      "role": "DESIGN_DECISIONS",
+      "relation": "DesignDecision",
+      "required": false,
+      "discovery_order": 12
+    },
+    {
+      "role": "QUALITY",
+      "relation": "DataQualityMetric",
+      "required": false,
+      "discovery_order": 13
     }
   ]
 }

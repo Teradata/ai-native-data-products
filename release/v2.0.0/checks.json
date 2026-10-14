@@ -1,48 +1,131 @@
 {
   "standard_version": "2.0.0",
   "rendered_checks": {
-    "postgres": [
+    "duckdb": [
       {
         "scope_kind": "ENTITY",
-        "check": "entity:metadata"
+        "check": "metadata"
       },
       {
         "scope_kind": "ENTITY",
-        "check": "entity:temporal"
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
       },
       {
         "scope_kind": "MODULE",
-        "check": "memory:coverage"
+        "check": "contract-access-columns"
       },
       {
         "scope_kind": "MODULE",
-        "check": "relationship"
+        "check": "contract-composition"
       },
       {
         "scope_kind": "MODULE",
-        "check": "semantic:coverage"
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
       },
       {
         "scope_kind": "PRODUCT",
         "check": "comment-coverage"
       }
-    ]
-  },
-  "check_files": {
-    "duckdb": [
-      "implementation/duckdb/modules/memory/validation.sql.j2",
-      "implementation/duckdb/modules/semantic/validation.sql.j2"
     ],
     "postgres": [
-      "implementation/postgres/modules/memory/validation.sql.j2",
-      "implementation/postgres/modules/semantic/validation.sql.j2"
+      {
+        "scope_kind": "ENTITY",
+        "check": "metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-access-columns"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-composition"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
     ],
     "teradata": [
-      "implementation/teradata/modules/domain/validation.sql.j2",
-      "implementation/teradata/modules/memory/validation.sql.j2",
-      "implementation/teradata/modules/prediction/validation.sql.j2",
-      "implementation/teradata/modules/search/validation.sql.j2",
-      "implementation/teradata/modules/semantic/validation.sql.j2"
+      {
+        "scope_kind": "ENTITY",
+        "check": "metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-access-columns"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-composition"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
     ]
   }
 }

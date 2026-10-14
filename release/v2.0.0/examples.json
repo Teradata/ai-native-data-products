@@ -10,7 +10,8 @@
       "example": "it-service-desk-data-product",
       "platforms": [
         "duckdb",
-        "postgres"
+        "postgres",
+        "teradata"
       ],
       "readme": "examples/it-service-desk-data-product/README.md"
     }

@@ -22,6 +22,32 @@
         "CONFORMANCE.md",
         "PLATFORM_PROFILE.md"
       ],
+      "declared_checks": [
+        "contract access-columns",
+        "contract composition",
+        "contract identity",
+        "contract keys",
+        "contract relationships",
+        "entity metadata",
+        "entity temporal",
+        "module memory",
+        "module semantic",
+        "product comment-coverage",
+        "relationship reference"
+      ],
+      "declared_gaps": [
+        "Adoption",
+        "Catalogue scope",
+        "Composition",
+        "Concurrency",
+        "Cookbook recipes",
+        "Coverage not carried over",
+        "Embedding, model and operations",
+        "Historical references",
+        "Maintenance",
+        "Roles, grants and runtime privacy",
+        "Temporal enforcement"
+      ],
       "declares_standard_version": true
     },
     {
@@ -45,6 +71,29 @@
         "CONFORMANCE.md",
         "PLATFORM_PROFILE.md"
       ],
+      "declared_checks": [
+        "contract access-columns",
+        "contract composition",
+        "contract identity",
+        "contract keys",
+        "contract relationships",
+        "entity metadata",
+        "entity temporal",
+        "module memory",
+        "module semantic",
+        "product comment-coverage",
+        "relationship reference"
+      ],
+      "declared_gaps": [
+        "Adoption",
+        "Composition",
+        "Concurrency",
+        "Cookbook recipes",
+        "Embedding, model and operations",
+        "Historical references",
+        "Maintenance",
+        "Principals and membership"
+      ],
       "declares_standard_version": true
     },
     {
@@ -66,7 +115,36 @@
         "validation"
       ],
       "conformance_documents": [
+        "CONFORMANCE.md",
         "PLATFORM_PROFILE.md"
+      ],
+      "declared_checks": [
+        "contract access-columns",
+        "contract composition",
+        "contract identity",
+        "contract keys",
+        "contract relationships",
+        "entity metadata",
+        "entity temporal",
+        "module memory",
+        "module semantic",
+        "product comment-coverage",
+        "relationship reference"
+      ],
+      "declared_gaps": [
+        "Adopted databases",
+        "Adoption",
+        "Composition",
+        "Concurrency",
+        "Cookbook recipes",
+        "Deployment",
+        "Embedding, model and operations",
+        "Graph lineage and catalogue interface",
+        "Historical references",
+        "Maintenance",
+        "Point-in-time call",
+        "Principals and membership",
+        "Temporal enforcement"
       ],
       "declares_standard_version": true
     }
