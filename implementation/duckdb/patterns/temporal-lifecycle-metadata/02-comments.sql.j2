@@ -1,0 +1,8 @@
+{# Descriptions from the specification and the module standards (RichMetadata), applied
+   after the tables and before anything depends on them. #}
+{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and not (x.adopted|default(false)) %}
+COMMENT ON TABLE {{ x.objects.table|qualified }} IS {{ x.description|literal }};
+{%- for col in x.columns %}
+COMMENT ON COLUMN {{ x.objects.table|qualified }}.{{ col.physical_name|ident }} IS {{ (col.description or col.name)|literal }};
+{%- endfor %}
+{% endfor %}

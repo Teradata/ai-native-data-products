@@ -1,0 +1,72 @@
+{# The trust map (Validation §§4, 10, 11): per area, the latest evidence from the product's
+   designated producer, read at `unknown` confidence once past its expiry or the product's
+   evidence window; a run at a registered legacy wire version, which publishes no area
+   records, projected as one PRODUCT entry capped at `partial` (a 2.1 run without areas is
+   malformed, not legacy); and a `no-evidence` entry for a product with nothing published. Where no
+   producer is designated, the most cautious producer's entry stands for each area. #}
+{% set view = named('TrustMap') %}{% set run = named('ValidationRun') %}{% set area = named('ValidationArea') %}
+{% set registry = named('DataProductRegistry') %}
+{% if view and run and area and registry %}
+{% set r = run.column_names %}{% set a = area.column_names %}{% set p = registry.column_names %}
+{% set window = "INTERVAL '" ~ (quality.evidence_window_days * 86400)|int ~ " seconds'" %}
+CREATE VIEW {{ view.objects.consumer_view|qualified }} AS
+WITH product AS (
+    SELECT {{ p.product_id|ident }} AS product_code, nullif({{ p.trust_authoritative_producer|ident }}, '') AS producer_id
+    FROM {{ registry.objects.table|qualified }} WHERE {{ p.is_active|ident }} AND NOT {{ p.is_deleted|ident }}
+), evidence AS (
+    SELECT x.{{ a.product_code|ident }} AS product_code, x.{{ a.producer_id|ident }} AS producer_id,
+           x.{{ a.run_id|ident }} AS run_id, x.{{ a.scope_kind|ident }} AS scope_kind, x.{{ a.scope_id|ident }} AS scope_id,
+           x.{{ a.area_status|ident }} AS area_status, x.{{ a.confidence|ident }} AS confidence,
+           x.{{ a.checks_expected|ident }} AS checks_expected, x.{{ a.checks_ran|ident }} AS checks_ran,
+           x.{{ a.passed_count|ident }} AS passed_count, x.{{ a.failed_count|ident }} AS failed_count,
+           x.{{ a.error_count|ident }} AS error_count, x.{{ a.critical_failure_count|ident }} AS critical_failure_count,
+           x.{{ a.error_failure_count|ident }} AS error_failure_count, x.{{ a.open_gaps|ident }} AS open_gaps,
+           x.{{ a.recommended_action|ident }} AS recommended_action, x.{{ a.completed_dts|ident }} AS completed_dts,
+           y.{{ r.evidence_expires_dts|ident }} AS evidence_expires_dts, FALSE AS derived
+    FROM {{ area.objects.table|qualified }} x
+    JOIN {{ run.objects.table|qualified }} y ON y.{{ r.product_code|ident }} = x.{{ a.product_code|ident }}
+     AND y.{{ r.producer_id|ident }} = x.{{ a.producer_id|ident }} AND y.{{ r.run_id|ident }} = x.{{ a.run_id|ident }}
+    UNION ALL
+    SELECT y.{{ r.product_code|ident }}, y.{{ r.producer_id|ident }}, y.{{ r.run_id|ident }}, 'PRODUCT', y.{{ r.product_code|ident }},
+           CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'no-evidence'
+                WHEN y.{{ r.failed_count|ident }} = 0 AND y.{{ r.error_count|ident }} = 0 THEN 'pass' ELSE 'fail' END,
+           CASE WHEN y.{{ r.total_checks|ident }} = 0 THEN 'unknown'
+                WHEN y.{{ r.critical_failure_count|ident }} + y.{{ r.error_failure_count|ident }} > 0 THEN 'weak'
+                ELSE 'partial' END,
+           y.{{ r.total_checks|ident }}, y.{{ r.total_checks|ident }}, y.{{ r.passed_count|ident }}, y.{{ r.failed_count|ident }},
+           y.{{ r.error_count|ident }}, y.{{ r.critical_failure_count|ident }}, y.{{ r.error_failure_count|ident }},
+           'Derived from a run with no area records.', NULL, y.{{ r.completed_dts|ident }}, y.{{ r.evidence_expires_dts|ident }}, TRUE
+    FROM {{ run.objects.table|qualified }} y
+    WHERE y.{{ r.payload_schema_version|ident }} IN ({% for v in quality.legacy_wire_versions %}{{ v|literal }}{% if not loop.last %}, {% endif %}{% endfor %})
+      AND NOT EXISTS (SELECT 1 FROM {{ area.objects.table|qualified }} x WHERE x.{{ a.product_code|ident }} = y.{{ r.product_code|ident }}
+                      AND x.{{ a.producer_id|ident }} = y.{{ r.producer_id|ident }} AND x.{{ a.run_id|ident }} = y.{{ r.run_id|ident }})
+), latest AS (
+    SELECT DISTINCT ON (e.product_code, e.producer_id, e.scope_kind, e.scope_id) e.*,
+           current_timestamp > coalesce(e.evidence_expires_dts, e.completed_dts + {{ window }}) AS stale
+    FROM evidence e JOIN product p ON p.product_code = e.product_code
+     AND (p.producer_id IS NULL OR p.producer_id = e.producer_id)
+    ORDER BY e.product_code, e.producer_id, e.scope_kind, e.scope_id, e.completed_dts DESC, e.run_id DESC
+), cautious AS (
+    SELECT DISTINCT ON (l.product_code, l.scope_kind, l.scope_id) l.*,
+           CASE WHEN l.stale THEN 'unknown' ELSE l.confidence END AS read_confidence
+    FROM latest l
+    ORDER BY l.product_code, l.scope_kind, l.scope_id,
+             CASE WHEN l.stale THEN 0 ELSE CASE l.confidence WHEN 'unknown' THEN 0 WHEN 'weak' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END END,
+             l.completed_dts DESC, l.run_id DESC, l.producer_id
+)
+SELECT c.product_code, c.producer_id, c.run_id, c.scope_kind, c.scope_id, c.area_status,
+       c.read_confidence AS confidence, c.checks_expected, c.checks_ran,
+       c.checks_ran::DOUBLE / nullif(c.checks_expected, 0) AS coverage,
+       c.passed_count, c.failed_count, c.error_count, c.critical_failure_count, c.error_failure_count,
+       CASE WHEN c.stale THEN 'Evidence is stale since ' || coalesce(c.evidence_expires_dts, c.completed_dts + {{ window }})::VARCHAR || '.' ELSE c.open_gaps END AS open_gaps,
+       CASE WHEN c.stale THEN 'Re-run the validator; disclose unknown confidence.'
+            WHEN p.producer_id IS NULL THEN 'No designated producer: cautious per-area fallback. ' || coalesce(c.recommended_action, 'Designate one producer.')
+            ELSE c.recommended_action END AS recommended_action,
+       c.completed_dts, c.derived
+FROM cautious c JOIN product p ON p.product_code = c.product_code
+UNION ALL
+SELECT p.product_code, p.producer_id, NULL, 'PRODUCT', p.product_code, 'no-evidence', 'unknown',
+       0, 0, NULL, 0, 0, 0, 0, 0, 'No published area evidence.', 'Run the validator before reporting confidence.',
+       NULL, FALSE
+FROM product p WHERE NOT EXISTS (SELECT 1 FROM latest l WHERE l.product_code = p.product_code);
+{% endif %}

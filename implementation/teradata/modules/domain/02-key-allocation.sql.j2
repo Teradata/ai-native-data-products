@@ -1,0 +1,11 @@
+{# Caller-rendered, with: keymap (a Keymap entity from the build context) and natural_value.
+   The caller runs both statements in one transaction. Allocation is permanent: a keymap row
+   is never deleted or recycled. The merge matches on the keymap's primary index, its
+   natural key, as Teradata requires; the select returns the stable identifier. #}
+{% set natural = keymap.identity.natural[0] %}{% set n = keymap.column_names[natural] %}
+MERGE INTO {{ keymap.objects.table|qualified }} AS k
+USING (SELECT CAST({{ natural_value|literal }} AS {{ (keymap.columns|selectattr('physical_name', 'equalto', n)|first).physical_type }}) AS natural_value) AS s
+ON k.{{ n|ident }} = s.natural_value
+WHEN NOT MATCHED THEN INSERT ({{ n|ident }}, {{ keymap.column_names.created_dts|ident }}, {{ keymap.column_names.updated_dts|ident }})
+VALUES (s.natural_value, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+SELECT {{ keymap.key_columns[0]|ident }} FROM {{ keymap.objects.table|qualified }} WHERE {{ n|ident }} = {{ natural_value|literal }};

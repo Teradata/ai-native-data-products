@@ -83,7 +83,7 @@ VALUES (
       '{{ graph_key }}', 'trace_to_source', 'Trace to source'
     , 'Follow this node upstream to where its data originated.'
     , 'upstream', '{{ "produces,derives_column" if column_lineage_enabled else "produces" }}', NULL, NULL
-    , 'No upstream sources found for {name}.', NULL, 10
+    , 'No upstream sources found for {% raw %}{name}{% endraw %}.', NULL, 10
 );
 
 INSERT INTO Graphs_CAT_STD_0_T.graph_trace_profile (
@@ -95,7 +95,7 @@ VALUES (
       '{{ graph_key }}', 'impact_analysis', 'Impact analysis'
     , 'Follow this node downstream to everything that depends on it.'
     , 'downstream', '{{ "produces,derives_column" if column_lineage_enabled else "produces" }}', NULL, NULL
-    , 'No downstream dependants found for {name}.', NULL, 20
+    , 'No downstream dependants found for {% raw %}{name}{% endraw %}.', NULL, 20
 );
 
 INSERT INTO Graphs_CAT_STD_0_T.graph_trace_profile (
@@ -107,7 +107,7 @@ VALUES (
       '{{ graph_key }}', 'who_touched_this', 'Who touched this data'
     , 'Follow this node downstream to the agents and sessions that accessed it.'
     , 'downstream', 'accessed_by,queried_in', 'QUERY_SESSION', NULL
-    , 'No recorded access for {name}.', NULL, 30
+    , 'No recorded access for {% raw %}{name}{% endraw %}.', NULL, 30
 );
 
 -- Write the registered graph_key back onto this product's own OBSERVABILITY row

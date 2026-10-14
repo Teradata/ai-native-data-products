@@ -1,0 +1,25 @@
+{# Caller-rendered, with: entity (from the build context), stable_key, effective_at,
+   recorded_at, replacement_rows (each keyed by physical column name).
+   A transaction BODY: the caller controls BT/ET and runs conformance before ending it.
+   replacement_rows are complete, non-overlapping business intervals for the identity; for a
+   bitemporal change, the complete new known timeline. Values are literals, never SQL; an
+   open interval end is given as the string 'infinity' and written as the sentinel; an instant
+   is given as text, `YYYY-MM-DD HH:MM:SS[.ffffff]+HH:MM`. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{% set x = entity %}{% set cn = x.column_names %}{% set key = x.version_columns[0] %}
+{% macro v(value, col) -%}
+{%- if value == 'infinity' %}{{ m.sentinel() }}
+{%- elif value is not none and col.physical_type.startswith('TIMESTAMP') %}CAST({{ value|literal }} AS {{ col.physical_type }})
+{%- else %}{{ m.value(value) }}{% endif -%}
+{%- endmacro %}
+{% if x.bitemporal %}
+UPDATE {{ x.objects.table|qualified }} SET {{ cn.transaction_to_dts|ident }} = CAST({{ recorded_at|literal }} AS TIMESTAMP(6) WITH TIME ZONE), {{ cn.is_current|ident }} = 0, {{ cn.updated_dts|ident }} = CURRENT_TIMESTAMP(6)
+WHERE {{ key|ident }} = {{ m.value(stable_key) }} AND {{ cn.transaction_to_dts|ident }} = {{ m.sentinel() }};
+{% else %}
+UPDATE {{ x.objects.table|qualified }} SET {{ cn.valid_to_dts|ident }} = CAST({{ effective_at|literal }} AS TIMESTAMP(6) WITH TIME ZONE), {{ cn.is_current|ident }} = 0, {{ cn.updated_dts|ident }} = CURRENT_TIMESTAMP(6)
+WHERE {{ key|ident }} = {{ m.value(stable_key) }} AND {{ cn.valid_from_dts|ident }} < CAST({{ effective_at|literal }} AS TIMESTAMP(6) WITH TIME ZONE) AND CAST({{ effective_at|literal }} AS TIMESTAMP(6) WITH TIME ZONE) < {{ cn.valid_to_dts|ident }};
+{% endif %}
+{% for row in replacement_rows %}
+INSERT INTO {{ x.objects.table|qualified }} ({% for col in x.columns %}{{ col.physical_name|ident }}{% if not loop.last %}, {% endif %}{% endfor %})
+VALUES ({% for col in x.columns %}{{ v(row[col.physical_name], col) }}{% if not loop.last %}, {% endif %}{% endfor %});
+{% endfor %}

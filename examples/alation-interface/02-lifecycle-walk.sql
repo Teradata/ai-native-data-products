@@ -230,7 +230,7 @@ SET   valid_to_dts = TIMESTAMP '2025-06-10 11:15:00.000000+00:00'
     , updated_dts  = CURRENT_TIMESTAMP(6)
 WHERE product_id      = 'retail.customer_experience'
   AND valid_to_dts    = TIMESTAMP '9999-12-31 23:59:59.999999+00:00'
-  AND product_version <> '1.1.0';   -- replay guard: see 02-lifecycle-dml.sql section 4
+  AND product_version <> '1.1.0';   -- replay guard: see 02-lifecycle-dml.sql.j2 section 4
 
 -- Carry the surviving objects forward at the new version.
 INSERT INTO governance.data_product_interface

@@ -1,31 +1,48 @@
-{# Inputs: explicit role names, schemas, entities and search surfaces. PostgreSQL only.
-   Run role creation separately if deployment privileges require operator assistance. #}
-{% for tier in ['read','agent','admin'] %}CREATE ROLE {{ roles[tier]|ident }} NOLOGIN;{% endfor %}
-{% for schema in schemas %}
-REVOKE ALL ON SCHEMA {{ schema|ident }} FROM PUBLIC;
-REVOKE ALL ON ALL TABLES IN SCHEMA {{ schema|ident }} FROM PUBLIC;
-REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ schema|ident }} FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES IN SCHEMA {{ schema|ident }} REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
-GRANT USAGE ON SCHEMA {{ schema|ident }} TO {{ roles.read|ident }},{{ roles.agent|ident }},{{ roles.admin|ident }};
-GRANT ALL ON ALL TABLES IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
-GRANT ALL ON ALL SEQUENCES IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ schema|ident }} TO {{ roles.admin|ident }};
+{# The access tiers (Access Layer): the principals the build context names, created where the
+   profile says the build creates them. Read and agent tiers reach consumer views and
+   functions only; the agent tier also writes its write targets, and reads and writes runtime
+   Memory under row-level scope; the admin tier maintains everything. Grants are per object
+   or per container as the profile's grant level says. #}
+{% set read = principals.ROLE_READ.name %}{% set agent = principals.ROLE_AGENT.name %}{% set admin = principals.ROLE_ADMIN.name %}
+{% for tier in ('ROLE_READ', 'ROLE_AGENT', 'ROLE_ADMIN') if principals[tier].create %}
+CREATE ROLE {{ principals[tier].name|ident }} NOLOGIN;
+{%- endfor %}
+{% for k in containers if k.holds_objects and not k.adopted %}
+REVOKE ALL ON SCHEMA {{ k.name|ident }} FROM PUBLIC;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ k.name|ident }} FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA {{ k.name|ident }} REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+GRANT USAGE ON SCHEMA {{ k.name|ident }} TO {{ read|ident }}, {{ agent|ident }}, {{ admin|ident }};
+GRANT ALL ON ALL TABLES IN SCHEMA {{ k.name|ident }} TO {{ admin|ident }};
+GRANT ALL ON ALL SEQUENCES IN SCHEMA {{ k.name|ident }} TO {{ admin|ident }};
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ k.name|ident }} TO {{ admin|ident }};
 {% endfor %}
-{% for e in entities %}
-{% if e.runtime %}
-ALTER TABLE {{ e.qualified }} ENABLE ROW LEVEL SECURITY;
-CREATE POLICY runtime_user ON {{ e.qualified }} TO {{ roles.agent|ident }} USING(scope_level='USER' AND scope_identifier=session_user) WITH CHECK(scope_level='USER' AND scope_identifier=session_user);
-CREATE POLICY runtime_admin ON {{ e.qualified }} TO {{ roles.admin|ident }} USING(true) WITH CHECK(true);
-GRANT SELECT,INSERT,UPDATE ON {{ e.qualified }} TO {{ roles.agent|ident }};
-{% else %}GRANT SELECT ON {{ e.view }} TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endif %}
+{# A container-level grant reaches only a container that holds no tables; consumer views that
+   share a container with tables are granted one by one, so a grant never reaches a table. #}
+{% set table_containers = module_containers|selectattr('role', 'equalto', 'table')|map(attribute='container')|list %}
+{% set view_containers = module_containers|selectattr('role', 'equalto', 'consumer_view')|map(attribute='container')|unique|list %}
+{% set whole = view_containers|reject('in', table_containers)|list if grant_level == 'container' else [] %}
+{% for k in whole %}
+GRANT SELECT ON ALL TABLES IN SCHEMA {{ k|ident }} TO {{ read|ident }}, {{ agent|ident }};
+{%- endfor %}
+{% for x in entities + relations if x.objects.consumer_view is defined and x.objects.consumer_view.container not in whole %}
+GRANT SELECT ON {{ x.objects.consumer_view|qualified }} TO {{ read|ident }}, {{ agent|ident }};
+{%- endfor %}
+{% for x in entities + relations if x.objects.function is defined %}
+GRANT EXECUTE ON FUNCTION {{ x.objects.function|qualified }} TO {{ read|ident }}, {{ agent|ident }};
+{%- endfor %}
+{% for b in embeddings if b.objects.function is defined %}
+GRANT EXECUTE ON FUNCTION {{ b.objects.function|qualified }} TO {{ read|ident }}, {{ agent|ident }};
+{%- endfor %}
+{% for x in entities + relations if x.objects.table is defined and x.objects.table.primary_role == 'WRITE_TARGET' %}
+{% set t = x.objects.table|qualified %}
+{% if x.runtime %}{% set cn = x.column_names %}
+ALTER TABLE {{ t }} ENABLE ROW LEVEL SECURITY;
+CREATE POLICY runtime_user ON {{ t }} TO {{ agent|ident }}
+    USING ({{ cn.scope_level|ident }} = 'USER' AND {{ cn.scope_identifier|ident }} = session_user)
+    WITH CHECK ({{ cn.scope_level|ident }} = 'USER' AND {{ cn.scope_identifier|ident }} = session_user);
+CREATE POLICY runtime_admin ON {{ t }} TO {{ admin|ident }} USING (TRUE) WITH CHECK (TRUE);
+GRANT SELECT, INSERT, UPDATE ON {{ t }} TO {{ agent|ident }};
+{% else %}
+GRANT INSERT ON {{ t }} TO {{ agent|ident }};
+{% endif %}
 {% endfor %}
-{% if 'semantic' in modules %}
-GRANT SELECT ON {{ qualified(containers.access,'data_product_manifest') }},{{ qualified(containers.access,'column_catalogue') }},{{ qualified(containers.access,'relationship_edges') }},{{ qualified(containers.access,'relationship_paths') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};
-{% if 'observability' in modules %}GRANT SELECT ON {{ qualified(containers.access,'trust_map') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endif %}
-{% endif %}
-{% if 'observability' in modules %}GRANT INSERT ON {{ qualified(containers.observability,'agent_outcome') }} TO {{ roles.agent|ident }};{% endif %}
-{% for s in searches %}GRANT EXECUTE ON FUNCTION {{ qualified(containers.search,s.name) }}(DOUBLE PRECISION[],INTEGER) TO {{ roles.read|ident }},{{ roles.agent|ident }};{% endfor %}
-
-{% if 'semantic' in modules and 'observability' in modules %}
-GRANT SELECT ON {{ qualified(containers.access,'lineage_graph') }},{{ qualified(containers.access,'lineage_run_latest') }} TO {{ roles.read|ident }},{{ roles.agent|ident }};
-{% endif %}

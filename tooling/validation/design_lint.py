@@ -80,6 +80,14 @@ VENDOR_TOKEN_PATTERNS = [
     (re.compile(r"\bTD_[A-Za-z_]\w*"), "TD_* function"),
 ]
 
+# Platforms a design document never names (Design Language, the design/implementation
+# boundary): every directory under implementation/, found when the linter runs, and these,
+# which have no binding yet. A capitalised name matches as written; a binding directory
+# matches in any case. The list lives here, with the SQL tokens, so design/ itself never
+# has to spell a platform to state the rule; the specification linter reads it too.
+KNOWN_PLATFORMS = ("Teradata", "Snowflake", "Databricks", "BigQuery", "Redshift", "Synapse",
+                   "Oracle", "SQL Server", "Postgres", "PostgreSQL", "DuckDB")
+
 # Known logical types (the Logical Type Vocabulary). Used by the entity-notation check.
 LOGICAL_TYPES = {
     "Identifier", "NaturalKey", "Reference", "Code", "ShortText", "Text",
@@ -90,6 +98,8 @@ LOGICAL_TYPES = {
 RESERVED_ENTITY_LABELS = {
     "Entity", "Keys", "surrogate", "natural", "kind",
     "Applies patterns", "Requires capabilities", "Invariants",
+    # Entity sections a design specification adds (Design Specification Standard §3.5).
+    "Description", "Synonyms", "Volume", "Features",
 }
 
 # Frontmatter vocabulary (authoritative companion to the Frontmatter section).
@@ -154,8 +164,8 @@ FENCE_RE = re.compile(r"^\s*```(\S*)")
 # the Semantic entity metadata, not in the file being linted. A name carrying a
 # parenthetical qualifier is skipped for the same reason: `created_date` is prohibited
 # *as audit* and legal as a day-grain event column, and nothing in a `CREATE TABLE`
-# says which it is. Both are left to the catalogue check that can resolve them
-# (`conformance-queries.sql` §1b), which is why this set matches that file's §1 exactly.
+# says which it is. Both are left to review against the entity's declared profile: no
+# check that resolves them ships yet.
 TEMPORAL_PATTERN_ANCHOR = "temporal-lifecycle-metadata"
 PROHIBITED_ROW_RE = re.compile(r"^\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 ALL_PROFILES_SCOPE = "all profiles"
@@ -167,7 +177,7 @@ PLAIN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 # their replacements, and flagging that would make the rule unstatable.
 #
 # `.dcl` is here because a deployed product's access layer ships as
-# `00-access/{ProductName}_access_layer.dcl` (see the access-layer binding). Point this
+# `00-access/` as a rendered access-layer DCL file (see the access-layer binding). Point this
 # linter at a generated product tree as well as at the corpus:
 #     python tooling/validation/design_lint.py design implementation path/to/product
 # The design tree has to be among the paths either way, since the prohibited-name table
@@ -183,7 +193,7 @@ SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2", ".dcl", ".dcl.j2")
 #
 # A literal containing Jinja control flow is skipped: its static length is the sum of
 # every branch, not what any deployment sees. Those are measured after rendering, by
-# tooling/validation/tests/test_templates_render.py, which is also where a simple
+# tooling/bindings/tests/test_teradata_dialect.py, which is also where a simple
 # {{ placeholder }} gets its real width.
 COMMENT_LIMIT = 255
 COMMENT_RE = re.compile(r"COMMENT ON [A-Z]+ ([^\n]+?) IS\s*'(.*?)';", re.S)
@@ -500,9 +510,8 @@ def mask_sql_noise(text: str) -> str:
 
     Comments and string literals are replaced with spaces, newlines preserved, so line
     numbers still point at the source. This is what lets the rule be stated without
-    exceptions: `conformance-queries.sql` scans *for* the prohibited names and
-    `10-documentation-tables.sql.j2` explains in its header which spellings it replaced,
-    and neither is a column named that way. A prohibited name inside SQL embedded in a
+    exceptions: a check may scan *for* the prohibited names, and a template header may
+    explain which spellings it replaced, and neither is a column named that way. A prohibited name inside SQL embedded in a
     string literal (a stored `Query_Cookbook` recipe) is invisible here, which is the
     accepted cost of not needing an allowlist.
     """
@@ -751,6 +760,33 @@ def lint_text(path: str, text: str) -> List[Finding]:
     return sorted(findings, key=lambda f: (f.line, f.rule))
 
 
+def platform_names(repo_root: Path = None) -> List[str]:
+    """Every platform name a design document must not use: the known platforms, and every
+    binding directory under implementation/."""
+    names = list(KNOWN_PLATFORMS)
+    impl = (repo_root or Path(__file__).resolve().parents[2]) / "implementation"
+    if impl.is_dir():
+        names += sorted(p.name for p in impl.iterdir() if p.is_dir())
+    return names
+
+
+def find_platform_name_violations(text: str, path: str, names: List[str]) -> List[Finding]:
+    """A design document names no platform: whether a sentence would change with the
+    platform is the boundary test, and naming one is the plainest way to fail it. Not waived
+    by `ignore-file`, which exists for documents that must name SQL, never a platform."""
+    findings = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        named = {}
+        for name in names:
+            flags = re.I if name.islower() else 0
+            if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", line, flags):
+                named.setdefault(name.lower(), name)
+        findings += [Finding(path, lineno, "platform-name",
+                             f"names the platform '{name}'; design/ is platform-agnostic")
+                     for name in named.values()]
+    return findings
+
+
 def lint_file(path: Path) -> List[Finding]:
     text = path.read_text(encoding="utf-8")
     return lint_text(str(path), text)
@@ -796,6 +832,9 @@ def lint_paths(paths: List[str]) -> List[Finding]:
             # implementation/ is for, so linting it there would flag the intended content.
             if "design" in [q.lower() for q in md.parts]:
                 findings += lint_file(md)
+                root = Path(*md.resolve().parts[:[q.lower() for q in md.resolve().parts].index("design")])
+                findings += find_platform_name_violations(md.read_text(encoding="utf-8"), str(md),
+                                                          platform_names(root))
             if not is_design_document(md):
                 continue
             text = md.read_text(encoding="utf-8")

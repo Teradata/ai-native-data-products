@@ -95,7 +95,7 @@ Entity: ColumnMetadata            [kind: Record] [profile: CURRENT_STATE]
 Entity: NamingStandard            [kind: Record] [profile: CURRENT_STATE]
   naming_standard_id: Identifier
   standard_type: Enum{TEMPLATE|STANDARD_NAME|ABBREVIATION|SUFFIX|PREFIX|PATTERN} [required]
-  applies_to: Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|ATTRIBUTE|GRAPH_KEY|ALL} [optional]  // the object role or name a rule forms
+  applies_to: Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE|ATTRIBUTE|GRAPH_KEY|ALL} [optional]  // the object role or name a rule forms
   module_scope: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY} [optional]  // the module a TEMPLATE is narrowed to, when it is
   kind_scope: Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD} [optional]  // the entity kind a TEMPLATE is narrowed to, when it is
   name_template: ShortText [optional]  // the profile's template as written; present for TEMPLATE
@@ -204,7 +204,7 @@ Entity: DataProductRegistry       [kind: Record] [profile: CURRENT_STATE]  // pr
 Entity: DataProductMap            [kind: Record] [profile: CURRENT_STATE]  // module registry: one row per module and object type
   module_id: Identifier
   module_name: Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY} [required]
-  object_type: Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION} [required]  // the organisation profile's object role
+  object_type: Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE} [required]  // the organisation profile's object role
   module_purpose: Text [optional]
   container_name: ShortText [required]  // where this module's objects of this type are placed, from the build context
   module_version: ShortText [optional]
@@ -319,7 +319,7 @@ This decision is bounded by the product. Discovery *across* products depends on 
 
 ## 5. Multi-Hop Path Discovery
 
-`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to a bounded number of hops, and returns the join conditions to use. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
+`TableRelationship` is the machine-readable entity-relationship model. From it, a **path-discovery surface** lets an agent find how to join any two entities, directly or through intermediate entities, in either direction, up to **four hops**, and returns the join conditions to use. A path never revisits an entity. The bound is the standard's, so every platform's surface returns the same paths for the same relationships. This is the single most important discovery capability: an agent cannot traverse a path it has no record of.
 
 **Completeness requirement (`INV-SEMANTIC-005`).** `TableRelationship` must register **every** relationship an agent is expected to traverse: not only those with physical foreign keys:
 

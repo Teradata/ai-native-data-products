@@ -2,27 +2,30 @@
 title: DuckDB Access Layer Implementation
 anchor: access-layer
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: access-layer
 platform: duckdb
 ---
 
-# DuckDB access boundary
+# DuckDB: Access Layer
 
-Binding of [access-layer](../../../../design/patterns/access-layer.md). `semantic.role_policy` represents customer360_ROLE_READ, customer360_ROLE_AGENT and customer360_ROLE_ADMIN, with audience-only descriptions. **These are logical tiers, not DuckDB roles.** No SQL GRANT/REVOKE statements are emitted.
+Binding of [Access Layer](../../../../design/patterns/access-layer.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+DuckDB has no roles, `GRANT`, `REVOKE` or row-level security. The binding declares `Principals: unsupported` in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations), so this pattern has **no template and no access phase**, and nothing simulates privilege statements.
+
+The organisation profile declares each tier (`ROLE_READ`, `ROLE_AGENT`, `ROLE_ADMIN`) as `outside <how it is enforced>`, for example read-only file access for the read tier. The resolver records that text in the context's `principals` and rejects a profile that asks the build to `create` a principal or bind an `existing` one for this binding. The tiers are an external obligation: the binding does not claim that any tier is enforced.
+
+Opening the database file read-only prevents writes. It does not hide base tables, point-in-time macros, runtime Memory or PII, nor does it constrain host file or network access. Schema separation and naming are not authorisation; direct file users see everything. See DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview). A production service must authorise queries, derive runtime scope from authenticated identity, bound append rights and expose no arbitrary SQL channel; private runtime data belongs in separate protected storage.
+
+No check covers access, and no evidence is published for it. This is declared in [conformance scope](../../CONFORMANCE.md), not reported as conformance.
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `AccessView` | Explicit projections registered as PASSTHROUGH or COMPOSITE objects. |
+| `AccessView` | Consumer views in the containers the profile places (see temporal-lifecycle-metadata). Not a security boundary. |
+| `ProductRoleAccess` | Unsupported natively; enforced outside the engine as the profile declares. |
 
-The host must implement the authoritative design grant matrix: READ gets public module surfaces; AGENT additionally gets authorized append operations for Memory and Observability; ADMIN maintains the product. No agent writes Domain or Semantic. Publish Memory/Semantic interfaces after infrastructure deployment, then Domain/Observability, then enhancements. There are no implied engine grants needed before view compilation. Role provisioning is an external deployment artefact, explicitly unvalidated in this example.
-
-Opening a file read-only prevents database mutation. It does **not** hide base tables, runtime memory, PII, or host filesystem capabilities. Schema separation and naming are not authorization. Direct CLI/JDBC users of the synthetic file can inspect everything. See DuckDB's [security model](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview).
-
-Runtime entities require scope_level and scope_identifier and have no public views or agent-consumable registry rows. A production service must derive scope from authenticated identity, apply it to every runtime read/write, redact literal business results, and expose bounded append operations rather than an arbitrary SQL channel. If no such service exists, keep real private runtime in a separate file with OS/container controls; a second schema does not suffice. The shipped synthetic runtime does not constitute a privacy-enforcing service.
-
-`DD-ACCESS-001` and `DD-MEMORY-002` record this boundary inside the product. SQL checks prove interface registration and scope presence. The `access-layer` trust entry remains no-evidence/unknown for external enforcement. File permissions and host identity mapping must be tested by the deployment owner; this repository does not pretend SQL can prove them.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

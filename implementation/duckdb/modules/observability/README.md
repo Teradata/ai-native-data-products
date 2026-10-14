@@ -1,27 +1,45 @@
 ---
-title: DuckDB Observability Module Implementation
+title: DuckDB Observability Implementation
 anchor: observability
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: observability
 platform: duckdb
 ---
 
-# DuckDB Observability
+# DuckDB: Observability
 
-Binding of [Observability](../../../../design/modules/observability.md). [schema.sql](schema.sql) separates change events, quality measurements, flow definitions, flow executions, model performance, agent outcomes and validation runs/areas/checks. It records aggregate counts and table identities, never before/after business values or result sets.
+Binding of [Observability](../../../../design/modules/observability.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+## Templates
+
+`01-tables.sql.j2` calls `module_tables('observability')` from the [shared macros](../../patterns/temporal-lifecycle-metadata/README.md). The relations are those the Observability standard defines and the resolver places: change events, quality metrics, lineage definitions and runs, model performance, agent outcomes, and the validation relations `ValidationRun` and `ValidationArea`. Event relations are append-only by profile; lineage definitions are current-state. Each gets a consumer view from the temporal pattern.
+
+The module's views are rendered elsewhere: `LineageGraph` and `LineageRunLatest` by [Semantic discovery](../semantic/README.md), and `TrustMap` by [Validation](../../patterns/validation/README.md).
+
+Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. No trigger or synthetic quality score is emitted, and the maintenance template emits no change event. DuckDB cannot make a table append-only for one writer, so append-only intent is a convention of the writing application. Validation evidence is written by [`validate.py`](../../../../tooling/bindings/README.md) using the placement the manifest carries. Retention is a settled design decision and an operator-managed process; no template deletes records.
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `ChangeEventCapture` | Host appends table-level change evidence. |
-| `LineageCapture` | Stable definitions and independent executions. |
-| `AgentOutcomeCapture` | Host appends aggregate actions/outcomes. |
-| `QualityScore` | Data-quality time series, separate from trust coverage. |
+| `ChangeEventCapture` | Append-only change-event table; the writer must emit events. |
+| `AgentOutcomeCapture` | Append-only agent-outcome table; the host supplies actor identity and redacts parameters. |
+| `LineageCapture` | Separate definition and run tables, with the lineage graph and latest-run views over active definitions. |
+| `QualityScore` | Quality-metric time series, separate from validation evidence. |
 
-`semantic.lineage_graph` derives distinct source→job→target edges from active definitions only; `lineage_run_latest` finds latest execution deterministically. The supplied temporal writer records aggregate changes in the same transaction when Observability is present; direct SQL and other ingestion paths must supply their own capture. Definitions are retained for product life; events 90 days and validation 365 days in the explicitly synthetic retention policy. The operator applies lifecycle actions; no SQL trigger or silent purge is claimed.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.
 
-Validation follows the [validation binding](../../patterns/validation/). Trust reads the designated producer and downgrades stale evidence. Model performance is intentionally empty until actual evaluation exists; an invented accuracy measurement would be misleading. Optional graph-native/column-lineage facets are not enabled, with decisions recorded in Memory. SQL checks and tests cover active-only lineage, independent execution grain, evidence append history, area counts, severity, staleness and external gaps.
+## Invariants and checks
+
+| Invariant | Evidence or outstanding check |
+|---|---|
+| `INV-OBS-001,002` | Standard-owned event structures hold table-level references and counts; producer payload review required. |
+| `INV-OBS-003,006` | Separate definition and run tables; lineage views read active definitions only. |
+| `INV-OBS-004` | Retention is a settled decision; operators prove enforcement. |
+| `INV-OBS-005` | Wire 2.1 run and area records appended by the validator; engine tests of failures, errors, staleness and producer selection. |
+| `INV-OBS-007..009` | Optional graph-native facet not rendered; no graph identity guarantee claimed. |
+
+Physical types come from the `Types:` block of the [binding declarations](../../PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.

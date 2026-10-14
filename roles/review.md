@@ -26,13 +26,14 @@ Cite the invariant or rule id behind every entry.
 5. **The runnable checks**, plus each implementation `README.md`'s invariant→check mapping.
    Coverage is not uniform - know what exists before you record an area as validated:
 
-   | Area | Runnable check (under `implementation/{platform}/`) |
+   | Area | Runnable check, in the build's `manifest.json` |
    |---|---|
-   | domain, search, prediction, semantic, memory | `implementation/{platform}/modules/{module}/validation.sql.j2` |
-   | observability | **none shipped** |
-   | temporal-lifecycle-metadata, validation | `implementation/{platform}/patterns/{pattern}/conformance-queries.sql` |
-   | access-layer | `implementation/{platform}/patterns/access-layer/dd-access-001.sql` |
-   | object-placement, physical-storage | **none shipped** |
+   | every persisted relation | `metadata` and `temporal` |
+   | every relationship | `reference` |
+   | semantic, memory | `module` |
+   | observability, search, prediction, access-layer, object-placement, physical-storage | **none shipped** |
+
+   The manifest also lists the build's **gaps**; each is an area that cannot be `pass`.
 
    An area with no shipped check is `no-evidence`, never `pass`. Report it as a coverage gap
    and recommend writing the check.

@@ -1,44 +1,61 @@
-# Teradata Implementation
+# Teradata implementation
 
-Teradata's conforming implementation of the patterns and modules defined under [`design/`](../../design). Mirrors the design hierarchy by anchor name.
+Reusable binding for **any conforming data product** on Teradata Vantage. Target: Teradata 17.20 or later; tested on 20.00.24 (see [CONFORMANCE.md](CONFORMANCE.md)). These are Jinja templates and binding documents, not a finished deployment or a compiler.
 
-Physical-design conventions that apply across every binding here, primary index selection, partitioning, compression, statistics, live in [`PLATFORM_PROFILE.md`](PLATFORM_PROFILE.md).
+## How a build reads this binding
 
----
+A build has three inputs: a **design specification** (the product, platform-agnostic), an **organisation profile** (placement, naming, principals and classification for one organisation on Teradata) and this **binding**. [`tooling/build/build_context.py`](../../tooling/build/README.md) resolves the specification, the profile and the binding's declarations into one build context, whose shape is fixed by [`build_context.schema.json`](../../tooling/build/build_context.schema.json) ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3).
 
-## Structure
+The templates read only the build context, and derive no names: every database, object, column and role name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
 
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writing any SQL by hand: it lists, by error code, the constructs Teradata rejects. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the module and pattern directories; each README says what its templates emit and which build-context fields they read.
+
+| Directory | Templates |
+|---|---|
+| [patterns/object-placement](patterns/object-placement/README.md) | Databases, parents first, with their permanent space |
+| [patterns/access-layer](patterns/access-layer/README.md) | The implied grants between databases; roles and tier grants |
+| [patterns/temporal-lifecycle-metadata](patterns/temporal-lifecycle-metadata/README.md) | Shared macros, comments, governed base views and consumer views, statistics, caller-rendered maintenance |
+| [modules/*](modules/) | Each module's tables; Domain key allocation; Search similarity procedures; Semantic registration and discovery; Memory capture |
+| [patterns/validation](patterns/validation/README.md) | Metadata, temporal and reference checks; the trust-map view |
+
+Two sets of templates in this directory still read the old flat context and are not reached by any phase: the graph-lineage exposure (`modules/observability/04-openlineage.md` and `05-graph-tables` to `10-access.dcl`) and the [catalogue interface](patterns/catalogue-interface/README.md). Whether they are ported onto the build context or retired is an open decision. A specification or profile that asks for either has it reported as a gap.
+
+## Render, deploy and validate
+
+The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) with either Teradata profile: [`teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) (a database per module, upper-case names, roles created per product) or [`teradata-type-grouped.md`](../../examples/it-service-desk-data-product/profiles/teradata-type-grouped.md) (type-grouped databases under a parent, snake-case names, an adopted entity, container-isolated environments). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under both.
+
+```sh
+python -m pip install -r tooling/bindings/requirements.txt teradatasql
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/teradata.md --output build/itsd-teradata
+TERADATA_DSN='{"host": "...", "user": "...", "password": "..."}' python tooling/bindings/validate.py build/itsd-teradata/manifest.json
 ```
-implementation/teradata/
-├── patterns/   one directory per design/patterns/ anchor
-└── modules/    one directory per design/modules/ anchor
+
+The profile names the platform. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
+
+- one SQL file per declared phase that renders something for this composition;
+- `deploy.sql`, the phases in order;
+- `manifest.json`: the checks, each with a test id `{PRODUCT_CODE}-{CHECK}-{NNN}`, where validation evidence is placed, the gaps the binding reports and the defaults the resolver applied;
+- `context.json`, the resolved build context.
+
+Rendering does not connect to a database. Rendered SQL is not checked into this repository.
+
+**Deploying.** Run `deploy.sql` with a client that stops at the first error and sends one statement per request, keeping each stored procedure whole through its closing `END;`. `tooling/bindings/engines.py` (`statements`) splits a rendered script that way for a driver such as teradatasql. BTEQ splits a script at every semicolon, so with BTEQ run the similarity procedures (`10-similarity.sql`) with `.COMPILE FILE` and the other phases as scripts. Teradata commits each DDL statement on its own, so a deployment cannot be rolled back: a failed one leaves what ran, and is cleared by dropping the product's databases before deploying again. Consecutive row writes and comments may be sent as one multi-statement request, which is much faster than one request each. The deploying user needs `CREATE DATABASE` with enough permanent space for the `Container space` setting per database, `CREATE ROLE` where the profile says `create`, and `CREATE PROCEDURE` on each database that holds a similarity procedure, which a database's creator is not granted: name the deploying user in the profile's `Deploying user` setting and the build grants it. Roles carry rights only; granting them to users is an operator step.
+
+**Validating.** The validator connects with the teradatasql parameters in `TERADATA_DSN`, runs each check (each request commits or fails on its own) and, where the product places `ValidationRun` and `ValidationArea`, appends one run and its area records in one transaction (wire schema 2.1). `--producer` publishes under a producer id other than the product's designated one. The manifest contains trusted generated SQL: never run one from an untrusted source. Gaps the manifest reports cap the PRODUCT area at `partial`.
+
+## Verification
+
+```sh
+python -m unittest discover -s tooling/bindings/tests -v
+python -m unittest discover -s tooling/validation/tests -v
+python tooling/validation/design_lint.py design implementation
+python tooling/catalogue/build_catalogue.py --check
+python tooling/skill/verify_skill.py
 ```
 
-Each pattern or module gets **its own directory** (e.g. `modules/domain/`) rather than a single top-level file, because an implementation is usually more than one artifact: a binding document plus one or more templates.
-
-Adding a platform means creating a same-shaped sibling of this directory (`implementation/postgres/`, say), not inventing a new layout.
-
-## Rendering the templates
-
-**The `.sql.j2` templates are rendered, not pasted.** They import shared macros from each other, so a Jinja environment whose loader is rooted at *this directory* is what makes an import path resolve:
-
-```python
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
-
-env = Environment(loader=FileSystemLoader("implementation/teradata"),
-                  undefined=StrictUndefined)
-sql = env.get_template("modules/domain/02-entity.sql.j2").render(**context)
-```
-
-Import paths are written relative to that root (`patterns/temporal-lifecycle-metadata/00-temporal-macros.sql.j2`), which is why a template opened on its own and search-replaced no longer produces deployable SQL: the macro call renders as nothing.
-
-`StrictUndefined` is worth keeping. Without it a variable the template expects and the caller forgets renders as an empty string, and a `CREATE TABLE` missing a column name fails at the database with an error that points nowhere near the cause.
-
-What this buys is that the cross-cutting columns are defined once. A table's temporal and lifecycle block comes from the [temporal pattern's macros](patterns/temporal-lifecycle-metadata/), the same way a design document references a pattern rather than restating it. Every template that renders is exercised by `tooling/validation/tests/test_templates_render.py`.
+`tooling/bindings/tests/test_teradata_dialect.py` holds every rendered statement to the §7 rules, with no engine. The engine tests need `teradatasql` and `TERADATA_TEST_DSN`, the connection parameters as JSON, for a disposable system where the user may create databases and roles. They deploy each reference specification once, under databases and roles prefixed `anptest_`, reset the rows between tests, and drop everything with that prefix, and nothing else, before and after. Without the variable or the driver the Teradata engine tests skip, and a skip is a gap. See [CONFORMANCE.md](CONFORMANCE.md) for coverage and remaining gaps.
 
 ## Catalogue
-
-Generated from document frontmatter by [`tooling/catalogue`](../../tooling/catalogue): do not edit by hand.
 
 <!-- catalogue:start -->
 
@@ -46,48 +63,23 @@ Generated from document frontmatter by [`tooling/catalogue`](../../tooling/catal
 
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
-| [Teradata Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `teradata` | standard | - | - | - |
+| [Teradata Platform Profile](PLATFORM_PROFILE.md) *(advisory)* | `teradata` | draft | - | - | - |
 
 ### Bindings
 
 | Document | Anchor | Status | Provides | Requires | Decisions |
 |---|---|---|---|---|---|
-| [Teradata Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | standard | - | - | - |
+| [Teradata Access Layer Pattern Implementation](patterns/access-layer/README.md) | `access-layer` | draft | - | - | - |
 | [Teradata Enterprise Catalogue Interface Implementation](patterns/catalogue-interface/README.md) | `catalogue-interface` | draft | - | - | - |
-| [Teradata Domain Module Implementation](modules/domain/README.md) | `domain` | standard | - | - | - |
-| [Teradata Memory Module Implementation](modules/memory/README.md) | `memory` | standard | - | - | - |
-| [Teradata Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | standard | - | - | - |
-| [Teradata Observability Module Implementation](modules/observability/README.md) | `observability` | standard | - | - | - |
-| [Teradata Physical Storage Pattern Implementation](patterns/physical-storage/README.md) | `physical-storage` | standard | - | - | - |
-| [Teradata Prediction Module Implementation](modules/prediction/README.md) | `prediction` | standard | - | - | - |
-| [Teradata Search Module Implementation](modules/search/README.md) | `search` | standard | - | - | - |
-| [Teradata Semantic Module Implementation](modules/semantic/README.md) | `semantic` | standard | - | - | - |
-| [Teradata Temporal Lifecycle Metadata Pattern Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | standard | - | - | - |
-| [Teradata Validation Pattern Implementation](patterns/validation/README.md) | `validation` | standard | - | - | - |
+| [Teradata Domain Module Implementation](modules/domain/README.md) | `domain` | draft | - | - | - |
+| [Teradata Memory Module Implementation](modules/memory/README.md) | `memory` | draft | - | - | - |
+| [Teradata Object Placement Pattern Implementation](patterns/object-placement/README.md) | `object-placement` | draft | - | - | - |
+| [Teradata Observability Module Implementation](modules/observability/README.md) | `observability` | draft | - | - | - |
+| [Teradata Physical Storage Pattern Implementation](patterns/physical-storage/README.md) | `physical-storage` | draft | - | - | - |
+| [Teradata Prediction Module Implementation](modules/prediction/README.md) | `prediction` | draft | - | - | - |
+| [Teradata Search Module Implementation](modules/search/README.md) | `search` | draft | - | - | - |
+| [Teradata Semantic Module Implementation](modules/semantic/README.md) | `semantic` | draft | - | - | - |
+| [Teradata Temporal Lifecycle Metadata Pattern Implementation](patterns/temporal-lifecycle-metadata/README.md) | `temporal-lifecycle-metadata` | draft | - | - | - |
+| [Teradata Validation Pattern Implementation](patterns/validation/README.md) | `validation` | draft | - | - | - |
 
 <!-- catalogue:end -->
-
----
-
-## What goes in a directory
-
-Two kinds of artifact, distinguished by extension:
-
-| Artifact | Extension | Contents |
-|----------|-----------|----------|
-| **Binding document** | `.md` | Prose. How this platform satisfies the design contract: physical model, type bindings, failure modes, deviations. Human-readable, never executed. |
-| **Template** | `.sql.j2` | Jinja-templated DDL/DCL rendered at build time. Mostly-static SQL with placeholders for the part that varies per product. |
-
-Most anchors need a binding document. Only some need a template. An anchor whose platform behaviour is fully described in prose does not need a `.sql.j2` file, and one should not be created speculatively.
-
-## Naming
-
-- The **binding document** is `README.md` at the root of the anchor directory. `patterns/validation/README.md` binds `design/patterns/validation.md`; the directory name carries the anchor, so the file does not repeat it.
-- **Templates** are named for what they emit, not for the directory they sit in. A module directory may hold several (`domain/tables.sql.j2`, `domain/views.sql.j2`), and a name that merely repeats the anchor says nothing about what rendering it produces.
-- Anchor names always match `design/` exactly. That symmetry is what lets an agent holding a module name compute the implementation path directly.
-
----
-
-## Placeholders
-
-Directories reserved but not yet populated are held in git by an empty `.gitkeep` file. There are deliberately **no placeholder templates**: an empty or comment-only `.sql.j2` is indistinguishable from a real one to a renderer, and would silently produce empty SQL. A `.sql.j2` file exists only once it has an implementation.

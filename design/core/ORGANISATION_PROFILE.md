@@ -84,19 +84,20 @@ Names are written as templates: literal text with `{variable}` placeholders, eac
 
 ## 5. Object roles
 
-Every object a build creates has one of these roles. A naming template and a placement rule exist for each role marked required.
+Every object a build creates has one of these roles. A naming template and a placement rule exist for each role marked required, and for every optional role the target binding declares it emits.
 
 | Role | Required | Created for |
 |---|---|---|
 | `table` | yes | Each persisted entity: the specification's own and the standard-owned relations of included modules. |
-| `base_view` | yes | The governed one-to-one view over a table. |
+| `base_view` | no | The governed one-to-one view over a table, where the target binding emits a governed tier. |
 | `consumer_view` | yes | The access-layer view consumers are granted. |
 | `procedure` | no | A stored procedure a binding emits. |
-| `function` | no | A user-defined function a binding emits. |
+| `function` | no | A user-defined function a binding emits, such as a point-in-time accessor. |
+| `sequence` | no | A key-allocation sequence a binding emits. |
 
 ## 6. Blocks
 
-Each block opens with `<Block>: -` in a fenced code block. Fields are indented two spaces; a field of type `templates`, `mappings` or `examples` puts its lines below it, indented four. Field types are those of the [Design Specification Standard](DESIGN_SPECIFICATION.md) §2, plus `template`, `templates` (lines `<key>: <template>`), `mappings` (lines `<key>: <value>`), `principal` (`create <template>`, or `existing <name>` to bind an existing principal) `examples` (lines `- <role> <module> <entity> [<Kind>] -> <container>.<object>`, where the kind is given when a naming template depends on it) and `path-examples` (the same, ending `-> <path>`).
+Each block opens with `<Block>: -` in a fenced code block. Fields are indented two spaces; a field of type `templates`, `mappings` or `examples` puts its lines below it, indented four. Field types are those of the [Design Specification Standard](DESIGN_SPECIFICATION.md) §2, plus `template`, `templates` (lines `<key>: <template>`), `mappings` (lines `<key>: <value>`), `principal` (`create <template>`, `existing <name>` to bind an existing principal, or `outside <how>` where the platform grants to no principals and the tier is enforced outside it, as stated) `examples` (lines `- <role> <module> <entity> [<Kind>] -> <container>.<object>`, where the kind is given when a naming template depends on it) and `path-examples` (the same, ending `-> <path>`).
 
 ### 6.1 `Platform:`
 
@@ -123,7 +124,7 @@ Each field is a container key and its name template. A key is a module anchor, `
 |---|---|---|---|
 | `Objects` | yes | templates | One line per object role, as `<role>`, optionally followed by a module anchor, an entity kind, or both (`table domain History`), to name a narrower set differently. The most specific matching line wins. |
 | `Attributes` | no | template | Physical attribute names. Defaults to `{attribute}`. |
-| `Standard names` | no | mappings | Physical names for standard-owned logical names, as `<logical>: <physical>`. One-to-one, and never onto a name another standard-owned name or a specification attribute already holds; unlisted names stay as written. |
+| `Standard names` | no | mappings | Physical names for standard-owned logical names, as `<logical>: <physical>`. One-to-one, and never onto a name another standard-owned name or a specification attribute already holds; unlisted names stay as written. A mapped relation name names the relation itself (its table, or the view that is the relation); its other views are named by their role templates. |
 | `Abbreviations` | no | mappings | Module abbreviations for the `abbrev` filter, as `<module>: <abbreviation>`. |
 | `Graph key` | no | template | The graph key a product with the `observability:graph-lineage` facet registers. Required when any product enables that facet. |
 
@@ -131,7 +132,7 @@ Each field is a container key and its name template. A key is a module anchor, `
 
 | Field | Required | Type | Value |
 |---|---|---|---|
-| `Rules` | yes | mappings | One line per object role, or per standard-owned relation, giving the container key: a key from `Containers:`, or `module` for the object's own module container. A role may be narrowed by a classification, as `<role> <class>`, to route objects holding data of that class (an entity's class is its most sensitive attribute's) to their own container. |
+| `Rules` | yes | mappings | One line per object role, or per standard-owned relation, giving the container key: a key from `Containers:`, or `module` for the object's own module container. A relation's rule places the relation itself; its other views follow their role rules. A role may be narrowed by a classification, as `<role> <class>`, to route objects holding data of that class (an entity's class is its most sensitive attribute's) to their own container. |
 
 ### 6.5 `Separation:`
 

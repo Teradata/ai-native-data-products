@@ -2,29 +2,52 @@
 title: DuckDB Temporal Lifecycle Metadata Implementation
 anchor: temporal-lifecycle-metadata
 type: implementation
-status: standard
+status: draft
 version: 2.0
 normative: true
 implements: temporal-lifecycle-metadata
 platform: duckdb
 ---
 
-# DuckDB temporal binding
+# DuckDB: Temporal Lifecycle Metadata
 
-Binding of [temporal-lifecycle-metadata](../../../../design/patterns/temporal-lifecycle-metadata.md). Shared fields are defined once in [model.py](../../model.py); generated module schemas carry comments and constraints.
+Binding of [Temporal Lifecycle Metadata](../../../../design/patterns/temporal-lifecycle-metadata.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-**Provides:**
+## Templates
+
+`00-macros.sql.j2` holds the macros every other template imports. Each takes a relation from the context (an entity or a standard-owned relation, with its `columns`, `column_names`, `key_columns`, `version_columns` and placed `objects`) and composes no name:
+
+| Macro | Emits |
+|---|---|
+| `cols`, `column` | A quoted column list; one column definition with type, sequence default, `NOT NULL`, `UNIQUE` and Enum check |
+| `primary_key`, `constraints` | The key (version columns plus interval starts for history); interval-order, current-flag and deletion-flag checks |
+| `current`, `at` | The current-row predicate; the half-open point-in-time predicate on `valid_at` and, when bitemporal, `known_at` |
+| `table` | `CREATE TABLE` with the keymap foreign key |
+| `module_tables` | Every persisted, defined, non-adopted relation of one module, keymaps first, each preceded by `CREATE SEQUENCE` where it has an `objects.sequence` |
+| `value`, `ref`, `insert`, `member` | A Python value as SQL; a subquery for a current row's key; an insert by logical attribute name with open-row defaults for temporal columns; whether an Enum permits a value |
+
+DuckDB has no partial unique indexes or exclusion constraints, so `table` emits neither: one open version per identity and non-overlapping intervals are proved by the `entity temporal` check and by serialised writer discipline. A direct SQL write can violate them until the check runs.
+
+`02-comments.sql.j2` applies `COMMENT ON TABLE` and `COMMENT ON COLUMN` to every persisted relation from its `description` and each column's description (or its logical name), after the tables and before anything depends on them; DuckDB dependencies can block a later comment change.
+
+`03-access-views.sql.j2` creates, for every relation with a `consumer_view` object, a view of its current rows (the `current` macro) carrying every column except the open interval ends `valid_to_dts` and `transaction_to_dts`. Runtime relations have no consumer view. For every relation with a `function` object it creates a point-in-time table macro `(valid_at)`, or `(valid_at, known_at)` when bitemporal, returning the table's rows at that instant. Macro parameters are untyped: pass `TIMESTAMPTZ` values.
+
+`04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls `BEGIN` and `COMMIT` on the single writing connection, retries a transaction conflict and runs the checks before committing. It:
+
+- for a bitemporal relation, closes every open knowledge interval of the identity at `recorded_at` and clears its current flag;
+- otherwise, closes the version whose validity covers `effective_at` at that instant;
+- inserts every replacement row with every column, each value through the literal filter.
+
+It is not a change planner. The caller supplies complete, non-overlapping intervals (for a bitemporal correction, the whole new known timeline), detects unchanged replay, preserves unaffected segments and tombstones, and rejects non-finite or non-monotonic correction instants. Pass an open end as the text `infinity`; the Python driver turns infinity into a finite datetime.
+
+Validity and knowledge intervals are half-open; infinity appears only as an open end. For bitemporal history, overlap is prohibited only where both axes overlap. The current flag is true exactly when every applicable end is open.
+
+## Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `CurrentStateFilter` | Canonical views require is_current and infinity end; exclude deleted rows. |
-| `PointInTimeReconstruction` | `at_<entity>(instant)` table macros use inclusive start / exclusive end. |
-| `SoftDelete` | Tombstone successor with deletion timestamp, retaining prior versions. |
+| `CurrentStateFilter` | `current` macro behind the consumer views and reference checks. |
+| `PointInTimeReconstruction` | `at` macro behind the point-in-time table macros. |
+| `SoftDelete` | `is_deleted` and `deleted_dts` with a consistency check; deleted rows are excluded from current and point-in-time reads. |
 
-Every persisted entity is registered with exactly one profile. History and documentation use SCD2_HISTORY; current registries/keymaps/runtime use CURRENT_STATE; operational and validation evidence use EVENT_APPEND_ONLY. All have created_dts and updated_dts. Event tables have a named event instant. Flags are non-null BOOLEAN, instants TIMESTAMPTZ; session rendering is UTC. No bitemporal profile is claimed.
-
-Open validity is non-null `infinity`; never use a sentinel for events. Every interval satisfies start < end. Primary keys use identity + valid_from_dts. Cross-row non-overlap and single-current conditions require the transactional writer plus runnable checks; they are not enforced by a fictitious exclusion constraint. Tables are the governed full contract. Canonical views explicitly project business columns and valid_from_dts, hiding audit/deletion/currency metadata. As-of macros expose the full contract for history-aware use.
-
-[temporal.py](../../temporal.py) handles unchanged input, replay, successor insertion and late interval splitting in one transaction. Conflicting input at an already recorded boundary is rejected: it is a correction-policy question, not silent data replacement. Restore a deleted entity by adding a later non-deleted successor. Permanent keymaps must never be cleared. A serial host writer is required; admin SQL can bypass the maintenance API. Prediction prohibits retrospective rewrites and validity before observation; as-known corrections require a separately designed bitemporal binding.
-
-The `C360-TLM-*` profile checks required fields, profiles, timestamp/flag types, finite event timestamps, overlaps, current uniqueness, flag/end agreement and exact current-surface row sets. Corpus lint checks prohibited names. Behavioural tests cover boundary instants, unchanged replay, late changes, deletion/restoration, stable keys and rollback. `is_active` appears only on lineage definitions, whose comment declares owner/retirement semantics. No inclusive-end arithmetic is used.
+Templates read only the build context: see [tooling/build](../../../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](../../PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](../../CONFORMANCE.md). Rendering uses StrictUndefined.

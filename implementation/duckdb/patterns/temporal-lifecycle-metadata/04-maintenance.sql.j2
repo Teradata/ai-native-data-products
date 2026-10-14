@@ -1,0 +1,18 @@
+{# Caller-rendered, with: entity (from the build context), stable_key, effective_at,
+   recorded_at, replacement_rows (each keyed by physical column name).
+   A transaction BODY: the caller controls BEGIN/COMMIT on the single writing connection,
+   retries a transaction conflict, and runs conformance before commit.
+   replacement_rows are complete, non-overlapping business intervals for the identity; for a
+   bitemporal change, the complete new known timeline. Values are literals, never SQL. #}
+{% set x = entity %}{% set cn = x.column_names %}{% set key = x.version_columns[0] %}
+{% if x.bitemporal %}
+UPDATE {{ x.objects.table|qualified }} SET {{ cn.transaction_to_dts|ident }} = {{ recorded_at|literal }}::TIMESTAMPTZ, {{ cn.is_current|ident }} = FALSE, {{ cn.updated_dts|ident }} = current_timestamp
+WHERE {{ key|ident }} = {{ stable_key|literal }} AND {{ cn.transaction_to_dts|ident }} = 'infinity'::TIMESTAMPTZ;
+{% else %}
+UPDATE {{ x.objects.table|qualified }} SET {{ cn.valid_to_dts|ident }} = {{ effective_at|literal }}::TIMESTAMPTZ, {{ cn.is_current|ident }} = FALSE, {{ cn.updated_dts|ident }} = current_timestamp
+WHERE {{ key|ident }} = {{ stable_key|literal }} AND {{ cn.valid_from_dts|ident }} < {{ effective_at|literal }}::TIMESTAMPTZ AND {{ effective_at|literal }}::TIMESTAMPTZ < {{ cn.valid_to_dts|ident }};
+{% endif %}
+{% for row in replacement_rows %}
+INSERT INTO {{ x.objects.table|qualified }} ({% for col in x.columns %}{{ col.physical_name|ident }}{% if not loop.last %}, {% endif %}{% endfor %})
+VALUES ({% for col in x.columns %}{{ row[col.physical_name]|literal }}{% if not loop.last %}, {% endif %}{% endfor %});
+{% endfor %}
