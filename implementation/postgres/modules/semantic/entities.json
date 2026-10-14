@@ -104,6 +104,55 @@
     "allocation": "supplied"
   },
   {
+    "name": "standard_declaration",
+    "key": "declaration_id",
+    "natural_key": null,
+    "profile": "CURRENT_STATE",
+    "description": "Declared standard version and implemented components of the deployed product. A declaration is an assertion, not evidence; evidence is the trust map.",
+    "runtime": false,
+    "columns": [
+      {
+        "name": "declaration_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Key in the form product_id:component_kind:component_name."
+      },
+      {
+        "name": "product_id",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Data product making the declaration."
+      },
+      {
+        "name": "component_kind",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "STANDARD for the release as a whole, MODULE for a deployed module, PATTERN for an applied pattern."
+      },
+      {
+        "name": "component_name",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "standard, a module anchor or a pattern anchor."
+      },
+      {
+        "name": "platform",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Platform binding implementing the component."
+      },
+      {
+        "name": "standard_version",
+        "type": "VARCHAR",
+        "nullable": false,
+        "comment": "Release of the standard the component conforms to."
+      }
+    ],
+    "constraints": [],
+    "supports_deletion": false,
+    "allocation": "supplied"
+  },
+  {
     "name": "entity_metadata",
     "key": "entity_name",
     "natural_key": null,

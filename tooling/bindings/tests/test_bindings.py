@@ -112,6 +112,32 @@ class Rendering(unittest.TestCase):
                         ids=[m['test_id'] for m in json.loads(render_product(c,p)['manifest.json'])['checks']]
                         self.assertIn(c['product']['id']+':comment-coverage',ids)
 
+    def test_standard_declaration_is_registered_from_version_file(self):
+        version=(REPO/'VERSION').read_text().strip()
+        sql=render_product(itsd('postgres'),'postgres')['deploy.sql']
+        rows=[line for line in sql.splitlines() if line.startswith(" ('ITSD:")]
+        ids=[line.split("'")[1] for line in rows]
+        self.assertEqual(ids[0],'ITSD:STANDARD:standard')
+        for module in ('memory','semantic','domain','observability','search','prediction'):
+            self.assertIn(f'ITSD:MODULE:{module}',ids)
+        for pattern in ('object-placement','temporal-lifecycle-metadata','validation','access-layer'):
+            self.assertIn(f'ITSD:PATTERN:{pattern}',ids)
+        self.assertTrue(all(f",'postgres','{version}'," in line for line in rows))
+        self.assertIn('AS standard_version',sql.split('CREATE VIEW "itsd_access"."data_product_manifest"')[1][:500])
+        for bad in ('1.1','v1.1.0','1.1.0-rc1',''):
+            with self.subTest(version=bad):
+                self.assertFalse(re.fullmatch(r'\d+\.\d+\.\d+',bad))
+
+    def test_release_directory_is_refused_as_render_output(self):
+        import subprocess
+        root=REPO/'examples/it-service-desk-data-product'
+        target=REPO/'release'/'render-output-must-not-exist'
+        done=subprocess.run([sys.executable,'-I',str(REPO/'tooling/bindings/render.py'),'--platform','postgres',
+                             '--context',str(root/'bindings/context.json'),'--placement',str(root/'postgres/placement.json'),
+                             '--output',str(target)],capture_output=True,text=True)
+        self.assertEqual(done.returncode,2)
+        self.assertFalse(target.exists())
+
     def test_missing_names_and_strict_templates(self):
         from jinja2 import UndefinedError
         with self.assertRaises(UndefinedError):
@@ -238,6 +264,12 @@ class PostgreSQL(EngineTests,unittest.TestCase):
                     "SELECT * FROM itsd_domain.at_ticket(current_timestamp,current_timestamp)"]:
             with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 with self.con.transaction():self.con.execute(sql)
+
+    def test_manifest_and_view_expose_the_declared_standard_version(self):
+        self.deploy(itsd('postgres'))
+        version=(REPO/'VERSION').read_text().strip()
+        self.assertEqual(self.con.execute('SELECT DISTINCT standard_version FROM itsd_access.data_product_manifest').fetchall(),[(version,)])
+        self.assertEqual(self.con.execute("SELECT count(*) FROM itsd_access.v_standard_declaration WHERE component_kind='MODULE'").fetchone()[0],6)
 
     def test_comment_coverage_reports_uncommented_objects_and_columns(self):
         m=self.deploy(itsd('postgres'))

@@ -1,6 +1,10 @@
 {# Inputs: product, modules, containers, entities, relationships. No product-specific records. #}
 INSERT INTO {{ qualified(containers.semantic,'data_product_registry') }} VALUES
  ({{ product.id|literal }},{{ product.version|literal }},'ACTIVE',{{ product.owner|literal }},{{ product.validator|literal }},{{ product.entrypoint|literal }},'VIEW',{{ product.evidence_days }},current_timestamp,current_timestamp);
+{% for kind,name in declarations %}
+INSERT INTO {{ qualified(containers.semantic,'standard_declaration') }} VALUES
+ ({{ (product.id ~ ':' ~ kind ~ ':' ~ name)|literal }},{{ product.id|literal }},{{ kind|literal }},{{ name|literal }},{{ platform|literal }},{{ standard_version|literal }},current_timestamp,current_timestamp);
+{% endfor %}
 {% for m in modules %}
 INSERT INTO {{ qualified(containers.semantic,'data_product_map') }} VALUES
  ({{ m|literal }},{{ containers[m]|literal }},{{ ('Capabilities declared by the ' ~ m ~ ' module')|literal }},'DEPLOYED',{{ product.version|literal }},current_timestamp,current_timestamp);

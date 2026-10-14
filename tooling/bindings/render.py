@@ -13,6 +13,9 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 REPO = Path(__file__).resolve().parents[2]
 ORDER = ('memory','semantic','domain','observability','search','prediction')
+# Patterns the binding always applies; declared with the modules at registration.
+PATTERNS = ('object-placement','temporal-lifecycle-metadata','validation','access-layer')
+RESERVED = ('design','implementation','examples','roles','tooling','release')
 PROFILES = {'CURRENT_STATE','EVENT_APPEND_ONLY','OPERATIONAL_LOG','ASSOCIATION_CURRENT',
             'SCD2_HISTORY','ASSOCIATION_SCD2','SCD2_BITEMPORAL'}
 TEMPORAL = {
@@ -58,6 +61,8 @@ def environment(platform):
 def prepare(raw,platform):
     context=copy.deepcopy(raw)
     context['platform']=platform
+    context['standard_version']=(REPO/'VERSION').read_text(encoding='utf-8').strip()
+    if not re.fullmatch(r'\d+\.\d+\.\d+',context['standard_version']): raise ValueError('VERSION must be MAJOR.MINOR.PATCH')
     product=context['product']
     for field in ('id','version','owner','entrypoint','validator'):
         if not product[field]: raise ValueError(f'product.{field} is required')
@@ -67,6 +72,7 @@ def prepare(raw,platform):
         raise ValueError('Declare a nonempty unique list of module anchors')
     if any(m in modules for m in ('search','prediction')) and 'domain' not in modules:
         raise ValueError('Search and Prediction require Domain')
+    context['declarations']=[('STANDARD','standard')]+[('MODULE',m) for m in ORDER if m in modules]+[('PATTERN',p) for p in PATTERNS]
     containers=context['containers']
     for module in modules: ident(containers[module])
     ident(containers['access'])
@@ -234,7 +240,7 @@ def main():
     raw.update(json.loads(args.placement.read_text(encoding='utf-8')))
     files=render_product(raw,args.platform)
     out=args.output.resolve()
-    for reserved in ('design','implementation','examples','roles','tooling'):
+    for reserved in RESERVED:
         if out.is_relative_to(REPO/reserved): parser.error('Generated output must be outside the skill corpus (use build/ or another repository)')
     if out.exists() and any(out.iterdir()): parser.error('Output directory must be empty; existing products are never overwritten')
     out.mkdir(parents=True,exist_ok=True)
