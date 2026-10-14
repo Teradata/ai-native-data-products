@@ -20,23 +20,22 @@ COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.data_cla
 COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.declared_type_source IS {{ 'Catalogue that supplied the declared type.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'column_catalogue') }}.description_source IS {{ 'authored when a business description is registered, missing otherwise.'|literal }};
 CREATE VIEW {{ qualified(containers.access,'data_product_manifest') }} AS
-SELECT p.product_id,p.product_version,
+SELECT p.product_id,p.product_version,p.approved_entrypoint,p.trust_authoritative_producer,
+ o.resource_role,o.object_identity,o.discovery_order,o.is_required,
  (SELECT d.standard_version FROM {{ qualified(containers.semantic,'standard_declaration') }} d
-  WHERE d.product_id=p.product_id AND d.component_kind='STANDARD') AS standard_version,
- p.approved_entrypoint,p.trust_authoritative_producer,
- o.resource_role,o.object_identity,o.discovery_order,o.is_required
+  WHERE d.product_id=p.product_id AND d.component_kind='STANDARD') AS standard_version
 FROM {{ qualified(containers.semantic,'data_product_registry') }} p
 JOIN {{ qualified(containers.semantic,'data_product_orientation') }} o USING(product_id);
 COMMENT ON VIEW {{ qualified(containers.access,'data_product_manifest') }} IS {{ 'Bootstrap manifest: the approved entrypoint, trust producer and ordered discovery resources of the data product.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_id IS {{ 'Identifier of the data product.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.product_version IS {{ 'Published contract version of the data product.'|literal }};
-COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.standard_version IS {{ 'Release of the standard the deployment declares it implements; null when no declaration is registered.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.approved_entrypoint IS {{ 'Consumer object an agent should start from.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.trust_authoritative_producer IS {{ 'Validation producer whose evidence is authoritative for trust.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.resource_role IS {{ 'Role the listed resource plays in discovery, for example MANIFEST or TRUST_MAP.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.object_identity IS {{ 'Qualified name of the discovery resource.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.discovery_order IS {{ 'Order in which a consumer should read the resources, lowest first.'|literal }};
 COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.is_required IS {{ 'True when the resource must exist for the deployment to conform.'|literal }};
+COMMENT ON COLUMN {{ qualified(containers.access,'data_product_manifest') }}.standard_version IS {{ 'Release of the standard the deployment declares it implements; null when no declaration is registered.'|literal }};
 CREATE VIEW {{ qualified(containers.access,'relationship_edges') }} AS
 SELECT source_entity,source_column,target_entity,target_column FROM {{ qualified(containers.semantic,'table_relationship') }}
 UNION ALL SELECT target_entity,target_column,source_entity,source_column FROM {{ qualified(containers.semantic,'table_relationship') }};

@@ -15,6 +15,8 @@ Binding of [Semantic](../../../../design/modules/semantic.md). The design remain
 
 `entities.json` declares standard-owned catalogue entities; it is not a business model. `01-tables.sql.j2` uses the same physical and temporal macros as other modules. `02-registration.sql.j2` registers the supplied entities, keymaps, relationships, profiles, comments and consumer surfaces. `03-discovery.sql.j2` publishes a manifest, hybrid column catalogue and bounded relationship paths.
 
+`standard_declaration` records the standard version the deployment implements: one row for the standard, one per deployed module and one per applied pattern, written by `02-registration.sql.j2` from the root `VERSION` file. The manifest repeats it as `standard_version`. A declaration is an assertion; the trust map is the evidence. The [release bundle](../../../../release/COMPATIBILITY.md) publishes the contract for each version. It is generated from these declarations and is not a module.
+
 Registration uses explicit placement and declared relationships, never name inference. Structural facts come from information_schema; business meanings come from authored metadata. Relationship paths describe base-entity joins and must be resolved through access_object before consumer SQL is issued. Object registries contain datasets, never business instances.
 
 `validation.sql.j2` detects unregistered persisted tables in the supplied module containers. Per-entity checks verify column existence and comments. Metric, synonym, primary-object and model registrations are standard-owned schemas ready for product capture; the helper does not invent their content or certify semantic completeness.

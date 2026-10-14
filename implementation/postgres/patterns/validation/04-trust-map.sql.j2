@@ -7,6 +7,26 @@ DO $copy$ DECLARE r RECORD; BEGIN
  LOOP EXECUTE format('COMMENT ON COLUMN %s.%I IS %L',{{ target|literal }},r.col,r.txt); END LOOP;
 END $copy$;
 {% endmacro %}
+{% macro trust_column_comments(view) %}
+COMMENT ON COLUMN {{ view }}.product_prefix IS 'Data product the evidence describes.';
+COMMENT ON COLUMN {{ view }}.producer_id IS 'Validation producer that supplied the evidence.';
+COMMENT ON COLUMN {{ view }}.run_id IS 'Validation run that supplied the area evidence; null when none exists.';
+COMMENT ON COLUMN {{ view }}.scope_kind IS 'Kind of scope the evidence covers, for example MODULE, ENTITY or PRODUCT.';
+COMMENT ON COLUMN {{ view }}.scope_id IS 'Identifier of the scope the evidence covers.';
+COMMENT ON COLUMN {{ view }}.area_status IS 'Outcome of the area: pass, fail, partial or no-evidence.';
+COMMENT ON COLUMN {{ view }}.confidence IS 'Trust confidence for the area; unknown once the evidence has expired.';
+COMMENT ON COLUMN {{ view }}.checks_expected IS 'Number of checks the area should have run.';
+COMMENT ON COLUMN {{ view }}.checks_ran IS 'Number of checks the area actually ran.';
+COMMENT ON COLUMN {{ view }}.passed_count IS 'Number of checks that passed.';
+COMMENT ON COLUMN {{ view }}.failed_count IS 'Number of checks that failed.';
+COMMENT ON COLUMN {{ view }}.error_count IS 'Number of checks that errored before producing a result.';
+COMMENT ON COLUMN {{ view }}.critical_failure_count IS 'Number of failed checks of critical severity.';
+COMMENT ON COLUMN {{ view }}.error_failure_count IS 'Number of failed or errored checks counted against trust.';
+COMMENT ON COLUMN {{ view }}.coverage IS 'Fraction of expected checks that ran; null when none were expected.';
+COMMENT ON COLUMN {{ view }}.open_gaps IS 'Known gaps in the evidence; states staleness when the evidence has expired.';
+COMMENT ON COLUMN {{ view }}.recommended_action IS 'Next step to restore or confirm trust.';
+COMMENT ON COLUMN {{ view }}.completed_dts IS 'When the area evidence was completed; null when none exists.';
+{% endmacro %}
 CREATE VIEW {{ containers.observability|ident }}.validation_run_latest AS
 SELECT DISTINCT ON (product_prefix,producer_id) * FROM {{ containers.observability|ident }}.validation_run ORDER BY product_prefix,producer_id,completed_dts DESC,run_id DESC;
 COMMENT ON VIEW {{ containers.observability|ident }}.validation_run_latest IS 'Latest validation run of each producer for each data product.';
@@ -40,24 +60,7 @@ FROM {{ containers.semantic|ident }}.data_product_registry p WHERE NOT EXISTS
  (SELECT 1 FROM latest_area a WHERE a.product_prefix=p.product_id
  AND (a.producer_id=p.trust_authoritative_producer OR nullif(p.trust_authoritative_producer,'') IS NULL));
 COMMENT ON VIEW {{ containers.observability|ident }}.trust_map_evidence IS 'Latest evidence per producer and scope, with expiry applied and an explicit no-evidence row for products without any.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.product_prefix IS 'Data product the evidence describes.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.producer_id IS 'Validation producer that supplied the evidence.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.run_id IS 'Validation run that supplied the area evidence; null when none exists.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.scope_kind IS 'Kind of scope the evidence covers, for example MODULE, ENTITY or PRODUCT.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.scope_id IS 'Identifier of the scope the evidence covers.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.area_status IS 'Outcome of the area: pass, fail, partial or no-evidence.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.confidence IS 'Trust confidence for the area; unknown once the evidence has expired.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.checks_expected IS 'Number of checks the area should have run.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.checks_ran IS 'Number of checks the area actually ran.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.passed_count IS 'Number of checks that passed.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.failed_count IS 'Number of checks that failed.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.error_count IS 'Number of checks that errored before producing a result.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.critical_failure_count IS 'Number of failed checks of critical severity.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.error_failure_count IS 'Number of failed or errored checks counted against trust.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.coverage IS 'Fraction of expected checks that ran; null when none were expected.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.open_gaps IS 'Known gaps in the evidence; states staleness when the evidence has expired.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.recommended_action IS 'Next step to restore or confirm trust.';
-COMMENT ON COLUMN {{ containers.observability|ident }}.trust_map_evidence.completed_dts IS 'When the area evidence was completed; null when none exists.';
+{{ trust_column_comments(containers.observability|ident ~ '.trust_map_evidence') }}
 
 CREATE VIEW {{ containers.observability|ident }}.trust_map AS
 SELECT DISTINCT ON (e.product_prefix,e.scope_kind,e.scope_id) e.product_prefix,e.producer_id,e.run_id,e.scope_kind,e.scope_id,e.area_status,e.confidence,
@@ -71,8 +74,8 @@ ORDER BY e.product_prefix,e.scope_kind,e.scope_id,
  CASE e.confidence WHEN 'unknown' THEN 0 WHEN 'weak' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END,
  e.completed_dts DESC,e.run_id DESC,e.producer_id;
 COMMENT ON VIEW {{ containers.observability|ident }}.trust_map IS 'Trust map: the designated producer''s evidence for each scope, or the most cautious evidence when no producer is designated.';
-{{ inherit_comments((containers.observability|ident)~'.trust_map_evidence',(containers.observability|ident)~'.trust_map') }}
+{{ trust_column_comments(containers.observability|ident ~ '.trust_map') }}
 
 CREATE VIEW {{ qualified(containers.access,"trust_map") }} AS SELECT * FROM {{ qualified(containers.observability,"trust_map") }};
 COMMENT ON VIEW {{ qualified(containers.access,"trust_map") }} IS 'Consumer trust map: read this before relying on any other object in the data product.';
-{{ inherit_comments((containers.observability|ident)~'.trust_map',(containers.access|ident)~'.trust_map') }}
+{{ trust_column_comments(qualified(containers.access,'trust_map')) }}

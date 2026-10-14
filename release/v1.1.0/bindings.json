@@ -1,0 +1,74 @@
+{
+  "standard_version": "1.1.0",
+  "bindings": [
+    {
+      "platform": "duckdb",
+      "modules": [
+        "domain",
+        "memory",
+        "observability",
+        "prediction",
+        "search",
+        "semantic"
+      ],
+      "patterns": [
+        "access-layer",
+        "object-placement",
+        "physical-storage",
+        "temporal-lifecycle-metadata",
+        "validation"
+      ],
+      "conformance_documents": [
+        "CONFORMANCE.md",
+        "PLATFORM_PROFILE.md"
+      ],
+      "declares_standard_version": false
+    },
+    {
+      "platform": "postgres",
+      "modules": [
+        "domain",
+        "memory",
+        "observability",
+        "prediction",
+        "search",
+        "semantic"
+      ],
+      "patterns": [
+        "access-layer",
+        "object-placement",
+        "physical-storage",
+        "temporal-lifecycle-metadata",
+        "validation"
+      ],
+      "conformance_documents": [
+        "CONFORMANCE.md",
+        "PLATFORM_PROFILE.md"
+      ],
+      "declares_standard_version": true
+    },
+    {
+      "platform": "teradata",
+      "modules": [
+        "domain",
+        "memory",
+        "observability",
+        "prediction",
+        "search",
+        "semantic"
+      ],
+      "patterns": [
+        "access-layer",
+        "catalogue-interface",
+        "object-placement",
+        "physical-storage",
+        "temporal-lifecycle-metadata",
+        "validation"
+      ],
+      "conformance_documents": [
+        "PLATFORM_PROFILE.md"
+      ],
+      "declares_standard_version": false
+    }
+  ]
+}

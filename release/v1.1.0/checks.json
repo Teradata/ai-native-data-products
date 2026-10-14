@@ -1,0 +1,52 @@
+{
+  "standard_version": "1.1.0",
+  "rendered_checks": {
+    "postgres": [
+      {
+        "scope_kind": "ENTITY",
+        "check": "entity:metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "entity:temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "memory:coverage"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "relationship"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "semantic:coverage"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
+    ]
+  },
+  "check_files": {
+    "duckdb": [
+      "implementation/duckdb/checks.py",
+      "implementation/duckdb/patterns/validation/conformance.sql"
+    ],
+    "postgres": [
+      "implementation/postgres/modules/memory/validation.sql.j2",
+      "implementation/postgres/modules/semantic/validation.sql.j2"
+    ],
+    "teradata": [
+      "implementation/teradata/modules/domain/validation.sql.j2",
+      "implementation/teradata/modules/memory/validation.sql.j2",
+      "implementation/teradata/modules/prediction/validation.sql.j2",
+      "implementation/teradata/modules/search/validation.sql.j2",
+      "implementation/teradata/modules/semantic/validation.sql.j2",
+      "implementation/teradata/patterns/catalogue-interface/conformance-queries.sql",
+      "implementation/teradata/patterns/temporal-lifecycle-metadata/conformance-queries.sql",
+      "implementation/teradata/patterns/validation/comment-coverage.sql",
+      "implementation/teradata/patterns/validation/conformance-queries.sql"
+    ]
+  }
+}

@@ -1,0 +1,2790 @@
+{
+  "standard_version": "1.1.0",
+  "modules": [
+    "memory",
+    "semantic",
+    "domain",
+    "observability",
+    "search",
+    "prediction"
+  ],
+  "patterns": [
+    "object-placement",
+    "temporal-lifecycle-metadata",
+    "validation",
+    "access-layer"
+  ],
+  "metadata_entities": {
+    "memory": [
+      {
+        "name": "module_registry",
+        "key": "module_name",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: module registry.",
+        "columns": [
+          {
+            "name": "module_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module whose design is documented."
+          },
+          {
+            "name": "container_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Deployment schema."
+          },
+          {
+            "name": "deployment_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Deployment decision."
+          },
+          {
+            "name": "module_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Release version."
+          },
+          {
+            "name": "module_purpose",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Why the module is included."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "design_decision",
+        "key": "decision_id",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: design decision.",
+        "columns": [
+          {
+            "name": "decision_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable decision reference."
+          },
+          {
+            "name": "decision_version",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Decision revision."
+          },
+          {
+            "name": "decision_title",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Question settled."
+          },
+          {
+            "name": "context",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Constraints motivating this decision."
+          },
+          {
+            "name": "alternatives",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Other choices considered."
+          },
+          {
+            "name": "rationale",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Reason for the selected choice."
+          },
+          {
+            "name": "consequences",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Limits and obligations of this choice."
+          },
+          {
+            "name": "decision_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Approval state."
+          },
+          {
+            "name": "decision_category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Decision concern."
+          },
+          {
+            "name": "source_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module whose design this affects."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "business_glossary",
+        "key": "term",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: business glossary.",
+        "columns": [
+          {
+            "name": "term",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Business term being defined."
+          },
+          {
+            "name": "term_category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Kind of term."
+          },
+          {
+            "name": "definition",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Business definition and usage."
+          },
+          {
+            "name": "source_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module owning the definition."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "query_cookbook",
+        "key": "recipe_id",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: query cookbook.",
+        "columns": [
+          {
+            "name": "recipe_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable recipe identity."
+          },
+          {
+            "name": "recipe_title",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Question the recipe answers."
+          },
+          {
+            "name": "use_case",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Intended consumer use."
+          },
+          {
+            "name": "target_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module or CROSS composition."
+          },
+          {
+            "name": "query_template",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Executable platform SQL SQL, never result data."
+          },
+          {
+            "name": "complexity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Expected query complexity."
+          },
+          {
+            "name": "is_batch",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether intended for batch only."
+          },
+          {
+            "name": "source_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module responsible for recipe correctness."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "implementation_note",
+        "key": "note_id",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: implementation note.",
+        "columns": [
+          {
+            "name": "note_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable operational note identity."
+          },
+          {
+            "name": "note_title",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Operational concern."
+          },
+          {
+            "name": "note_content",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "How to operate within this constraint."
+          },
+          {
+            "name": "note_category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Type of guidance."
+          },
+          {
+            "name": "source_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module affected."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "change_log",
+        "key": "change_id",
+        "profile": "SCD2_HISTORY",
+        "description": "Versioned design memory: change log.",
+        "columns": [
+          {
+            "name": "change_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable change identity."
+          },
+          {
+            "name": "version_number",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Product release."
+          },
+          {
+            "name": "change_title",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "What changed and why."
+          },
+          {
+            "name": "change_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Release change category."
+          },
+          {
+            "name": "source_module",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module affected."
+          },
+          {
+            "name": "related_decision_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Decision explaining the change."
+          },
+          {
+            "name": "authored_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Accountable design author."
+          },
+          {
+            "name": "source_artifact",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Source design or deployment artefact."
+          },
+          {
+            "name": "authored_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Instant this documentation revision was authored."
+          }
+        ]
+      },
+      {
+        "name": "agent_session",
+        "key": "session_id",
+        "profile": "CURRENT_STATE",
+        "description": "Private runtime process metadata: agent session.",
+        "columns": [
+          {
+            "name": "session_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying session; never recycled."
+          },
+          {
+            "name": "session_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "External session identity."
+          },
+          {
+            "name": "agent_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Executing agent."
+          },
+          {
+            "name": "user_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Pseudonymous user identity."
+          },
+          {
+            "name": "session_start_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Session start."
+          },
+          {
+            "name": "session_end_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": true,
+            "comment": "Session end; null while active."
+          },
+          {
+            "name": "session_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "ACTIVE, COMPLETED or ABANDONED."
+          },
+          {
+            "name": "session_goal",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Process goal, never query results."
+          },
+          {
+            "name": "session_context",
+            "type": "JSONB",
+            "nullable": true,
+            "comment": "Process context only."
+          },
+          {
+            "name": "scope_level",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Privacy boundary kind, enforced by the serving application."
+          },
+          {
+            "name": "scope_identifier",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owner identity within the declared privacy boundary."
+          }
+        ]
+      },
+      {
+        "name": "agent_interaction",
+        "key": "interaction_id",
+        "profile": "CURRENT_STATE",
+        "description": "Private runtime process metadata: agent interaction.",
+        "columns": [
+          {
+            "name": "interaction_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying interaction; never recycled."
+          },
+          {
+            "name": "session_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying memory.agent_session; never recycled."
+          },
+          {
+            "name": "interaction_seq",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Ordering within session."
+          },
+          {
+            "name": "interaction_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Interaction occurred."
+          },
+          {
+            "name": "interaction_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "QUERY, ACTION, DECISION or EXPLANATION."
+          },
+          {
+            "name": "referenced_tables",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Table-level references only."
+          },
+          {
+            "name": "query_executed",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "SQL performed; parameter values must be redacted."
+          },
+          {
+            "name": "query_result_count",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Aggregate result count only."
+          },
+          {
+            "name": "outcome_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Execution result status."
+          },
+          {
+            "name": "scope_level",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Privacy boundary kind, enforced by the serving application."
+          },
+          {
+            "name": "scope_identifier",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owner identity within the declared privacy boundary."
+          }
+        ]
+      },
+      {
+        "name": "learned_strategy",
+        "key": "strategy_id",
+        "profile": "CURRENT_STATE",
+        "description": "Private runtime process metadata: learned strategy.",
+        "columns": [
+          {
+            "name": "strategy_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying strategy; never recycled."
+          },
+          {
+            "name": "strategy_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Reusable process strategy."
+          },
+          {
+            "name": "strategy_category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Type of process learning."
+          },
+          {
+            "name": "strategy_pattern",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Approach, without business content."
+          },
+          {
+            "name": "success_rate",
+            "type": "DECIMAL(5,4)",
+            "nullable": true,
+            "comment": "Observed success fraction."
+          },
+          {
+            "name": "times_used",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Observed usage count."
+          },
+          {
+            "name": "is_validated",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether strategy has supporting evidence."
+          },
+          {
+            "name": "scope_level",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Privacy boundary kind, enforced by the serving application."
+          },
+          {
+            "name": "scope_identifier",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owner identity within the declared privacy boundary."
+          }
+        ]
+      },
+      {
+        "name": "user_preference",
+        "key": "preference_id",
+        "profile": "CURRENT_STATE",
+        "description": "Private runtime process metadata: user preference.",
+        "columns": [
+          {
+            "name": "preference_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying preference; never recycled."
+          },
+          {
+            "name": "user_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Pseudonymous preference owner."
+          },
+          {
+            "name": "preference_category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Presentation or analysis preference kind."
+          },
+          {
+            "name": "preference_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Preference setting."
+          },
+          {
+            "name": "preference_value",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Preference value, never Domain content."
+          },
+          {
+            "name": "scope_level",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Privacy boundary kind, enforced by the serving application."
+          },
+          {
+            "name": "scope_identifier",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owner identity within the declared privacy boundary."
+          }
+        ]
+      },
+      {
+        "name": "discovered_pattern",
+        "key": "pattern_id",
+        "profile": "CURRENT_STATE",
+        "description": "Private runtime process metadata: discovered pattern.",
+        "columns": [
+          {
+            "name": "pattern_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying pattern; never recycled."
+          },
+          {
+            "name": "pattern_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Observed process pattern."
+          },
+          {
+            "name": "pattern_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Pattern class."
+          },
+          {
+            "name": "pattern_definition",
+            "type": "JSONB",
+            "nullable": true,
+            "comment": "Table-level pattern metadata."
+          },
+          {
+            "name": "sample_size",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Aggregate count analysed."
+          },
+          {
+            "name": "involved_tables",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Table-level references only."
+          },
+          {
+            "name": "is_validated",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether evidence supports the pattern."
+          },
+          {
+            "name": "scope_level",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Privacy boundary kind, enforced by the serving application."
+          },
+          {
+            "name": "scope_identifier",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owner identity within the declared privacy boundary."
+          }
+        ]
+      }
+    ],
+    "semantic": [
+      {
+        "name": "data_product_registry",
+        "key": "product_id",
+        "profile": "CURRENT_STATE",
+        "description": "Product-first discovery anchor; one row per data product.",
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable product name supplied to discovery."
+          },
+          {
+            "name": "product_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Published contract version."
+          },
+          {
+            "name": "product_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Publication lifecycle state."
+          },
+          {
+            "name": "owner_team",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Team responsible for this product."
+          },
+          {
+            "name": "trust_authoritative_producer",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validator whose latest area evidence defines the trust map."
+          },
+          {
+            "name": "approved_entrypoint",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Fully qualified approved initial business surface."
+          },
+          {
+            "name": "approved_access_mode",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Declared access mode."
+          },
+          {
+            "name": "max_evidence_age_days",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Maximum evidence age before confidence becomes unknown."
+          }
+        ]
+      },
+      {
+        "name": "data_product_map",
+        "key": "module_name",
+        "profile": "CURRENT_STATE",
+        "description": "Deployed module discovery map, not design rationale.",
+        "columns": [
+          {
+            "name": "module_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module anchor in the six-module composition."
+          },
+          {
+            "name": "container_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed schema."
+          },
+          {
+            "name": "module_purpose",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Capability supplied by the module."
+          },
+          {
+            "name": "deployment_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "DEPLOYED for included modules."
+          },
+          {
+            "name": "module_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Module contract version."
+          }
+        ]
+      },
+      {
+        "name": "standard_declaration",
+        "key": "declaration_id",
+        "profile": "CURRENT_STATE",
+        "description": "Declared standard version and implemented components of the deployed product. A declaration is an assertion, not evidence; evidence is the trust map.",
+        "columns": [
+          {
+            "name": "declaration_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Key in the form product_id:component_kind:component_name."
+          },
+          {
+            "name": "product_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Data product making the declaration."
+          },
+          {
+            "name": "component_kind",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "STANDARD for the release as a whole, MODULE for a deployed module, PATTERN for an applied pattern."
+          },
+          {
+            "name": "component_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "standard, a module anchor or a pattern anchor."
+          },
+          {
+            "name": "platform",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Platform binding implementing the component."
+          },
+          {
+            "name": "standard_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Release of the standard the component conforms to."
+          }
+        ]
+      },
+      {
+        "name": "entity_metadata",
+        "key": "entity_name",
+        "profile": "CURRENT_STATE",
+        "description": "Authored meaning and temporal contract of every governed table.",
+        "columns": [
+          {
+            "name": "entity_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Unique qualified logical entity identity."
+          },
+          {
+            "name": "entity_description",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Purpose and business meaning."
+          },
+          {
+            "name": "module_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owning module anchor."
+          },
+          {
+            "name": "container_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed schema."
+          },
+          {
+            "name": "table_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact deployed base table."
+          },
+          {
+            "name": "view_name",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Canonical consumable view; null for private runtime state."
+          },
+          {
+            "name": "surrogate_key_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable identity column."
+          },
+          {
+            "name": "natural_key_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Business-key column or record key."
+          },
+          {
+            "name": "temporal_pattern",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Canonical temporal profile for this persisted table."
+          },
+          {
+            "name": "current_flag_column",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Stored currency flag where versioned."
+          },
+          {
+            "name": "deleted_flag_column",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Stored logical deletion flag where supported."
+          },
+          {
+            "name": "standalone_reason",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Reason an entity needs no relationship traversal."
+          }
+        ]
+      },
+      {
+        "name": "column_metadata",
+        "key": "column_metadata_id",
+        "profile": "CURRENT_STATE",
+        "description": "Authored column meaning kept separately from physical catalogue facts.",
+        "columns": [
+          {
+            "name": "column_metadata_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable schema.table.column metadata key."
+          },
+          {
+            "name": "container_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact schema."
+          },
+          {
+            "name": "table_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact object name."
+          },
+          {
+            "name": "column_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact field name."
+          },
+          {
+            "name": "business_description",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Meaning, units and provenance of the value."
+          },
+          {
+            "name": "is_pii",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether real deployments could hold personal information."
+          },
+          {
+            "name": "is_sensitive",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether consumers need handling restrictions."
+          },
+          {
+            "name": "data_classification",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Handling classification; declared by the product owner."
+          },
+          {
+            "name": "source",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Authored source of the semantic description."
+          }
+        ]
+      },
+      {
+        "name": "table_relationship",
+        "key": "relationship_id",
+        "profile": "CURRENT_STATE",
+        "description": "Registered joins including semantic references without physical foreign keys.",
+        "columns": [
+          {
+            "name": "relationship_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable relationship identity."
+          },
+          {
+            "name": "source_entity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified referencing entity."
+          },
+          {
+            "name": "source_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Referencing field."
+          },
+          {
+            "name": "target_entity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified referenced entity."
+          },
+          {
+            "name": "target_column",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Referenced field."
+          },
+          {
+            "name": "cardinality",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Cardinality on current consumable surfaces."
+          },
+          {
+            "name": "relationship_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "FOREIGN_KEY or semantic association."
+          },
+          {
+            "name": "is_mandatory",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether each source row must resolve."
+          }
+        ]
+      },
+      {
+        "name": "access_object",
+        "key": "object_identity",
+        "profile": "CURRENT_STATE",
+        "description": "Authoritative access classification established from generated view structure.",
+        "columns": [
+          {
+            "name": "object_identity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact qualified consumable object."
+          },
+          {
+            "name": "access_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "BASE, PASSTHROUGH or COMPOSITE."
+          },
+          {
+            "name": "represents_entity",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Entity represented; null for composite objects."
+          },
+          {
+            "name": "object_grain",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "One row represents this unit."
+          },
+          {
+            "name": "is_agent_consumable",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether this is a public analytical surface."
+          },
+          {
+            "name": "resolves_to_object",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Base object exposed by a passthrough."
+          },
+          {
+            "name": "access_note",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Filtering and safe-use guidance."
+          }
+        ]
+      },
+      {
+        "name": "access_composition",
+        "key": "access_composition_id",
+        "profile": "CURRENT_STATE",
+        "description": "Declared members of joined surfaces; consumers never parse DDL.",
+        "columns": [
+          {
+            "name": "access_composition_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Composite and member identity."
+          },
+          {
+            "name": "composite_object",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Exact joined view."
+          },
+          {
+            "name": "member_entity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified catalogued member."
+          },
+          {
+            "name": "member_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "ANCHOR or joined-member role."
+          },
+          {
+            "name": "join_path",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Explicit join predicate; empty for anchor."
+          },
+          {
+            "name": "is_grain_contributor",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether member changes row grain."
+          }
+        ]
+      },
+      {
+        "name": "primary_object",
+        "key": "object_identity",
+        "profile": "CURRENT_STATE",
+        "description": "Module entrypoints with explicit roles and identities.",
+        "columns": [
+          {
+            "name": "object_identity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Verbatim deployed object identity."
+          },
+          {
+            "name": "module_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Owning module."
+          },
+          {
+            "name": "object_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "VIEW in this binding."
+          },
+          {
+            "name": "object_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Controlled discovery role."
+          },
+          {
+            "name": "usage_guidance",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "How an agent should use this object."
+          }
+        ]
+      },
+      {
+        "name": "data_product_orientation",
+        "key": "resource_role",
+        "profile": "CURRENT_STATE",
+        "description": "Ordered resources resolved before analytical use.",
+        "columns": [
+          {
+            "name": "resource_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "One resource role per row."
+          },
+          {
+            "name": "product_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registry product name."
+          },
+          {
+            "name": "object_identity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Verbatim database resource name."
+          },
+          {
+            "name": "discovery_order",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Ascending navigation order; trust precedes analytics."
+          },
+          {
+            "name": "is_required",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Missing required resources fail conformance."
+          }
+        ]
+      },
+      {
+        "name": "naming_standard",
+        "key": "standard_value",
+        "profile": "CURRENT_STATE",
+        "description": "Declared signals aid authors; consumers use registered identities.",
+        "columns": [
+          {
+            "name": "standard_value",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Naming token or pattern."
+          },
+          {
+            "name": "meaning",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Meaning of the convention."
+          },
+          {
+            "name": "applies_to",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Object or column scope."
+          }
+        ]
+      },
+      {
+        "name": "metric",
+        "key": "metric_name",
+        "profile": "CURRENT_STATE",
+        "description": "Business measures with explicit grain and additivity.",
+        "columns": [
+          {
+            "name": "metric_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Unique business measure."
+          },
+          {
+            "name": "metric_description",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Meaning and exclusions."
+          },
+          {
+            "name": "unit",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Measure unit."
+          },
+          {
+            "name": "aggregation_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Aggregation rule."
+          },
+          {
+            "name": "grain_description",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Evaluation grain."
+          },
+          {
+            "name": "is_additive",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Whether additive across all dimensions including time."
+          }
+        ]
+      },
+      {
+        "name": "metric_expression",
+        "key": "expression_id",
+        "profile": "CURRENT_STATE",
+        "description": "One expression per metric and SQL dialect.",
+        "columns": [
+          {
+            "name": "expression_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Metric-dialect key."
+          },
+          {
+            "name": "metric_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registered metric."
+          },
+          {
+            "name": "sql_dialect",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Expression dialect."
+          },
+          {
+            "name": "expression_text",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Calculation expression."
+          }
+        ]
+      },
+      {
+        "name": "metric_dataset",
+        "key": "metric_dataset_id",
+        "profile": "CURRENT_STATE",
+        "description": "Datasets required by a metric without expression parsing.",
+        "columns": [
+          {
+            "name": "metric_dataset_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Metric-entity key."
+          },
+          {
+            "name": "metric_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registered metric."
+          },
+          {
+            "name": "entity_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registered dataset."
+          },
+          {
+            "name": "dataset_role",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "PRIMARY or JOINED."
+          }
+        ]
+      },
+      {
+        "name": "semantic_synonym",
+        "key": "synonym_id",
+        "profile": "CURRENT_STATE",
+        "description": "Aliases for resolver matching, distinct from glossary definitions.",
+        "columns": [
+          {
+            "name": "synonym_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Object-alias key."
+          },
+          {
+            "name": "object_kind",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "ENTITY, COLUMN or METRIC."
+          },
+          {
+            "name": "object_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registered entity, field or metric identity."
+          },
+          {
+            "name": "synonym_text",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Alternative consumer term."
+          }
+        ]
+      },
+      {
+        "name": "model_metadata",
+        "key": "model_key",
+        "profile": "CURRENT_STATE",
+        "description": "Versioned model identity and computation provenance.",
+        "columns": [
+          {
+            "name": "model_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Model and version identity."
+          },
+          {
+            "name": "model_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Reproducible model version."
+          },
+          {
+            "name": "model_purpose",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Embedding or scoring purpose and limitations."
+          },
+          {
+            "name": "dimensions",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Embedding dimension; null for scalar scoring."
+          },
+          {
+            "name": "computation_logic",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Reproducible model computation description."
+          }
+        ]
+      },
+      {
+        "name": "feature_definition",
+        "key": "feature_name",
+        "profile": "CURRENT_STATE",
+        "description": "Engineering definitions; values belong to Prediction.",
+        "columns": [
+          {
+            "name": "feature_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Registered engineered feature."
+          },
+          {
+            "name": "feature_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Engineering version."
+          },
+          {
+            "name": "computation_logic",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Transformation and leakage cutoff."
+          },
+          {
+            "name": "source_entity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Authoritative source dataset."
+          },
+          {
+            "name": "refresh_frequency",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Refresh schedule."
+          },
+          {
+            "name": "unit",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Normalised unit and bounds."
+          }
+        ]
+      },
+      {
+        "name": "role_policy",
+        "key": "role_name",
+        "profile": "CURRENT_STATE",
+        "description": "Declared roles and their enforcement boundary.",
+        "columns": [
+          {
+            "name": "role_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Product logical tier name."
+          },
+          {
+            "name": "description",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Intended audience only."
+          },
+          {
+            "name": "enforcement",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Documented platform and serving-layer boundary."
+          }
+        ]
+      }
+    ],
+    "domain": [],
+    "observability": [
+      {
+        "name": "change_event",
+        "key": "change_event_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Append-only operational evidence: change event.",
+        "columns": [
+          {
+            "name": "change_event_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying change event; never recycled."
+          },
+          {
+            "name": "table_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified changed table; no row identifiers."
+          },
+          {
+            "name": "change_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Mutation kind."
+          },
+          {
+            "name": "change_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Change occurred."
+          },
+          {
+            "name": "changed_by",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Responsible producer."
+          },
+          {
+            "name": "records_affected",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Aggregate count only."
+          },
+          {
+            "name": "batch_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Producing run identity."
+          }
+        ]
+      },
+      {
+        "name": "data_quality_metric",
+        "key": "quality_metric_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Append-only operational evidence: data quality metric.",
+        "columns": [
+          {
+            "name": "quality_metric_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying quality measurement; never recycled."
+          },
+          {
+            "name": "table_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified measured table."
+          },
+          {
+            "name": "metric_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Data quality dimension."
+          },
+          {
+            "name": "metric_value",
+            "type": "DECIMAL(10,4)",
+            "nullable": false,
+            "comment": "Measured fraction, independently of validation coverage."
+          },
+          {
+            "name": "measured_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Measurement instant."
+          },
+          {
+            "name": "quality_threshold",
+            "type": "DECIMAL(5,4)",
+            "nullable": false,
+            "comment": "Acceptance threshold."
+          },
+          {
+            "name": "is_threshold_met",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Measurement meets declared threshold."
+          },
+          {
+            "name": "sample_size",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Measured population size."
+          }
+        ]
+      },
+      {
+        "name": "lineage_run",
+        "key": "lineage_run_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Append-only operational evidence: lineage run.",
+        "columns": [
+          {
+            "name": "lineage_run_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying flow execution; never recycled."
+          },
+          {
+            "name": "lineage_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying observability.data_lineage; never recycled."
+          },
+          {
+            "name": "run_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Execution instant."
+          },
+          {
+            "name": "run_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "SUCCESS, FAILED, PARTIAL or RUNNING."
+          },
+          {
+            "name": "records_read",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Input count."
+          },
+          {
+            "name": "records_written",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Output count."
+          },
+          {
+            "name": "batch_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Execution batch identity."
+          }
+        ]
+      },
+      {
+        "name": "model_performance",
+        "key": "performance_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Append-only operational evidence: model performance.",
+        "columns": [
+          {
+            "name": "performance_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying model measurement; never recycled."
+          },
+          {
+            "name": "model_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Measured model."
+          },
+          {
+            "name": "model_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Measured revision."
+          },
+          {
+            "name": "metric_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Performance dimension, separate from predictions."
+          },
+          {
+            "name": "metric_value",
+            "type": "DECIMAL(10,6)",
+            "nullable": true,
+            "comment": "Measured metric in named units."
+          },
+          {
+            "name": "evaluation_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Evaluation instant."
+          },
+          {
+            "name": "sample_size",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Evaluation population."
+          }
+        ]
+      },
+      {
+        "name": "agent_outcome",
+        "key": "outcome_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Append-only operational evidence: agent outcome.",
+        "columns": [
+          {
+            "name": "outcome_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying agent outcome; never recycled."
+          },
+          {
+            "name": "agent_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Acting agent."
+          },
+          {
+            "name": "session_key",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Process session identifier."
+          },
+          {
+            "name": "action_type",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Process action."
+          },
+          {
+            "name": "action_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Action instant."
+          },
+          {
+            "name": "tables_accessed",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Table-level references only."
+          },
+          {
+            "name": "outcome_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Execution result."
+          },
+          {
+            "name": "records_processed",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Aggregate count, never result rows."
+          }
+        ]
+      },
+      {
+        "name": "data_lineage",
+        "key": "lineage_id",
+        "profile": "CURRENT_STATE",
+        "description": "Flow definitions retained independently of executions.",
+        "columns": [
+          {
+            "name": "lineage_id",
+            "type": "BIGINT",
+            "nullable": false,
+            "comment": "Stable surrogate identifying flow; never recycled."
+          },
+          {
+            "name": "source_table",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified source table."
+          },
+          {
+            "name": "target_table",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Qualified target table."
+          },
+          {
+            "name": "job_name",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Producing transformation."
+          },
+          {
+            "name": "transformation_logic",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Transformation definition, without business data."
+          },
+          {
+            "name": "is_active",
+            "type": "BOOLEAN",
+            "nullable": false,
+            "comment": "Owner enables or retires a flow; transitions true to false on retirement."
+          },
+          {
+            "name": "registered_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Flow registered."
+          },
+          {
+            "name": "retired_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": true,
+            "comment": "Retirement; null while active."
+          }
+        ]
+      },
+      {
+        "name": "retention_policy",
+        "key": "policy_id",
+        "profile": "CURRENT_STATE",
+        "description": "Operator-applied retention obligations, not automatic deletion.",
+        "columns": [
+          {
+            "name": "policy_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Table or facet retention identity."
+          },
+          {
+            "name": "retention_days",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Null means product lifetime."
+          },
+          {
+            "name": "rationale",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Why this retention period is used."
+          },
+          {
+            "name": "owner",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Operator accountable for archival and deletion."
+          }
+        ]
+      },
+      {
+        "name": "validation_run",
+        "key": "run_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Validation wire schema 2.1 run evidence; advisory, never an access gate.",
+        "columns": [
+          {
+            "name": "product_prefix",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Product evaluated."
+          },
+          {
+            "name": "producer_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validator identity."
+          },
+          {
+            "name": "run_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Unique append-only execution identity."
+          },
+          {
+            "name": "producer_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validator version."
+          },
+          {
+            "name": "profile_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Executed profile."
+          },
+          {
+            "name": "profile_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Profile version."
+          },
+          {
+            "name": "source_format",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Evidence interchange format."
+          },
+          {
+            "name": "payload_schema_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validation wire schema version."
+          },
+          {
+            "name": "started_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Validation started."
+          },
+          {
+            "name": "completed_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Validation completed."
+          },
+          {
+            "name": "trust_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Advisory product summary."
+          },
+          {
+            "name": "agent_use_allowed",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Deprecated compatibility field; always go, never authoritative."
+          },
+          {
+            "name": "total_checks",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Executed check count."
+          },
+          {
+            "name": "passed_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks with PASSED status."
+          },
+          {
+            "name": "failed_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks with FAILED status."
+          },
+          {
+            "name": "error_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks that could not execute."
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Failed or errored CRITICAL checks."
+          },
+          {
+            "name": "error_failure_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Failed or errored ERROR-severity checks."
+          },
+          {
+            "name": "data_product_trust_score",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Optional readiness score; null means unassessed."
+          },
+          {
+            "name": "performance_readiness_score",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Optional readiness score; null means unassessed."
+          },
+          {
+            "name": "operational_readiness_score",
+            "type": "INTEGER",
+            "nullable": true,
+            "comment": "Optional readiness score; null means unassessed."
+          },
+          {
+            "name": "repair_candidate_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "True repair proposal count."
+          },
+          {
+            "name": "failed_checks_json",
+            "type": "JSONB",
+            "nullable": true,
+            "comment": "Optional capped failure detail; counts remain authoritative."
+          },
+          {
+            "name": "repair_candidates_json",
+            "type": "JSONB",
+            "nullable": true,
+            "comment": "Optional capped proposals, never executable authority."
+          },
+          {
+            "name": "evidence_expires_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": true,
+            "comment": "Evidence expiry."
+          }
+        ]
+      },
+      {
+        "name": "validation_area",
+        "key": "area_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Per-area check coverage and confidence for each validation run.",
+        "columns": [
+          {
+            "name": "product_prefix",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Product evaluated."
+          },
+          {
+            "name": "producer_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validator identity."
+          },
+          {
+            "name": "run_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Unique append-only execution identity."
+          },
+          {
+            "name": "area_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Run-scope composite identity."
+          },
+          {
+            "name": "payload_schema_version",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Validation wire schema version."
+          },
+          {
+            "name": "scope_kind",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "PRODUCT, MODULE, ENTITY, PATTERN or CAPABILITY."
+          },
+          {
+            "name": "scope_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Resolvable area identity."
+          },
+          {
+            "name": "checks_expected",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks defined by the profile."
+          },
+          {
+            "name": "checks_ran",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks executed."
+          },
+          {
+            "name": "passed_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks with PASSED status."
+          },
+          {
+            "name": "failed_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks with FAILED status."
+          },
+          {
+            "name": "error_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Checks that could not execute."
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Failed or errored CRITICAL checks."
+          },
+          {
+            "name": "error_failure_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "Failed or errored ERROR-severity checks."
+          },
+          {
+            "name": "area_status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "pass, fail, partial, not-validated or no-evidence."
+          },
+          {
+            "name": "confidence",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "strong, partial, weak or unknown."
+          },
+          {
+            "name": "open_gaps",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Coverage limits, required below strong."
+          },
+          {
+            "name": "recommended_action",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "How to raise confidence."
+          },
+          {
+            "name": "completed_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Parent run completion instant."
+          }
+        ]
+      },
+      {
+        "name": "validation_check",
+        "key": "check_result_id",
+        "profile": "EVENT_APPEND_ONLY",
+        "description": "Individual executed check identity and error evidence.",
+        "columns": [
+          {
+            "name": "check_result_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Run and test identity."
+          },
+          {
+            "name": "run_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Parent validation run."
+          },
+          {
+            "name": "test_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Stable product-family check identifier."
+          },
+          {
+            "name": "scope_kind",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Area kind."
+          },
+          {
+            "name": "scope_id",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Area identity."
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Check family."
+          },
+          {
+            "name": "severity",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "Failure impact."
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR",
+            "nullable": false,
+            "comment": "PASSED, FAILED or ERROR."
+          },
+          {
+            "name": "row_count",
+            "type": "INTEGER",
+            "nullable": false,
+            "comment": "True violating row count."
+          },
+          {
+            "name": "error_message",
+            "type": "VARCHAR",
+            "nullable": true,
+            "comment": "Execution error only."
+          },
+          {
+            "name": "checked_dts",
+            "type": "TIMESTAMPTZ",
+            "nullable": false,
+            "comment": "Check execution time."
+          }
+        ]
+      }
+    ],
+    "search": [],
+    "prediction": []
+  },
+  "access_surface": [
+    {
+      "name": "v_module_registry",
+      "columns": [
+        "module_name",
+        "container_name",
+        "deployment_status",
+        "module_version",
+        "module_purpose",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_design_decision",
+      "columns": [
+        "decision_id",
+        "decision_version",
+        "decision_title",
+        "context",
+        "alternatives",
+        "rationale",
+        "consequences",
+        "decision_status",
+        "decision_category",
+        "source_module",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_business_glossary",
+      "columns": [
+        "term",
+        "term_category",
+        "definition",
+        "source_module",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_query_cookbook",
+      "columns": [
+        "recipe_id",
+        "recipe_title",
+        "use_case",
+        "target_module",
+        "query_template",
+        "complexity",
+        "is_batch",
+        "source_module",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_implementation_note",
+      "columns": [
+        "note_id",
+        "note_title",
+        "note_content",
+        "note_category",
+        "source_module",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_change_log",
+      "columns": [
+        "change_id",
+        "version_number",
+        "change_title",
+        "change_type",
+        "source_module",
+        "related_decision_id",
+        "authored_by",
+        "source_artifact",
+        "authored_dts",
+        "valid_from_dts"
+      ]
+    },
+    {
+      "name": "v_data_product_registry",
+      "columns": [
+        "product_id",
+        "product_version",
+        "product_status",
+        "owner_team",
+        "trust_authoritative_producer",
+        "approved_entrypoint",
+        "approved_access_mode",
+        "max_evidence_age_days"
+      ]
+    },
+    {
+      "name": "v_data_product_map",
+      "columns": [
+        "module_name",
+        "container_name",
+        "module_purpose",
+        "deployment_status",
+        "module_version"
+      ]
+    },
+    {
+      "name": "v_standard_declaration",
+      "columns": [
+        "declaration_id",
+        "product_id",
+        "component_kind",
+        "component_name",
+        "platform",
+        "standard_version"
+      ]
+    },
+    {
+      "name": "v_entity_metadata",
+      "columns": [
+        "entity_name",
+        "entity_description",
+        "module_name",
+        "container_name",
+        "table_name",
+        "view_name",
+        "surrogate_key_column",
+        "natural_key_column",
+        "temporal_pattern",
+        "current_flag_column",
+        "deleted_flag_column",
+        "standalone_reason"
+      ]
+    },
+    {
+      "name": "v_column_metadata",
+      "columns": [
+        "column_metadata_id",
+        "container_name",
+        "table_name",
+        "column_name",
+        "business_description",
+        "is_pii",
+        "is_sensitive",
+        "data_classification",
+        "source"
+      ]
+    },
+    {
+      "name": "v_table_relationship",
+      "columns": [
+        "relationship_id",
+        "source_entity",
+        "source_column",
+        "target_entity",
+        "target_column",
+        "cardinality",
+        "relationship_type",
+        "is_mandatory"
+      ]
+    },
+    {
+      "name": "v_access_object",
+      "columns": [
+        "object_identity",
+        "access_role",
+        "represents_entity",
+        "object_grain",
+        "is_agent_consumable",
+        "resolves_to_object",
+        "access_note"
+      ]
+    },
+    {
+      "name": "v_access_composition",
+      "columns": [
+        "access_composition_id",
+        "composite_object",
+        "member_entity",
+        "member_role",
+        "join_path",
+        "is_grain_contributor"
+      ]
+    },
+    {
+      "name": "v_primary_object",
+      "columns": [
+        "object_identity",
+        "module_name",
+        "object_type",
+        "object_role",
+        "usage_guidance"
+      ]
+    },
+    {
+      "name": "v_data_product_orientation",
+      "columns": [
+        "resource_role",
+        "product_id",
+        "object_identity",
+        "discovery_order",
+        "is_required"
+      ]
+    },
+    {
+      "name": "v_naming_standard",
+      "columns": [
+        "standard_value",
+        "meaning",
+        "applies_to"
+      ]
+    },
+    {
+      "name": "v_metric",
+      "columns": [
+        "metric_name",
+        "metric_description",
+        "unit",
+        "aggregation_type",
+        "grain_description",
+        "is_additive"
+      ]
+    },
+    {
+      "name": "v_metric_expression",
+      "columns": [
+        "expression_id",
+        "metric_name",
+        "sql_dialect",
+        "expression_text"
+      ]
+    },
+    {
+      "name": "v_metric_dataset",
+      "columns": [
+        "metric_dataset_id",
+        "metric_name",
+        "entity_name",
+        "dataset_role"
+      ]
+    },
+    {
+      "name": "v_semantic_synonym",
+      "columns": [
+        "synonym_id",
+        "object_kind",
+        "object_name",
+        "synonym_text"
+      ]
+    },
+    {
+      "name": "v_model_metadata",
+      "columns": [
+        "model_key",
+        "model_version",
+        "model_purpose",
+        "dimensions",
+        "computation_logic"
+      ]
+    },
+    {
+      "name": "v_feature_definition",
+      "columns": [
+        "feature_name",
+        "feature_version",
+        "computation_logic",
+        "source_entity",
+        "refresh_frequency",
+        "unit"
+      ]
+    },
+    {
+      "name": "v_role_policy",
+      "columns": [
+        "role_name",
+        "description",
+        "enforcement"
+      ]
+    },
+    {
+      "name": "v_change_event",
+      "columns": [
+        "change_event_id",
+        "table_name",
+        "change_type",
+        "change_dts",
+        "changed_by",
+        "records_affected",
+        "batch_key"
+      ]
+    },
+    {
+      "name": "v_data_quality_metric",
+      "columns": [
+        "quality_metric_id",
+        "table_name",
+        "metric_name",
+        "metric_value",
+        "measured_dts",
+        "quality_threshold",
+        "is_threshold_met",
+        "sample_size"
+      ]
+    },
+    {
+      "name": "v_lineage_run",
+      "columns": [
+        "lineage_run_id",
+        "lineage_id",
+        "run_dts",
+        "run_status",
+        "records_read",
+        "records_written",
+        "batch_key"
+      ]
+    },
+    {
+      "name": "v_model_performance",
+      "columns": [
+        "performance_id",
+        "model_key",
+        "model_version",
+        "metric_name",
+        "metric_value",
+        "evaluation_dts",
+        "sample_size"
+      ]
+    },
+    {
+      "name": "v_agent_outcome",
+      "columns": [
+        "outcome_id",
+        "agent_key",
+        "session_key",
+        "action_type",
+        "action_dts",
+        "tables_accessed",
+        "outcome_status",
+        "records_processed"
+      ]
+    },
+    {
+      "name": "v_data_lineage",
+      "columns": [
+        "lineage_id",
+        "source_table",
+        "target_table",
+        "job_name",
+        "transformation_logic",
+        "is_active",
+        "registered_dts",
+        "retired_dts"
+      ]
+    },
+    {
+      "name": "v_retention_policy",
+      "columns": [
+        "policy_id",
+        "retention_days",
+        "rationale",
+        "owner"
+      ]
+    },
+    {
+      "name": "v_validation_run",
+      "columns": [
+        "product_prefix",
+        "producer_id",
+        "run_id",
+        "producer_version",
+        "profile_id",
+        "profile_version",
+        "source_format",
+        "payload_schema_version",
+        "started_dts",
+        "completed_dts",
+        "trust_status",
+        "agent_use_allowed",
+        "total_checks",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "data_product_trust_score",
+        "performance_readiness_score",
+        "operational_readiness_score",
+        "repair_candidate_count",
+        "failed_checks_json",
+        "repair_candidates_json",
+        "evidence_expires_dts"
+      ]
+    },
+    {
+      "name": "v_validation_area",
+      "columns": [
+        "product_prefix",
+        "producer_id",
+        "run_id",
+        "area_id",
+        "payload_schema_version",
+        "scope_kind",
+        "scope_id",
+        "checks_expected",
+        "checks_ran",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "area_status",
+        "confidence",
+        "open_gaps",
+        "recommended_action",
+        "completed_dts"
+      ]
+    },
+    {
+      "name": "v_validation_check",
+      "columns": [
+        "check_result_id",
+        "run_id",
+        "test_id",
+        "scope_kind",
+        "scope_id",
+        "category",
+        "severity",
+        "status",
+        "row_count",
+        "error_message",
+        "checked_dts"
+      ]
+    },
+    {
+      "name": "column_catalogue",
+      "columns": [
+        "container_name",
+        "table_name",
+        "column_name",
+        "data_type",
+        "is_nullable",
+        "business_description",
+        "is_pii",
+        "is_sensitive",
+        "data_classification",
+        "declared_type_source",
+        "description_source"
+      ]
+    },
+    {
+      "name": "data_product_manifest",
+      "columns": [
+        "product_id",
+        "product_version",
+        "approved_entrypoint",
+        "trust_authoritative_producer",
+        "resource_role",
+        "object_identity",
+        "discovery_order",
+        "is_required",
+        "standard_version"
+      ]
+    },
+    {
+      "name": "relationship_edges",
+      "columns": [
+        "source_entity",
+        "source_column",
+        "target_entity",
+        "target_column"
+      ]
+    },
+    {
+      "name": "relationship_paths",
+      "columns": [
+        "source_entity",
+        "target_entity",
+        "visited",
+        "join_path",
+        "hops"
+      ]
+    },
+    {
+      "name": "lineage_graph",
+      "columns": [
+        "source_node",
+        "target_node",
+        "edge_type"
+      ]
+    },
+    {
+      "name": "lineage_run_latest",
+      "columns": [
+        "lineage_id",
+        "source_table",
+        "target_table",
+        "job_name",
+        "run_dts",
+        "run_status"
+      ]
+    },
+    {
+      "name": "trust_map",
+      "columns": [
+        "product_prefix",
+        "producer_id",
+        "run_id",
+        "scope_kind",
+        "scope_id",
+        "area_status",
+        "confidence",
+        "checks_expected",
+        "checks_ran",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "coverage",
+        "open_gaps",
+        "recommended_action",
+        "completed_dts"
+      ]
+    }
+  ],
+  "discovery_roles": [
+    {
+      "role": "TRUST_MAP",
+      "object": "trust_map",
+      "discovery_order": 2
+    },
+    {
+      "role": "MANIFEST",
+      "object": "data_product_manifest",
+      "discovery_order": 3
+    },
+    {
+      "role": "MODULE_MAP",
+      "object": "v_data_product_map",
+      "discovery_order": 4
+    },
+    {
+      "role": "OBJECT_CATALOGUE",
+      "object": "v_access_object",
+      "discovery_order": 5
+    },
+    {
+      "role": "ENTITY_CATALOGUE",
+      "object": "v_entity_metadata",
+      "discovery_order": 6
+    },
+    {
+      "role": "COLUMN_CATALOGUE",
+      "object": "column_catalogue",
+      "discovery_order": 7
+    },
+    {
+      "role": "RELATIONSHIP_CATALOGUE",
+      "object": "v_table_relationship",
+      "discovery_order": 8
+    }
+  ]
+}

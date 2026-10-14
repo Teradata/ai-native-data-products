@@ -1,0 +1,25 @@
+{
+  "standard_version": "1.1.0",
+  "examples": [
+    {
+      "example": "alation-interface",
+      "platforms": [],
+      "readme": "examples/alation-interface/README.md"
+    },
+    {
+      "example": "customer360-duckdb",
+      "platforms": [
+        "duckdb"
+      ],
+      "readme": "examples/customer360-duckdb/README.md"
+    },
+    {
+      "example": "it-service-desk-data-product",
+      "platforms": [
+        "duckdb",
+        "postgres"
+      ],
+      "readme": "examples/it-service-desk-data-product/README.md"
+    }
+  ]
+}
