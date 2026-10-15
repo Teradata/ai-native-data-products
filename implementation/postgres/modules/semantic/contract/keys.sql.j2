@@ -1,0 +1,34 @@
+{# INV-SEMANTIC-017: every entity has a key; the columns of a key are ordered 1..n and exist on the entity.
+   Every returned row is a defect. #}
+{% import 'modules/semantic/contract/00-macros.sql.j2' as q %}
+SELECT e.{{ q.col('EntityMetadata', 'entity_name') }}::TEXT AS identity, 'entity has no key definition' AS defect
+FROM {{ q.tbl('EntityMetadata') }} e
+WHERE e.{{ q.col('EntityMetadata', 'is_active') }}
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('KeyDefinition') }} k
+                  WHERE k.{{ q.col('KeyDefinition', 'entity_id') }} = e.{{ q.pk('EntityMetadata') }} AND k.{{ q.col('KeyDefinition', 'is_active') }})
+UNION ALL
+SELECT e.{{ q.col('EntityMetadata', 'entity_name') }} || '#' || k.{{ q.col('KeyDefinition', 'key_name') }}, 'key has no columns'
+FROM {{ q.tbl('KeyDefinition') }} k
+INNER JOIN {{ q.tbl('EntityMetadata') }} e ON e.{{ q.pk('EntityMetadata') }} = k.{{ q.col('KeyDefinition', 'entity_id') }}
+WHERE k.{{ q.col('KeyDefinition', 'is_active') }}
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('KeyColumn') }} c
+                  WHERE c.{{ q.col('KeyColumn', 'key_definition_id') }} = k.{{ q.pk('KeyDefinition') }} AND c.{{ q.col('KeyColumn', 'is_active') }})
+UNION ALL
+SELECT e.{{ q.col('EntityMetadata', 'entity_name') }} || '#' || k.{{ q.col('KeyDefinition', 'key_name') }}, 'key column ordinals do not run 1..n'
+FROM {{ q.tbl('KeyDefinition') }} k
+INNER JOIN {{ q.tbl('EntityMetadata') }} e ON e.{{ q.pk('EntityMetadata') }} = k.{{ q.col('KeyDefinition', 'entity_id') }}
+INNER JOIN {{ q.tbl('KeyColumn') }} c ON c.{{ q.col('KeyColumn', 'key_definition_id') }} = k.{{ q.pk('KeyDefinition') }}
+WHERE k.{{ q.col('KeyDefinition', 'is_active') }} AND c.{{ q.col('KeyColumn', 'is_active') }}
+GROUP BY e.{{ q.col('EntityMetadata', 'entity_name') }}, k.{{ q.col('KeyDefinition', 'key_name') }}
+HAVING {{ q.contiguous('c', q.col('KeyColumn', 'ordinal')) }}
+UNION ALL
+SELECT e.{{ q.col('EntityMetadata', 'entity_name') }} || '#' || k.{{ q.col('KeyDefinition', 'key_name') }} || '.' || c.{{ q.col('KeyColumn', 'column_name') }},
+       'key column is absent from its entity'
+FROM {{ q.tbl('KeyColumn') }} c
+INNER JOIN {{ q.tbl('KeyDefinition') }} k ON k.{{ q.pk('KeyDefinition') }} = c.{{ q.col('KeyColumn', 'key_definition_id') }}
+INNER JOIN {{ q.tbl('EntityMetadata') }} e ON e.{{ q.pk('EntityMetadata') }} = k.{{ q.col('KeyDefinition', 'entity_id') }}
+WHERE c.{{ q.col('KeyColumn', 'is_active') }}
+  AND NOT EXISTS (SELECT 1 FROM information_schema.columns i
+                  WHERE i.table_schema = e.{{ q.col('EntityMetadata', 'container_name') }}
+                    AND i.table_name = e.{{ q.col('EntityMetadata', 'table_name') }}
+                    AND i.column_name = c.{{ q.col('KeyColumn', 'column_name') }})

@@ -270,6 +270,29 @@ class NotationEntities(unittest.TestCase):
                       "[required] [-> Client]  // the ordering customer")
         self.assertIn("unresolved-reference", rules_for(text))
 
+    JOIN_RULES = ("composite-join-target", "composite-join-key", "composite-join-type", "multi-target-join")
+
+    def join_rules(self, new):
+        text = broken("[required] [-> Customer]  // the ordering customer", new + "  // the ordering customer")
+        return [r for r in rules_for(text) if r in self.JOIN_RULES]
+
+    def test_a_named_join_on_a_whole_key_of_the_target_is_accepted(self):
+        self.assertEqual(self.join_rules("[required] [-> Customer.customer_id]"), [])
+
+    def test_a_named_join_to_an_attribute_the_target_lacks_is_flagged(self):
+        self.assertIn("composite-join-target", self.join_rules("[required] [-> Customer.nope]"))
+
+    def test_a_named_join_that_is_not_a_key_of_the_target_is_flagged(self):
+        self.assertIn("composite-join-key", self.join_rules("[required] [-> Customer.region_code]"))
+
+    def test_a_named_join_pairs_attributes_of_the_same_type(self):
+        text = broken("customer_id      : Reference [required] [-> Customer]  // the ordering customer",
+                      "customer_id      : ShortText [required] [-> Customer.customer_id]  // the ordering customer")
+        self.assertIn("composite-join-type", rules_for(text))
+
+    def test_a_multi_target_reference_cannot_name_target_attributes(self):
+        self.assertIn("multi-target-join", self.join_rules("[required] [-> Customer.customer_id | Product]"))
+
     def test_multi_target_reference_needs_a_discriminator(self):
         text = broken("[required] [-> Customer]  // the ordering customer",
                       "[required] [-> Customer | Product]  // the ordering customer")

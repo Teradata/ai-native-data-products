@@ -470,7 +470,7 @@ class EngineTests:
         meta = named(self.ctx, "EntityMetadata")["column_names"]
         self.assertEqual(self.q(f"SELECT {self.binding.ident(meta['container_name'])}, {self.binding.ident(meta['table_name'])} "
                                 f"FROM {self.view('EntityMetadata')} WHERE {self.binding.ident(meta['entity_name'])} = "
-                                f"{self.marker}", ["Category"]), [(container, name)])
+                                f"{self.marker}", [category["logical_id"]]), [(container, name)])
         failing = [r for r in run_checks(self.con, self.manifest) if r["status"] != "PASSED"]
         self.assertEqual(failing, [])
         self.assertEqual(self.q(f"SELECT x FROM {unrelated}"), [(1,)])
@@ -590,15 +590,133 @@ class EngineTests:
         edges = []
         for r in self.ctx["relationships"]:
             if r["source_table"] and r["target_table"]:
-                s, t = (f"{x['container']}.{x['name']}" for x in (r["source_table"], r["target_table"]))
+                s, t = r["source_identity"], r["target_identity"]
                 edges += [(s, t), (t, s)]
         expected, frontier = {}, [[e] for e in edges]
         for hops in range(1, named(self.ctx, "RelationshipPaths")["max_hops"] + 1):
             expected[hops] = len(frontier)
             frontier = [path + [e] for path in frontier for e in edges
                         if e[0] == path[-1][1] and e[1] not in [path[0][0]] + [p[1] for p in path]]
-        rows = dict(self.q(f"SELECT hops, COUNT(*) FROM {self.view('RelationshipPaths')} GROUP BY hops"))
+        rows = dict(self.q(f"SELECT hop_count, COUNT(DISTINCT path_id) FROM {self.view('RelationshipPaths')} GROUP BY hop_count"))
         self.assertEqual({int(k): int(v) for k, v in rows.items()}, {k: v for k, v in expected.items() if v})
+
+    # ---- the metadata contract (release 2.0.0) ------------------------------------------------
+    def col(self, relation, logical):
+        """The quoted physical column the context places for a standard-owned relation's attribute."""
+        return self.binding.ident(named(self.ctx, relation)["column_names"][logical])
+
+    def pk(self, relation):
+        return self.binding.ident(named(self.ctx, relation)["key_columns"][0])
+
+    def register(self, relation, values, sql=None):
+        """Insert a catalogue row the way registration does, through the shared insert macro."""
+        env = environment(self.binding, self.ctx)
+        text = env.from_string("{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}"
+                               "{{ m.insert(rel, values, sql) }}").render(
+            **dict(self.ctx, rel=named(self.ctx, relation), values=values, sql=sql or {}))
+        self.con.execute(text)
+
+    def contract_check(self, name):
+        return next(c for c in self.manifest["checks"] if c["check"] == name)
+
+    def test_identities_are_logical_and_a_composite_key_is_ordered_rows(self):
+        self.deploy()
+        names = [r[0] for r in self.q(f"SELECT {self.col('EntityMetadata', 'entity_name')} FROM {self.table('EntityMetadata')}")]
+        self.assertIn("domain.ticket", names)
+        for name in names:
+            self.assertRegex(name, r"^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$")
+        embedding = named(self.ctx, "EntityEmbedding")
+        self.assertGreater(len(embedding["natural_columns"]), 1)
+        rows = self.q(
+            f"SELECT kc.{self.col('KeyColumn', 'column_name')} FROM {self.table('KeyColumn')} kc "
+            f"INNER JOIN {self.table('KeyDefinition')} kd ON kd.{self.pk('KeyDefinition')} = kc.{self.col('KeyColumn', 'key_definition_id')} "
+            f"INNER JOIN {self.table('EntityMetadata')} e ON e.{self.pk('EntityMetadata')} = kd.{self.col('KeyDefinition', 'entity_id')} "
+            f"WHERE e.{self.col('EntityMetadata', 'entity_name')} = {self.marker} AND kd.{self.col('KeyDefinition', 'key_name')} = {self.marker} "
+            f"ORDER BY kc.{self.col('KeyColumn', 'ordinal')}", [embedding["logical_id"], "natural"])
+        self.assertEqual([r[0] for r in rows], embedding["natural_columns"])
+
+    def test_every_consumer_view_column_has_a_mapping_row(self):
+        self.deploy()
+        ticket = named(self.ctx, "Ticket")
+        rows = self.q(
+            f"SELECT m.{self.col('AccessColumn', 'ordinal')}, m.{self.col('AccessColumn', 'column_name')} FROM {self.table('AccessColumn')} m "
+            f"INNER JOIN {self.table('AccessObject')} a ON a.{self.pk('AccessObject')} = m.{self.col('AccessColumn', 'access_object_id')} "
+            f"WHERE a.{self.col('AccessObject', 'object_identity')} = {self.marker} ORDER BY 1", [ticket["logical_id"] + ":current"])
+        self.assertEqual([r[1] for r in rows], [c["physical_name"] for c in ticket["view_columns"]])
+        self.assertEqual([r[0] for r in rows], list(range(1, len(rows) + 1)))
+
+    def test_the_deployment_declares_the_standard_it_implements(self):
+        self.deploy()
+        version = (REPO / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual(self.q(f"SELECT DISTINCT standard_version FROM {self.view('DataProductManifest')}"), [(version,)])
+        kinds = dict(self.q(f"SELECT {self.col('StandardDeclaration', 'component_kind')}, COUNT(*) FROM {self.table('StandardDeclaration')} "
+                            f"GROUP BY {self.col('StandardDeclaration', 'component_kind')}"))
+        self.assertEqual(int(kinds["STANDARD"]), 1)
+        self.assertEqual(int(kinds["MODULE"]), len(self.ctx["modules"]))
+
+    def test_a_composite_join_the_standard_declares_is_one_ordered_group(self):
+        self.deploy()
+        join = next(r for r in self.ctx["relationships"] if r["source"] == "ValidationArea")
+        self.assertEqual((join["name"], join["join_kind"], join["target"]), ("ValidationArea.run", "named", "ValidationRun"))
+        self.assertEqual([p["source_column"] for p in join["pairs"]], ["product_code", "producer_id", "run_id"])
+        self.assertEqual([p["ordinal"] for p in join["pairs"]], [1, 2, 3])
+        rows = self.q(f"SELECT path_id, hop, key_ordinal, from_column, to_column FROM {self.view('RelationshipPaths')} "
+                      f"WHERE origin_entity = 'observability.validation_area' AND destination_entity = 'observability.validation_run' "
+                      f"AND hop_count = 1 ORDER BY key_ordinal")
+        self.assertEqual([(r[1], r[2], r[3], r[4]) for r in rows],
+                         [(1, 1, "product_code", "product_code"), (1, 2, "producer_id", "producer_id"), (1, 3, "run_id", "run_id")])
+        self.assertEqual(len({r[0] for r in rows}), 1)
+
+    def test_the_reference_check_tests_every_pair_of_a_composite_join(self):
+        self.deploy()
+        validate(self.con, self.manifest)  # publishes a run and its areas, which join on all three columns
+        check = next(c for c in self.manifest["checks"] if c["check"] == "reference" and c["scope_id"] == "ValidationArea")
+        self.assertEqual(self.q(check["sql"]), [])
+        area = named(self.ctx, "ValidationArea")["column_names"]
+        # Break only the second pair: a check that compared the first column alone would not notice.
+        self.con.execute(f"UPDATE {self.table('ValidationArea')} SET {self.binding.ident(area['producer_id'])} = 'someone-else'")
+        self.assertTrue(self.q(check["sql"]))
+
+    def test_every_relationship_pairs_a_source_column_with_a_target_column(self):
+        self.deploy()
+        pairs = self.q(f"SELECT COUNT(*) FROM {self.table('RelationshipColumn')}")[0][0]
+        self.assertEqual(int(pairs), sum(len(r["pairs"]) for r in self.ctx["relationships"]))
+        self.assertEqual(int(self.q(f"SELECT COUNT(*) FROM {self.table('TableRelationship')}")[0][0]), len(self.ctx["relationships"]))
+        self.assertEqual(len({r["name"] for r in self.ctx["relationships"]}), len(self.ctx["relationships"]))
+
+    def breaks(self, check, mutation):
+        """A contract check returns nothing on a clean deployment and something once one rule is broken."""
+        self.deploy()
+        sql = self.contract_check(check)["sql"]
+        self.assertEqual(self.q(sql), [])
+        mutation()
+        self.assertTrue(self.q(sql))
+
+    def test_the_identity_check_detects_a_placement_bound_identity(self):
+        self.breaks("contract-identity", lambda: self.con.execute(
+            f"UPDATE {self.table('EntityMetadata')} SET {self.col('EntityMetadata', 'entity_name')} = 'itsd_domain.ticket' "
+            f"WHERE {self.col('EntityMetadata', 'entity_name')} = 'domain.ticket'"))
+
+    def test_the_keys_check_detects_an_entity_with_no_key(self):
+        self.breaks("contract-keys", lambda: self.con.execute(f"DELETE FROM {self.table('KeyDefinition')}"))
+
+    def test_the_relationships_check_detects_a_relationship_with_no_columns(self):
+        self.breaks("contract-relationships", lambda: self.con.execute(f"DELETE FROM {self.table('RelationshipColumn')}"))
+
+    def test_the_access_columns_check_detects_an_unmapped_output_column(self):
+        self.breaks("contract-access-columns", lambda: self.con.execute(
+            f"DELETE FROM {self.table('AccessColumn')} WHERE {self.pk('AccessColumn')} = "
+            f"(SELECT MIN({self.pk('AccessColumn')}) FROM {self.table('AccessColumn')})"))
+
+    def test_the_composition_check_detects_a_composite_with_no_anchor(self):
+        self.breaks("contract-composition", lambda: self.register("AccessComposition", {
+            "composite_container": "orphan_container", "composite_object": "composite:orphan",
+            "member_seq": 1, "member_entity": "domain.ticket",
+            "member_role": "INNER", "is_grain_contributor": True}))
+
+    def test_the_comment_coverage_check_detects_an_uncommented_view_column(self):
+        self.breaks("comment-coverage", lambda: self.uncomment(
+            self.view("Ticket"), self.binding.ident(named(self.ctx, "Ticket")["view_columns"][0]["physical_name"])))
 
     def test_key_allocation_is_permanent_and_idempotent(self):
         self.deploy()

@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "validation"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from joins import join_groups  # noqa: E402
 from design_lint import (  # noqa: E402
     Finding,
     load_capability_catalogue,
@@ -376,8 +377,31 @@ class NotationContext:
                         for d in (fm.get("decisions") or []) if isinstance(d, dict)}
         self.anchors = set(corpus.modules) | std.patterns
         self.feature_groups = {b.fields.get("Features") for b in spec.blocks_of("Model")}
-        self.referenced = {t.strip() for e in spec.entities for a in e.attributes.values()
+        self.referenced = {t.strip().partition(".")[0] for e in spec.entities for a in e.attributes.values()
                            for t in a.qualifiers.get("->", "").split("|") if t.strip()}
+        # Every entity a reference can name, with its attributes: the specification's own, then
+        # the included modules' and the patterns' definitions, so a join can be checked against a key.
+        self.defs = {}
+        for module in self.modules:
+            self.defs.update(std.module_entity_defs.get(module, {}))
+        self.defs.update(std.pattern_entity_defs)
+        self.defs.update({e.name: e for e in spec.entities})
+
+    def identity(self, entity: str):
+        """The surrogate and natural attribute lists of an entity, or None when its definition is unknown."""
+        definition = self.defs.get(entity)
+        if definition is None:
+            return None
+        keys = _keys(definition)
+        surrogate = keys.get("surrogate") or [a.name for a in definition.attributes.values() if a.type == "Identifier"][:1]
+        natural = keys.get("natural") or ([] if surrogate else
+                                          [a.name for a in definition.attributes.values() if a.type == "NaturalKey"][:1])
+        return surrogate, natural
+
+    def attribute_type(self, entity: str, attribute: str):
+        definition = self.defs.get(entity)
+        found = definition.attributes.get(attribute) if definition is not None else None
+        return found.type if found is not None else None
 
     def resolves(self, entity: str, attribute: str = None) -> bool:
         if entity not in self.entities:
@@ -595,10 +619,11 @@ def check_entity_notation(ctx: NotationContext, path) -> List[Finding]:
                                         f"{where} allocates '{alloc}' against the product's "
                                         f"DEC-SURROGATE-ALLOCATION with no Decision applying to it"))
 
+        findings.extend(check_joins(ctx, e, where, path))
         for a in e.attributes.values():
             target = a.qualifiers.get("->")
             if target is not None:
-                targets = [t.strip() for t in target.split("|")]
+                targets = [t.strip().partition(".")[0] for t in target.split("|")]
                 for t in targets:
                     if not ctx.resolves(t):
                         findings.append(Finding(path, a.line, "unresolved-reference",
@@ -785,6 +810,52 @@ def _keys(entity) -> Dict[str, List[str]]:
             k, v = line.split(":", 1)
             out[k.strip()] = [x.strip() for x in v.split(",") if x.strip()]
     return out
+
+
+def _same_type(a: str, b: str) -> bool:
+    """Two logical types a join may pair: equal, or a Reference and the Identifier it points at."""
+    def norm(t):
+        t = t.split("[")[0].strip()
+        return "Identifier" if t == "Reference" else ("Enum" if t.startswith("Enum") else t)
+    return norm(a) == norm(b)
+
+
+def check_joins(ctx: NotationContext, e, where: str, path) -> List[Finding]:
+    """A named join (`[-> Target.attribute]`) pairs real attributes of one key of its target, of the same type."""
+    findings = []
+    for a in e.attributes.values():
+        raw = a.qualifiers.get("->")
+        if raw and "|" in raw and "." in raw:
+            findings.append(Finding(path, a.line, "multi-target-join",
+                                    f"{where}.{a.name} names target attributes with several targets; "
+                                    f"a composite join has one target"))
+    for g in join_groups((a.name, a.qualifiers.get("->"), a.qualifiers.get("join")) for a in e.attributes.values()):
+        if g["kind"] != "named" or not ctx.resolves(g["target"]):
+            continue  # a bare or multi-target reference; an unresolved target is reported elsewhere
+        target, names = g["target"], g["target_attributes"]
+        line = e.attributes[g["attributes"][0]].line
+        label = f"{where}: join '{g['name']}' to {target}"
+        missing = [t for t in names if not ctx.resolves(target, t)]
+        if missing:
+            findings.append(Finding(path, line, "composite-join-target",
+                                    f"{label} names {', '.join(missing)}, which {target} does not have"))
+        if len(set(names)) != len(names):
+            findings.append(Finding(path, line, "composite-join-target",
+                                    f"{label} names a target attribute more than once"))
+        identity = ctx.identity(target)
+        if identity and not missing and len(set(names)) == len(names):
+            keys = [set(k) for k in identity if k]
+            if set(names) not in keys:
+                findings.append(Finding(path, line, "composite-join-key",
+                                        f"{label} pairs {', '.join(names)}, which is not a whole key of {target} "
+                                        f"(its keys: {'; '.join(', '.join(sorted(k)) for k in keys) or 'none'})"))
+        for source, target_attribute in zip(g["attributes"], names):
+            theirs = ctx.attribute_type(target, target_attribute)
+            if theirs and not _same_type(e.attributes[source].type, theirs):
+                findings.append(Finding(path, e.attributes[source].line, "composite-join-type",
+                                        f"{label}: {source} is {e.attributes[source].type} but "
+                                        f"{target}.{target_attribute} is {theirs}"))
+    return findings
 
 
 def check_identity(ctx: NotationContext, path) -> List[Finding]:

@@ -35,4 +35,5 @@ WHERE ranked.similarity >= {{ b.threshold }}
 ORDER BY ranked.similarity DESC NULLS LAST, ranked.entity_id
 LIMIT greatest(0, least(result_limit, 1000));
 $body$;
+COMMENT ON FUNCTION {{ b.objects.function|qualified }}(DOUBLE PRECISION[], INTEGER) IS {{ ('Similarity search over the ' ~ b.name ~ ' embedding of ' ~ b.entity ~ '. Takes a query vector and a result limit (maximum 1000).')|literal }};
 {% endfor %}

@@ -144,9 +144,9 @@ The trust-map entity is **`ValidationArea`**, and that entity name is its logica
 
 ```
 Entity: ValidationArea            [kind: Record] [profile: EVENT_APPEND_ONLY]
-  product_code: ShortText [required]  // the run's product_code
-  producer_id: ShortText [required]  // the run's producer
-  run_id: ShortText [required]  // the run this entry belongs to
+  product_code: ShortText [required] [-> ValidationRun.product_code] [join: run]  // the run's product_code
+  producer_id: ShortText [required] [-> ValidationRun.producer_id] [join: run]  // the run's producer
+  run_id: ShortText [required] [-> ValidationRun.run_id] [join: run]  // the run this entry belongs to
   scope_kind: Enum{MODULE|ENTITY|PATTERN|CAPABILITY|PRODUCT} [required]  // the kind of area described
   scope_id: ShortText [required]  // the area within its kind
   checks_expected: Integer [required]  // checks the profile defines for this area; 0 means none

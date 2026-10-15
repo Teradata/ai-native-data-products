@@ -1,0 +1,29 @@
+{# INV-SEMANTIC-016: identities follow the grammar and carry no placement. Every row is a defect.
+   REGEXP_SIMILAR matches the whole string, and 'c' makes the match case-sensitive. #}
+{% import 'modules/semantic/contract/00-macros.sql.j2' as q %}
+SELECT {{ q.who('e.' ~ q.col('EntityMetadata', 'entity_name')) }} AS object_identity, {{ q.what('entity identity is not module.entity in its own module') }} AS defect
+FROM {{ q.tbl('EntityMetadata') }} e
+WHERE e.{{ q.col('EntityMetadata', 'is_active') }} = 1
+  AND (COALESCE(REGEXP_SIMILAR(e.{{ q.col('EntityMetadata', 'entity_name') }}, '[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*', 'c'), 0) <> 1
+       OR SUBSTR(e.{{ q.col('EntityMetadata', 'entity_name') }}, 1, CHARACTER_LENGTH(e.{{ q.col('EntityMetadata', 'module_name') }}) + 1)
+          <> LOWER(e.{{ q.col('EntityMetadata', 'module_name') }}) || '.')
+UNION ALL
+SELECT {{ q.who('e.' ~ q.col('EntityMetadata', 'entity_name')) }}, {{ q.what('entity identity is registered more than once') }}
+FROM {{ q.tbl('EntityMetadata') }} e
+WHERE e.{{ q.col('EntityMetadata', 'is_active') }} = 1
+GROUP BY e.{{ q.col('EntityMetadata', 'entity_name') }}
+HAVING COUNT(*) > 1
+UNION ALL
+SELECT {{ q.who('a.' ~ q.col('AccessObject', 'object_identity')) }}, {{ q.what('access identity breaks the grammar') }}
+FROM {{ q.tbl('AccessObject') }} a
+WHERE a.{{ q.col('AccessObject', 'is_active') }} = 1
+  AND COALESCE(REGEXP_SIMILAR(a.{{ q.col('AccessObject', 'object_identity') }}, '[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|governed|current|history)', 'c'), 0) <> 1
+  AND COALESCE(REGEXP_SIMILAR(a.{{ q.col('AccessObject', 'object_identity') }}, '[a-z][a-z0-9_]*:[a-z][a-z0-9_]*', 'c'), 0) <> 1
+  AND COALESCE(REGEXP_SIMILAR(a.{{ q.col('AccessObject', 'object_identity') }}, 'composite:[a-z][a-z0-9_]*', 'c'), 0) <> 1
+UNION ALL
+SELECT {{ q.who('a.' ~ q.col('AccessObject', 'object_identity')) }}, {{ q.what('single-entity identity does not match its entity and surface') }}
+FROM {{ q.tbl('AccessObject') }} a
+WHERE a.{{ q.col('AccessObject', 'is_active') }} = 1 AND a.{{ q.col('AccessObject', 'represents_entity') }} IS NOT NULL
+  AND a.{{ q.col('AccessObject', 'object_identity') }} <> a.{{ q.col('AccessObject', 'represents_entity') }} || ':' ||
+      CASE a.{{ q.col('AccessObject', 'object_type') }} WHEN 'TABLE' THEN 'base' WHEN 'BASE_VIEW' THEN 'governed'
+           WHEN 'CONSUMER_VIEW' THEN 'current' ELSE 'history' END

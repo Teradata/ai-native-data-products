@@ -117,18 +117,18 @@ Windowed aggregates use `count_related`, `sum_related` and `days_since_last`, wh
 
 ```
 Entity: FeatureValue              [kind: History] [profile: SCD2_BITEMPORAL] [allocation: inline]  // TALL format; standard-owned
-  feature_value_id: Identifier
-  entity_id: Reference [required] [-> <Entity1> | <Entity2>] [discriminator: entity_kind]
-  entity_kind: Enum{<ENTITY1>|<ENTITY2>} [required]
+  feature_value_id: Identifier  // Generated identifier of the row.
+  entity_id: Reference [required] [-> <Entity1> | <Entity2>] [discriminator: entity_kind]  // The entity the value describes; entity_kind says which.
+  entity_kind: Enum{<ENTITY1>|<ENTITY2>} [required]  // Which entity entity_id points into.
   feature_name: ShortText [required]  // the feature attribute's name
   feature_group: ShortText [required]  // the feature group it is declared on
-  value_numeric: Decimal(18,4) [optional]
-  value_text: Text [optional]
-  value_json: Json [optional]
-  value_type: Enum{NUMERIC|TEXT|JSON|BOOLEAN} [required]
-  observation_dts: Timestamp [required]
-  is_current: Flag [current-flag]
-  feature_version: ShortText [required]
+  value_numeric: Decimal(18,4) [optional]  // The value, when it is numeric.
+  value_text: Text [optional]  // The value, when it is text.
+  value_json: Json [optional]  // The value, when it is JSON.
+  value_type: Enum{NUMERIC|TEXT|JSON|BOOLEAN} [required]  // Which of the value attributes holds the value.
+  observation_dts: Timestamp [required]  // When the value was observed.
+  is_current: Flag [current-flag]  // True for the version of the value in force.
+  feature_version: ShortText [required]  // Version of the feature definition that produced the value.
 
   Keys:
     surrogate: feature_value_id
@@ -139,18 +139,18 @@ Entity: FeatureValue              [kind: History] [profile: SCD2_BITEMPORAL] [al
 
 ```
 Entity: ModelPrediction           [kind: History] [profile: SCD2_BITEMPORAL] [allocation: inline]
-  prediction_id: Identifier
-  entity_id: Reference [required] [-> <Entity1> | <Entity2>] [discriminator: entity_kind]
-  entity_kind: Enum{<ENTITY1>|<ENTITY2>} [required]
+  prediction_id: Identifier  // Generated identifier of the row.
+  entity_id: Reference [required] [-> <Entity1> | <Entity2>] [discriminator: entity_kind]  // The entity the prediction describes; entity_kind says which.
+  entity_kind: Enum{<ENTITY1>|<ENTITY2>} [required]  // Which entity entity_id points into.
   model_key: ShortText [required]  // the Model block's name
-  model_version: ShortText [required]
+  model_version: ShortText [required]  // Version of the model that made the prediction.
   prediction_value: Decimal(10,6) [optional]  // score / probability / continuous output
   prediction_class: ShortText [optional]  // classification label
   prediction_json: Json [optional]  // multi-class or structured output
   confidence_score: Decimal(5,4) [optional]  // 0-1
-  prediction_dts: Timestamp [required]
+  prediction_dts: Timestamp [required]  // When the prediction was made.
   feature_observation_dts: Timestamp [optional]  // links the prediction to its feature timestamp (reproducibility)
-  is_current: Flag [current-flag]
+  is_current: Flag [current-flag]  // True for the prediction in force.
 
   Keys:
     surrogate: prediction_id

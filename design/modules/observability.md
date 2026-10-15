@@ -63,21 +63,21 @@ Every entity header states its temporal profile, because a `Record` has no defau
 
 ```
 Entity: ChangeEvent               [kind: Record] [profile: EVENT_APPEND_ONLY]
-  change_event_id: Identifier
-  container_name: ShortText [optional]
+  change_event_id: Identifier  // Generated identifier of the row.
+  container_name: ShortText [optional]  // Container that holds the changed table.
   table_name: ShortText [required]  // TABLE-LEVEL, not individual records
-  change_type: Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE} [required]
-  change_dts: Timestamp [required]
-  changed_by: ShortText [required]
-  change_source: Enum{ETL|API|MANUAL|AGENT} [optional]
+  change_type: Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE} [required]  // Kind of change: insert, update, delete, merge or truncate.
+  change_dts: Timestamp [required]  // When the change happened.
+  changed_by: ShortText [required]  // Who or what made the change.
+  change_source: Enum{ETL|API|MANUAL|AGENT} [optional]  // Where the change came from: ETL, an API, a manual edit or an agent.
   records_affected: Integer [optional]  // aggregate count, never the keys
-  columns_changed: Text [optional]
-  batch_key: ShortText [optional]
+  columns_changed: Text [optional]  // The columns the change touched.
+  batch_key: ShortText [optional]  // Identifier of the batch the change belongs to.
 
 Entity: DataQualityMetric         [kind: Record] [profile: EVENT_APPEND_ONLY]
-  quality_metric_id: Identifier
-  container_name: ShortText [optional]
-  table_name: ShortText [required]
+  quality_metric_id: Identifier  // Generated identifier of the row.
+  container_name: ShortText [optional]  // Container that holds the measured table.
+  table_name: ShortText [required]  // Table the measurement describes.
   column_name: ShortText [optional]  // null for table-level metrics
   quality_dimension: Enum{COMPLETENESS|VALIDITY|CONSISTENCY|ACCURACY|TIMELINESS} [required]  // the category the rule scores into
   check_function: Enum{COMPLETENESS|VALIDITY|CONSISTENCY|INTEGRITY|UNIQUENESS|FRESHNESS} [required]  // the Quality block rule's check
@@ -86,59 +86,59 @@ Entity: DataQualityMetric         [kind: Record] [profile: EVENT_APPEND_ONLY]
   pass_threshold: Decimal(5,4) [optional]  // a share rule's pass threshold
   warn_threshold: Decimal(5,4) [optional]  // a share rule's warn threshold
   check_outcome: Enum{PASS|WARN|FAIL} [required]  // per the Quality block's threshold mapping
-  measured_dts: Timestamp [required]
-  sample_size: Integer [optional]
+  measured_dts: Timestamp [required]  // When the measurement was taken.
+  sample_size: Integer [optional]  // Number of rows the measurement was taken over.
 
 Entity: DataLineage               [kind: Record] [profile: CURRENT_STATE]  // definitional; one row per flow
-  lineage_id: Identifier
-  source_container: ShortText [optional]
-  source_table: ShortText [optional]
+  lineage_id: Identifier  // Generated identifier of the flow.
+  source_container: ShortText [optional]  // Container of the source table, when there is one.
+  source_table: ShortText [optional]  // The table the flow reads from, when it reads from one.
   source_column: ShortText [optional]  // null for a table-level flow; set only for column-level lineage
   source_system: ShortText [optional]  // external origin; null if internal
-  target_container: ShortText [optional]
-  target_table: ShortText [required]
+  target_container: ShortText [optional]  // Container of the target table.
+  target_table: ShortText [required]  // The table the flow writes to.
   target_column: ShortText [optional]  // null for a table-level flow; set only for column-level lineage
-  job_name: ShortText [optional]
-  transformation_type: Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT} [optional]
-  transformation_logic: Text [optional]
-  openlineage_job_name: ShortText [optional]
+  job_name: ShortText [optional]  // Job that performs the flow.
+  transformation_type: Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT} [optional]  // Kind of transformation: ETL, feature engineering, aggregation, join, embedding generation, filter or pivot.
+  transformation_logic: Text [optional]  // How the flow transforms the data.
+  openlineage_job_name: ShortText [optional]  // The job's name in OpenLineage.
   openlineage_namespace: ShortText [optional]  // organisation or deployment configuration, never the designer's
   is_active: Flag  // the flow is live: set at registration, cleared when it retires and retired_dts is recorded
-  registered_dts: Timestamp [optional]
-  retired_dts: Timestamp [optional]
+  registered_dts: Timestamp [optional]  // When the flow was registered.
+  retired_dts: Timestamp [optional]  // When the flow was retired; null while it is in use.
 
 Entity: LineageRun                [kind: Record] [profile: EVENT_APPEND_ONLY]  // operational; one row per execution
-  lineage_run_id: Identifier
-  lineage_id: Reference [required] [-> DataLineage]
-  run_dts: Timestamp [required]
-  run_status: Enum{SUCCESS|FAILED|PARTIAL|RUNNING} [required]
-  run_duration_ms: Integer [optional]
-  records_read: Integer [optional]
-  records_written: Integer [optional]
-  records_rejected: Integer [optional]
+  lineage_run_id: Identifier  // Generated identifier of the row.
+  lineage_id: Reference [required] [-> DataLineage]  // The flow the run executed.
+  run_dts: Timestamp [required]  // When the run happened.
+  run_status: Enum{SUCCESS|FAILED|PARTIAL|RUNNING} [required]  // Outcome of the run: success, failed, partial or still running.
+  run_duration_ms: Integer [optional]  // How long the run took, in milliseconds.
+  records_read: Integer [optional]  // Number of records the run read.
+  records_written: Integer [optional]  // Number of records the run wrote.
+  records_rejected: Integer [optional]  // Number of records the run rejected.
   batch_key: ShortText [optional]  // links to ChangeEvent.batch_key
-  openlineage_run_id: ShortText [optional]
-  error_message: Text [optional]
+  openlineage_run_id: ShortText [optional]  // The run's identifier in OpenLineage.
+  error_message: Text [optional]  // Why the run failed, when it did.
 
 Entity: ModelPerformance          [kind: Record] [profile: EVENT_APPEND_ONLY]
-  performance_id: Identifier
-  model_key: ShortText [required]
-  model_version: ShortText [required]
-  metric_name: Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE} [required]
-  metric_value: Decimal(10,6) [optional]
-  evaluation_dts: Timestamp [required]
-  sample_size: Integer [optional]
-  is_sla_met: Flag
+  performance_id: Identifier  // Generated identifier of the row.
+  model_key: ShortText [required]  // The model that was measured.
+  model_version: ShortText [required]  // Version of the model that was measured.
+  metric_name: Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE} [required]  // What was measured: accuracy, precision, recall, AUC, latency or drift.
+  metric_value: Decimal(10,6) [optional]  // The measured value.
+  evaluation_dts: Timestamp [required]  // When the evaluation happened.
+  sample_size: Integer [optional]  // Number of rows the evaluation used.
+  is_sla_met: Flag  // True when the measurement meets the model's service level.
 
 Entity: AgentOutcome              [kind: Record] [profile: EVENT_APPEND_ONLY]
-  outcome_id: Identifier
-  agent_key: ShortText [required]
-  session_key: ShortText [optional]
-  action_type: Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION} [required]
-  action_dts: Timestamp [required]
+  outcome_id: Identifier  // Generated identifier of the row.
+  agent_key: ShortText [required]  // The agent that acted.
+  session_key: ShortText [optional]  // The session the action belonged to, when it had one.
+  action_type: Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION} [required]  // Kind of action: a query, a recommendation, a decision or a prediction.
+  action_dts: Timestamp [required]  // When the action happened.
   tables_accessed: Text [optional]  // TABLE-LEVEL, comma-separated
-  outcome_status: Enum{SUCCESS|PARTIAL|FAILED} [required]
-  user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION} [optional]
+  outcome_status: Enum{SUCCESS|PARTIAL|FAILED} [required]  // Whether the action succeeded, partly succeeded or failed.
+  user_feedback: Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION} [optional]  // The user's reaction to the action, including a correction.
   records_processed: Integer [optional]  // aggregate count
 ```
 

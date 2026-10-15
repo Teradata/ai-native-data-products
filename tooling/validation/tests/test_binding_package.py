@@ -72,7 +72,8 @@ class BindingPackage(unittest.TestCase):
         """A template no phase, check or caller reaches is dead weight that drifts."""
         caller_rendered = {"modules/domain/02-key-allocation.sql.j2",
                            "patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2",
-                           "patterns/temporal-lifecycle-metadata/00-macros.sql.j2"}
+                           "patterns/temporal-lifecycle-metadata/00-macros.sql.j2",
+                           "modules/semantic/contract/00-macros.sql.j2"}
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 b, _ = load_binding(platform)

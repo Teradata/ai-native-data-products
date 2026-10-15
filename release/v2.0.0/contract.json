@@ -1,0 +1,3866 @@
+{
+  "standard_version": "2.0.0",
+  "modules": [
+    "memory",
+    "semantic",
+    "domain",
+    "observability",
+    "search",
+    "prediction"
+  ],
+  "patterns": [
+    "object-placement",
+    "temporal-lifecycle-metadata",
+    "validation",
+    "access-layer"
+  ],
+  "identity_grammar": [
+    {
+      "kind": "entity",
+      "form": "module.entity",
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$",
+      "example": "domain.ticket"
+    },
+    {
+      "kind": "entity surface",
+      "form": "module.entity:surface (base, governed, current or history)",
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*:(base|governed|current|history)$",
+      "example": "domain.ticket:current"
+    },
+    {
+      "kind": "module-owned object",
+      "form": "module:object (composite is reserved)",
+      "pattern": "^(?!composite:)[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
+      "example": "observability:trust_map"
+    },
+    {
+      "kind": "composite access object",
+      "form": "composite:name",
+      "pattern": "^composite:[a-z][a-z0-9_]*$",
+      "example": "composite:ticket_enriched"
+    }
+  ],
+  "metadata_entities": {
+    "memory": [
+      {
+        "name": "AgentInteraction",
+        "identity": "memory.agent_interaction",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "interaction_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "interaction_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "session_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "interaction_seq",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "interaction_type",
+            "type": "Enum{QUERY|ACTION|DECISION|EXPLANATION}",
+            "required": false
+          },
+          {
+            "name": "interaction_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "user_input",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "agent_response",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "action_taken",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "referenced_tables",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "query_executed",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "query_result_count",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "execution_time_ms",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "outcome_status",
+            "type": "Enum{SUCCESS|PARTIAL|FAILED}",
+            "required": false
+          },
+          {
+            "name": "user_feedback",
+            "type": "Enum{POSITIVE|NEUTRAL|NEGATIVE}",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "AgentSession",
+        "identity": "memory.agent_session",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "session_id"
+            ]
+          },
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "session_key"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "session_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "session_key",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "agent_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "user_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "session_start_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "session_end_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "session_status",
+            "type": "Enum{ACTIVE|COMPLETED|ABANDONED}",
+            "required": false
+          },
+          {
+            "name": "session_goal",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "session_context",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "BusinessGlossary",
+        "identity": "memory.business_glossary",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "term"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "term",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "term_category",
+            "type": "Enum{ENTITY|ATTRIBUTE|METRIC|BUSINESS_RULE|CLASSIFICATION|REFERENCE_CODE}",
+            "required": true
+          },
+          {
+            "name": "definition",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ChangeLog",
+        "identity": "memory.change_log",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "change_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "change_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "version_number",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_type",
+            "type": "Enum{INITIAL_RELEASE|SCHEMA_CHANGE|FEATURE_ADDITION|BUG_FIX|PERFORMANCE|DEPRECATION}",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "related_decision_id",
+            "type": "Reference",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DesignDecision",
+        "identity": "memory.design_decision",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "decision_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "decision_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "decision_version",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "decision_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "context",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "alternatives",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "rationale",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "consequences",
+            "type": "LongText",
+            "required": false
+          },
+          {
+            "name": "decision_status",
+            "type": "Enum{PROPOSED|ACCEPTED|SUPERSEDED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "decision_category",
+            "type": "Enum{ARCHITECTURE|SCHEMA|NAMING|PERFORMANCE|SECURITY|INTEGRATION|OPERATIONAL}",
+            "required": true
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "superseded_by",
+            "type": "Reference",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DiscoveredPattern",
+        "identity": "memory.discovered_pattern",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "pattern_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "pattern_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "pattern_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "pattern_type",
+            "type": "Enum{CORRELATION|TEMPORAL|TABLE_RELATIONSHIP|ANOMALY}",
+            "required": false
+          },
+          {
+            "name": "pattern_definition",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "sample_size",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "confidence_score",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "involved_tables",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_validated",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ImplementationNote",
+        "identity": "memory.implementation_note",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "note_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "note_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "note_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "note_content",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "note_category",
+            "type": "Enum{DEPLOYMENT|WORKAROUND|KNOWN_ISSUE|PERFORMANCE_TIP|OPERATIONAL|SECURITY}",
+            "required": true
+          },
+          {
+            "name": "severity",
+            "type": "Enum{LOW|MEDIUM|HIGH|CRITICAL}",
+            "required": false
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "LearnedStrategy",
+        "identity": "memory.learned_strategy",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "strategy_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "strategy_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "strategy_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "strategy_category",
+            "type": "Enum{QUERY_OPTIMIZATION|FEATURE_SELECTION|ERROR_HANDLING}",
+            "required": false
+          },
+          {
+            "name": "strategy_pattern",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "strategy_metadata",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "success_rate",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "times_used",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_validated",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ModuleRegistry",
+        "identity": "memory.module_registry",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "module_registry_id"
+            ]
+          },
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "module_name"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "module_registry_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "deployment_status",
+            "type": "Enum{DEPLOYED|PLANNED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "module_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "module_purpose",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "key_entities",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "dependencies",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "QueryCookbook",
+        "identity": "memory.query_cookbook",
+        "profile": "SCD2_HISTORY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "recipe_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "recipe_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "recipe_title",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "use_case",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_module",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY|CROSS}",
+            "required": true
+          },
+          {
+            "name": "query_template",
+            "type": "LongText",
+            "required": true
+          },
+          {
+            "name": "complexity",
+            "type": "Enum{SIMPLE|MODERATE|COMPLEX|ADVANCED}",
+            "required": true
+          },
+          {
+            "name": "is_batch",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "source_module",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "valid_from_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "valid_to_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "is_current",
+            "type": "Flag",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "UserPreference",
+        "identity": "memory.user_preference",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "preference_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "preference_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "user_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "preference_category",
+            "type": "Enum{REPORT_FORMAT|DATA_FILTER|AGGREGATION_LEVEL|VISUALIZATION_TYPE}",
+            "required": false
+          },
+          {
+            "name": "preference_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "preference_value",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "preference_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "confidence",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "scope_level",
+            "type": "Enum{USER|TEAM|ORGANIZATION|AGENT}",
+            "required": true
+          },
+          {
+            "name": "scope_identifier",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "semantic": [
+      {
+        "name": "AccessColumn",
+        "identity": "semantic.access_column",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_column_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "access_column_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "access_object_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "ordinal",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "source_entity",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "mapping_kind",
+            "type": "Enum{PASSTHROUGH|RENAMED|DERIVED}",
+            "required": true
+          },
+          {
+            "name": "derivation_note",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "AccessComposition",
+        "identity": "semantic.access_composition",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_composition_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "access_composition_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "composite_container",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "composite_object",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "member_seq",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "member_entity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "member_role",
+            "type": "Enum{ANCHOR|INNER|LEFT|RIGHT|FULL}",
+            "required": true
+          },
+          {
+            "name": "via_relationship_id",
+            "type": "Reference",
+            "required": false
+          },
+          {
+            "name": "via_direction",
+            "type": "Enum{FORWARD|REVERSE}",
+            "required": false
+          },
+          {
+            "name": "is_grain_contributor",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "member_note",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "AccessObject",
+        "identity": "semantic.access_object",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "access_object_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "access_object_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "object_identity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION}",
+            "required": true
+          },
+          {
+            "name": "access_role",
+            "type": "Enum{BASE|PASSTHROUGH|COMPOSITE}",
+            "required": true
+          },
+          {
+            "name": "represents_entity",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "object_grain",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_agent_consumable",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_primary",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "resolves_to_object",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "access_note",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ColumnMetadata",
+        "identity": "semantic.column_metadata",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "column_metadata_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "column_metadata_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "logical_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "business_description",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_pii",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "sensitivity_marker",
+            "type": "Enum{PII|PII_INCIDENTAL}",
+            "required": false
+          },
+          {
+            "name": "data_classification",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_required",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "declared_type",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "allowed_values",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataProductMap",
+        "identity": "semantic.data_product_map",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "module_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "module_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
+          },
+          {
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE}",
+            "required": true
+          },
+          {
+            "name": "module_purpose",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "module_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "deployment_status",
+            "type": "Enum{DEPLOYED|PLANNED|DEPRECATED}",
+            "required": true
+          },
+          {
+            "name": "graph_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataProductOrientation",
+        "identity": "semantic.data_product_orientation",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "orientation_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "orientation_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "resource_role",
+            "type": "Enum{MANIFEST|TRUST_MAP|MODULE_MAP|OBJECT_CATALOGUE|ENTITY_CATALOGUE|COLUMN_CATALOGUE|RELATIONSHIP_CATALOGUE|RELATIONSHIP_PATHS|LINEAGE|QUERY_COOKBOOK|GLOSSARY|DESIGN_DECISIONS|POLICY|QUALITY}",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "object_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "resource_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "usage_guidance",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_required",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "discovery_order",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataProductRegistry",
+        "identity": "semantic.data_product_registry",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "product_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "product_description",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "product_domain",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "product_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "product_status",
+            "type": "Enum{DRAFT|ACTIVE|DEPRECATED|RETIRED}",
+            "required": true
+          },
+          {
+            "name": "owner_team",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "technical_contact",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "trust_authoritative_producer",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "manifest",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "contract_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "policy_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "quality_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "lineage_uri",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "approved_entrypoint",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "approved_access_mode",
+            "type": "Enum{VIEW|MCP_TOOL|SEMANTIC_QUERY}",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_deleted",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "deleted_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "EntityMetadata",
+        "identity": "semantic.entity_metadata",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "entity_metadata_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "entity_metadata_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "entity_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "logical_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "entity_description",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "entity_kind",
+            "type": "Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD}",
+            "required": true
+          },
+          {
+            "name": "module_name",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "view_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "temporal_pattern",
+            "type": "Enum{CURRENT_STATE|EVENT_APPEND_ONLY|SCD2_HISTORY|SCD2_BITEMPORAL|ASSOCIATION_CURRENT|ASSOCIATION_SCD2|OPERATIONAL_LOG}",
+            "required": true
+          },
+          {
+            "name": "current_flag_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "deleted_flag_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "assumed_zone",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "industry_standard",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "KeyColumn",
+        "identity": "semantic.key_column",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "key_column_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "key_column_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "key_definition_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "ordinal",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "KeyDefinition",
+        "identity": "semantic.key_definition",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "key_definition_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "key_definition_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "entity_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "key_role",
+            "type": "Enum{SURROGATE|NATURAL|ALTERNATE}",
+            "required": true
+          },
+          {
+            "name": "key_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "Metric",
+        "identity": "semantic.metric",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "metric_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "metric_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "metric_description",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "metric_definition",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "metric_datatype",
+            "type": "Code",
+            "required": false
+          },
+          {
+            "name": "aggregation_type",
+            "type": "Enum{SUM|AVERAGE|COUNT|COUNT_DISTINCT|MIN|MAX|RATIO|DERIVED}",
+            "required": false
+          },
+          {
+            "name": "unit",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "grain_description",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_additive",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "MetricDataset",
+        "identity": "semantic.metric_dataset",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_dataset_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "metric_dataset_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "metric_name",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "dataset_role",
+            "type": "Enum{PRIMARY|JOINED}",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "MetricExpression",
+        "identity": "semantic.metric_expression",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "metric_expression_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "metric_expression_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "metric_name",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "sql_dialect",
+            "type": "Code",
+            "required": true
+          },
+          {
+            "name": "expression_text",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "NamingStandard",
+        "identity": "semantic.naming_standard",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "naming_standard_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "naming_standard_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "standard_type",
+            "type": "Enum{TEMPLATE|STANDARD_NAME|ABBREVIATION|SUFFIX|PREFIX|PATTERN}",
+            "required": true
+          },
+          {
+            "name": "applies_to",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION|SEQUENCE|ATTRIBUTE|GRAPH_KEY|ALL}",
+            "required": false
+          },
+          {
+            "name": "module_scope",
+            "type": "Enum{DOMAIN|SEARCH|PREDICTION|OBSERVABILITY|SEMANTIC|MEMORY}",
+            "required": false
+          },
+          {
+            "name": "kind_scope",
+            "type": "Enum{HISTORY|REFERENCE|RELATIONSHIP|KEYMAP|RECORD}",
+            "required": false
+          },
+          {
+            "name": "name_template",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "standard_value",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "mapped_value",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "meaning",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "PrimaryObject",
+        "identity": "semantic.primary_object",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "primary_object_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "primary_object_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "module_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "object_type",
+            "type": "Enum{TABLE|BASE_VIEW|CONSUMER_VIEW|PROCEDURE|FUNCTION}",
+            "required": true
+          },
+          {
+            "name": "object_role",
+            "type": "Enum{AGENT_ENTRYPOINT|ANALYTICAL_QUERY|REFERENCE_LOOKUP|RELATIONSHIP_BRIDGE|LINEAGE_EVIDENCE|OPERATIONAL_METRIC|WRITE_TARGET|INTERNAL_SUPPORT}",
+            "required": true
+          },
+          {
+            "name": "usage_guidance",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "RelationshipColumn",
+        "identity": "semantic.relationship_column",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "relationship_column_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "relationship_column_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "relationship_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "ordinal",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "source_column",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_column",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "SemanticSynonym",
+        "identity": "semantic.semantic_synonym",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "synonym_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "synonym_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "synonym_object",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "object_kind",
+            "type": "Enum{ENTITYMETADATA|COLUMNMETADATA|METRIC}",
+            "required": true
+          },
+          {
+            "name": "synonym_text",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "StandardDeclaration",
+        "identity": "semantic.standard_declaration",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "standard_declaration_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "standard_declaration_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "product_id",
+            "type": "NaturalKey",
+            "required": true
+          },
+          {
+            "name": "component_kind",
+            "type": "Enum{STANDARD|MODULE|PATTERN}",
+            "required": true
+          },
+          {
+            "name": "component_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "platform",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "standard_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TableRelationship",
+        "identity": "semantic.table_relationship",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "relationship_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "relationship_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "relationship_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "source_entity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_entity",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "relationship_type",
+            "type": "Enum{FOREIGN_KEY|HIERARCHY|ASSOCIATIVE}",
+            "required": true
+          },
+          {
+            "name": "cardinality",
+            "type": "Enum{ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY}",
+            "required": false
+          },
+          {
+            "name": "is_mandatory",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "domain": [],
+    "observability": [
+      {
+        "name": "AgentOutcome",
+        "identity": "observability.agent_outcome",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "outcome_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "outcome_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "agent_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "session_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "action_type",
+            "type": "Enum{QUERY|RECOMMENDATION|DECISION|PREDICTION}",
+            "required": true
+          },
+          {
+            "name": "action_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "tables_accessed",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "outcome_status",
+            "type": "Enum{SUCCESS|PARTIAL|FAILED}",
+            "required": true
+          },
+          {
+            "name": "user_feedback",
+            "type": "Enum{POSITIVE|NEUTRAL|NEGATIVE|CORRECTION}",
+            "required": false
+          },
+          {
+            "name": "records_processed",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ChangeEvent",
+        "identity": "observability.change_event",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "change_event_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "change_event_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_type",
+            "type": "Enum{INSERT|UPDATE|DELETE|MERGE|TRUNCATE}",
+            "required": true
+          },
+          {
+            "name": "change_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "changed_by",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "change_source",
+            "type": "Enum{ETL|API|MANUAL|AGENT}",
+            "required": false
+          },
+          {
+            "name": "records_affected",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "columns_changed",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "batch_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataLineage",
+        "identity": "observability.data_lineage",
+        "profile": "CURRENT_STATE",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "lineage_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "lineage_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "source_container",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_table",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_system",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "target_container",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "target_table",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "target_column",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "job_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "transformation_type",
+            "type": "Enum{ETL|FEATURE_ENG|AGGREGATION|JOIN|EMBEDDING_GEN|FILTER|PIVOT}",
+            "required": false
+          },
+          {
+            "name": "transformation_logic",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "openlineage_job_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "openlineage_namespace",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "registered_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "retired_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DataQualityMetric",
+        "identity": "observability.data_quality_metric",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "quality_metric_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "quality_metric_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "container_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "table_name",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "column_name",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "quality_dimension",
+            "type": "Enum{COMPLETENESS|VALIDITY|CONSISTENCY|ACCURACY|TIMELINESS}",
+            "required": true
+          },
+          {
+            "name": "check_function",
+            "type": "Enum{COMPLETENESS|VALIDITY|CONSISTENCY|INTEGRITY|UNIQUENESS|FRESHNESS}",
+            "required": true
+          },
+          {
+            "name": "rule_text",
+            "type": "Text",
+            "required": true
+          },
+          {
+            "name": "metric_value",
+            "type": "Decimal(10,4)",
+            "required": false
+          },
+          {
+            "name": "pass_threshold",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "warn_threshold",
+            "type": "Decimal(5,4)",
+            "required": false
+          },
+          {
+            "name": "check_outcome",
+            "type": "Enum{PASS|WARN|FAIL}",
+            "required": true
+          },
+          {
+            "name": "measured_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "sample_size",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "LineageRun",
+        "identity": "observability.lineage_run",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "lineage_run_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "lineage_run_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "lineage_id",
+            "type": "Reference",
+            "required": true
+          },
+          {
+            "name": "run_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "run_status",
+            "type": "Enum{SUCCESS|FAILED|PARTIAL|RUNNING}",
+            "required": true
+          },
+          {
+            "name": "run_duration_ms",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "records_read",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "records_written",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "records_rejected",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "batch_key",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "openlineage_run_id",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "error_message",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ModelPerformance",
+        "identity": "observability.model_performance",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "SURROGATE",
+            "name": "surrogate",
+            "columns": [
+              "performance_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "performance_id",
+            "type": "Identifier",
+            "required": false
+          },
+          {
+            "name": "model_key",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "model_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "metric_name",
+            "type": "Enum{ACCURACY|PRECISION|RECALL|AUC|LATENCY_MS|DRIFT_SCORE}",
+            "required": true
+          },
+          {
+            "name": "metric_value",
+            "type": "Decimal(10,6)",
+            "required": false
+          },
+          {
+            "name": "evaluation_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "sample_size",
+            "type": "Integer",
+            "required": false
+          },
+          {
+            "name": "is_sla_met",
+            "type": "Flag",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ValidationArea",
+        "identity": "observability.validation_area",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_code",
+              "producer_id",
+              "run_id",
+              "scope_kind",
+              "scope_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "product_code",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "run_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "scope_kind",
+            "type": "Enum{MODULE|ENTITY|PATTERN|CAPABILITY|PRODUCT}",
+            "required": true
+          },
+          {
+            "name": "scope_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "checks_expected",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "checks_ran",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "passed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "area_status",
+            "type": "Enum{pass|fail|partial|not-validated|no-evidence}",
+            "required": true
+          },
+          {
+            "name": "confidence",
+            "type": "Enum{strong|partial|weak|unknown}",
+            "required": true
+          },
+          {
+            "name": "open_gaps",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "recommended_action",
+            "type": "Text",
+            "required": false
+          },
+          {
+            "name": "completed_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ValidationRun",
+        "identity": "observability.validation_run",
+        "profile": "EVENT_APPEND_ONLY",
+        "keys": [
+          {
+            "role": "NATURAL",
+            "name": "natural",
+            "columns": [
+              "product_code",
+              "producer_id",
+              "run_id"
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "name": "product_code",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "producer_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "profile_id",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "profile_version",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "source_format",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "payload_schema_version",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "run_id",
+            "type": "ShortText",
+            "required": true
+          },
+          {
+            "name": "started_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "completed_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "trust_status",
+            "type": "Enum{TRUSTED|DEGRADED|UNTRUSTED}",
+            "required": true
+          },
+          {
+            "name": "agent_use_allowed",
+            "type": "ShortText",
+            "required": false
+          },
+          {
+            "name": "total_checks",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "passed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "critical_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "error_failure_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "data_product_trust_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "performance_readiness_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "operational_readiness_score",
+            "type": "Decimal(5,2)",
+            "required": false
+          },
+          {
+            "name": "repair_candidate_count",
+            "type": "Integer",
+            "required": true
+          },
+          {
+            "name": "failed_checks_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "repair_candidates_json",
+            "type": "Json",
+            "required": false
+          },
+          {
+            "name": "evidence_expires_dts",
+            "type": "Timestamp",
+            "required": false
+          },
+          {
+            "name": "created_dts",
+            "type": "Timestamp",
+            "required": true
+          },
+          {
+            "name": "updated_dts",
+            "type": "Timestamp",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "search": [],
+    "prediction": []
+  },
+  "access_surface": [
+    {
+      "relation": "BusinessGlossary",
+      "identity": "memory.business_glossary:current",
+      "columns": [
+        "term",
+        "term_category",
+        "definition",
+        "source_module",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ChangeLog",
+      "identity": "memory.change_log:current",
+      "columns": [
+        "change_id",
+        "version_number",
+        "change_title",
+        "change_type",
+        "source_module",
+        "related_decision_id",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DesignDecision",
+      "identity": "memory.design_decision:current",
+      "columns": [
+        "decision_id",
+        "decision_version",
+        "decision_title",
+        "context",
+        "alternatives",
+        "rationale",
+        "consequences",
+        "decision_status",
+        "decision_category",
+        "source_module",
+        "superseded_by",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ImplementationNote",
+      "identity": "memory.implementation_note:current",
+      "columns": [
+        "note_id",
+        "note_title",
+        "note_content",
+        "note_category",
+        "severity",
+        "source_module",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ModuleRegistry",
+      "identity": "memory.module_registry:current",
+      "columns": [
+        "module_registry_id",
+        "module_name",
+        "container_name",
+        "deployment_status",
+        "module_version",
+        "module_purpose",
+        "key_entities",
+        "dependencies",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "QueryCookbook",
+      "identity": "memory.query_cookbook:current",
+      "columns": [
+        "recipe_id",
+        "recipe_title",
+        "use_case",
+        "target_module",
+        "query_template",
+        "complexity",
+        "is_batch",
+        "source_module",
+        "valid_from_dts",
+        "is_current",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "AgentOutcome",
+      "identity": "observability.agent_outcome:current",
+      "columns": [
+        "outcome_id",
+        "agent_key",
+        "session_key",
+        "action_type",
+        "action_dts",
+        "tables_accessed",
+        "outcome_status",
+        "user_feedback",
+        "records_processed",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ChangeEvent",
+      "identity": "observability.change_event:current",
+      "columns": [
+        "change_event_id",
+        "container_name",
+        "table_name",
+        "change_type",
+        "change_dts",
+        "changed_by",
+        "change_source",
+        "records_affected",
+        "columns_changed",
+        "batch_key",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataLineage",
+      "identity": "observability.data_lineage:current",
+      "columns": [
+        "lineage_id",
+        "source_container",
+        "source_table",
+        "source_column",
+        "source_system",
+        "target_container",
+        "target_table",
+        "target_column",
+        "job_name",
+        "transformation_type",
+        "transformation_logic",
+        "openlineage_job_name",
+        "openlineage_namespace",
+        "is_active",
+        "registered_dts",
+        "retired_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataQualityMetric",
+      "identity": "observability.data_quality_metric:current",
+      "columns": [
+        "quality_metric_id",
+        "container_name",
+        "table_name",
+        "column_name",
+        "quality_dimension",
+        "check_function",
+        "rule_text",
+        "metric_value",
+        "pass_threshold",
+        "warn_threshold",
+        "check_outcome",
+        "measured_dts",
+        "sample_size",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "LineageRun",
+      "identity": "observability.lineage_run:current",
+      "columns": [
+        "lineage_run_id",
+        "lineage_id",
+        "run_dts",
+        "run_status",
+        "run_duration_ms",
+        "records_read",
+        "records_written",
+        "records_rejected",
+        "batch_key",
+        "openlineage_run_id",
+        "error_message",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ModelPerformance",
+      "identity": "observability.model_performance:current",
+      "columns": [
+        "performance_id",
+        "model_key",
+        "model_version",
+        "metric_name",
+        "metric_value",
+        "evaluation_dts",
+        "sample_size",
+        "is_sla_met",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ValidationArea",
+      "identity": "observability.validation_area:current",
+      "columns": [
+        "product_code",
+        "producer_id",
+        "run_id",
+        "scope_kind",
+        "scope_id",
+        "checks_expected",
+        "checks_ran",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "area_status",
+        "confidence",
+        "open_gaps",
+        "recommended_action",
+        "completed_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ValidationRun",
+      "identity": "observability.validation_run:current",
+      "columns": [
+        "product_code",
+        "producer_id",
+        "producer_version",
+        "profile_id",
+        "profile_version",
+        "source_format",
+        "payload_schema_version",
+        "run_id",
+        "started_dts",
+        "completed_dts",
+        "trust_status",
+        "agent_use_allowed",
+        "total_checks",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "data_product_trust_score",
+        "performance_readiness_score",
+        "operational_readiness_score",
+        "repair_candidate_count",
+        "failed_checks_json",
+        "repair_candidates_json",
+        "evidence_expires_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "LineageGraph",
+      "identity": "observability:lineage_graph",
+      "columns": [
+        "source_node",
+        "target_node",
+        "edge_type"
+      ]
+    },
+    {
+      "relation": "LineageRunLatest",
+      "identity": "observability:lineage_run_latest",
+      "columns": [
+        "lineage_id",
+        "source_table",
+        "target_table",
+        "job_name",
+        "run_dts",
+        "run_status"
+      ]
+    },
+    {
+      "relation": "TrustMap",
+      "identity": "observability:trust_map",
+      "columns": [
+        "product_code",
+        "producer_id",
+        "run_id",
+        "scope_kind",
+        "scope_id",
+        "area_status",
+        "confidence",
+        "checks_expected",
+        "checks_ran",
+        "coverage",
+        "passed_count",
+        "failed_count",
+        "error_count",
+        "critical_failure_count",
+        "error_failure_count",
+        "open_gaps",
+        "recommended_action",
+        "completed_dts",
+        "derived"
+      ]
+    },
+    {
+      "relation": "AccessColumn",
+      "identity": "semantic.access_column:current",
+      "columns": [
+        "access_column_id",
+        "access_object_id",
+        "ordinal",
+        "column_name",
+        "source_entity",
+        "source_column",
+        "mapping_kind",
+        "derivation_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "AccessComposition",
+      "identity": "semantic.access_composition:current",
+      "columns": [
+        "access_composition_id",
+        "composite_container",
+        "composite_object",
+        "member_seq",
+        "member_entity",
+        "member_role",
+        "via_relationship_id",
+        "via_direction",
+        "is_grain_contributor",
+        "member_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "AccessObject",
+      "identity": "semantic.access_object:current",
+      "columns": [
+        "access_object_id",
+        "object_identity",
+        "container_name",
+        "object_name",
+        "object_type",
+        "access_role",
+        "represents_entity",
+        "object_grain",
+        "is_agent_consumable",
+        "is_primary",
+        "resolves_to_object",
+        "access_note",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ColumnMetadata",
+      "identity": "semantic.column_metadata:current",
+      "columns": [
+        "column_metadata_id",
+        "container_name",
+        "table_name",
+        "column_name",
+        "logical_name",
+        "business_description",
+        "is_pii",
+        "sensitivity_marker",
+        "data_classification",
+        "is_required",
+        "declared_type",
+        "allowed_values",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductMap",
+      "identity": "semantic.data_product_map:current",
+      "columns": [
+        "module_id",
+        "module_name",
+        "object_type",
+        "module_purpose",
+        "container_name",
+        "module_version",
+        "deployment_status",
+        "graph_key",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductOrientation",
+      "identity": "semantic.data_product_orientation:current",
+      "columns": [
+        "orientation_id",
+        "product_id",
+        "resource_role",
+        "container_name",
+        "object_name",
+        "resource_uri",
+        "usage_guidance",
+        "is_required",
+        "discovery_order",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "DataProductRegistry",
+      "identity": "semantic.data_product_registry:current",
+      "columns": [
+        "product_id",
+        "product_name",
+        "product_description",
+        "product_domain",
+        "product_version",
+        "product_status",
+        "owner_team",
+        "technical_contact",
+        "trust_authoritative_producer",
+        "manifest",
+        "contract_uri",
+        "policy_uri",
+        "quality_uri",
+        "lineage_uri",
+        "approved_entrypoint",
+        "approved_access_mode",
+        "is_active",
+        "is_deleted",
+        "deleted_dts",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "EntityMetadata",
+      "identity": "semantic.entity_metadata:current",
+      "columns": [
+        "entity_metadata_id",
+        "entity_name",
+        "logical_name",
+        "entity_description",
+        "entity_kind",
+        "module_name",
+        "container_name",
+        "table_name",
+        "view_name",
+        "temporal_pattern",
+        "current_flag_column",
+        "deleted_flag_column",
+        "assumed_zone",
+        "industry_standard",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "KeyColumn",
+      "identity": "semantic.key_column:current",
+      "columns": [
+        "key_column_id",
+        "key_definition_id",
+        "ordinal",
+        "column_name",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "KeyDefinition",
+      "identity": "semantic.key_definition:current",
+      "columns": [
+        "key_definition_id",
+        "entity_id",
+        "key_role",
+        "key_name",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "Metric",
+      "identity": "semantic.metric:current",
+      "columns": [
+        "metric_id",
+        "metric_name",
+        "metric_description",
+        "metric_definition",
+        "metric_datatype",
+        "aggregation_type",
+        "unit",
+        "grain_description",
+        "is_additive",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "MetricDataset",
+      "identity": "semantic.metric_dataset:current",
+      "columns": [
+        "metric_dataset_id",
+        "metric_name",
+        "container_name",
+        "table_name",
+        "dataset_role",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "MetricExpression",
+      "identity": "semantic.metric_expression:current",
+      "columns": [
+        "metric_expression_id",
+        "metric_name",
+        "sql_dialect",
+        "expression_text",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "NamingStandard",
+      "identity": "semantic.naming_standard:current",
+      "columns": [
+        "naming_standard_id",
+        "standard_type",
+        "applies_to",
+        "module_scope",
+        "kind_scope",
+        "name_template",
+        "standard_value",
+        "mapped_value",
+        "meaning",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "PrimaryObject",
+      "identity": "semantic.primary_object:current",
+      "columns": [
+        "primary_object_id",
+        "module_id",
+        "container_name",
+        "object_name",
+        "object_type",
+        "object_role",
+        "usage_guidance",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "RelationshipColumn",
+      "identity": "semantic.relationship_column:current",
+      "columns": [
+        "relationship_column_id",
+        "relationship_id",
+        "ordinal",
+        "source_column",
+        "target_column",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "SemanticSynonym",
+      "identity": "semantic.semantic_synonym:current",
+      "columns": [
+        "synonym_id",
+        "synonym_object",
+        "object_kind",
+        "synonym_text",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "StandardDeclaration",
+      "identity": "semantic.standard_declaration:current",
+      "columns": [
+        "standard_declaration_id",
+        "product_id",
+        "component_kind",
+        "component_name",
+        "platform",
+        "standard_version",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "TableRelationship",
+      "identity": "semantic.table_relationship:current",
+      "columns": [
+        "relationship_id",
+        "relationship_name",
+        "source_entity",
+        "target_entity",
+        "relationship_type",
+        "cardinality",
+        "is_mandatory",
+        "is_active",
+        "created_dts",
+        "updated_dts"
+      ]
+    },
+    {
+      "relation": "ColumnCatalogue",
+      "identity": "semantic:column_catalogue",
+      "columns": [
+        "container_name",
+        "table_name",
+        "column_name",
+        "data_type",
+        "is_nullable",
+        "logical_name",
+        "business_description",
+        "is_pii",
+        "sensitivity_marker",
+        "data_classification",
+        "declared_type",
+        "structural_source",
+        "description_source"
+      ]
+    },
+    {
+      "relation": "DataProductManifest",
+      "identity": "semantic:data_product_manifest",
+      "columns": [
+        "product_id",
+        "product_name",
+        "product_version",
+        "product_status",
+        "approved_entrypoint",
+        "approved_access_mode",
+        "trust_authoritative_producer",
+        "manifest",
+        "trust_map",
+        "module_map",
+        "object_catalogue",
+        "entity_catalogue",
+        "column_catalogue",
+        "relationship_catalogue",
+        "relationship_paths",
+        "lineage",
+        "query_cookbook",
+        "glossary",
+        "design_decisions",
+        "quality",
+        "standard_version"
+      ]
+    },
+    {
+      "relation": "RelationshipPaths",
+      "identity": "semantic:relationship_paths",
+      "columns": [
+        "path_id",
+        "origin_entity",
+        "destination_entity",
+        "hop_count",
+        "hop",
+        "key_ordinal",
+        "from_entity",
+        "from_column",
+        "to_entity",
+        "to_column",
+        "relationship_id",
+        "direction"
+      ]
+    }
+  ],
+  "discovery_roles": [
+    {
+      "role": "MANIFEST",
+      "relation": "DataProductManifest",
+      "required": true,
+      "discovery_order": 1
+    },
+    {
+      "role": "TRUST_MAP",
+      "relation": "TrustMap",
+      "required": true,
+      "discovery_order": 2
+    },
+    {
+      "role": "MODULE_MAP",
+      "relation": "DataProductMap",
+      "required": true,
+      "discovery_order": 3
+    },
+    {
+      "role": "OBJECT_CATALOGUE",
+      "relation": "AccessObject",
+      "required": true,
+      "discovery_order": 4
+    },
+    {
+      "role": "ENTITY_CATALOGUE",
+      "relation": "EntityMetadata",
+      "required": true,
+      "discovery_order": 5
+    },
+    {
+      "role": "COLUMN_CATALOGUE",
+      "relation": "ColumnCatalogue",
+      "required": true,
+      "discovery_order": 6
+    },
+    {
+      "role": "RELATIONSHIP_CATALOGUE",
+      "relation": "TableRelationship",
+      "required": true,
+      "discovery_order": 7
+    },
+    {
+      "role": "RELATIONSHIP_PATHS",
+      "relation": "RelationshipPaths",
+      "required": false,
+      "discovery_order": 8
+    },
+    {
+      "role": "LINEAGE",
+      "relation": "LineageGraph",
+      "required": false,
+      "discovery_order": 9
+    },
+    {
+      "role": "QUERY_COOKBOOK",
+      "relation": "QueryCookbook",
+      "required": false,
+      "discovery_order": 10
+    },
+    {
+      "role": "GLOSSARY",
+      "relation": "BusinessGlossary",
+      "required": false,
+      "discovery_order": 11
+    },
+    {
+      "role": "DESIGN_DECISIONS",
+      "relation": "DesignDecision",
+      "required": false,
+      "discovery_order": 12
+    },
+    {
+      "role": "QUALITY",
+      "relation": "DataQualityMetric",
+      "required": false,
+      "discovery_order": 13
+    }
+  ]
+}

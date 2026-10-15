@@ -1,0 +1,42 @@
+{# INV-SEMANTIC-019: every consumer view has exactly one mapping row per output column, ordered 1..n,
+   and every non-derived source exists. Every returned row is a defect. #}
+{% import 'modules/semantic/contract/00-macros.sql.j2' as q %}
+SELECT a.{{ q.col('AccessObject', 'object_identity') }} || '.' || i.column_name AS identity, 'output column has no mapping' AS defect
+FROM {{ q.tbl('AccessObject') }} a
+INNER JOIN information_schema.columns i
+   ON i.table_schema = a.{{ q.col('AccessObject', 'container_name') }} AND i.table_name = a.{{ q.col('AccessObject', 'object_name') }}
+WHERE a.{{ q.col('AccessObject', 'is_active') }} AND a.{{ q.col('AccessObject', 'object_type') }} = 'CONSUMER_VIEW'
+  AND EXISTS (SELECT 1 FROM {{ q.tbl('EntityMetadata') }} e WHERE e.{{ q.col('EntityMetadata', 'entity_name') }} = a.{{ q.col('AccessObject', 'represents_entity') }})
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('AccessColumn') }} m
+                  WHERE m.{{ q.col('AccessColumn', 'access_object_id') }} = a.{{ q.pk('AccessObject') }}
+                    AND m.{{ q.col('AccessColumn', 'column_name') }} = i.column_name AND m.{{ q.col('AccessColumn', 'is_active') }})
+UNION ALL
+SELECT a.{{ q.col('AccessObject', 'object_identity') }} || '.' || m.{{ q.col('AccessColumn', 'column_name') }},
+       'mapping names a column the object does not have, or is repeated'
+FROM {{ q.tbl('AccessColumn') }} m
+INNER JOIN {{ q.tbl('AccessObject') }} a ON a.{{ q.pk('AccessObject') }} = m.{{ q.col('AccessColumn', 'access_object_id') }}
+WHERE m.{{ q.col('AccessColumn', 'is_active') }}
+  AND (NOT EXISTS (SELECT 1 FROM information_schema.columns i
+                   WHERE i.table_schema = a.{{ q.col('AccessObject', 'container_name') }} AND i.table_name = a.{{ q.col('AccessObject', 'object_name') }}
+                     AND i.column_name = m.{{ q.col('AccessColumn', 'column_name') }})
+    OR (SELECT count(*) FROM {{ q.tbl('AccessColumn') }} d
+        WHERE d.{{ q.col('AccessColumn', 'access_object_id') }} = m.{{ q.col('AccessColumn', 'access_object_id') }}
+          AND d.{{ q.col('AccessColumn', 'column_name') }} = m.{{ q.col('AccessColumn', 'column_name') }}
+          AND d.{{ q.col('AccessColumn', 'is_active') }}) > 1)
+UNION ALL
+SELECT a.{{ q.col('AccessObject', 'object_identity') }}, 'mapping ordinals do not run 1..n'
+FROM {{ q.tbl('AccessColumn') }} m
+INNER JOIN {{ q.tbl('AccessObject') }} a ON a.{{ q.pk('AccessObject') }} = m.{{ q.col('AccessColumn', 'access_object_id') }}
+WHERE m.{{ q.col('AccessColumn', 'is_active') }}
+GROUP BY a.{{ q.col('AccessObject', 'object_identity') }}
+HAVING {{ q.contiguous('m', q.col('AccessColumn', 'ordinal')) }}
+UNION ALL
+SELECT a.{{ q.col('AccessObject', 'object_identity') }} || '.' || m.{{ q.col('AccessColumn', 'column_name') }}, 'non-derived mapping source is absent'
+FROM {{ q.tbl('AccessColumn') }} m
+INNER JOIN {{ q.tbl('AccessObject') }} a ON a.{{ q.pk('AccessObject') }} = m.{{ q.col('AccessColumn', 'access_object_id') }}
+WHERE m.{{ q.col('AccessColumn', 'is_active') }} AND m.{{ q.col('AccessColumn', 'mapping_kind') }} <> 'DERIVED'
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('EntityMetadata') }} e
+                  INNER JOIN information_schema.columns i
+                     ON i.table_schema = e.{{ q.col('EntityMetadata', 'container_name') }} AND i.table_name = e.{{ q.col('EntityMetadata', 'table_name') }}
+                  WHERE e.{{ q.col('EntityMetadata', 'entity_name') }} = m.{{ q.col('AccessColumn', 'source_entity') }}
+                    AND i.column_name = m.{{ q.col('AccessColumn', 'source_column') }})

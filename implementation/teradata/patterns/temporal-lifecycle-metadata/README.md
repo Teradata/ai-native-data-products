@@ -33,7 +33,9 @@ Binding of [Temporal Lifecycle Metadata](../../../../design/patterns/temporal-li
 `03-access-views.sql.j2` creates two views per persisted relation, each with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, so a consumer never blocks a load:
 
 - the **governed base view**, for every relation with a `base_view` object (this binding emits `base_view: all`): every column and every row, the full temporal contract. Teradata SQL has no table functions, so a read as at an instant applies the profile's predicates to this view. For versioned relations it is granted to the read and agent tiers ([access-layer](../access-layer/README.md));
-- the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` macro) over the base view, carrying every column except the open interval ends `valid_to_dts` and `transaction_to_dts`. Runtime relations have no consumer view.
+- the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` macro) over the base view, carrying the context's `view_columns` (every column except the open interval ends `valid_to_dts` and `transaction_to_dts`). Semantic registers the same list as the view's `AccessColumn` rows, so the two cannot drift. Runtime relations have no consumer view.
+
+Both views are created with a column list, and the view and each of its columns is commented from the entity description and the table column's description (or its logical name), each held to 255 characters.
 
 `04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls the transaction and runs the checks before ending it. It:
 

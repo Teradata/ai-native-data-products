@@ -14,6 +14,7 @@
 
    A database's creator is not granted CREATE PROCEDURE on it, so where the profile names the
    `Deploying user`, that user is granted it on each database that holds a procedure. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {#- A text literal written inside the dynamic SQL's own literal: its quotes doubled twice. -#}
 {% macro inner(text) -%}{{ (text|literal)|replace("'", "''") }}{%- endmacro %}
 {% set measures = {'cosine': 'cosine', 'dot': 'dotproduct', 'euclidean': 'euclidean', 'manhattan': 'manhattan'} %}
@@ -60,4 +61,5 @@ BEGIN
     PREPARE prepared_query FROM query_text;
     OPEN results;
 END;
+COMMENT ON PROCEDURE {{ b.objects.procedure|qualified }} IS {{ m.comment('Similarity search over the ' ~ b.name ~ ' embedding of ' ~ b.entity ~ '. Takes a query vector and a result limit (maximum 1000); returns entity_id and similarity.') }};
 {% endfor %}

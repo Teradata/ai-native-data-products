@@ -2,6 +2,12 @@
    relationship catalogues, access objects, primary objects, the orientation sequence, metrics,
    synonyms and naming standards. Every row is read from the build context. #}
 {% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
+{# The generated id of one key of an entity, found by the entity's identity and the key's name. #}
+{% macro key_ref(keydef, meta, x, k) -%}
+(SELECT d.{{ keydef.key_columns[0]|ident }} FROM {{ keydef.objects.table|qualified }} d
+ WHERE d.{{ keydef.column_names.key_name|ident }} = {{ k.name|literal }}
+   AND d.{{ keydef.column_names.entity_id|ident }} = {{ m.ref(meta, {'entity_name': x.logical_id}) }})
+{%- endmacro %}
 {% set registry = named('DataProductRegistry') %}{% set manifest = named('DataProductManifest') %}
 {% if registry and manifest %}
 {{ m.insert(registry, {
@@ -21,20 +27,36 @@
                   'deployment_status': 'DEPLOYED'}) }}
 {% endfor %}
 {% endif %}
+{% set declaration = named('StandardDeclaration') %}
+{% if declaration %}
+{% for d in standard.declarations %}
+{{ m.insert(declaration, {'product_id': product.code, 'component_kind': d.kind, 'component_name': d.name,
+                          'platform': standard.platform, 'standard_version': standard.version}) }}
+{% endfor %}
+{% endif %}
 {% set meta = named('EntityMetadata') %}{% set colmeta = named('ColumnMetadata') %}
 {% for x in entities + relations if x.objects.table is defined %}
 {% set t = x.objects.table %}
 {% if meta %}
 {{ m.insert(meta, {
-    'entity_name': x.name, 'logical_name': x.name, 'entity_description': x.description,
+    'entity_name': x.logical_id, 'logical_name': x.name, 'entity_description': x.description,
     'entity_kind': x.kind|upper, 'module_name': x.module|upper, 'container_name': t.container,
     'table_name': t.name,
     'view_name': (x.objects.consumer_view.name if x.objects.consumer_view is defined else none),
-    'surrogate_key_column': (x.surrogate_columns|join(', ') or none),
-    'natural_key_column': (x.natural_columns|join(', ') or none),
     'temporal_pattern': x.profile,
     'current_flag_column': (x.column_names.is_current if x.history else none),
     'deleted_flag_column': (x.column_names.is_deleted if x.supports_deletion else none)}) }}
+{% endif %}
+{% set keydef = named('KeyDefinition') %}{% set keycol = named('KeyColumn') %}
+{% if keydef and keycol and meta %}
+{% for k in x.key_defs %}
+{{ m.insert(keydef, {'key_role': k.role, 'key_name': k.name},
+  {'entity_id': m.ref(meta, {'entity_name': x.logical_id})}) }}
+{% for column in k.columns %}
+{{ m.insert(keycol, {'ordinal': loop.index, 'column_name': column},
+  {'key_definition_id': key_ref(keydef, meta, x, k)}) }}
+{% endfor %}
+{% endfor %}
 {% endif %}
 {% if colmeta %}
 {% for col in x.columns %}
@@ -50,35 +72,47 @@
 {% endfor %}
 {% set rel = named('TableRelationship') %}
 {% if rel %}
+{% set relcol = named('RelationshipColumn') %}
 {% for r in relationships if r.source_table and r.target_table %}
 {{ m.insert(rel, {
-    'relationship_name': r.source ~ '.' ~ r.source_attribute,
-    'source_container': r.source_table.container, 'source_table': r.source_table.name,
-    'source_column': r.source_column, 'target_container': r.target_table.container,
-    'target_table': r.target_table.name, 'target_column': r.target_columns|join(', '),
+    'relationship_name': r.name, 'source_entity': r.source_identity, 'target_entity': r.target_identity,
     'relationship_type': 'FOREIGN_KEY', 'cardinality': 'MANY_TO_ONE', 'is_mandatory': r.mandatory}) }}
+{% if relcol %}
+{% for pair in r.pairs %}
+{{ m.insert(relcol, {'ordinal': pair.ordinal, 'source_column': pair.source_column, 'target_column': pair.target_column},
+  {'relationship_id': m.ref(rel, {'relationship_name': r.name})}) }}
 {% endfor %}
 {% endif %}
-{% set access = named('AccessObject') %}
+{% endfor %}
+{% endif %}
+{% set access = named('AccessObject') %}{% set acccol = named('AccessColumn') %}
+{% set surface = {'table': 'base', 'base_view': 'governed', 'consumer_view': 'current', 'function': 'history', 'procedure': 'history'} %}
 {% if access %}
 {% for x in entities + relations %}
 {% for role, obj in x.objects|dictsort if obj and m.member(access, 'object_type', role|upper) %}
 {{ m.insert(access, {
-    'container_name': obj.container, 'object_name': obj.name, 'object_type': role|upper,
+    'object_identity': x.logical_id ~ ':' ~ surface[role], 'container_name': obj.container, 'object_name': obj.name,
+    'object_type': role|upper,
     'access_role': ('BASE' if role in ('table', 'base_view') else 'PASSTHROUGH'),
-    'represents_entity': x.name,
+    'represents_entity': x.logical_id,
     'is_agent_consumable': role in ('consumer_view', 'function'),
     'is_primary': role == 'consumer_view',
-    'resolves_to_object': (x.objects.table.container ~ '.' ~ x.objects.table.name
-                           if role != 'table' and x.objects.table is defined else none),
+    'resolves_to_object': (x.logical_id ~ ':base' if role != 'table' and x.objects.table is defined else none),
     'access_note': x.description}) }}
+{% if role == 'consumer_view' and acccol %}
+{% for vc in x.view_columns %}
+{{ m.insert(acccol, {'ordinal': vc.ordinal, 'column_name': vc.physical_name, 'source_entity': x.logical_id,
+                     'source_column': vc.physical_name, 'mapping_kind': 'PASSTHROUGH'},
+  {'access_object_id': m.ref(access, {'object_identity': x.logical_id ~ ':current'})}) }}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endfor %}
 {% for b in embeddings %}
 {% for role, obj in b.objects|dictsort if role in ('function', 'procedure') %}
 {{ m.insert(access, {
-    'container_name': obj.container, 'object_name': obj.name,
-    'object_type': role|upper, 'access_role': 'PASSTHROUGH', 'represents_entity': b.entity,
+    'object_identity': b.logical_id, 'container_name': obj.container, 'object_name': obj.name,
+    'object_type': role|upper, 'access_role': 'PASSTHROUGH', 'represents_entity': none,
     'is_agent_consumable': true, 'is_primary': false,
     'access_note': 'Similarity search over the ' ~ b.name ~ ' embedding of ' ~ b.entity ~ '.'}) }}
 {% endfor %}
@@ -127,7 +161,7 @@
 {% for x in entities if x.objects.table is defined %}
 {% for s in x.synonyms|default([]) %}
 {{ m.insert(syn, {'object_kind': 'ENTITYMETADATA', 'synonym_text': s},
-  {'synonym_object': m.ref(meta, {'entity_name': x.name})}) }}
+  {'synonym_object': m.ref(meta, {'entity_name': x.logical_id})}) }}
 {% endfor %}
 {% for col in x.columns if col.synonyms %}
 {% for s in col.synonyms %}

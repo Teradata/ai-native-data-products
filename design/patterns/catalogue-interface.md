@@ -121,7 +121,7 @@ The state vocabulary is the organisation's. The four states above are advocated;
 
 ```
 Entity: DataProductInterface              [kind: History]
-  product_id: Reference [required] [-> DataProductRegistration]
+  product_id: Reference [required] [-> DataProductRegistration]  // The registered product the row belongs to.
   interface_name: ShortText [required]      // the object as a consumer names it
   container_name: ShortText [required]      // exact deployed container; used verbatim
   object_name: ShortText [required]         // exact deployed object; never derived
@@ -132,7 +132,7 @@ Entity: DataProductInterface              [kind: History]
   interface_purpose: Text [optional]        // what this surface is for
   is_primary: Flag [required]               // the recommended surface for its entity
   is_consumer_facing: Flag [required]       // a consumer may query it
-  is_active: Flag [required]
+  is_active: Flag [required]  // True while the row is in force.
 
   Keys:
     natural: product_id, container_name, object_name
@@ -157,11 +157,11 @@ The interface feed is a projection. The authority for which objects a consumer m
 
 ```
 Entity: DataProductContainer              [kind: History]
-  product_id: Reference [required] [-> DataProductRegistration]
+  product_id: Reference [required] [-> DataProductRegistration]  // The registered product the row belongs to.
   module_name: Code [required]              // projected: DataProductMap; DOMAIN, SEMANTIC, MEMORY, OBSERVABILITY, SEARCH, PREDICTION, or organisation-defined
   layer_code: Code [required]               // the profile's layer code for the object roles the container holds
   container_name: ShortText [required]      // exact deployed container
-  is_active: Flag [required]
+  is_active: Flag [required]  // True while the row is in force.
 
   Keys:
     natural: product_id, module_name, layer_code
