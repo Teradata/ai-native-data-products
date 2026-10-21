@@ -237,7 +237,7 @@ passes, and `verify_skill.py --package` passes.
 | 1 | Option A: `.gitattributes` and delete the `.gitkeep` files; update the install instructions | about 225 | 0 |
 | 2 | B1: one binding document per platform; update §5 of the authoring standard and the routes | about 192 | 1 |
 | 3 | B2: macro-addressed phases and checks in `render.py` and `binding.py`; collapse stubs and checks | about 135 | 2 |
-| 4 | Configuration as data (§8): `binding.yaml` per platform, then the organisation's two configuration files | about 132 | 3, Q8 to Q10 |
+| 4 | Configuration as data (§8): `binding.toml` per platform, then the organisation's two configuration files | about 132 | 3, Q8 to Q10 |
 | 5 | C1: `_portable/` and loader chain; move the identical templates | about 120 | 4, Q3 |
 | 6 | Turn every gate in §6 on in failing mode | about 120 | 5 |
 | Later | D when the platform count calls for it; C2 if a fourth platform shows it pays | | trigger |
@@ -269,28 +269,29 @@ type map, and a binding upgrade should never overwrite a user's naming rules.
 
 ### 8.2 Proposal
 
-**Binding declarations become `implementation/{platform}/binding.yaml`.** The `Binding:`,
+**Binding declarations become `implementation/{platform}/binding.toml`.** The `Binding:`,
 `Types:` and `Functions:` blocks, including `Phases`, `Checks`, `Gaps` and the declared
-`Settings`, are already pure data that `binding.py` parses. As YAML they need no custom
+`Settings`, are already pure data that `binding.py` parses. As TOML they need no custom
 parser and read as what they are. The prose physical-design guidance moves into the
-binding's README (B1). The file count stays the same (one `.md` becomes one `.yaml`), but
+binding's README (B1). The file count stays the same (one `.md` becomes one `.toml`), but
 the line between "data the tool reads" and "guidance the agent reads" becomes a file
 boundary. Platform discovery changes from "has a `PLATFORM_PROFILE.md`" to "has a
-`binding.yaml`".
+`binding.toml`".
 
 **An organisation keeps two configuration files, not one per platform:**
 
-- **`design.yaml`: design configuration, with no platform content.**
+- **`design.toml`: design configuration, with no platform content.**
   - `classification`: the organisation's scheme mapped onto the design's sensitivity markers.
   - `retention`: what the organisation permits.
   - `decisions`: the organisation's position on each `DEC-*` decision in
     `ADVOCATED_STANDARDS.md`.
   - The design role may read this file. `roles/design.md` forbids it from reading
     `implementation/`, so platform content must not leak into it.
-- **`implementation.yaml`: implementation configuration, one entry per target.**
+- **`implementation.toml`: implementation configuration, one entry per target.**
   - Top level: what holds across platforms, such as environments and the catalogue.
-  - `targets:`: one entry per deployment target, each naming its `platform` and carrying
-    that target's containers, naming, placement, principals, adoption and setting values.
+  - `[targets.<name>]`: one entry per deployment target, each naming its `platform` and
+    carrying that target's containers, naming, placement, principals, adoption and setting
+    values.
 
 Today classification, environments and often naming are repeated in every per-platform
 profile. The ITSD Postgres profile says so in its introduction: its classification and
@@ -301,8 +302,11 @@ systems with different placement, and the example already has two Teradata profi
 (`teradata.md` and `teradata-type-grouped.md`). "Target" also avoids a clash with the
 existing `Environments:` block, which means dev, test and prod.
 
-YAML anchors (`&naming` / `*naming`) let targets share a block without copying it, which
-keeps the "change it in one place" property inside the implementation file too.
+Targets that are mostly the same share settings through an explicit key, without copying
+them. `extends = "teradata-prod"` means "start from that target and override what I list
+here". That keeps the "change it in one place" property inside the implementation file, and
+anyone reading the line can see where the rest comes from. The resolver applies `extends`
+before validation and rejects a cycle or a missing target.
 
 ### 8.3 Where the user's files live
 
@@ -316,20 +320,20 @@ This is the part that most affects usability. The repository is the skill, so a
 
 So I'd recommend:
 
-- The skill ships `config/design.example.yaml` and `config/implementation.example.yaml`,
+- The skill ships `config/design.example.toml` and `config/implementation.example.toml`,
   filled in for the ITSD example organisation. They replace `examples/.../profiles/*.md`
   (4 files down to 2).
 - The user's own copies live in *their* project, not the skill. Tooling takes them as
   arguments (as it takes the profile today) or finds them at a fixed path in the working
   directory. The roles tell the agent to ask for them, or to use the example.
 - Precedence, lowest to highest: the standard's advocated option, the organisation's
-  `design.yaml`, then the product's design specification, which still records each decision
+  `design.toml`, then the product's design specification, which still records each decision
   and its reason.
 
 ### 8.4 Org-level decision policy is a new capability
 
 Today `ADVOCATED_STANDARDS.md` says "a standard recommends, a product decides", and there is
-no organisation layer in between. A `decisions:` block in `design.yaml` would add one. For
+no organisation layer in between. A `[decisions]` table in `design.toml` would add one. For
 each `DEC-*`, the organisation could:
 
 - set its own **default**, which the design role offers in place of ours, or
@@ -339,21 +343,104 @@ This fits the goal of making the standard configurable to an organisation's gove
 it is new behaviour, not a format change, so it is listed separately (Q10). It could land
 after the format change.
 
-### 8.5 Format: YAML, TOML or markdown blocks
+### 8.5 Format: TOML (decided)
 
-| | YAML | TOML | Markdown blocks (today) |
+**Decision (2026-10-21): configuration files are TOML.** Users edit these files by hand to
+match their own standards, so the format with the fewest ways to go silently wrong is the
+simplest one for them. Most people can read TOML on sight, and anyone who has set up a
+modern Python project has already edited `pyproject.toml`.
+
+TOML (Tom's Obvious, Minimal Language, version 1.0 in 2021) was designed for configuration
+files that people edit by hand. Python reads it with `tomllib`, in the standard library since
+3.11. CI runs 3.12. The standard library has no TOML writer, and we only need to read.
+
+#### The same configuration in each format
+
+The Postgres target from the ITSD example, in TOML:
+
+```toml
+# implementation.toml: how this organisation builds, one entry per target
+
+[environments]
+phases    = ["dev", "test", "prod"]
+isolation = "system"
+
+[targets.postgres]
+platform         = "postgres"
+platform_version = "16"
+
+[targets.postgres.containers]
+memory   = "{product_code|lower}_{module}"
+semantic = "{product_code|lower}_{module}"
+access   = "{product_code|lower}_access"
+
+[targets.postgres.naming.objects]
+table           = "{entity|snake}"
+consumer_view   = "{entity|snake}"
+function        = "at_{entity|snake}"
+function_search = "similar_{entity|snake}"
+```
+
+The same in YAML, the alternative considered:
+
+```yaml
+# implementation.yaml: how this organisation builds, one entry per target
+
+environments:
+  phases: [dev, test, prod]
+  isolation: system
+
+targets:
+  postgres:
+    platform: postgres
+    platform_version: "16"                     # unquoted, 16 becomes a number
+    containers:
+      memory: "{product_code|lower}_{module}"  # unquoted, { starts a mapping
+      semantic: "{product_code|lower}_{module}"
+      access: "{product_code|lower}_access"
+    naming:
+      objects:
+        table: "{entity|snake}"
+        consumer_view: "{entity|snake}"
+        function: "at_{entity|snake}"
+        function_search: "similar_{entity|snake}"
+```
+
+For comparison, today's form is a `Containers: -` block in a fenced code block inside a
+markdown profile, parsed by our own `spec_notation.py`.
+
+#### Comparison
+
+| | TOML | YAML | Markdown blocks (today) |
 |---|---|---|---|
-| Familiar to data engineers | most | some | no, it's our own notation |
-| Comments | yes | yes | prose around the blocks |
-| Shares a block across targets | anchors | no | no |
-| Python support | PyYAML (a new dependency; `tooling/` is stdlib-only apart from Jinja2 for rendering) | `tomllib`, stdlib from 3.11 | `spec_notation.py`, ours |
-| Traps | `{product_code|lower}_{module}` must be quoted, or YAML reads `{` as a mapping; `"16"` vs `16`; `no`/`on` read as booleans in YAML 1.1 loaders | verbose for nested targets | unfamiliar; a custom parser to maintain |
-| Editor validation | yes, with a JSON Schema (VS Code YAML extension) | yes, with a schema (Taplo) | no |
+| Strings | always quoted, so a value means what it looks like | quoting optional: unquoted `{...}` becomes a mapping, `16` a number, and `no`/`on`/`off` booleans in some loaders | unquoted text, read by our parser |
+| Indentation | doesn't matter | determines structure; a wrong indent can still parse, into the wrong structure | significant inside a block |
+| Our naming templates | no trap: they are strings like everything else | every template starts with `{`, so every one needs quotes, and forgetting gives a confusing error | no trap |
+| Dependency | none (`tomllib`) | PyYAML, new for the resolver | none, but a custom parser to maintain |
+| Comments | `#` | `#` | prose around the blocks |
+| Deep nesting | longer section headers, like `[targets.postgres.naming.objects]` | indentation, which is shorter | indentation |
+| Sharing between targets | not built in; we add `extends` (§8.2) | anchors (`&naming`/`*naming`) | none |
+| Lists of records | `[[phases]]` blocks, the one syntax that looks odd at first | `- ` list items | `- ` list items |
+| Familiarity | Python projects (`pyproject.toml`), Rust, Hugo | wider: Kubernetes, CI pipelines, Ansible | our own notation |
+| Editor validation | with a schema (Even Better TOML / Taplo) | with a JSON Schema (VS Code YAML extension) | none |
 
-I'd recommend **YAML**: it's what users will expect, and anchors suit the per-target layout.
-The braces trap is real, because every naming template starts with `{`. The loader should
-reject an unquoted template with a clear message, and the example files should quote every
-template.
+**What we give up, and why it matters less here.**
+
+- **Long headers for deep nesting.** The configuration is shallow, two or three levels under
+  a target, so the headers stay readable. They also show you where you are in a file that
+  holds several targets.
+- **No anchors.** `extends` replaces them. It is one explicit line, where anchors are a
+  feature many YAML users have never met and can easily get subtly wrong.
+
+**Rules that follow from the choice.**
+
+- **Order lives in arrays.** Neither TOML nor YAML guarantees that a table's keys keep their
+  order, so anything where order matters, such as deployment phases, is an array (for
+  example `[[phases]]` with `file` and `template`), never the key order of a table.
+- **Keys are snake_case.** Field names like `Max name length` and `function search` become
+  `max_name_length` and `function_search`, so that no key needs quoting.
+- **Templates stay strings** in the current `{variable|filter}` syntax, and `org_profile.py`
+  keeps validating them as it does today.
 
 **The schema.** Today the field tables in `ORGANISATION_PROFILE.md` *are* the schema:
 `org_profile.py` reads them at runtime, so the standard and the validator cannot drift. That
@@ -372,7 +459,7 @@ markdown tables give way to it (Q9).
   frontmatter and in `DESIGN_LANGUAGE.md`. They should be discovered, as platforms already
   are, so that adding a module doesn't mean editing three tools. This is internal, not user
   configuration.
-- **Budgets.** The gates in §6 read their limits from one place (`config/budgets.yaml`, or
+- **Budgets.** The gates in §6 read their limits from one place (`config/budgets.toml`, or
   constants in `verify_skill.py`). This one doesn't need to be a file.
 - **Already data:** `release/v2.0.0/*.json`, `build_context.schema.json`, and test fixtures
   such as `trust_cases.json`.
@@ -407,12 +494,12 @@ output.
    or use one profile with per-platform blocks so that examples stop growing with each
    platform?
 7. **Budgets:** are 180 total and 16 per binding the right numbers?
-8. **Configuration format and location** (§8.5, §8.3): YAML, with a PyYAML dependency for the
-   resolver, or TOML to stay stdlib-only? And do the user's files live in their own project,
-   passed to the tooling, with only `*.example.yaml` in the skill?
-9. **Schema source** (§8.5): keep the markdown field tables as the schema, or move to a JSON
-   Schema for editor validation and make the tables point to it?
-10. **Org-level decision policy** (§8.4): should `design.yaml` be able to set defaults for,
+8. **Configuration location** (§8.3): do the user's files live in their own project, passed
+   to the tooling, with only `*.example.toml` in the skill? (The format is decided: TOML,
+   §8.5.)
+9. **Schema source** (§8.5): keep the markdown field tables as the schema, or move to a
+   schema file for editor validation and make the tables point to it?
+10. **Org-level decision policy** (§8.4): should `design.toml` be able to set defaults for,
     or require, `DEC-*` options? And should it be in this pass or follow it?
 
 ## Appendix: measurements
