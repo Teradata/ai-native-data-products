@@ -560,6 +560,19 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
         names = ident["surrogate"] or ident["natural"]
         return [physical.get((target["name"], n), n) for n in names]
 
+    # A reference to an entity keyed only by a natural key holds that key, so it takes its type
+    # (DesignDecision.superseded_by is a decision_id, not a BIGINT surrogate).
+    for x in entities + relations:
+        for column in x.get("columns", []) + x["attributes"]:
+            targets = [by_name[t] for t in column.get("references", []) if t in by_name]
+            if column["type"] != "Reference" or len(targets) != 1:
+                continue
+            ident = targets[0]["identity"]
+            if ident["surrogate"] or len(ident["natural"]) != 1:
+                continue
+            natural = next(c for c in targets[0].get("columns", []) if c["name"] == ident["natural"][0])
+            column["physical_type"] = natural["physical_type"]
+
     relationships = []
     for x in entities + relations:
         by_attribute = {a["name"]: a for a in x["attributes"]}

@@ -531,6 +531,16 @@ class SharedBuildDecisions(unittest.TestCase):
             "ROLE_READ:   create {product_code|lower}_reader"))
         self.assertIn("unsupported-principal", r.rules)
 
+    def test_a_reference_to_a_natural_key_takes_the_key_type(self):
+        """DesignDecision is keyed by the text decision_id, so a reference to it is not a BIGINT."""
+        ctx = Resolved().context
+        decision = next(e for e in ctx["relations"] if e["name"] == "DesignDecision")
+        key = next(c for c in decision["columns"] if c["name"] == "decision_id")
+        for entity, name in (("DesignDecision", "superseded_by"), ("ChangeLog", "related_decision_id")):
+            holder = next(e for e in ctx["relations"] if e["name"] == entity)
+            column = next(c for c in holder["columns"] if c["name"] == name)
+            self.assertEqual(column["physical_type"], key["physical_type"], f"{entity}.{name}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
