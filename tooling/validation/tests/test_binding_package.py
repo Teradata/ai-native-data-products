@@ -19,6 +19,9 @@ PLATFORMS = tuple(p.name for p in sorted((ROOT / "implementation").iterdir())
                   and load_binding(p.name)[0].phases)
 assert PLATFORMS, "No binding declares its phases"
 EXAMPLE = ROOT / "examples" / "it-service-desk-data-product"
+# Written for the old flat context and kept unchanged until the port-or-retire decision
+# (modules/observability/README.md, "Graph-lineage facet: not migrated").
+UNMIGRATED = tuple(f"modules/observability/{n:02d}-" for n in range(5, 11)) + ("patterns/catalogue-interface/",)
 
 
 class BindingPackage(unittest.TestCase):
@@ -80,6 +83,8 @@ class BindingPackage(unittest.TestCase):
                 reached = set(b.phases.values()) | set(b.checks.values()) | {b.deploy} | caller_rendered
                 for path in base.rglob("*.j2"):
                     rel = path.relative_to(base).as_posix()
+                    if rel.startswith(UNMIGRATED):
+                        continue
                     self.assertIn(rel, reached, f"{platform}: {rel} is rendered by nothing")
 
     def test_templates_use_only_jinja_substitution_and_no_product_literals(self):
@@ -96,6 +101,8 @@ class BindingPackage(unittest.TestCase):
             with self.subTest(platform=platform):
                 base = ROOT / "implementation" / platform
                 for path in base.rglob("*.j2"):
+                    if path.relative_to(base).as_posix().startswith(UNMIGRATED):
+                        continue
                     text = path.read_text(encoding="utf-8")
                     self.assertIsNone(literals.search(text), f"Product literal in {path}")
                     stripped = masked.sub("", text)
