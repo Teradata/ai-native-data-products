@@ -303,7 +303,8 @@ class EngineTests:
         return self.manifest
 
     def q(self, sql, params=None):
-        return self.con.execute(sql, params or []).fetchall()
+        # No parameters means None: an empty list makes psycopg read a literal LIKE '%' as a placeholder.
+        return self.con.execute(sql, params or None).fetchall()
 
     @property
     def marker(self):
