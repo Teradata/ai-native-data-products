@@ -111,6 +111,7 @@ VALUES ({{ exprs|join(', ') }});
 {%- for keymaps in (true, false) -%}
 {%- for x in entities + relations if x.module == module and x.relation == 'table' and (x.defined|default(true)) and not (x.adopted|default(false)) and ((x.kind == 'Keymap') == keymaps) %}
 {% if x.objects.sequence is defined %}CREATE SEQUENCE {{ x.objects.sequence|qualified }};
+COMMENT ON SEQUENCE {{ x.objects.sequence|qualified }} IS {{ ('Allocates the permanent identifiers of ' ~ x.name ~ '; never reset or recycled.')|literal }};
 {% endif %}{{ table(x) }}
 {%- endfor -%}
 {%- endfor -%}

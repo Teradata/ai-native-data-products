@@ -1,0 +1,131 @@
+{
+  "standard_version": "2.0.0",
+  "rendered_checks": {
+    "duckdb": [
+      {
+        "scope_kind": "ENTITY",
+        "check": "metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-access-columns"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-composition"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
+    ],
+    "postgres": [
+      {
+        "scope_kind": "ENTITY",
+        "check": "metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-access-columns"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-composition"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
+    ],
+    "teradata": [
+      {
+        "scope_kind": "ENTITY",
+        "check": "metadata"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "reference"
+      },
+      {
+        "scope_kind": "ENTITY",
+        "check": "temporal"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-access-columns"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-composition"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-identity"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-keys"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "contract-relationships"
+      },
+      {
+        "scope_kind": "MODULE",
+        "check": "module"
+      },
+      {
+        "scope_kind": "PRODUCT",
+        "check": "comment-coverage"
+      }
+    ]
+  }
+}

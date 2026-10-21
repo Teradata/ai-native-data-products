@@ -1,12 +1,16 @@
 {# Containers the build context places objects in, parents first. A parent database holds
    no objects and allocates its children's space; adopted containers already exist and are
    not created. Space comes from the `Container space` setting, per container that holds
-   objects. #}
+   objects. Each database created carries a comment. #}
+{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
 {% set space = settings['Container space']|int %}
+{% set purpose = m.comment('Container of the ' ~ product.name ~ ' data product, as the organisation profile places it.') %}
 {% for c in containers if not c.parent and not c.adopted %}
 {% set children = containers|selectattr('parent', 'equalto', c.name)|list %}
 CREATE DATABASE {{ c.name|ident }} AS PERM = {{ space * ([children|length, 1]|max if not c.holds_objects else children|length + 1) }};
+COMMENT ON DATABASE {{ c.name|ident }} IS {{ purpose }};
 {%- endfor %}
 {% for c in containers if c.parent and not c.adopted %}
 CREATE DATABASE {{ c.name|ident }} FROM {{ c.parent|ident }} AS PERM = {{ space }};
+COMMENT ON DATABASE {{ c.name|ident }} IS {{ purpose }};
 {%- endfor %}

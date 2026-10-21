@@ -41,6 +41,8 @@ Composite access objects (`access_objects`) are not registered; the manifest rep
 
 `validation.sql.j2` is the `module semantic` check: every base table in a container the product places objects in, keymaps included, is registered in entity metadata.
 
+**The metadata contract (release 2.0.0).** Registration writes the logical identity of each entity (`module.entity`) and, beside it, its location; the key definitions and their ordered key columns; one relationship column pair per join column; one access object per placed object, identified by entity and surface; one access-column mapping row per output column of each consumer view over an entity (the context's `view_columns`, which the view itself selects); and the `StandardDeclaration` rows from `standard`. `RelationshipPaths` returns one row per path step and key position, bounded to four hops. The manifest's last column is `standard_version`. The five checks under [`contract/`](contract/) test `INV-SEMANTIC-016` to `020`; they are declared as `contract` checks and read only registered metadata and the catalogue.
+
 Registration uses the placement and relationships the context carries, never name inference. Structural facts come from `information_schema`; meanings come from the specification.
 
 ## Capability bindings

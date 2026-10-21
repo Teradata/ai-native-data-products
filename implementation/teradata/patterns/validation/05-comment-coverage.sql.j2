@@ -1,0 +1,32 @@
+{# MetadataCoverageCheck, catalogue-wide: every row returned is a database, object or column with no comment.
+   Sweeps every container the product creates, and every object and column in a container that holds
+   objects, so an object the specification never mentions is caught too. A container the product
+   adopted is the organisation's, not the product's to document. Objects swept: tables, views,
+   macros, procedures and functions. Every text column is cast, because a union takes its widths
+   from its first branch. #}
+{% set created -%}
+{%- for c in containers if not c.adopted %}{{ c.name|literal }}{% if not loop.last %}, {% endif %}{% endfor -%}
+{%- endset %}
+{% set holding -%}
+{%- for c in containers if c.holds_objects and not c.adopted %}{{ c.name|literal }}{% if not loop.last %}, {% endif %}{% endfor -%}
+{%- endset %}
+SELECT CAST(TRIM(d.DatabaseName) AS VARCHAR(128)) AS container_name, CAST('database' AS VARCHAR(20)) AS object_kind,
+       CAST(TRIM(d.DatabaseName) AS VARCHAR(128)) AS object_name, CAST(NULL AS VARCHAR(128)) AS column_name
+FROM DBC.DatabasesV d
+WHERE TRIM(d.DatabaseName) IN ({{ created }})
+  AND COALESCE(TRIM(d.CommentString), '') = ''
+UNION ALL
+SELECT CAST(TRIM(t.DatabaseName) AS VARCHAR(128)),
+       CAST(CASE t.TableKind WHEN 'V' THEN 'view' WHEN 'M' THEN 'macro' WHEN 'P' THEN 'procedure' WHEN 'E' THEN 'procedure'
+                             WHEN 'F' THEN 'function' WHEN 'R' THEN 'function' WHEN 'A' THEN 'function' ELSE 'table' END AS VARCHAR(20)),
+       CAST(TRIM(t.TableName) AS VARCHAR(128)), CAST(NULL AS VARCHAR(128))
+FROM DBC.TablesV t
+WHERE TRIM(t.DatabaseName) IN ({{ holding }}) AND t.TableKind IN ('T', 'O', 'V', 'M', 'P', 'E', 'F', 'R', 'A')
+  AND COALESCE(TRIM(t.CommentString), '') = ''
+UNION ALL
+SELECT CAST(TRIM(c.DatabaseName) AS VARCHAR(128)), CAST('column' AS VARCHAR(20)), CAST(TRIM(c.TableName) AS VARCHAR(128)),
+       CAST(TRIM(c.ColumnName) AS VARCHAR(128))
+FROM DBC.ColumnsV c
+INNER JOIN DBC.TablesV t ON t.DatabaseName = c.DatabaseName AND t.TableName = c.TableName
+WHERE TRIM(c.DatabaseName) IN ({{ holding }}) AND t.TableKind IN ('T', 'O', 'V')
+  AND COALESCE(TRIM(c.CommentString), '') = ''

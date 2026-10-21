@@ -1,0 +1,40 @@
+{# INV-SEMANTIC-020: a composite has exactly one anchor, its members are ordered 1..n, and every other member
+   joins to a prior member through a registered relationship in a stated direction.
+   Every returned row is a defect. #}
+{% import 'modules/semantic/contract/00-macros.sql.j2' as q %}
+SELECT c.{{ q.col('AccessComposition', 'composite_object') }}::TEXT AS identity, 'composite does not have exactly one anchor' AS defect
+FROM {{ q.tbl('AccessComposition') }} c
+WHERE c.{{ q.col('AccessComposition', 'is_active') }}
+GROUP BY c.{{ q.col('AccessComposition', 'composite_object') }}
+HAVING count(*) FILTER (WHERE c.{{ q.col('AccessComposition', 'member_role') }} = 'ANCHOR') <> 1
+UNION ALL
+SELECT c.{{ q.col('AccessComposition', 'composite_object') }}, 'member order does not run 1..n'
+FROM {{ q.tbl('AccessComposition') }} c
+WHERE c.{{ q.col('AccessComposition', 'is_active') }}
+GROUP BY c.{{ q.col('AccessComposition', 'composite_object') }}
+HAVING {{ q.contiguous('c', q.col('AccessComposition', 'member_seq')) }}
+UNION ALL
+SELECT c.{{ q.col('AccessComposition', 'composite_object') }} || '.' || c.{{ q.col('AccessComposition', 'member_entity') }},
+       'member does not join to a prior member through its relationship'
+FROM {{ q.tbl('AccessComposition') }} c
+WHERE c.{{ q.col('AccessComposition', 'is_active') }} AND c.{{ q.col('AccessComposition', 'member_role') }} <> 'ANCHOR'
+  AND NOT EXISTS (SELECT 1 FROM {{ q.tbl('TableRelationship') }} r
+                  INNER JOIN {{ q.tbl('AccessComposition') }} p
+                     ON p.{{ q.col('AccessComposition', 'composite_object') }} = c.{{ q.col('AccessComposition', 'composite_object') }}
+                    AND p.{{ q.col('AccessComposition', 'member_seq') }} < c.{{ q.col('AccessComposition', 'member_seq') }}
+                  WHERE r.{{ q.pk('TableRelationship') }} = c.{{ q.col('AccessComposition', 'via_relationship_id') }}
+                    AND ((c.{{ q.col('AccessComposition', 'via_direction') }} = 'FORWARD'
+                          AND r.{{ q.col('TableRelationship', 'source_entity') }} = p.{{ q.col('AccessComposition', 'member_entity') }}
+                          AND r.{{ q.col('TableRelationship', 'target_entity') }} = c.{{ q.col('AccessComposition', 'member_entity') }})
+                      OR (c.{{ q.col('AccessComposition', 'via_direction') }} = 'REVERSE'
+                          AND r.{{ q.col('TableRelationship', 'target_entity') }} = p.{{ q.col('AccessComposition', 'member_entity') }}
+                          AND r.{{ q.col('TableRelationship', 'source_entity') }} = c.{{ q.col('AccessComposition', 'member_entity') }})))
+UNION ALL
+SELECT c.{{ q.col('AccessComposition', 'composite_object') }} || '.' || c.{{ q.col('AccessComposition', 'member_entity') }},
+       'anchor carries a join, or the member names an unregistered entity'
+FROM {{ q.tbl('AccessComposition') }} c
+WHERE c.{{ q.col('AccessComposition', 'is_active') }}
+  AND ((c.{{ q.col('AccessComposition', 'member_role') }} = 'ANCHOR'
+        AND (c.{{ q.col('AccessComposition', 'via_relationship_id') }} IS NOT NULL OR c.{{ q.col('AccessComposition', 'via_direction') }} IS NOT NULL))
+    OR NOT EXISTS (SELECT 1 FROM {{ q.tbl('EntityMetadata') }} e
+                   WHERE e.{{ q.col('EntityMetadata', 'entity_name') }} = c.{{ q.col('AccessComposition', 'member_entity') }}))

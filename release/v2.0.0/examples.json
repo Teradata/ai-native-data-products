@@ -1,0 +1,19 @@
+{
+  "standard_version": "2.0.0",
+  "examples": [
+    {
+      "example": "alation-interface",
+      "platforms": [],
+      "readme": "examples/alation-interface/README.md"
+    },
+    {
+      "example": "it-service-desk-data-product",
+      "platforms": [
+        "duckdb",
+        "postgres",
+        "teradata"
+      ],
+      "readme": "examples/it-service-desk-data-product/README.md"
+    }
+  ]
+}

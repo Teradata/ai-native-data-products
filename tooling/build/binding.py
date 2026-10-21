@@ -23,6 +23,9 @@ from design_lint import LOGICAL_TYPES, Finding  # noqa: E402
 from spec_notation import field_tables, parse_blocks  # noqa: E402
 
 BLOCKS = ("Binding", "Types", "Functions")
+# entity and relationship run once per item; module once per included module; contract once for the
+# Semantic module's metadata contract (INV-SEMANTIC-016 to 020); product once for the whole product.
+CHECK_SCOPES = ("entity", "relationship", "module", "contract", "product")
 EXTRA_FRAGMENTS = {"duration", "map case", "true", "false", "null", "flag test"}
 
 
@@ -122,9 +125,9 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     b.deploy = fields.get("Deploy")
     for key in b.checks:
         scope = key.split(" ")[0]
-        if scope not in ("entity", "relationship", "module") or len(key.split(" ")) != 2:
+        if scope not in CHECK_SCOPES or len(key.split(" ")) != 2:
             findings.append(Finding(str(path), blocks["Binding"].line, "binding-declaration",
-                                    f"Binding: check '{key}' is not '<entity|relationship|module> <check>'"))
+                                    f"Binding: check '{key}' is not '<{'|'.join(CHECK_SCOPES)}> <check>'"))
     templates = root / "implementation" / platform
     for name in list(b.phases.values()) + list(b.checks.values()) + ([b.deploy] if b.deploy else []):
         if not (templates / name).is_file():
