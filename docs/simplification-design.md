@@ -185,6 +185,8 @@ official.
 
 ## 5. Recommendation
 
+> **Update (2026-10-22):** A and B1 are done (`simplify/80-file-count`, package at 194 files). [`python-generator-design.md`](python-generator-design.md) proposes replacing the templates with Python dialects. If that is adopted it supersedes B2 and C1 below, so neither should start until that decision is made.
+
 **A now, B as the main pass, C1 only where files are already identical, D designed for but
 not built.** C2 is held back until a fourth platform shows whether inheritance pays its way.
 
