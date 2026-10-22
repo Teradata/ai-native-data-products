@@ -100,6 +100,15 @@ def build_contract(repo=REPO):
                                  "discovery_order": r["order"]} for r in resources]}
 
 
+def _sections(base, kind, repo=REPO):
+    """The modules or patterns a binding documents: its README's numbered `(`anchor`)` sections
+    whose anchor is a design document of that kind. A section, not a directory, is the unit,
+    since a module or pattern with nothing to render has no template directory."""
+    text = (base / "README.md").read_text(encoding="utf-8")
+    anchors = re.findall(r"^## \d+\. .*\(`([a-z-]+)`\)\s*$", text, re.M)
+    return sorted(a for a in anchors if (repo / "design" / kind / f"{a}.md").exists())
+
+
 def build_bindings(repo=REPO):
     """bindings.json: per platform, what is present and whether it declares the version."""
     result = []
@@ -110,8 +119,8 @@ def build_bindings(repo=REPO):
                        for f in base.rglob("*.j2"))
         result.append({
             "platform": platform,
-            "modules": sorted(p.name for p in (base / "modules").iterdir() if p.is_dir()) if (base / "modules").exists() else [],
-            "patterns": sorted(p.name for p in (base / "patterns").iterdir() if p.is_dir()) if (base / "patterns").exists() else [],
+            "modules": _sections(base, "modules", repo),
+            "patterns": _sections(base, "patterns", repo),
             "conformance_documents": [n for n in ("CONFORMANCE.md", "PLATFORM_PROFILE.md") if (base / n).exists()],
             "declared_checks": sorted(binding.checks),
             "declared_gaps": sorted(binding.gaps),

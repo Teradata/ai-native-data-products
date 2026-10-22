@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Observability module: monitoring, feedback, lineage, and the home of validation results |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | `implementation/{platform}/modules/observability/`, one per platform |
+| **Implementations** | `implementation/{platform}/README.md`, the `observability` section, with templates in `implementation/{platform}/` (the README's `observability` section and the templates in `modules/observability/`); one per platform |
 
 Observability is the operational-evidence module: it monitors product health, records lineage, and is the **home of validation results** ([validation pattern](../patterns/validation.md)). It closes the feedback loop by supplying the learning inputs Memory consumes.
 
@@ -335,7 +335,7 @@ These are the catalogued decisions an Observability module design must settle. T
 
 ## 12. Implementation
 
-Each platform binding provides the event, metric, and lineage tables, the `LineageGraph` and `LineageRunLatest` discovery views, the OpenLineage event construction, and, when `graph-lineage` is enabled, the graph exposure planes, catalogue registration and load path, in `implementation/{platform}/modules/observability/`. It conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). The validation results relations are realised by that platform's binding of the [validation pattern](../patterns/validation.md) and placed per the organisation profile.
+Each platform binding provides the event, metric, and lineage tables, the `LineageGraph` and `LineageRunLatest` discovery views, the OpenLineage event construction, and, when `graph-lineage` is enabled, the graph exposure planes, catalogue registration and load path, in `implementation/{platform}/` (the README's `observability` section and the templates in `modules/observability/`). It conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). The validation results relations are realised by that platform's binding of the [validation pattern](../patterns/validation.md) and placed per the organisation profile.
 
 A binding that supports `graph-lineage` names the graph consumer contract it targets and conforms to it. That contract's column shapes, catalogue definitions and quality procedures belong to its owner and are not redefined here; a platform with no graph consumer contract reports the facet as unsupported. Adding a platform changes nothing in this document.
 

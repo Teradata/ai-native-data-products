@@ -91,9 +91,9 @@ The modes of adoption (referencing an existing object, wrapping it, or migrating
 
 Each platform directory provides:
 
-- **`README.md`**: supported compositions, deployment order and limitations.
+- **`README.md`**: supported compositions, deployment order and limitations, then **one numbered section per supported module and pattern**, headed with its design anchor, as in ``## 5. Domain module (`domain`)``. Each section maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, lists the build-context fields its templates read, and names the directory its templates are in. The sections are numbered in deployment order: object placement, temporal lifecycle metadata, then Memory, Semantic, Domain, Observability, Search and Prediction, then validation, access layer and physical storage, then any further pattern. The numbers are the same on every binding, because the role files cite them.
 - **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults, naming limits, and every **binding setting** the organisation profile may supply, with its permitted values and default.
-- **A directory per supported module and pattern**, mirroring `design/` by anchor. Each maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, and lists the build-context fields its templates read.
+- **A template directory per module and pattern that renders something**, mirroring `design/` by anchor: `modules/{module}/` and `patterns/{pattern}/`. A module or pattern with nothing to render has its README section and no directory. A binding's documentation is that one README: a new module or pattern adds a section, not a file, because the skill ships under a file limit.
 - **Templates** for every deployment, access, maintenance, discovery and validation artefact the binding produces, with ordering and dependencies documented.
 
 Unsupported capabilities, compositions, profile settings and adoption modes are declared explicitly. An absent binding, a skipped check or an unexecuted engine test is never reported as conformance. Support for a minimal composition does not imply support for every module.

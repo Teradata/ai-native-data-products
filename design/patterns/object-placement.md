@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Any relational or cloud data platform: where objects live and who may reach them |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | Organisation profiles supplied for a build ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md)), one per organisation and platform. `implementation/{platform}/patterns/object-placement/` holds a binding's reference example of how it consumes resolved placement; it is not an organisation's implementation. |
+| **Implementations** | Organisation profiles supplied for a build ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md)), one per organisation and platform. The `object-placement` section of `implementation/{platform}/README.md`, with its templates, holds a binding's reference example of how it consumes resolved placement; it is not an organisation's implementation. |
 
 This pattern is an **interface specification**: it defines what a conforming object-placement implementation must **declare**, not a fixed convention. An AI-native data product agent must not assume how an organisation structures its containers: it reads the placement resolved from a conforming implementation before generating any deployment artefact, placement decision, or access statement. It realises the `object-placement` concern that every module applies.
 
@@ -75,7 +75,7 @@ Where the implementation is in prose rather than an organisation profile, there 
 3. A conforming standard named in the product's Semantic module.
 4. **If none exists:** STOP and ask the user for their object-placement standard (container structure, separation, naming) before generating objects.
 
-`implementation/{platform}/patterns/object-placement/` is not on this list. It documents how a binding consumes resolved placement, with a reference example; it is never an organisation's implementation, and an agent does not build from it as one.
+A binding's `object-placement` section is not on this list. It documents how a binding consumes resolved placement, with a reference example; it is never an organisation's implementation, and an agent does not build from it as one.
 
 ---
 

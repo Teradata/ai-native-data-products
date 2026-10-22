@@ -1,6 +1,7 @@
 """Keep reusable bindings, their inputs and generated products apart.
 
-A binding is Jinja templates plus the declarations in its PLATFORM_PROFILE.md; the inputs are
+A binding is Jinja templates, the declarations in its PLATFORM_PROFILE.md, and one README with a
+section per module and pattern; the inputs are
 a design specification and an organisation profile; what a build renders lives outside this
 repository. Platforms are discovered from the bindings that declare their phases, never listed.
 """
@@ -19,8 +20,17 @@ PLATFORMS = tuple(p.name for p in sorted((ROOT / "implementation").iterdir())
                   and load_binding(p.name)[0].phases)
 assert PLATFORMS, "No binding declares its phases"
 EXAMPLE = ROOT / "examples" / "it-service-desk-data-product"
+MODULES = ("memory", "semantic", "domain", "observability", "search", "prediction")
+PATTERNS = ("object-placement", "temporal-lifecycle-metadata", "validation", "access-layer", "physical-storage")
+SECTION = re.compile(r"^## (\d+)\. .*\(`([a-z-]+)`\)\s*$", re.M)
+
+
+def sections(platform):
+    """The README's numbered module and pattern sections, by anchor."""
+    text = (ROOT / "implementation" / platform / "README.md").read_text(encoding="utf-8")
+    return {anchor: int(n) for n, anchor in SECTION.findall(text)}
 # Written for the old flat context and kept unchanged until the port-or-retire decision
-# (modules/observability/README.md, "Graph-lineage facet: not migrated").
+# (the Observability section of implementation/teradata/README.md, "Graph-lineage facet: not migrated").
 UNMIGRATED = tuple(f"modules/observability/{n:02d}-" for n in range(5, 11)) + ("patterns/catalogue-interface/",)
 
 
@@ -33,8 +43,7 @@ class BindingPackage(unittest.TestCase):
                 self.assertTrue(templates)
                 for path in templates:
                     self.assertNotIn("customer360", path.read_text(encoding="utf-8").lower())
-                for module in ("domain", "semantic", "memory", "observability", "search", "prediction"):
-                    self.assertTrue((base / "modules" / module / "README.md").exists())
+                for module in MODULES:
                     self.assertTrue(list((base / "modules" / module).glob("*.sql.j2")))
 
     def test_platform_directories_hold_only_jinja_and_declarations(self):
@@ -49,10 +58,26 @@ class BindingPackage(unittest.TestCase):
                                  "Bindings declare their inputs in PLATFORM_PROFILE.md, not JSON")
                 for name in ("README.md", "PLATFORM_PROFILE.md", "CONFORMANCE.md"):
                     self.assertTrue((base / name).exists(), f"{platform} lacks {name}")
-                for pattern in ("object-placement", "temporal-lifecycle-metadata", "validation", "access-layer",
-                                "physical-storage"):
-                    self.assertTrue((base / "patterns" / pattern / "README.md").exists(),
-                                    f"{platform} lacks pattern {pattern}")
+                self.assertEqual([p.relative_to(base).as_posix() for p in base.rglob("README.md")], ["README.md"],
+                                 "A binding documents its modules and patterns as README sections, not files")
+
+    def test_every_module_and_pattern_has_a_section_numbered_alike_on_every_binding(self):
+        """Authoring Standard §5: one README section per module and pattern, numbered the same on
+        every binding, since the role files cite them by number."""
+        design = {p.stem for kind in ("modules", "patterns") for p in (ROOT / "design" / kind).glob("*.md")}
+        numbering = {}
+        for platform in PLATFORMS:
+            with self.subTest(platform=platform):
+                found = sections(platform)
+                self.assertEqual(sorted(set(MODULES + PATTERNS) - set(found)), [],
+                                 f"{platform}: README lacks a section")
+                self.assertEqual(sorted(set(found) - design), [], f"{platform}: a section names no design anchor")
+                self.assertEqual(sorted(found.values()), list(range(1, len(found) + 1)),
+                                 f"{platform}: sections are not numbered 1 to {len(found)}")
+                for anchor in MODULES + PATTERNS:
+                    numbering.setdefault(anchor, set()).add(found[anchor])
+        self.assertEqual({a: n for a, n in numbering.items() if len(n) > 1}, {},
+                         "a section has a different number on different bindings")
 
     def test_conformance_is_generated_and_status_follows_it(self):
         """Authoring Standard §8.1: the report is generated, never kept by hand, and a binding

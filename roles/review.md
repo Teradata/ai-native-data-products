@@ -112,6 +112,6 @@ checklist item and note the absence of an id.
 
 Your inputs are the design specification and/or the built product; your output is the **trust map**.
 Once the product is deployed the map's durable home is **Observability**, as `validation_area`
-rows a validator publishes per run (`implementation/{platform}/patterns/validation/`); before then
+rows a validator publishes per run (`implementation/{platform}/README.md` §9); before then
 it is a standalone report. Agree with the user where it goes based on what you can reach, and
 present it in the conversation either way.
