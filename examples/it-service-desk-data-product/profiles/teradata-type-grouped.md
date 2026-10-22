@@ -12,7 +12,7 @@ placement (type-grouped rather than one container per module), object and column
 principals (one bound to an existing group), classification and protection, retention
 bounds, environment isolation, and an adopted entity. Building the same
 [design specification](../design-output/design_specification.md) under both profiles is the
-portability test of the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md)
+portability test of the [Platform Implementation Authoring Standard](../../../design/core/IMPLEMENTATION_AUTHORING.md)
 §8: the products must differ only where the profiles do.
 
 ```bash

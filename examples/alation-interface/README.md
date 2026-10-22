@@ -11,7 +11,7 @@ Three registered data products under three unrelated naming schemes, and the ful
 | 3 | [`03-verification-queries.sql`](03-verification-queries.sql) | The reads, each with its expected result. |
 | 4 | `conformance-queries.sql.j2` (in the binding) | Every invariant, expected to return zero rows. |
 
-You need the amended registry from [`modules/semantic/03-registry.sql.j2`](../../implementation/teradata/modules/semantic/03-registry.sql.j2), the two feed tables, and the five views. Step 2 also writes to `CustExp_SEM_STD_T` and `CustExp_OBS_STD_T`, which needs the product's own tables to exist; skip those statements if they don't, and nothing else is affected.
+You need the amended registry, the two feed tables, and the five views. The amended registry is the version 2.0 [`03-registry.sql.j2`](https://github.com/Teradata/ai-native-data-products/blob/60324bb56e0b055a768049de15b270221621ee84/implementation/teradata/modules/semantic/03-registry.sql.j2), the last version before the Teradata binding moved onto the build context; the binding's [catalogue-interface section](../../implementation/teradata/README.md#12-enterprise-catalogue-interface-pattern-catalogue-interface) explains why it is not yet in the Semantic module. Step 2 also writes to `CustExp_SEM_STD_T` and `CustExp_OBS_STD_T`, which needs the product's own tables to exist; skip those statements if they don't, and nothing else is affected.
 
 Every instant is a literal, so results are identical between runs and the verification queries can state exact row counts.
 

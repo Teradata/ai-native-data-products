@@ -534,7 +534,7 @@ Teradata binding of [`design/patterns/catalogue-interface.md`](../../design/patt
 | `EMITTERS.md` | What the two YAML renderers must produce from those extractions, and how they behave when something is missing. |
 | `conformance-queries.sql.j2` | One check per invariant; every query is expected to return zero rows. |
 
-The registry table is defined by the Semantic module at [`modules/semantic/03-registry.sql.j2`](modules/semantic/03-registry.sql.j2), since the orientation layer owns it. This pattern amended that file rather than declaring a second copy.
+The registry table belongs to the Semantic module, since the orientation layer owns it, so this pattern amended the Semantic module's `03-registry.sql.j2` rather than declaring a second copy. That template was removed when the binding moved onto the build context; its [last version](https://github.com/Teradata/ai-native-data-products/blob/60324bb56e0b055a768049de15b270221621ee84/implementation/teradata/modules/semantic/03-registry.sql.j2) holds the Registry 2.0 changes below. The build context's `DataProductRegistry` ([Semantic](../../design/modules/semantic.md)) does not carry them yet, and porting them is part of the port-or-retire decision at the top of this README.
 
 ### Registry 2.0
 
