@@ -971,11 +971,13 @@ def isolated(text, prefix):
 class Teradata(EngineTests, unittest.TestCase):
     """Teradata commits each DDL statement and cannot roll a deployment back, so each
     specification is deployed once per run, under the tests' prefix, and every test starts
-    from its freshly written rows. Schema a test changes, it reverses."""
+    from the rows the build wrote, restored from a session snapshot. Schema a test changes, it
+    reverses."""
     platform = "teradata"
     returning = False
     open_end = datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc)
     deployments = {}
+    snapshots = {}
     BATCHED = re.compile(r"(INSERT|UPDATE|DELETE|MERGE|COMMENT)\b", re.I)
 
     @classmethod
@@ -1010,6 +1012,10 @@ class Teradata(EngineTests, unittest.TestCase):
                 cls.con.execute(f'DELETE DATABASE "{name}"')
                 cls.con.execute(f'DROP DATABASE "{name}"')
         cls.deployments.clear()
+        for snapshot in cls.snapshots.values():
+            for _, copy, _ in snapshot:
+                cls.con.execute(f"DROP TABLE {copy}")
+        cls.snapshots.clear()
 
     def setUp(self):
         pass
@@ -1088,11 +1094,12 @@ class Teradata(EngineTests, unittest.TestCase):
             context_json, self.files = self.deployments[key]
             self.ctx, self.binding = json.loads(context_json), load_binding(self.platform)[0]
             self.manifest = json.loads(self.files["manifest.json"])
-            self.reset()
+            self.reset(key)
             return self.manifest
         manifest = super().deploy(spec, ctx)
         if ctx is None:
             self.deployments[key] = (json.dumps(self.ctx), self.files)
+            self.snapshot(key)
         return manifest
 
     def run_statements(self, sql):
@@ -1117,13 +1124,34 @@ class Teradata(EngineTests, unittest.TestCase):
         for name in self.manifest["phases"]:
             self.run_statements(statements(files[name]))
 
-    def reset(self):
-        """Every row a test wrote goes, and the rows the build writes come back."""
-        self.run_statements([f"DELETE FROM {self.binding.qualified(x['objects']['table']['container'], x['objects']['table']['name'])}"
-                             for x in persisted(self.ctx)])
-        for name in self.manifest["phases"]:
-            self.run_statements([s for s in statements(self.files[name])
-                                 if re.match(r"(INSERT|UPDATE|DELETE|MERGE)\b", s, re.I)])
+    def snapshot(self, key):
+        """The rows the build wrote, copied once per deployment into volatile tables. They live
+        in this session's spool, outside every product container and the dictionary, so no
+        check sees them, and they go when the session ends. Each is declared from the context's
+        columns with the binding's own character set, since CREATE TABLE AS refuses a source
+        with an identity column."""
+        macros = environment(self.binding, self.ctx).get_template(
+            "patterns/temporal-lifecycle-metadata/00-macros.sql.j2").make_module(self.ctx)
+        taken, start = [], sum(len(s) for s in self.snapshots.values())
+        for i, x in enumerate(persisted(self.ctx), start):
+            table = self.binding.qualified(x["objects"]["table"]["container"], x["objects"]["table"]["name"])
+            copy = f"{TEST_PREFIX}_snapshot_{i}"
+            cols = ", ".join(self.binding.ident(c["physical_name"]) for c in x["columns"])
+            self.con.execute(f"CREATE VOLATILE TABLE {copy} ("
+                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{macros.unicode(c)}"
+                                         for c in x["columns"])
+                             + ") ON COMMIT PRESERVE ROWS")
+            self.con.execute(f"INSERT INTO {copy} ({cols}) SELECT {cols} FROM {table}")
+            taken.append((table, copy, cols))
+        self.snapshots[key] = taken
+
+    def reset(self, key):
+        """Every row a test wrote goes, and the rows the build wrote come back from the
+        snapshot: a DELETE and an INSERT ... SELECT per table, sent as multi-statement requests.
+        Re-running the build's own row writes instead costs one statement per row, which made
+        resetting most of a run's time."""
+        self.run_statements([s for table, copy, cols in self.snapshots[key]
+                             for s in (f"DELETE FROM {table}", f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {copy}")])
 
     # ---- Teradata's own behaviour ----------------------------------------------------
     def test_the_read_tier_reaches_views_but_not_tables(self):
