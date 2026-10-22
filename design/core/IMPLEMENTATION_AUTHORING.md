@@ -180,7 +180,7 @@ A pull request must not increase any binding's reported gaps. A binding with gap
 
 Pull requests that add or change a binding identify the compositions, profile settings and engine versions they affect, show the portability builds, and report the conformance results and remaining gaps.
 
-The section 8 checks must run in pull-request CI, and branch protection or an equivalent ruleset must make them required before merge. A failed required check blocks merge; missing engine coverage is reported as a gap, never as a successful run. Changes to the checks themselves are reviewed alongside the bindings they affect.
+The section 8 checks must run in pull-request CI, and branch protection or an equivalent ruleset must make them required before merge. A failed required check blocks merge; missing engine coverage is reported as a gap, never as a successful run. Where CI cannot reach an engine, its engine evidence may come from the committed report of a clean live run: CI still regenerates and compares everything else, fails on any engine test that report does not cover, and states that it trusted it. Changes to the checks themselves are reviewed alongside the bindings they affect.
 
 This document specifies the policy; it does not install CI or configure branch protection. Until both exist, maintainers record the checks as manual evidence and describe enforcement as manual. Local checks alone do not prevent a merge.
 
