@@ -56,6 +56,11 @@ Downloading the ZIP works too, with one wrinkle: GitHub nests the archive under
 `ai-native-data-products-<branch>/`, so rename the extracted directory rather than leaving
 the branch name in place.
 
+The ZIP is the package. `.gitattributes` keeps out what an agent never reads (the tests,
+CI configuration, `docs/` and the work log), which is what keeps the skill under the
+200-file limit an upload enforces. A clone carries everything, so where a file limit
+applies, install from the ZIP or `git archive HEAD`.
+
 | Role | Reads | Starter |
 |------|-------|---------|
 | Designer | `design/` only | [Design starter](prompts/Design_Data_Product_Starter.md) |

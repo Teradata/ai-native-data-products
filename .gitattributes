@@ -1,0 +1,10 @@
+# What an install receives is `git archive` of a commit, which is also GitHub's ZIP. Files an
+# agent never reads in a session stay in the repository but out of that package, which keeps
+# the skill under the upload's 200-file limit (issue #80). Clones still carry everything.
+# `python tooling/skill/verify_skill.py --package` checks the package these rules produce.
+.gitattributes      export-ignore
+.gitignore          export-ignore
+.github/            export-ignore
+docs/               export-ignore
+REMAINING_WORK.md   export-ignore
+tooling/**/tests/   export-ignore
