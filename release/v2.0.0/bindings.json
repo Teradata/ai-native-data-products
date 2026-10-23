@@ -108,7 +108,6 @@
       ],
       "patterns": [
         "access-layer",
-        "catalogue-interface",
         "object-placement",
         "physical-storage",
         "temporal-lifecycle-metadata",

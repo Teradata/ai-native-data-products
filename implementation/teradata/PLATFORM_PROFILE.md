@@ -242,7 +242,7 @@ Binding: -
     Deployment: DDL commits per statement, so a failed deployment cannot be rolled back; it is cleared by dropping the product's databases
     Concurrency: no lock serialises concurrent maintenance writers, and no concurrent-writer test exists
     Principals and membership: roles carry rights only; users, memberships and passwords are operator work
-    Graph lineage and catalogue interface: the templates under modules/observability 04 to 10 and patterns/catalogue-interface read the old flat context and no phase renders them; porting or retiring them is an open decision
+    Graph lineage and catalogue interface: not bound; their templates were retired, and a build that asks for either reports it as a gap
   Checks:
     entity metadata: patterns/validation/01-entity-metadata.sql.j2
     entity temporal: patterns/validation/02-entity-temporal.sql.j2

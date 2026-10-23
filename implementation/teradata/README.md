@@ -13,24 +13,23 @@ Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writin
 <!-- index:start -->
 | Line | Section | Covers |
 |---:|---|---|
-| 35 | [Render, deploy and validate](#render-deploy-and-validate) | Rendering the worked example, deploying it, running the validator; what the renderer writes |
-| 58 | [Verification](#verification) | The test and lint commands for this binding |
-| 70 | [1. Object Placement pattern (`object-placement`)](#1-object-placement-pattern-object-placement) | Databases, parents first, with their permanent space |
-| 88 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, governed base views and consumer views, statistics, caller-rendered maintenance |
-| 140 | [3. Memory module (`memory`)](#3-memory-module-memory) | Tables; design-memory capture |
-| 185 | [4. Semantic module (`semantic`)](#4-semantic-module-semantic) | Tables; registration; discovery views; the metadata-contract checks |
-| 260 | [5. Domain module (`domain`)](#5-domain-module-domain) | Tables; key allocation |
-| 305 | [6. Observability module (`observability`)](#6-observability-module-observability) | Tables; the unmigrated graph-lineage exposure |
-| 366 | [7. Search module (`search`)](#7-search-module-search) | Tables; similarity procedures |
-| 409 | [8. Prediction module (`prediction`)](#8-prediction-module-prediction) | Tables |
-| 443 | [9. Validation pattern (`validation`)](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
-| 483 | [10. Access Layer pattern (`access-layer`)](#10-access-layer-pattern-access-layer) | The implied grants between databases; roles and tier grants |
-| 514 | [11. Physical Storage pattern (`physical-storage`)](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
-| 524 | [12. Enterprise Catalogue Interface pattern (`catalogue-interface`)](#12-enterprise-catalogue-interface-pattern-catalogue-interface) | Unmigrated: registry tables, lifecycle DML, catalogue views and the semantic-model export |
-| 621 | [Catalogue](#catalogue) | The binding's design documents (generated) |
+| 34 | [Render, deploy and validate](#render-deploy-and-validate) | Rendering the worked example, deploying it, running the validator; what the renderer writes |
+| 57 | [Verification](#verification) | The test and lint commands for this binding |
+| 69 | [1. Object Placement pattern (`object-placement`)](#1-object-placement-pattern-object-placement) | Databases, parents first, with their permanent space |
+| 87 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, governed base views and consumer views, statistics, caller-rendered maintenance |
+| 139 | [3. Memory module (`memory`)](#3-memory-module-memory) | Tables; design-memory capture |
+| 184 | [4. Semantic module (`semantic`)](#4-semantic-module-semantic) | Tables; registration; discovery views; the metadata-contract checks |
+| 259 | [5. Domain module (`domain`)](#5-domain-module-domain) | Tables; key allocation |
+| 304 | [6. Observability module (`observability`)](#6-observability-module-observability) | Tables |
+| 346 | [7. Search module (`search`)](#7-search-module-search) | Tables; similarity procedures |
+| 389 | [8. Prediction module (`prediction`)](#8-prediction-module-prediction) | Tables |
+| 423 | [9. Validation pattern (`validation`)](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
+| 463 | [10. Access Layer pattern (`access-layer`)](#10-access-layer-pattern-access-layer) | The implied grants between databases; roles and tier grants |
+| 494 | [11. Physical Storage pattern (`physical-storage`)](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
+| 504 | [Catalogue](#catalogue) | The binding's design documents (generated) |
 <!-- index:end -->
 
-Two sets of templates in this directory still read the old flat context and are not reached by any phase: the graph-lineage exposure (`modules/observability/04-openlineage.md` and `05-graph-tables` to `10-access.dcl`) and the [catalogue interface](#12-enterprise-catalogue-interface-pattern-catalogue-interface). Whether they are ported onto the build context or retired is an open decision. A specification or profile that asks for either has it reported as a gap.
+The graph-lineage exposure and the catalogue interface have no binding: their templates, written for the flat context that preceded the build context, were retired, and their last versions are in the history at commit `5fe4803`. A specification or profile that asks for either has it reported as a gap.
 
 ## Render, deploy and validate
 
@@ -340,28 +339,9 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 
 Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
-### Graph-lineage facet: not migrated
+### Graph-lineage facet
 
-The graph-lineage templates below were written for the old flat template context, before the build context, and no phase renders them. Whether they are ported onto the build context or retired is an open decision; until it is made they are kept unchanged, as written, and a product that enables the facet has the exposure reported as a gap. What follows describes them as they were designed.
-
-#### The graph-lineage facet's templates
-
-This binding's graph consumer contract (design §5.1) is the external **Teradata Graph Explorer** data contract, `docs/graph-data-contract.md` in the `teradata-graph-explorer` repository. It is normative for the consumer surface, fixes the `Graphs_<KEY>_*` object names and the catalogue table definitions, and supplies the quality procedures; this repository does not redefine it. Binding to it lets a product opt in to opening its lineage in Graph Explorer, tracing it, and visualising it as a graph, in addition to the `lineage_graph` discovery view above. Read [`design/modules/observability.md`](../../design/modules/observability.md) §4.1/§5.1 first. Replace `{{ graph_key }}` (this graph's unique catalogue key, e.g. `LIN_DEMO` — see `DEC-GRAPH-SCOPE`: one graph per data product, never shared). This facet's package must declare the shared `graph-platform` package as an external parent; it creates neither.
-
-| File | Purpose |
-|------|---------|
-| `05-graph-tables.sql.j2` | `Graphs_{{ graph_key }}_STD_0_T.graph_nodes` / `.graph_edges` — this facet's own data plane. |
-| `06-graph-locking-views.sql.j2` | `Graphs_{{ graph_key }}_STD_0_V.*` — governed 1:1 locking views over the base tables. |
-| `07-graph-acl-views.sql.j2` | `Graphs_{{ graph_key }}_ACL_0_V.graph_nodes` / `.graph_edges` / `.graph_edges_bi` — **the contract surface**; the only views a consumer binds to. |
-| `08-catalogue-seed.sql.j2` | Idempotent seed of the shared `Graphs_CAT_STD_0_T` registry, relationship/role vocabularies, and trace profiles. Takes `column_lineage_enabled` to gate the `column-lineage` facet's catalogue rows, and writes the registered `graph_key` back onto this product's `data_product_map.graph_key` ([Teradata/ai-native-data-products#65](https://github.com/Teradata/ai-native-data-products/issues/65)) so a consumer can resolve it from the product prefix alone. |
-| `09-load-lineage.sql.j2` | Set-based, idempotent load from `data_lineage` / `.agent_outcome` (above) into `05-graph-tables.sql.j2`'s node/edge tables. Also takes `column_lineage_enabled`. |
-| `10-access.dcl.sql.j2` | Implied grants, this graph's `R_Graphs_{{ graph_key }}_READ` role, and registration into the shared `R_Graphs_USR_APP` consumer role. |
-
-**Column-lineage facet (optional, requires `graph-lineage`).** `data_lineage.source_column`/`.target_column` (`02-lineage-tables.sql.j2`) are optional and NULL for table-level flows. Enable by passing `column_lineage_enabled=true` to `08-catalogue-seed.sql.j2` and `09-load-lineage.sql.j2` only if `DEC-GRAPH-COLUMN-LINEAGE` is settled toward column-grain tracing for this product; the flag gates the `COLUMN` role and `derives_column` relationship/trace-leg registration in the catalogue seed and the `COLUMN` node / `derives_column` edge population in the load path together, so `ColumnGrainLineageTraversal` is only ever advertised when it is actually populated.
-
-#### Naming note: `created_dts` (graph-lineage facet)
-
-Earlier versions of the external graph-explorer contract (< 2.0.0) recommended the singular `created_dt`, which collided with this repository's own `temporal-lifecycle-metadata` naming (TLM-04 prohibits it as an audit-column name). That collision was resolved upstream, in the contract itself: as of contract version 2.0.0 the recommended provenance column is `created_dts`, matching this repository's convention exactly, so `07-graph-acl-views.sql.j2` carries the name through unchanged from the base table. If this facet is ever pointed at a pre-2.0.0 graph-explorer deployment, the ACL view's `created_dts` column will need renaming back to `created_dt` for that deployment only — do not make that change here by default.
+Not bound. The templates for it, written for the flat template context that preceded the build context, were retired with the catalogue-interface binding; their last versions are in the history at commit `5fe4803`. A product that enables the facet has the exposure reported as a gap.
 
 ## 7. Search module (`search`)
 
@@ -520,103 +500,6 @@ This pattern has no template. Every table is created in Teradata's own block sto
 No table is placed in object storage. An organisation profile with the `Storage Section` headings (object storage under an open table format) is honoured by no template: the build creates its tables in block storage and reports the storage placement in the manifest as a gap.
 
 Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
-
-## 12. Enterprise Catalogue Interface pattern (`catalogue-interface`)
-
-Templates: [`patterns/catalogue-interface/`](patterns/catalogue-interface/).
-
-Teradata binding of [`design/patterns/catalogue-interface.md`](../../design/patterns/catalogue-interface.md). Read the pattern first. Targets Teradata v17.20+; the dictionary check uses `DBC.TablesV`.
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `01-container-interface-tables.sql.j2` | The two child feeds: `data_product_container` (where the product is deployed) and `data_product_interface` (what a consumer may query). |
-| `02-lifecycle-dml.sql.j2` | One parameterised transition covering every lifecycle event, plus first registration and the two feed refreshes. |
-| `03-catalogue-views.sql.j2` | The five surfaces a catalogue reads. |
-| `04-resolution-queries.sql.j2` | Orientation, the consumer object list from both the feed and the product's Semantic catalogue, the projection that populates the feed, the change query, and point-in-time. |
-| `05-semantic-model-export.sql.j2` | The six extractions that make up a product's semantic model, plus the product descriptor reads. |
-| `EMITTERS.md` | What the two YAML renderers must produce from those extractions, and how they behave when something is missing. |
-| `conformance-queries.sql.j2` | One check per invariant; every query is expected to return zero rows. |
-
-The registry table belongs to the Semantic module, since the orientation layer owns it, so this pattern amended the Semantic module's `03-registry.sql.j2` rather than declaring a second copy. That template was removed when the binding moved onto the build context; its [last version](https://github.com/Teradata/ai-native-data-products/blob/60324bb56e0b055a768049de15b270221621ee84/implementation/teradata/modules/semantic/03-registry.sql.j2) holds the Registry 2.0 changes below. The build context's `DataProductRegistry` ([Semantic](../../design/modules/semantic.md)) does not carry them yet, and porting them is part of the port-or-retire decision at the top of this README.
-
-### Registry 2.0
-
-| Change | Reason |
-|---|---|
-| `SCD2_HISTORY` profile with logical deletion | A status transition previously overwrote the row, leaving only the latest state and an `updated_dts`. Nothing downstream could tell a retired product from one never registered, or answer what was published last quarter. |
-| `owner_name`, `owner_email`, `technical_contact_name`, `technical_contact_email` | `owner_team` was the only ownership field. An enterprise catalogue needs a contact name and address, and there was nowhere to read them from. |
-| `product_domain` | The catalogue renderer emits a `domain` and the registry had no column to supply it. |
-| `data_product_container` | The three `*_database` columns covered three of six modules and one of several layers. Sites place containers where their standards say, which a fixed column per module cannot describe. |
-
-**Migration.** The temporal columns are additions. Migrate an existing registry by adding them and stamping the surviving row as the first version: `valid_from_dts` from `created_dts`, `valid_to_dts` the open-end sentinel, `is_current` 1. History before the migration is not reconstructable, and the migrated row states its start as the instant the row was created.
-
-**Clients must now filter on `is_current`.** A client filtering on `is_active = 1 AND is_deleted = 0` will match every historical version of every product. Read `data_product_current` in the governance container instead, which applies the predicate.
-
-### Binding table
-
-| Pattern concept | Teradata binding |
-|-----------------|------------------|
-| Product feed | `data_product_catalogue` in the governance container over the registry, current versions including retired. |
-| Lifecycle feed | `data_product_lifecycle` in the governance container, predecessor state derived with `LAG`. |
-| Interface feed | `data_product_interface` in the governance container, projected from the product's Semantic view and primary-object catalogues. |
-| Container feed | `data_product_container` in the governance container, one row per (product, module, layer). |
-| Detail pointers | The `*_uri` columns on the registry, carried forward by every transition. |
-| Versioning and deletion | `SCD2_HISTORY` with `supports_deletion`, from the `temporal-lifecycle-metadata` pattern. |
-| Single resolved contact | `contact_name` / `contact_email` on the product feed: business owner, technical contact as fallback. |
-
-Both feed tables spell their temporal block out instead of importing `00-temporal-macros.sql.j2`. They live in the shared governance container (`governance_db`) and are spelled out for the same reason the registry is; the temporal pattern's binding lists this case, and `test_teradata_templates.py` checks the block against the macros. The `tlm-04` check in `tooling/validation/design_lint.py` covers them, and the block matches what the macros emit for `columns('SCD2_HISTORY', supports_deletion=true)`.
-
-### Resolving the consumer surface
-
-Two routes to the same list.
-
-**From the governance container**, for any product, without reaching into it: `data_product_consumer_interface` in the governance container returns fully qualified object names assembled from declared containers. This is what a catalogue publishes.
-
-**From inside the product**, authoritatively: the Semantic module's `view_metadata` joined to `entity_metadata` and `data_product_map_primary_objects`, with `view_type <> 'LOCKING'`. `view_metadata` says which view exposes which base table and which exposure is primary; the primary-object registry says how an agent should use an object. An object in neither is not a consumer surface.
-
-Neither route resolves anything from a name. `view_type`, `object_role` and `interface_layer` carry as data what a suffix would otherwise carry by convention, so a site using layer-named containers and a site using cost-centre names return identical results.
-
-### Known divergence: automated registration
-
-Release packaging tooling that generates a product's registration script against the version 1.0 registry needs updating. Three behaviours no longer match:
-
-1. **It upserts on `product_id` alone.** `MERGE … ON (tgt.product_id = src.product_id)` against a versioned registry matches every version of the product. Registration should call the first-registration statement once and the transition statement thereafter (`02-lifecycle-dml.sql.j2`, sections 2 and 1).
-2. **It writes `updated_at`.** The canonical audit names are `created_dts` / `updated_dts`; `created_at` and `updated_at` are prohibited by TLM-04. A generator emitting them is usually copying a reference DDL that carries the prohibited names, so that reference needs correcting at the same time.
-3. **It writes `{module}_table_database`, `{module}_view_database`, `{module}_database` and `staging_table_database`.** Nineteen columns that exist in no registry DDL, derived by matching container names against a `{Product}_{Module}_{Layer}` regular expression. The derivation only holds at sites using that naming. The same facts belong in `data_product_container`, declared rather than parsed.
-
-Until the generator is updated, treat its output as a template and take the statements from `02-lifecycle-dml.sql.j2`.
-
-### Conformance rules → checks
-
-| Rule | Check |
-|------|-------|
-| `INV-CATALOGUE-001` | State vocabulary. |
-| `INV-CATALOGUE-002` | One current version per product, plus flag/sentinel agreement. |
-| `INV-CATALOGUE-003` | No gap or overlap between consecutive versions. |
-| `INV-CATALOGUE-004` | Retirement carries the deletion flag and its instant. |
-| `INV-CATALOGUE-005` | Every interface container is declared, and every declared object exists in `DBC.TablesV` as the kind declared. |
-| `INV-CATALOGUE-006` | The interface feed and the Semantic view catalogue agree, in both directions. |
-| `INV-CATALOGUE-007` | An active product carries a contact address. |
-| `INV-CATALOGUE-008` | No product has lost a detail pointer it previously held. |
-| `INV-CATALOGUE-009` | No duplicate version start instants; no inverted validity period. |
-| `INV-CATALOGUE-010` | Not machine-checkable. Enforced at the source: the extractor warns rather than defaults, and the projection in `04-resolution-queries.sql.j2` selects declared values only. |
-| `INV-CATALOGUE-011` | Emitter-enforced: `05-semantic-model-export.sql.j2` selects registered rows only, and the emitter adds nothing to them. |
-| `INV-CATALOGUE-012` | Emitter-enforced: the export is stamped from `product_version` on the product feed and renders the whole model. |
-| `INV-CATALOGUE-013` | Emitter-enforced: query 3 returns `emit_direction`, and a `REPORT` row is warned and omitted rather than reshaped. |
-
-The metric and synonym invariants the export depends on (`INV-SEMANTIC-013` to `INV-SEMANTIC-015`) are checked by the Semantic module's own `validation.sql.j2`, since that is where the catalogue they constrain lives.
-
-### Semantic model export
-
-The five feeds cover product, object and container grain. A catalogue that masters semantic models also wants the model itself: datasets, fields, relationships, metrics and synonyms. That comes out of the product's Semantic module as a version-stamped export rather than through a feed, because it is scoped to a release and its shape belongs to the consuming format.
-
-`05-semantic-model-export.sql.j2` is the extraction. [`EMITTERS.md`](patterns/catalogue-interface/EMITTERS.md) specifies the two renderers that turn it into YAML: a semantic model, and a product descriptor. Both belong beside the existing catalogue renderers in the release packager.
-
-Metrics and synonyms come from the Semantic module's measure catalogue (`modules/semantic/07-metric-tables.sql.j2`). A product that registers no metrics exports a model with no metrics, which a catalogue accepts; it is a thinner model, not an invalid one.
-
-A worked example — three registered products, one outside the default hierarchy, and the full lifecycle — is in [`examples/alation-interface/`](../../examples/alation-interface/).
 
 ## Catalogue
 

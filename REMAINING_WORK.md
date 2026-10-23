@@ -16,7 +16,7 @@ context. Every binding's Jinja templates read only that context.
 | Tooling | `spec_lint`, `org_profile` and `build_context` (resolver), plus `tooling/bindings/render.py` and `validate.py` |
 | PostgreSQL binding | On the build context. Both reference specifications deploy on PostgreSQL 16.4 and every rendered check passes |
 | DuckDB binding | On the build context. Both reference specifications deploy on DuckDB 1.5 and every rendered check passes |
-| Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates are not migrated and await a decision (task 1a) |
+| Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates were retired (task 1a) |
 | Tests | `tooling/validation/tests`: 253 of 255 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 75 pass (20 engine tests each on DuckDB, PostgreSQL and Teradata, 11 rendering, 4 Teradata dialect), none skipped. Each binding's `CONFORMANCE.md` is generated from them (`tooling/bindings/conformance.py`) |
 
 Nothing has been pushed since the earlier review push. This branch is ahead of `origin` by the
@@ -92,13 +92,10 @@ Conflicts between bindings found and fixed, each with a test so it cannot come b
 
 #### 1a. Still open on Teradata
 
-- **Graph lineage and catalogue interface: decision needed (Paul).** Left untouched at the user's
-  request: `modules/observability/04-openlineage.md` and `05-graph-tables` to `10-access.dcl`,
-  and `patterns/catalogue-interface/*`. They read the old flat context, and **two
-  `test_binding_package` tests fail on them alone**: every template reached by a phase, and
-  Jinja-only hygiene (`:event_dts` in `catalogue-interface/02-lifecycle-dml`). With them set
-  aside the package tests pass. Port or retire,
-  then those tests go green.
+- **Graph lineage and catalogue interface: retired (2026-10-23).** The templates under
+  `modules/observability/04` to `10` and `patterns/catalogue-interface/`, with the Alation
+  example that exercised them, were deleted rather than ported. Their last versions are at
+  commit `5fe4803`. A build that asks for either reports it as a gap.
 - **Vectors and similarity: done.** A `Vector[n]` is `VARBYTE(n × 8)`, little-endian 8-byte
   floats checked to that length, because the engine showed `TD_VECTORDISTANCE` reads VARBYTE as
   8-byte floats: with 4-byte floats every distance was wrong, without an error. Similarity is a
@@ -144,8 +141,6 @@ Found on the way, not done:
 - `design_lint.py` checks the 255-character comment limit only `if "teradata" in sql.parts`: a
   platform special case in tooling. The limit belongs in the binding's declarations (or the
   static check can go, since `test_teradata_dialect.py` checks rendered comments).
-- `examples/alation-interface/` ships `.sql` files, which the "examples hold inputs, not
-  generated output" rule (Authoring §7) checks only for the ITSD example.
 
 ### 3. CI (task 8) — guide written; admin steps outstanding
 The workflow installs every driver, runs all three engines and checks the conformance reports.
