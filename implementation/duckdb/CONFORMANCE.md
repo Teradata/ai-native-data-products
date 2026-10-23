@@ -16,28 +16,28 @@ Engine evidence: DuckDB v2.0.0 through the duckdb 2.0.0 Python driver.
 
 ## Gaps reported by the builds
 
-Every gap the reference specifications' manifests report on this platform, built under `duckdb.md`.
+Every gap the reference specifications' manifests report on this platform, built under `duckdb` of `config/implementation.example.toml`.
 
 | Gap | Reported by |
 |---|---|
-| access_objects[OrderWithLines]: composite access objects are not rendered | Customer Orders under `duckdb.md` |
-| access_objects[TicketDetail]: composite access objects are not rendered | IT Service Desk under `duckdb.md` |
-| entities[CustomerFeature].attributes[reorder_propensity].derive: 'count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)' uses count_related, which the binding does not render | Customer Orders under `duckdb.md` |
-| entities[TicketFeatureSet].attributes[f_agent_team_int].derive: 'map(as_of(Agent.team, Ticket.opened_dts), {Infrastructure: 1, Applications: 2, 'Service Desk': 3})' uses as_of, which the binding does not render | IT Service Desk under `duckdb.md` |
-| entities[TicketFeatureSet].attributes[f_customer_tier_int].derive: 'map(as_of(Customer.tier, Ticket.opened_dts), {Platinum: 1, Gold: 2, Silver: 3, Bronze: 4})' uses as_of, which the binding does not render | IT Service Desk under `duckdb.md` |
-| quality.rules[2].check: 'integrity(Order.customer_id)' uses integrity, which the binding does not render | Customer Orders under `duckdb.md` |
-| quality.rules[3].check: 'integrity(OrderLine.product_id)' uses integrity, which the binding does not render | Customer Orders under `duckdb.md` |
-| quality.rules[4].check: 'freshness(Order)' uses freshness, which the binding does not render | Customer Orders under `duckdb.md` |
-| quality.rules[5].check: 'integrity(Ticket.customer_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb.md` |
-| quality.rules[6].check: 'integrity(Ticket.assigned_agent_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb.md` |
-| quality.rules[7].check: 'integrity(Ticket.category_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb.md` |
-| quality.rules[8].check: 'integrity(Category.parent_category_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb.md` |
-| quality.rules[9].check: 'freshness(Ticket)' uses freshness, which the binding does not render | IT Service Desk under `duckdb.md` |
-| runtime: AgentSession, AgentInteraction, LearnedStrategy, UserPreference, DiscoveredPattern are not restricted to the requesting identity's scope on this platform (access-layer §4) | IT Service Desk under `duckdb.md`; Customer Orders under `duckdb.md` |
+| access_objects[OrderWithLines]: composite access objects are not rendered | Customer Orders under `duckdb` of `config/implementation.example.toml` |
+| access_objects[TicketDetail]: composite access objects are not rendered | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| entities[CustomerFeature].attributes[reorder_propensity].derive: 'count_related(Order, Order.ordered_dts, 90 days) / coalesce(count_related(Order, Order.ordered_dts, 365 days), 1)' uses count_related, which the binding does not render | Customer Orders under `duckdb` of `config/implementation.example.toml` |
+| entities[TicketFeatureSet].attributes[f_agent_team_int].derive: 'map(as_of(Agent.team, Ticket.opened_dts), {Infrastructure: 1, Applications: 2, 'Service Desk': 3})' uses as_of, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| entities[TicketFeatureSet].attributes[f_customer_tier_int].derive: 'map(as_of(Customer.tier, Ticket.opened_dts), {Platinum: 1, Gold: 2, Silver: 3, Bronze: 4})' uses as_of, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[2].check: 'integrity(Order.customer_id)' uses integrity, which the binding does not render | Customer Orders under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[3].check: 'integrity(OrderLine.product_id)' uses integrity, which the binding does not render | Customer Orders under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[4].check: 'freshness(Order)' uses freshness, which the binding does not render | Customer Orders under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[5].check: 'integrity(Ticket.customer_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[6].check: 'integrity(Ticket.assigned_agent_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[7].check: 'integrity(Ticket.category_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[8].check: 'integrity(Category.parent_category_id)' uses integrity, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| quality.rules[9].check: 'freshness(Ticket)' uses freshness, which the binding does not render | IT Service Desk under `duckdb` of `config/implementation.example.toml` |
+| runtime: AgentSession, AgentInteraction, LearnedStrategy, UserPreference, DiscoveredPattern are not restricted to the requesting identity's scope on this platform (access-layer §4) | IT Service Desk under `duckdb` of `config/implementation.example.toml`; Customer Orders under `duckdb` of `config/implementation.example.toml` |
 
 ## Gaps the binding declares
 
-What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations).
+What no check can detect, declared in the `gaps` of [binding.toml](binding.toml).
 
 | Area | Gap |
 |---|---|
