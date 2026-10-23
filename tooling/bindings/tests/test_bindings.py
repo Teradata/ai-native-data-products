@@ -18,6 +18,7 @@ gap, never a pass.
 Run:
     python -m unittest discover -s tooling/bindings/tests -v
 """
+import contextlib
 import copy
 import csv
 import json
@@ -358,9 +359,54 @@ class EngineTests:
                 out[col] = value
         return out
 
+    def insert_many(self, name, rows):
+        """Rows of one relation, by logical attribute name, in one batched insert. A column a
+        row leaves out is NULL in it."""
+        if not rows:
+            return
+        cn = named(self.ctx, name)["column_names"]
+        names = list(dict.fromkeys(k for row in rows for k in row))
+        self.executemany(f"INSERT INTO {self.table(name)} ({', '.join(self.binding.ident(cn[k]) for k in names)}) "
+                         f"VALUES ({', '.join(self.marker for _ in names)})",
+                         [[row.get(k) for k in names] for row in rows])
+
+    def executemany(self, sql, rows):
+        self.con.executemany(sql, rows)
+
+    def run_writes(self, sql):
+        for statement in sql:
+            self.con.execute(statement)
+
+    STAGE = "anptest_stage"
+
+    def staging_table(self, name):
+        """A session's temporary table for one column of natural values."""
+        return f"CREATE TEMP TABLE {self.binding.ident(name)} (natural_value VARCHAR(100))"
+
+    def allocate_all(self, keymap, naturals):
+        """The binding's set form of key allocation: the natural values staged in a temporary
+        table, allocated in one statement, and each read back with its identifier in one
+        query: natural value to identifier."""
+        stage = self.binding.ident(self.STAGE)
+        self.con.execute(self.staging_table(self.STAGE))
+        try:
+            self.executemany(f"INSERT INTO {stage} (natural_value) VALUES ({self.marker})",
+                             [[value] for value in dict.fromkeys(naturals)])
+            *writes, read = statements(environment(self.binding, self.ctx).get_template(
+                "modules/domain/02-key-allocation.sql.j2").render(**dict(
+                    self.ctx, keymap=named(self.ctx, keymap),
+                    staged={"container": None, "name": self.STAGE, "column": "natural_value"})))
+            self.run_writes(writes)
+            return dict(self.q(read))
+        finally:
+            with contextlib.suppress(Exception):  # after a failure, the failure is what matters
+                self.con.execute(f"DROP TABLE {stage}")
+
     def load_itsd(self):
-        """Test-only loading of the four ITSD source files, through the binding's own key
-        allocation. Not a product loader."""
+        """Test-only loading of the four ITSD source files, a set at a time: each entity's rows
+        in batched inserts, its keys allocated through the binding's own key allocation and
+        read back in one query. A row referring to a row of its own entity not yet loaded
+        waits for the next batch. Not a product loader."""
         def rows(file):
             with (EXAMPLE / "data" / f"{file}.csv").open(encoding="utf-8", newline="") as f:
                 return list(csv.DictReader(f))
@@ -372,8 +418,14 @@ class EngineTests:
         for entity, file, keymap in (("Category", "categories", None), ("Agent", "agents", "AgentKeymap"),
                                      ("Customer", "customers", "CustomerKeymap"), ("Ticket", "tickets", "TicketKeymap")):
             x = named(self.ctx, entity)
-            source_key = f"{entity.lower()}_id"
-            for row in rows(file):
+            source_key, surrogate = f"{entity.lower()}_id", x["surrogate_columns"][0]
+            own = [c for c, target in refs.items() if target == entity.lower() and c != surrogate
+                   and any(col["name"] == c for col in x["columns"])]
+            pending = rows(file)
+            present = {row[source_key] for row in pending}
+            allocated = self.allocate_all(keymap, [row[source_key] for row in pending]) if keymap else {}
+
+            def values_of(row):
                 values = {}
                 for col in x["columns"]:
                     if col["origin"] != "attribute" or col["name"] in x["surrogate_columns"]:
@@ -382,20 +434,30 @@ class EngineTests:
                         values[col["name"]] = row["category_id"]
                         continue
                     raw = row.get(renames.get(entity, {}).get(col["name"], col["name"]))
-                    if col["name"] in refs and col["name"] != x["surrogate_columns"][0]:
+                    if col["name"] in refs and col["name"] != surrogate:
                         values[col["name"]] = keys[refs[col["name"]]].get(raw) if raw else None
                     elif raw is not None:
                         value = _value(raw, col["type"].split("{")[0])
                         values[col["name"]] = self.flag(value) if col["type"] == "Flag" and value is not None else value
                 values.update(self.temporal(x, values.get("opened_dts") or datetime(2020, 1, 1, tzinfo=timezone.utc)))
                 if keymap:
-                    key = self.allocate(keymap, row[source_key])
-                    values[x["surrogate_columns"][0]] = key
-                    self.insert(entity, values)
+                    values[surrogate] = allocated[row[source_key]]
+                return values
+
+            while pending:
+                ready = [row for row in pending if not any(
+                    row[c] in present and row[c] not in keys[entity.lower()] for c in own)] or pending
+                self.insert_many(entity, [values_of(row) for row in ready])
+                pending = [row for row in pending if row not in ready]
+                if entity == "Ticket":
+                    continue
+                if keymap:
+                    keys[entity.lower()].update({row[source_key]: allocated[row[source_key]] for row in ready})
                 else:
-                    key = self.insert(entity, values, returning=x["surrogate_columns"][0])
-                if entity != "Ticket":
-                    keys[entity.lower()][row[source_key]] = key
+                    cn = x["column_names"]
+                    natural = self.binding.ident(cn[x["identity"]["natural"][0]])
+                    keys[entity.lower()].update(self.q(
+                        f"SELECT {natural}, {self.binding.ident(cn[surrogate])} FROM {self.table(entity)}"))
 
     def check(self, check, scope_id):
         c = next(c for c in self.manifest["checks"] if c["check"] == check and c["scope_id"] == scope_id)
@@ -724,6 +786,15 @@ class EngineTests:
         first = self.allocate("TicketKeymap", "SRC-1")
         self.assertEqual(self.allocate("TicketKeymap", "SRC-1"), first)
         self.assertNotEqual(self.allocate("TicketKeymap", "SRC-2"), first)
+        # The set form keeps every existing identifier, allocates each new value once, and
+        # ignores duplicates and NULLs; a second run over the same set changes nothing.
+        keys = self.allocate_all("TicketKeymap", ["SRC-1", "SRC-3", None, "SRC-3", "SRC-4"])
+        self.assertEqual(set(keys), {"SRC-1", "SRC-3", "SRC-4"})
+        self.assertEqual(keys["SRC-1"], first)
+        self.assertEqual(len(set(keys.values())), 3)
+        self.assertEqual(self.allocate_all("TicketKeymap", ["SRC-3", "SRC-4"]),
+                         {k: keys[k] for k in ("SRC-3", "SRC-4")})
+        self.assertEqual(self.allocate("TicketKeymap", "SRC-3"), keys["SRC-3"])
 
     def test_mutations_are_detected(self):
         self.deploy()
@@ -910,6 +981,10 @@ class PostgreSQL(EngineTests, unittest.TestCase):
         self.con.rollback()
         self.con.close()
 
+    def executemany(self, sql, rows):
+        with self.con.cursor() as cur:
+            cur.executemany(sql, rows)
+
     def apply(self, files):
         """Every phase in the test's own transaction, so the rollback removes roles too."""
         for name in self.manifest["phases"]:
@@ -971,11 +1046,13 @@ def isolated(text, prefix):
 class Teradata(EngineTests, unittest.TestCase):
     """Teradata commits each DDL statement and cannot roll a deployment back, so each
     specification is deployed once per run, under the tests' prefix, and every test starts
-    from its freshly written rows. Schema a test changes, it reverses."""
+    from the rows the build wrote, restored from a session snapshot. Schema a test changes, it
+    reverses."""
     platform = "teradata"
     returning = False
     open_end = datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc)
     deployments = {}
+    snapshots = {}
     BATCHED = re.compile(r"(INSERT|UPDATE|DELETE|MERGE|COMMENT)\b", re.I)
 
     @classmethod
@@ -1010,6 +1087,10 @@ class Teradata(EngineTests, unittest.TestCase):
                 cls.con.execute(f'DELETE DATABASE "{name}"')
                 cls.con.execute(f'DROP DATABASE "{name}"')
         cls.deployments.clear()
+        for snapshot in cls.snapshots.values():
+            for _, copy, _ in snapshot:
+                cls.con.execute(f"DROP TABLE {copy}")
+        cls.snapshots.clear()
 
     def setUp(self):
         pass
@@ -1088,11 +1169,12 @@ class Teradata(EngineTests, unittest.TestCase):
             context_json, self.files = self.deployments[key]
             self.ctx, self.binding = json.loads(context_json), load_binding(self.platform)[0]
             self.manifest = json.loads(self.files["manifest.json"])
-            self.reset()
+            self.reset(key)
             return self.manifest
         manifest = super().deploy(spec, ctx)
         if ctx is None:
             self.deployments[key] = (json.dumps(self.ctx), self.files)
+            self.snapshot(key)
         return manifest
 
     def run_statements(self, sql):
@@ -1117,13 +1199,41 @@ class Teradata(EngineTests, unittest.TestCase):
         for name in self.manifest["phases"]:
             self.run_statements(statements(files[name]))
 
-    def reset(self):
-        """Every row a test wrote goes, and the rows the build writes come back."""
-        self.run_statements([f"DELETE FROM {self.binding.qualified(x['objects']['table']['container'], x['objects']['table']['name'])}"
-                             for x in persisted(self.ctx)])
-        for name in self.manifest["phases"]:
-            self.run_statements([s for s in statements(self.files[name])
-                                 if re.match(r"(INSERT|UPDATE|DELETE|MERGE)\b", s, re.I)])
+    def run_writes(self, sql):
+        self.run_statements(sql)
+
+    def staging_table(self, name):
+        return (f"CREATE VOLATILE TABLE {self.binding.ident(name)} "
+                f"(natural_value VARCHAR(100) CHARACTER SET UNICODE) ON COMMIT PRESERVE ROWS")
+
+    def snapshot(self, key):
+        """The rows the build wrote, copied once per deployment into volatile tables. They live
+        in this session's spool, outside every product container and the dictionary, so no
+        check sees them, and they go when the session ends. Each is declared from the context's
+        columns with the binding's own character set, since CREATE TABLE AS refuses a source
+        with an identity column."""
+        macros = environment(self.binding, self.ctx).get_template(
+            "patterns/temporal-lifecycle-metadata/00-macros.sql.j2").make_module(self.ctx)
+        taken, start = [], sum(len(s) for s in self.snapshots.values())
+        for i, x in enumerate(persisted(self.ctx), start):
+            table = self.binding.qualified(x["objects"]["table"]["container"], x["objects"]["table"]["name"])
+            copy = f"{TEST_PREFIX}_snapshot_{i}"
+            cols = ", ".join(self.binding.ident(c["physical_name"]) for c in x["columns"])
+            self.con.execute(f"CREATE VOLATILE TABLE {copy} ("
+                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{macros.unicode(c)}"
+                                         for c in x["columns"])
+                             + ") ON COMMIT PRESERVE ROWS")
+            self.con.execute(f"INSERT INTO {copy} ({cols}) SELECT {cols} FROM {table}")
+            taken.append((table, copy, cols))
+        self.snapshots[key] = taken
+
+    def reset(self, key):
+        """Every row a test wrote goes, and the rows the build wrote come back from the
+        snapshot: a DELETE and an INSERT ... SELECT per table, sent as multi-statement requests.
+        Re-running the build's own row writes instead costs one statement per row, which made
+        resetting most of a run's time."""
+        self.run_statements([s for table, copy, cols in self.snapshots[key]
+                             for s in (f"DELETE FROM {table}", f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {copy}")])
 
     # ---- Teradata's own behaviour ----------------------------------------------------
     def test_the_read_tier_reaches_views_but_not_tables(self):

@@ -84,7 +84,7 @@ The boundary is enforced automatically: **a `design/` document must contain no p
 
 **Identity is carried in frontmatter, not in prose.** Which documents exist and what each one is, is declared in frontmatter (see Frontmatter) and resolved by anchor: never by a hand-maintained list of filenames, which goes stale the moment a document is added. How documents *relate* (what they provide, require, and apply) is stated in the body, where it can carry its reasoning (see What frontmatter is not for); the generated catalogue reads it from there. Prose may link to another document for human navigation; what must not depend on a filename is the corpus structure itself. This document in particular names no module or pattern, so that adding one never requires editing the notation.
 
-**Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented at `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
+**Anchor-name parity is required.** A module with `anchor: search` lives at `design/modules/search.md` and is implemented in the section of `implementation/<platform>/README.md` headed with the anchor `search`, with its templates in `implementation/<platform>/modules/search/`. A reviewer must be able to diff a design document against its binding one-to-one by anchor.
 
 **Patterns are referenced, not re-encoded.** When a module depends on a cross-cutting concern, it *references the pattern by anchor* (see Entity Notation) rather than restating it. Re-stating a pattern inline in every module is the duplication this structure exists to remove.
 
@@ -232,7 +232,7 @@ Entity: Party                     [kind: History]
     - INV-DOMAIN-002: the current version of an entity is retrievable by a single predictable filter.
 ```
 
-Notice what is *absent*: no data types, no `CREATE`, no index clause, no temporal columns. The temporal columns come from the referenced `temporal-lifecycle-metadata` pattern; the physical index comes from `object-placement` / the platform. Those live in each platform's `implementation/{platform}/modules/domain/`.
+Notice what is *absent*: no data types, no `CREATE`, no index clause, no temporal columns. The temporal columns come from the referenced `temporal-lifecycle-metadata` pattern; the physical index comes from `object-placement` / the platform. Those live in each platform's binding: the templates in `implementation/{platform}/modules/domain/` and the README section that documents them.
 
 ---
 

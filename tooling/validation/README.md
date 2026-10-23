@@ -6,6 +6,16 @@
 
 > **This checks the standards, not a product.** Its rules are corpus rules: module spines, the capability and decision catalogues, frontmatter identity. Pointing it at a product's design specification reports things that are true of a standards document and meaningless for a product artefact. The linter for a design specification written *against* these standards is [`spec_lint`](../evals/), and it checks what a designer actually needs checked: unsettled decisions, unmet hard requirements, unacknowledged invariants, and platform SQL in a brief.
 
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 19 | [Run it](#run-it) | Commands to lint both hierarchies |
+| 37 | [Use it in module unit tests](#use-it-in-module-unit-tests) | Importing the checks into a test |
+| 46 | [What it checks](#what-it-checks) | Every rule, including frontmatter and corpus rules |
+| 79 | [Escape hatch](#escape-hatch) | How a document opts out, and when it may |
+| 102 | [Tests](#tests) | Running the tests, and the two kinds of test |
+<!-- index:end -->
+
 ## Run it
 
 Lint both hierarchies:

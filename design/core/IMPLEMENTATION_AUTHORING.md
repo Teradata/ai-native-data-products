@@ -91,9 +91,9 @@ The modes of adoption (referencing an existing object, wrapping it, or migrating
 
 Each platform directory provides:
 
-- **`README.md`**: supported compositions, deployment order and limitations.
+- **`README.md`**: supported compositions, deployment order and limitations, then **one numbered section per supported module and pattern**, headed with its design anchor, as in ``## 5. Domain module (`domain`)``. Each section maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, lists the build-context fields its templates read, and names the directory its templates are in. The sections are numbered in deployment order: object placement, temporal lifecycle metadata, then Memory, Semantic, Domain, Observability, Search and Prediction, then validation, access layer and physical storage, then any further pattern. The numbers are the same on every binding, because the role files cite them. The README opens with an index, kept by `tooling/catalogue/build_catalogue.py`, giving the line each section starts on, since an agent may read only a file's first 100 lines before deciding where to look.
 - **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults, naming limits, and every **binding setting** the organisation profile may supply, with its permitted values and default.
-- **A directory per supported module and pattern**, mirroring `design/` by anchor. Each maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, and lists the build-context fields its templates read.
+- **A template directory per module and pattern that renders something**, mirroring `design/` by anchor: `modules/{module}/` and `patterns/{pattern}/`. A module or pattern with nothing to render has its README section and no directory. A binding's documentation is that one README: a new module or pattern adds a section, not a file, because the skill ships under a file limit.
 - **Templates** for every deployment, access, maintenance, discovery and validation artefact the binding produces, with ordering and dependencies documented.
 
 Unsupported capabilities, compositions, profile settings and adoption modes are declared explicitly. An absent binding, a skipped check or an unexecuted engine test is never reported as conformance. Support for a minimal composition does not imply support for every module.
@@ -180,7 +180,7 @@ A pull request must not increase any binding's reported gaps. A binding with gap
 
 Pull requests that add or change a binding identify the compositions, profile settings and engine versions they affect, show the portability builds, and report the conformance results and remaining gaps.
 
-The section 8 checks must run in pull-request CI, and branch protection or an equivalent ruleset must make them required before merge. A failed required check blocks merge; missing engine coverage is reported as a gap, never as a successful run. Changes to the checks themselves are reviewed alongside the bindings they affect.
+The section 8 checks must run in pull-request CI, and branch protection or an equivalent ruleset must make them required before merge. A failed required check blocks merge; missing engine coverage is reported as a gap, never as a successful run. Where CI cannot reach an engine, its engine evidence may come from the committed report of a clean live run: CI still regenerates and compares everything else, fails on any engine test that report does not cover, and states that it trusted it. Changes to the checks themselves are reviewed alongside the bindings they affect.
 
 This document specifies the policy; it does not install CI or configure branch protection. Until both exist, maintainers record the checks as manual evidence and describe enforcement as manual. Local checks alone do not prevent a merge.
 

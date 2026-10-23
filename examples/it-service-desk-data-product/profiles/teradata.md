@@ -7,7 +7,7 @@ platform_version: "17.20"
 # Organisation Profile: IT Service Desk example (Teradata)
 
 The organisation profile the IT Service Desk example builds under, written to the
-[Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md). It replaces the
+[Organisation Profile Standard](../../../design/core/ORGANISATION_PROFILE.md). It replaces the
 prose object-placement standard this example used to carry: the eight placement sections
 below are that standard, with each rule stated in a block the build-context resolver
 executes. Validate it with:

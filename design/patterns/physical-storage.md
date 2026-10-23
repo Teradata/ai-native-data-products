@@ -23,7 +23,7 @@ normative: true
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Companion** | [object-placement](object-placement.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | Organisation profiles supplied for a build ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md)), carrying this pattern's sections alongside their object-placement sections. `implementation/{platform}/patterns/physical-storage/` documents how a binding consumes resolved paths; it is not an organisation's implementation. |
+| **Implementations** | Organisation profiles supplied for a build ([Organisation Profile Standard](../core/ORGANISATION_PROFILE.md)), carrying this pattern's sections alongside their object-placement sections. The `physical-storage` section of `implementation/{platform}/README.md` documents how a binding consumes resolved paths; it is not an organisation's implementation. |
 
 This pattern is an **interface specification**: it defines what a conforming physical-storage implementation must **declare** when object storage is the physical layer beneath the logical containers of the [object-placement](object-placement.md) pattern. The physical path is derived deterministically from the logical names: the two patterns are explicitly coupled, and neither is complete without the other when object storage is in use.
 

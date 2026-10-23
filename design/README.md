@@ -6,6 +6,19 @@ Everything here is written in the notation defined by [`core/DESIGN_LANGUAGE.md`
 
 ---
 
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 22 | [Structure](#structure) | What `core/`, `modules/` and `patterns/` each hold |
+| 37 | [Catalogue](#catalogue) | Every design document with its anchor, status, capabilities and decisions (generated) |
+| 81 | [The platform-neutrality test](#the-platform-neutrality-test) | The test for whether text belongs in `design/` |
+| 87 | [Anchor mapping](#anchor-mapping) | From a design anchor to its binding section and templates |
+| 102 | [Normative versus advisory](#normative-versus-advisory) | Which documents are required for conformance |
+| 115 | [Document identity](#document-identity) | The frontmatter every design document carries |
+| 123 | [Relationship to extensions and profiles](#relationship-to-extensions-and-profiles) | How core standards, extensions and profiles map onto this tree |
+| 136 | [Empty directories](#empty-directories) | What a `.gitkeep` means |
+<!-- index:end -->
+
 ## Structure
 
 ```
@@ -77,10 +90,10 @@ Nothing under `design/` may contain a SQL keyword, a vendor data type, a catalog
 
 | Design | Platform implementation |
 |--------|-------------------------|
-| `design/modules/{anchor}.md` | `implementation/{platform}/modules/{anchor}/` |
-| `design/patterns/{anchor}.md` | `implementation/{platform}/patterns/{anchor}/` |
+| `design/modules/{anchor}.md` | the `{anchor}` section of `implementation/{platform}/README.md`; templates in `implementation/{platform}/modules/{anchor}/` |
+| `design/patterns/{anchor}.md` | the `{anchor}` section of `implementation/{platform}/README.md`; templates in `implementation/{platform}/patterns/{anchor}/` |
 
-The implementation side is a **directory** per anchor rather than a single file, because one binding is often more than one artifact: a design document plus one or more templates. Each platform's `implementation/{platform}/README.md` describes what its directories contain, and the [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) defines what every platform must provide.
+Each binding documents every module and pattern in one file, its `README.md`, with a numbered section per anchor headed with the anchor itself, and keeps the templates in a directory per anchor. A module or pattern with nothing to render has a section and no directory. The [Platform Implementation Authoring Standard](core/IMPLEMENTATION_AUTHORING.md) defines what every platform must provide.
 
 `design/core/` has no implementation counterpart: it is architecture-level material with nothing to bind.
 

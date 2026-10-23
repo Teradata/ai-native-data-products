@@ -59,7 +59,7 @@ Native columnar storage in one file. Start unindexed beyond key constraints and 
 
 ## 7. Access boundary
 
-Native roles, grants, view-only access and row isolation are **unsupported**. The process identity governs file and network access. Read-only mode protects writes, not confidentiality. An authenticated serving application must authorise queries, control external access, bound append rights and protect private Memory; direct-file clients see everything. See [Access Layer](patterns/access-layer/README.md) and DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview).
+Native roles, grants, view-only access and row isolation are **unsupported**. The process identity governs file and network access. Read-only mode protects writes, not confidentiality. An authenticated serving application must authorise queries, control external access, bound append rights and protect private Memory; direct-file clients see everything. See [Access Layer](README.md#10-access-layer-pattern-access-layer) and DuckDB's [security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview).
 
 ## 8. Extensions
 

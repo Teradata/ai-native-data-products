@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Domain / Subject data module: authoritative business entities |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | `implementation/{platform}/modules/domain/`, one per platform |
+| **Implementations** | `implementation/{platform}/README.md`, the `domain` section, with templates in `implementation/{platform}/` (the README's `domain` section and the templates in `modules/domain/`); one per platform |
 
 This document defines **what** a Domain module must be and **why**, in platform-neutral terms. **How** a specific platform realises it lives in that platform's implementation directory. Every capability named here has a binding there; every invariant named here has a check there.
 
@@ -397,7 +397,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 11. Implementation
 
-Each platform binding provides concrete table and view templates, the capability binding table, and the invariant checks, in `implementation/{platform}/modules/domain/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
+Each platform binding provides concrete table and view templates, the capability binding table, and the invariant checks, in `implementation/{platform}/` (the README's `domain` section and the templates in `modules/domain/`), and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

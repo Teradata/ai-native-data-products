@@ -13,15 +13,17 @@ and invariant the design declares.
    idioms that are correct on other platforms, so nothing about them looks wrong on the way
    past.
 2. **`design/core/MASTER_DESIGN.md` §10** - the deployment sequence and its phases.
-3. **`implementation/{platform}/modules/{module}/`** - one per module, as you reach it. Each
-   directory's `README.md` carries the capability→binding table, the logical-type bindings,
-   and the invariant→check mapping. The `.sql.j2` files are templates over the build context;
-   `tooling/bindings/render.py` renders them from the approved specification and the
-   organisation profile, in the order the binding's `Phases` declare.
-4. **`implementation/{platform}/patterns/{pattern}/`** - one per pattern the design applies.
+3. **`implementation/{platform}/README.md`** - one numbered section per module and pattern,
+   in deployment order: modules §3 to §8, patterns §1, §2 and §9 onwards. Read each section as
+   you reach it. It carries the capability→binding table, the logical-type bindings and the
+   invariant→check mapping, and names the directory its templates are in
+   (`implementation/{platform}/modules/{module}/`, `implementation/{platform}/patterns/{pattern}/`).
+   The `.sql.j2` files are templates over the build context; `tooling/bindings/render.py`
+   renders them from the approved specification and the organisation profile, in the order
+   the binding's `Phases` declare.
 
 `design/modules/{module}.md` when you need to know *why* a binding exists. The design
-document owns what and why; the implementation directory owns how.
+document owns what and why; the binding owns how.
 
 `{platform}` is the target chosen for this build. The design specification does not choose it;
 ask if it has not been given.

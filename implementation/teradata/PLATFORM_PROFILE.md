@@ -47,7 +47,7 @@ PRIMARY INDEX (party_id, transaction_dts)
 PARTITION BY RANGE_N(transaction_dts BETWEEN DATE '2020-01-01' AND DATE '2030-12-31' EACH INTERVAL '1' MONTH);
 ```
 
-Note: the [shared macros](patterns/temporal-lifecycle-metadata/) give a versioned table a NUPI on its version columns, so every version of an identity sits on one AMP, with a unique constraint on the version columns plus the interval starts; a keymap a UPI on its natural key, which its allocating `MERGE` matches on; and anything else a UPI on its key.
+Note: the [shared macros](README.md#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) give a versioned table a NUPI on its version columns, so every version of an identity sits on one AMP, with a unique constraint on the version columns plus the interval starts; a keymap a UPI on its natural key, which its allocating `MERGE` matches on; and anything else a UPI on its key.
 
 ---
 
@@ -148,7 +148,7 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 
 | Construct | What happens | Use instead |
 |---|---|---|
-| Zone-qualified `TIMESTAMP` literal in a `CREATE TABLE` `DEFAULT` clause | No error. The driver hangs in its parse phase and the session times out after minutes. | Set the value at INSERT time. This is why the open-end sentinel is never a `DEFAULT` (see the [temporal-lifecycle binding](patterns/temporal-lifecycle-metadata/)). |
+| Zone-qualified `TIMESTAMP` literal in a `CREATE TABLE` `DEFAULT` clause | No error. The driver hangs in its parse phase and the session times out after minutes. | Set the value at INSERT time. This is why the open-end sentinel is never a `DEFAULT` (see the [temporal-lifecycle binding](README.md#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata)). |
 | `COMMENT ON` text longer than **255 characters** (any object type) | `[5550] Comment string is longer than permitted` | Keep the comment to 255 characters. The limit is characters, not bytes: `DBC` stores comments as `VARCHAR(510) CHARACTER SET UNICODE`, and `DBC.ColumnsV.ColumnLength` reports UNICODE widths in bytes at two per character (`DatabaseName`, a `VARCHAR(128)`, reports 256). An em dash or a curly quote therefore costs one character, not three, so the UNICODE prose these standards ask for is not penalised. For roles specifically the [access-layer pattern](../../design/patterns/access-layer.md) caps it far lower: one short sentence naming who the role is for, never what it can reach. |
 | `CREATE INDEX name ON table (cols)` | `[3706] Must specify index field(s) for CREATE INDEX` | `CREATE INDEX name (cols) ON table` |
 | `WHERE` predicate on `CREATE INDEX` | Syntax error: Teradata has no filtered/partial indexes | Index all rows; filter at query time |
@@ -164,7 +164,7 @@ Generators trained on the wider SQL corpus reach for SQL Server and PostgreSQL i
 | An aggregate referencing another aggregate's result | `[3568] Cannot nest aggregate operations` | Wrap the inner aggregation in a derived table and filter in the outer query's `WHERE`. |
 | `DBC.AllRightsV` filtered on `Grantee` | `[5628] Column Grantee not found` | The columns are `UserName` (who holds the right) and `GrantorName` (who granted it). |
 | `DBC.DatabasePrivilegesV` | `[3807] Object does not exist` | Use `DBC.AllRightsV` throughout; database-level rights carry an empty `TableName`. |
-| Non-ASCII characters in a string literal | `[6706] The string contains an untranslatable character` | Columns default to `CHARACTER SET LATIN`. Declare `CHARACTER SET UNICODE` on text columns that hold prose; see the [Memory binding](modules/memory/). |
+| Non-ASCII characters in a string literal | `[6706] The string contains an untranslatable character` | Columns default to `CHARACTER SET LATIN`. Declare `CHARACTER SET UNICODE` on text columns that hold prose; see the [Memory binding](README.md#3-memory-module-memory). |
 | `:identifier` inside a stored SQL string | `InvalidRequestError: A value is required for bind parameter` | The MCP driver's SQLAlchemy layer intercepts `:word` as a named bind parameter before the SQL reaches the database. Stored templates use `<param_name>`; the same applies to an unquoted `:true` or `:1` inside JSON. |
 
 The last row has a boundary worth keeping straight: `:param` is correct for a **runtime** bind parameter in maintenance DML a pipeline executes, and wrong for a parameter placeholder **stored inside a string literal**, such as a cookbook template. The driver cannot tell the two apart; you can.
@@ -178,7 +178,7 @@ A producer writes a vector as:
 - **from outside the database**: `numpy.asarray(v, dtype="<f8").tobytes()`, or `struct.pack(f"<{n}d", *v)`, bound as a `VARBYTE` parameter;
 - **from an in-database embedding function**: converted to 8-byte floats first. `mldb.ONNXEmbeddings` with `OutputFormat('VARBYTE(n × 4)')` writes 4-byte floats, which is not this encoding; whether it can write 8-byte floats has not been tested here.
 
-Similarity is a stored procedure per `Embedding:` block, called as `CALL <procedure>(query_vector, result_limit)`, with the query vector in the same encoding. It returns one result set of `(entity_id, similarity)`; see the [Search binding](modules/search/README.md).
+Similarity is a stored procedure per `Embedding:` block, called as `CALL <procedure>(query_vector, result_limit)`, with the query vector in the same encoding. It returns one result set of `(entity_id, similarity)`; see the [Search binding](README.md#7-search-module-search).
 
 ---
 
@@ -317,6 +317,6 @@ Functions: -
 
 ## Related
 
-- Time-zone / UTC persistence and the SCD2 sentinel: [temporal-lifecycle implementation](patterns/temporal-lifecycle-metadata/).
-- Databases and their space: [object-placement implementation](patterns/object-placement/); naming and separation are the organisation profile's.
-- Physical storage: [physical-storage implementation](patterns/physical-storage/). Object storage is not rendered.
+- Time-zone / UTC persistence and the SCD2 sentinel: [temporal-lifecycle implementation](README.md#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata).
+- Databases and their space: [object-placement implementation](README.md#1-object-placement-pattern-object-placement); naming and separation are the organisation profile's.
+- Physical storage: [physical-storage implementation](README.md#11-physical-storage-pattern-physical-storage). Object storage is not rendered.

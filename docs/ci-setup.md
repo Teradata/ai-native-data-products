@@ -20,13 +20,34 @@ One job, `validate`, on every pull request and every push to `main`:
 5. Fails if any test anywhere reports a skip. A missing engine is a gap, never a pass.
 
 The Teradata tests are the only ones that need something outside the runner: a Teradata system,
-named by the `TERADATA_TEST_DSN` secret. **Until that secret exists, every run fails** on the
-skipped Teradata tests. That is deliberate (Platform Implementation Authoring Standard §9).
+named by the `TERADATA_TEST_DSN` secret. Until that secret exists, CI runs without Teradata, as
+described next.
 
-> **Known red before you start.** Two `test_binding_package` tests fail today on the Teradata
-> graph-lineage and catalogue-interface templates, which are waiting on the port-or-retire
-> decision (`REMAINING_WORK.md`, task 1a). CI cannot go green until that is settled, however the
-> rest of this guide goes.
+## Without a Teradata system
+
+There is no permanent Teradata system for CI yet. With `TERADATA_TEST_DSN` unset, the workflow
+passes `--trust-committed teradata` to `conformance.py`:
+
+- The Teradata engine tests skip, as before. Their outcomes come from the live run that the
+  committed `implementation/teradata/CONFORMANCE.md` records, and the log says so in one line
+  naming the engine version of that run.
+- The committed report is trusted only if it records a clean live run: an engine version on its
+  `Engine evidence:` line and every engine test passing. Otherwise the run fails as before.
+- Everything else in the Teradata report is still regenerated and compared: the rendering,
+  dialect and package tests, and every gap. An engine test the committed report does not carry,
+  such as a new one, still fails the run, so it needs a new live run.
+- DuckDB and PostgreSQL run in CI as always, and any skip of theirs fails the run.
+
+**This trusts whoever ran the tests.** A pull request that changes the Teradata binding or its
+tests must carry a Teradata report regenerated from a live run against the change. Run it with
+the DSN set and commit the report:
+
+```bash
+TERADATA_TEST_DSN='{"host": "<host>", "user": "<user>", "password": "<password>"}'   python tooling/bindings/conformance.py --platform teradata
+```
+
+Reviewers check that the report's diff matches the change. Once a permanent system exists and the
+secret is set (steps 1 to 4), the flag is no longer passed and every run is a live run again.
 
 ## 1. Choose a Teradata system for CI
 
@@ -116,9 +137,9 @@ Optional keys: `"request_timeout"`, in seconds, after which one request fails ra
 waits. The test driver defaults it to 600, so a lost network response fails the run instead of
 hanging it until the job's 60-minute timeout.
 
-**Pull requests from forks get no secrets.** On those, the Teradata tests skip and the check
-fails. Either have contributors work on branches of this repository, or have a maintainer re-run
-the check on a branch of their own before merging.
+**Pull requests from forks get no secrets.** On those, the Teradata engine outcomes come from
+the committed report, as [without a system](#without-a-teradata-system). A maintainer should
+re-run the check on a branch of this repository before merging a change to the Teradata binding.
 
 ## 5. First green run
 
@@ -160,5 +181,5 @@ Standard (§9) asks maintainers to describe enforcement as manual until it is.
   the repository names the system.
 - **Locally without Teradata**, the suite still runs: the Teradata engine tests skip and the
   run reports it. `conformance.py` without `--check` regenerates the reports, and without every
-  engine it writes reports showing the skips, so commit reports from CI rather than from a
-  partial local run.
+  engine it writes reports showing the skips, so commit DuckDB and PostgreSQL reports from CI
+  and the Teradata report from a live run, never from a partial local run.

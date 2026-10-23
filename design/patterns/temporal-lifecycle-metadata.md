@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Every persisted table in every module: temporal and lifecycle metadata |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | `implementation/{platform}/patterns/temporal-lifecycle-metadata/`, one per platform |
+| **Implementations** | `implementation/{platform}/README.md`, the `temporal-lifecycle-metadata` section, with templates in `implementation/{platform}/` (the README's `temporal-lifecycle-metadata` section and the templates in `patterns/temporal-lifecycle-metadata/`); one per platform |
 
 This pattern defines **semantic contracts only**: the canonical names and meanings of temporal and lifecycle metadata. It contains no platform types, sentinel literals, or catalogue queries; those bind in the implementation. It underpins the `CurrentStateFilter` and `PointInTimeReconstruction` capabilities, and its conformance rules are lifted directly by the [validation pattern](validation.md).
 
@@ -264,7 +264,7 @@ Lifted directly into validator profiles by the [validation pattern](validation.m
 - **[Object-placement pattern](object-placement.md)**: layer *naming* is owned by object placement; defines layer *responsibilities* only.
 - **[Access-layer pattern](access-layer.md)**: realises the surfaces as concrete access objects.
 - **[Semantic module](../modules/semantic.md)**: its entity metadata carries the profile declaration; its own catalogue tables follow the current-state or SCD2 profile.
-- **Implementation**: each platform binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in `implementation/{platform}/patterns/temporal-lifecycle-metadata/` and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
+- **Implementation**: each platform binding (types, sentinel, flag representation, DDL/DML templates, access views, catalogue conformance queries) lives in `implementation/{platform}/` (the README's `temporal-lifecycle-metadata` section and the templates in `patterns/temporal-lifecycle-metadata/`) and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md).
 
 ---
 

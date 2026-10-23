@@ -4,6 +4,21 @@ A modular library of data design patterns for building **AI-Native Data Products
 
 ---
 
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 22 | [The design / implementation split](#the-design--implementation-split) | What `design/` and `implementation/` each hold, and the rule between them |
+| 57 | [As an agent skill](#as-an-agent-skill) | Installing the repository as a skill, the ZIP and the file limit, the four roles and their starters, verifying the package |
+| 100 | [Compositions: one library, many patterns](#compositions-one-library-many-patterns) | How modules compose by what they provide and require |
+| 115 | [The six modules](#the-six-modules) | Domain, Search, Prediction, Observability, Semantic, Memory: one line each |
+| 128 | [The five patterns](#the-five-patterns) | The cross-cutting patterns modules apply |
+| 142 | [Deployment order](#deployment-order) | Which module deploys first, and why that differs from design order |
+| 156 | [Tooling](#tooling) | The linters, catalogue, skill check and binding tools, with their commands |
+| 190 | [Key principles](#key-principles) | The principles the standards hold to |
+| 201 | [Learn More](#learn-more) | Blogs and further reading |
+| 215 | [License](#license) | Licence and authorship |
+<!-- index:end -->
+
 ## The design / implementation split
 
 The framework is split along one boundary:
@@ -23,7 +38,7 @@ ai-native-data-products/
 │   └── patterns/               temporal-lifecycle-metadata · object-placement ·
 │                               physical-storage · validation · access-layer
 ├── implementation/
-│   ├── teradata/               PLATFORM_PROFILE + modules/ and patterns/ bindings
+│   ├── teradata/               README (one section per module and pattern), PLATFORM_PROFILE, templates
 │   ├── duckdb/                 reusable Jinja bindings for a portable file engine
 │   └── postgres/               reusable Jinja bindings, native grants and history constraints
 ├── tooling/
@@ -55,6 +70,11 @@ git clone https://github.com/Teradata/ai-native-data-products.git ~/.claude/skil
 Downloading the ZIP works too, with one wrinkle: GitHub nests the archive under
 `ai-native-data-products-<branch>/`, so rename the extracted directory rather than leaving
 the branch name in place.
+
+The ZIP is the package. `.gitattributes` keeps out what an agent never reads (the tests,
+CI configuration, `docs/` and the work log), which is what keeps the skill under the
+200-file limit an upload enforces. A clone carries everything, so where a file limit
+applies, install from the ZIP or `git archive HEAD`.
 
 | Role | Reads | Starter |
 |------|-------|---------|

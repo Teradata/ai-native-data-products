@@ -22,7 +22,7 @@ normative: true
 | **Scope** | Prediction module: the feature store: engineered features, model outputs, point-in-time training data |
 | **Extends** | [Master Design](../core/MASTER_DESIGN.md) |
 | **Notation** | [Design Language](../core/DESIGN_LANGUAGE.md) |
-| **Implementations** | `implementation/{platform}/modules/prediction/`, one per platform |
+| **Implementations** | `implementation/{platform}/README.md`, the `prediction` section, with templates in `implementation/{platform}/` (the README's `prediction` section and the templates in `modules/prediction/`); one per platform |
 
 Prediction is the feature store. Like Search, it is an **enhancement** module that hard-depends on Domain: it references Domain entities and joins back for raw context.
 
@@ -282,7 +282,7 @@ Every settled decision is recorded as part of designing the product: see *Captur
 
 ## 10. Implementation
 
-Each platform binding provides the wide and tall feature tables, the prediction table, the current, enriched, and point-in-time views, and the invariant checks, in `implementation/{platform}/modules/prediction/`, and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
+Each platform binding provides the wide and tall feature tables, the prediction table, the current, enriched, and point-in-time views, and the invariant checks, in `implementation/{platform}/` (the README's `prediction` section and the templates in `modules/prediction/`), and conforms to the [Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md). Adding a platform changes nothing in this document.
 
 ---
 

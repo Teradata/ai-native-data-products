@@ -17,6 +17,12 @@ never add a gap unseen (§8.1). Engine-version lines are compared loosely, as th
 where the tests ran. The exit code is also 1 when any test failed, errored or was skipped:
 a skipped engine is a gap, never a pass.
 
+`--trust-committed PLATFORM`, with `--check`, is for an engine CI cannot reach. Where that
+binding's engine tests skip, the outcomes come from the live run its committed report records,
+provided that run was clean, and the output says so. Everything else in the report is still
+regenerated and compared, and an engine test the committed report does not carry still fails
+the run, so a new engine test needs a new live run and a committed report from it.
+
 The engine tests need their drivers and connections (see tooling/bindings/README.md); a
 report generated without them says so.
 """
@@ -232,6 +238,39 @@ def report(platform, result, title):
     return "\n".join(lines).rstrip() + "\n"
 
 
+def committed_engine(text):
+    """The live run a committed report records: its engine line and its passing engine tests,
+    by label. None when the report records no engine run, or an engine test that did not pass,
+    since only a clean live run can stand in for one that could not happen here."""
+    line = next((l for l in text.splitlines() if l.startswith(ENGINE_LINE)), "")
+    version = line[len(ENGINE_LINE):].strip().rstrip(".")
+    if not version or version.startswith("none"):
+        return None
+    body = text.split("### Engine behaviour", 1)[-1].split("\n### ", 1)[0] if "### Engine behaviour" in text else ""
+    rows = dict(re.findall(r"^\| (.+) \| (\w+) \|$", body, re.M))
+    rows.pop("Test", None)
+    if not rows or any(status != "pass" for status in rows.values()):
+        return None
+    return version, rows
+
+
+def trust(result, platform, committed):
+    """Stand the committed report's live run in for engine tests that skipped here: each
+    skipped engine test of this binding the committed report shows passing becomes a pass, and
+    the engine line is the committed one. An engine test the committed report does not carry
+    stays skipped, so a new test still needs a new live run. Returns how many were trusted."""
+    version, rows = committed
+    trusted = 0
+    for (cls, method), slot in result.outcomes.items():
+        status = slot.get(platform, (None,))[0]
+        if status == "skip" and rows.get(_cell(result.labels[(cls, method)])) == "pass":
+            slot[platform] = ("pass", None)
+            trusted += 1
+    if trusted:
+        result.versions[platform] = version
+    return trusted
+
+
 def gap_rows(text):
     """The gap table rows of a report."""
     body = text.split("## Gaps reported by the builds", 1)[-1].split("## Evidence", 1)[0]
@@ -248,10 +287,27 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail if a committed report differs")
     parser.add_argument("--output", type=Path, help="write the reports under this directory instead")
     parser.add_argument("--platform", action="append", help="report only this binding (repeatable)")
+    parser.add_argument("--trust-committed", action="append", default=[], metavar="PLATFORM",
+                        help="with --check: where this binding's engine tests cannot run here, take "
+                             "their outcomes from the committed report's live run (repeatable)")
     args = parser.parse_args()
     result = run_tests(sys.stdout)
     titles = {"postgres": "PostgreSQL", "duckdb": "DuckDB", "teradata": "Teradata"}
-    failed = bool(result.failures or result.errors or result.skipped)
+    trusted = set()
+    for platform in args.trust_committed if args.check else []:
+        committed = REPO / "implementation" / platform / "CONFORMANCE.md"
+        run = committed_engine(committed.read_text(encoding="utf-8")) if committed.is_file() else None
+        if run is None:
+            print(f"conformance: {platform}: the committed report records no clean live run to trust",
+                  file=sys.stderr)
+            continue
+        count = trust(result, platform, run)
+        trusted.add(platform)
+        print(f"conformance: {platform}: its engine tests did not run here. {count} engine outcomes are "
+              f"taken from the committed report's live run ({run[0]}), not from this run.")
+    skipped = [t for t, _ in result.skipped if getattr(type(t), "platform", None) not in trusted
+               or result.outcomes[(type(t).__name__, t._testMethodName)].get(type(t).platform, ("skip",))[0] == "skip"]
+    failed = bool(result.failures or result.errors or skipped)
     for platform in args.platform or platforms():
         text = report(platform, result, titles.get(platform, platform))
         committed = REPO / "implementation" / platform / "CONFORMANCE.md"
