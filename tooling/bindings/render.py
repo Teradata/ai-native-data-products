@@ -19,6 +19,7 @@ sys.path.insert(0, str(REPO / "tooling" / "build"))
 
 import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
+from dialect import dialect_class  # noqa: E402
 
 RESERVED = ("config", "design", "implementation", "examples", "roles", "tooling")
 
@@ -105,27 +106,40 @@ def gaps(context):
     return out
 
 
-def render_context(context):
+def render_context(context, jinja_only=False):
     """Every file the binding renders for a resolved context: its phases, deploy script and
-    manifest. A phase whose template renders nothing for this composition emits no file."""
+    manifest. A phase that renders nothing for this composition emits no file. Each phase and
+    check comes from the platform's dialect, or from its template where the dialect has no
+    method for it yet; `jinja_only` renders every one from its template, to compare the two."""
     binding, findings = load_binding(context["platform"]["name"])
     if findings:
         raise RenderError("; ".join(str(f) for f in findings))
     if not binding.phases:
         raise RenderError(f"the {binding.platform} binding declares no Phases")
     env = environment(binding, context)
+    dialect = None if jinja_only else dialect_class(binding.platform)(binding, context)
 
     def render(template, **extra):
         return _tidy(env.get_template(template).render(**dict(context, **extra)))
 
+    def phase(name, template):
+        sql = dialect.phase(re.sub(r"^\d+-|\.sql$", "", name)) if dialect else None
+        return render(template) if sql is None else _tidy(sql)
+
+    def check(key, template, **item):
+        scope, name = key.split(" ", 1)
+        sql = dialect.check(scope, name, **item) if dialect else None
+        return render(template, **item) if sql is None else _tidy(sql)
+
     files, phases = {}, []
     for name, template in binding.phases.items():
-        sql = render(template)
+        sql = phase(name, template)
         if sql:
             files[name] = sql + "\n"
             phases.append({"file": name, "sql": sql})
     if binding.deploy:
-        files["deploy.sql"] = render(binding.deploy, phases=phases) + "\n"
+        deploy = getattr(dialect, "deploy", None) if dialect else None
+        files["deploy.sql"] = (_tidy(deploy(phases)) if deploy else render(binding.deploy, phases=phases)) + "\n"
 
     checks, counters = [], {}
 
@@ -140,16 +154,16 @@ def render_context(context):
         scope, name = key.split(" ", 1)
         if scope == "entity":
             for x in persisted(context):
-                add(name, "ENTITY", x["name"], x["module"], render(template, entity=x))
+                add(name, "ENTITY", x["name"], x["module"], check(key, template, entity=x))
         elif scope == "relationship":
             for r in context["relationships"]:
-                add(name, "ENTITY", r["source"], r["source_module"], render(template, relationship=r))
+                add(name, "ENTITY", r["source"], r["source_module"], check(key, template, relationship=r))
         elif scope == "module" and name in context["modules"]:
-            add("module", "MODULE", name, name, render(template, module=name))
+            add("module", "MODULE", name, name, check(key, template, module=name))
         elif scope == "contract" and "semantic" in context["modules"]:
-            add(f"contract-{name}", "MODULE", "semantic", "semantic", render(template))
+            add(f"contract-{name}", "MODULE", "semantic", "semantic", check(key, template))
         elif scope == "product":
-            add(name, "PRODUCT", context["product"]["code"], None, render(template))
+            add(name, "PRODUCT", context["product"]["code"], None, check(key, template))
 
     def placed(name):
         x = next((x for x in context["relations"] if x["name"] == name), None)
