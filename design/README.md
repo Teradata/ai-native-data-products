@@ -6,6 +6,19 @@ Everything here is written in the notation defined by [`core/DESIGN_LANGUAGE.md`
 
 ---
 
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 22 | [Structure](#structure) | What `core/`, `modules/` and `patterns/` each hold |
+| 37 | [Catalogue](#catalogue) | Every design document with its anchor, status, capabilities and decisions (generated) |
+| 81 | [The platform-neutrality test](#the-platform-neutrality-test) | The test for whether text belongs in `design/` |
+| 87 | [Anchor mapping](#anchor-mapping) | From a design anchor to its binding section and templates |
+| 102 | [Normative versus advisory](#normative-versus-advisory) | Which documents are required for conformance |
+| 115 | [Document identity](#document-identity) | The frontmatter every design document carries |
+| 123 | [Relationship to extensions and profiles](#relationship-to-extensions-and-profiles) | How core standards, extensions and profiles map onto this tree |
+| 136 | [Empty directories](#empty-directories) | What a `.gitkeep` means |
+<!-- index:end -->
+
 ## Structure
 
 ```

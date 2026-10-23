@@ -8,21 +8,26 @@ A build has three inputs: a **design specification** (the product, platform-agno
 
 The templates read only the build context, and derive no names: every container, object, column and principal name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below, one per module and pattern in deployment order. Each says what its templates emit and which build-context fields they read, and names the directory its templates are in.
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below: one per module and pattern, in deployment order, each saying what its templates emit, which build-context fields they read and where its templates are. The index gives the line each section starts on.
 
-| § | Section | Templates |
-|---|---|---|
-| 1 | [Object Placement pattern](#1-object-placement-pattern-object-placement) | Schemas and the `btree_gist` extension |
-| 2 | [Temporal Lifecycle Metadata pattern](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, consumer views, point-in-time functions, caller-rendered maintenance |
-| 3 | [Memory module](#3-memory-module-memory) | Tables; design-memory capture |
-| 4 | [Semantic module](#4-semantic-module-semantic) | Tables; registration; discovery views; the metadata-contract checks |
-| 5 | [Domain module](#5-domain-module-domain) | Tables; key allocation |
-| 6 | [Observability module](#6-observability-module-observability) | Tables |
-| 7 | [Search module](#7-search-module-search) | Tables; similarity functions |
-| 8 | [Prediction module](#8-prediction-module-prediction) | Tables |
-| 9 | [Validation pattern](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
-| 10 | [Access Layer pattern](#10-access-layer-pattern-access-layer) | Roles, grants and row-level security |
-| 11 | [Physical Storage pattern](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 32 | [Render, deploy and validate](#render-deploy-and-validate) | Rendering the worked example, deploying it, running the validator; what the renderer writes |
+| 54 | [Verification](#verification) | The test and lint commands for this binding |
+| 66 | [1. Object Placement pattern (`object-placement`)](#1-object-placement-pattern-object-placement) | Schemas and the `btree_gist` extension |
+| 84 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, consumer views, point-in-time functions, caller-rendered maintenance |
+| 127 | [3. Memory module (`memory`)](#3-memory-module-memory) | Tables; design-memory capture |
+| 172 | [4. Semantic module (`semantic`)](#4-semantic-module-semantic) | Tables; registration; discovery views; the metadata-contract checks |
+| 231 | [5. Domain module (`domain`)](#5-domain-module-domain) | Tables; key allocation |
+| 275 | [6. Observability module (`observability`)](#6-observability-module-observability) | Tables |
+| 312 | [7. Search module (`search`)](#7-search-module-search) | Tables; similarity functions |
+| 353 | [8. Prediction module (`prediction`)](#8-prediction-module-prediction) | Tables |
+| 385 | [9. Validation pattern (`validation`)](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
+| 427 | [10. Access Layer pattern (`access-layer`)](#10-access-layer-pattern-access-layer) | Roles, grants and row-level security |
+| 456 | [11. Physical Storage pattern (`physical-storage`)](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
+| 466 | [Catalogue](#catalogue) | The binding's design documents (generated) |
+<!-- index:end -->
 
 ## Render, deploy and validate
 

@@ -10,21 +10,26 @@ The templates read only the build context, and derive no names: every container,
 
 DuckDB has no principals. The binding declares `Principals: unsupported`, so the organisation profile declares each access tier as `outside <how it is enforced>`, the resolver rejects a tier the profile says to `create` or bind to an `existing` principal, and there is no grants template and no access phase.
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below, one per module and pattern in deployment order. Each says what its templates emit and which build-context fields they read, and names the directory its templates are in.
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below: one per module and pattern, in deployment order, each saying what its templates emit, which build-context fields they read and where its templates are. The index gives the line each section starts on.
 
-| § | Section | Templates |
-|---|---|---|
-| 1 | [Object Placement pattern](#1-object-placement-pattern-object-placement) | Schemas |
-| 2 | [Temporal Lifecycle Metadata pattern](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, consumer views, point-in-time table macros, caller-rendered maintenance |
-| 3 | [Memory module](#3-memory-module-memory) | Sequences and tables; design-memory capture |
-| 4 | [Semantic module](#4-semantic-module-semantic) | Sequences and tables; registration; discovery views; the metadata-contract checks |
-| 5 | [Domain module](#5-domain-module-domain) | Sequences and tables; key allocation |
-| 6 | [Observability module](#6-observability-module-observability) | Sequences and tables |
-| 7 | [Search module](#7-search-module-search) | Sequences and tables; similarity macros |
-| 8 | [Prediction module](#8-prediction-module-prediction) | Sequences and tables |
-| 9 | [Validation pattern](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
-| 10 | [Access Layer pattern](#10-access-layer-pattern-access-layer) | None: the access boundary is outside the engine |
-| 11 | [Physical Storage pattern](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 34 | [Render, deploy and validate](#render-deploy-and-validate) | Rendering the worked example, deploying it, running the validator; what the renderer writes |
+| 60 | [Verification](#verification) | The test and lint commands for this binding |
+| 72 | [1. Object Placement pattern (`object-placement`)](#1-object-placement-pattern-object-placement) | Schemas |
+| 90 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, consumer views, point-in-time table macros, caller-rendered maintenance |
+| 135 | [3. Memory module (`memory`)](#3-memory-module-memory) | Sequences and tables; design-memory capture |
+| 180 | [4. Semantic module (`semantic`)](#4-semantic-module-semantic) | Sequences and tables; registration; discovery views; the metadata-contract checks |
+| 239 | [5. Domain module (`domain`)](#5-domain-module-domain) | Sequences and tables; key allocation |
+| 283 | [6. Observability module (`observability`)](#6-observability-module-observability) | Sequences and tables |
+| 320 | [7. Search module (`search`)](#7-search-module-search) | Sequences and tables; similarity macros |
+| 361 | [8. Prediction module (`prediction`)](#8-prediction-module-prediction) | Sequences and tables |
+| 393 | [9. Validation pattern (`validation`)](#9-validation-pattern-validation) | Metadata, temporal, reference and comment-coverage checks; the trust-map view |
+| 435 | [10. Access Layer pattern (`access-layer`)](#10-access-layer-pattern-access-layer) | None: the access boundary is outside the engine |
+| 456 | [11. Physical Storage pattern (`physical-storage`)](#11-physical-storage-pattern-physical-storage) | None: object storage is not rendered |
+| 468 | [Catalogue](#catalogue) | The binding's design documents (generated) |
+<!-- index:end -->
 
 ## Render, deploy and validate
 

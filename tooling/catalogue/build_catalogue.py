@@ -10,7 +10,18 @@ tables into the hierarchy READMEs, between marker comments:
     <!-- catalogue:end -->
 
 Nothing between the markers is hand-maintained. Adding a module or a pattern means
-adding a document; the catalogue follows. Run:
+adding a document; the catalogue follows.
+
+It also keeps an index near the top of every README longer than 100 lines, between
+
+    <!-- index:start -->
+    <!-- index:end -->
+
+An agent may read only a file's first 100 lines before deciding whether to read on, so the
+index names every `##` section with the line it starts on. The rows and line numbers are
+generated; each row's "Covers" cell is written by hand and kept across regenerations (a new
+row starts with the section's `###` headings). A long README without an index, or one whose
+index ends past line 100, fails. Run:
 
     python tooling/catalogue/build_catalogue.py          # rewrite in place
     python tooling/catalogue/build_catalogue.py --check  # fail if out of date
@@ -22,6 +33,7 @@ Stdlib only, like the linter it sits beside.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -38,6 +50,10 @@ from design_lint import (  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[2]
 START = "<!-- catalogue:start -->"
 END = "<!-- catalogue:end -->"
+INDEX_START = "<!-- index:start -->"
+INDEX_END = "<!-- index:end -->"
+INDEX_LIMIT = 100  # the lines an agent reads before deciding where to look
+SKIP_DIRS = {".git", "build", "__pycache__", "node_modules"}
 
 TYPE_HEADINGS = [
     ("core", "Core"),
@@ -121,20 +137,63 @@ def render(docs: List[Tuple[Path, dict]], relative_to: Path) -> str:
     return "\n\n".join(blocks)
 
 
-def inject(readme: Path, body: str, check: bool) -> bool:
-    """Replace the marked region. Returns True when the file is (or would be) changed."""
-    text = readme.read_text(encoding="utf-8")
+def inject(readme: Path, text: str, body: str) -> str:
+    """The text with its catalogue region replaced."""
     if START not in text or END not in text:
         print(f"warning: no catalogue markers in {readme}", file=sys.stderr)
-        return False
+        return text
     head, _, rest = text.partition(START)
     _, _, tail = rest.partition(END)
-    updated = f"{head}{START}\n\n{body}\n\n{END}{tail}"
-    if updated == text:
-        return False
-    if not check:
-        readme.write_text(updated, encoding="utf-8", newline="")
-    return True
+    return f"{head}{START}\n\n{body}\n\n{END}{tail}"
+
+
+def _slug(heading: str) -> str:
+    """The anchor GitHub gives a heading."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+
+
+def _sections(lines: List[str]) -> List[Tuple[int, str, List[str]]]:
+    """Each `##` heading outside code fences: its 0-based line, its text and its `###` headings."""
+    found, fenced = [], False
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and line.startswith("## "):
+            found.append((i, line[3:].strip(), []))
+        elif not fenced and line.startswith("### ") and found:
+            found[-1][2].append(line[4:].strip())
+    return found
+
+
+def index(readme: Path, text: str) -> Tuple[str, List[str]]:
+    """The text with its index regenerated, and what is wrong that regeneration cannot fix.
+    The index lists the `##` sections after it, each with the line it starts on."""
+    where = readme.relative_to(REPO_ROOT).as_posix()
+    if INDEX_START not in text or INDEX_END not in text:
+        if len(text.splitlines()) > INDEX_LIMIT:
+            return text, [f"{where} is longer than {INDEX_LIMIT} lines and has no index; add "
+                          f"{INDEX_START} and {INDEX_END} after its introduction"]
+        return text, []
+    head, _, rest = text.partition(INDEX_START)
+    old, _, tail = rest.partition(INDEX_END)
+    covers = dict(re.findall(r"^\| \d+ \| \[.*\]\(#([^)]+)\) \| (.*) \|$", old, re.M))
+    sections = _sections(tail.split("\n"))
+
+    def block(numbers):
+        rows = ["| Line | Section | Covers |", "|---:|---|---|"]
+        for n, (_, title, subs) in zip(numbers, sections):
+            label = title.replace("|", "\\|")
+            rows.append(f"| {n} | [{label}](#{_slug(title)}) | {covers.get(_slug(title), ' · '.join(subs))} |")
+        return f"{head}{INDEX_START}\n" + "\n".join(rows) + f"\n{INDEX_END}"
+
+    # The rows' count fixes where everything after the index lands, so one draft gives the lines.
+    first = block([0] * len(sections)).count("\n")
+    updated = block([first + i + 1 for i, _, _ in sections]) + tail
+    problems = []
+    end = updated.split(INDEX_END)[0].count("\n") + 1
+    if end > INDEX_LIMIT:
+        problems.append(f"{where}: its index ends on line {end}, past line {INDEX_LIMIT}")
+    return updated, problems
 
 
 def main(argv: List[str]) -> int:
@@ -146,16 +205,29 @@ def main(argv: List[str]) -> int:
     targets.extend((platform / "README.md", collect([platform]), platform)
                    for platform in sorted(implementation.iterdir()) if platform.is_dir())
 
-    stale = []
-    for readme, docs, base in targets:
-        if not readme.exists():
-            continue
-        if inject(readme, render(docs, base), check):
-            stale.append(readme.relative_to(REPO_ROOT).as_posix())
+    catalogues = {readme: (docs, base) for readme, docs, base in targets if readme.exists()}
+    readmes = sorted(p for p in REPO_ROOT.rglob("README.md")
+                     if not any(part in SKIP_DIRS or part.startswith(".") for part in p.relative_to(REPO_ROOT).parts))
 
+    stale, problems = [], []
+    for readme in readmes:
+        text = readme.read_text(encoding="utf-8")
+        updated = text
+        if readme in catalogues:
+            updated = inject(readme, updated, render(*catalogues[readme]))
+        updated, found = index(readme, updated)  # last: it numbers the lines the catalogue leaves
+        problems += found
+        if updated != text:
+            stale.append(readme.relative_to(REPO_ROOT).as_posix())
+            if not check:
+                readme.write_text(updated, encoding="utf-8", newline="")
+
+    for problem in problems:
+        print(f"index: {problem}", file=sys.stderr)
     if check and stale:
         print("catalogue out of date: " + ", ".join(stale), file=sys.stderr)
         print("run: python tooling/catalogue/build_catalogue.py", file=sys.stderr)
+    if problems or (check and stale):
         return 1
     print("catalogue: " + ("up to date" if not stale else "rewrote " + ", ".join(stale)))
     return 0

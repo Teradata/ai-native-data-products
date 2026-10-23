@@ -6,6 +6,25 @@ Everything in this directory is input. Running the example produces a design spe
 
 ---
 
+<!-- index:start -->
+| Line | Section | Covers |
+|---:|---|---|
+| 28 | [What the product does](#what-the-product-does) | The product's purpose and its four entities |
+| 34 | [What is supplied](#what-is-supplied) | The brief, design output, profiles and source data in this folder |
+| 50 | [What it deliberately exercises](#what-it-deliberately-exercises) | The departures and choices the example tests |
+| 60 | [Before you start](#before-you-start) | What you need: Python, a Teradata system, privileges |
+| 74 | [Step 0. Install the standards as a skill](#step-0-install-the-standards-as-a-skill) | Installing the skill |
+| 91 | [Step 1. Set up the product repository](#step-1-set-up-the-product-repository) | Creating the product repository and copying the inputs |
+| 104 | [Step 2. Design](#step-2-design) | Running the design role from the brief |
+| 120 | [Step 3. Build](#step-3-build) | Running the build role and its physical design |
+| 144 | [Step 4. Review](#step-4-review) | Running the review role to produce the trust map |
+| 152 | [Step 5. Use it](#step-5-use-it) | Querying the deployed product as a consumer |
+| 156 | [Re-running](#re-running) | Tearing down and redeploying without an agent |
+| 166 | [What to record after a run](#what-to-record-after-a-run) | Classifying each defect a run finds |
+| 176 | [What the brief settles, and what it leaves to the standards](#what-the-brief-settles-and-what-it-leaves-to-the-standards) | Where the brief stops and the standards take over |
+| 188 | [Deliberate departures](#deliberate-departures) | The two recorded departures a reviewer should accept |
+<!-- index:end -->
+
 ## What the product does
 
 It is the central data product for IT service desk operations, serving four things at once: SLA-breach prediction on open tickets, semantic retrieval of similar past tickets and their resolutions, quality monitoring across the ticket lifecycle, and session continuity for an agent working a multi-step investigation.
