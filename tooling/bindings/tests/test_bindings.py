@@ -358,9 +358,42 @@ class EngineTests:
                 out[col] = value
         return out
 
+    def insert_many(self, name, rows):
+        """Rows of one relation, by logical attribute name, in one batched insert. A column a
+        row leaves out is NULL in it."""
+        if not rows:
+            return
+        cn = named(self.ctx, name)["column_names"]
+        names = list(dict.fromkeys(k for row in rows for k in row))
+        self.executemany(f"INSERT INTO {self.table(name)} ({', '.join(self.binding.ident(cn[k]) for k in names)}) "
+                         f"VALUES ({', '.join(self.marker for _ in names)})",
+                         [[row.get(k) for k in names] for row in rows])
+
+    def executemany(self, sql, rows):
+        self.con.executemany(sql, rows)
+
+    def run_writes(self, sql):
+        for statement in sql:
+            self.con.execute(statement)
+
+    def allocate_all(self, keymap, naturals):
+        """The binding's own key allocation for every natural value, its writes sent together,
+        and the keymap read back once: natural value to identifier."""
+        k = named(self.ctx, keymap)
+        template = environment(self.binding, self.ctx).get_template("modules/domain/02-key-allocation.sql.j2")
+        writes = []
+        for natural in dict.fromkeys(naturals):
+            *statement, _ = statements(template.render(**dict(self.ctx, keymap=k, natural_value=natural)))
+            writes += statement
+        self.run_writes(writes)
+        natural = self.binding.ident(k["column_names"][k["identity"]["natural"][0]])
+        return dict(self.q(f"SELECT {natural}, {self.binding.ident(k['key_columns'][0])} FROM {self.table(keymap)}"))
+
     def load_itsd(self):
-        """Test-only loading of the four ITSD source files, through the binding's own key
-        allocation. Not a product loader."""
+        """Test-only loading of the four ITSD source files, a set at a time: each entity's rows
+        in batched inserts, its keys allocated through the binding's own key allocation and
+        read back in one query. A row referring to a row of its own entity not yet loaded
+        waits for the next batch. Not a product loader."""
         def rows(file):
             with (EXAMPLE / "data" / f"{file}.csv").open(encoding="utf-8", newline="") as f:
                 return list(csv.DictReader(f))
@@ -372,8 +405,14 @@ class EngineTests:
         for entity, file, keymap in (("Category", "categories", None), ("Agent", "agents", "AgentKeymap"),
                                      ("Customer", "customers", "CustomerKeymap"), ("Ticket", "tickets", "TicketKeymap")):
             x = named(self.ctx, entity)
-            source_key = f"{entity.lower()}_id"
-            for row in rows(file):
+            source_key, surrogate = f"{entity.lower()}_id", x["surrogate_columns"][0]
+            own = [c for c, target in refs.items() if target == entity.lower() and c != surrogate
+                   and any(col["name"] == c for col in x["columns"])]
+            pending = rows(file)
+            present = {row[source_key] for row in pending}
+            allocated = self.allocate_all(keymap, [row[source_key] for row in pending]) if keymap else {}
+
+            def values_of(row):
                 values = {}
                 for col in x["columns"]:
                     if col["origin"] != "attribute" or col["name"] in x["surrogate_columns"]:
@@ -382,20 +421,30 @@ class EngineTests:
                         values[col["name"]] = row["category_id"]
                         continue
                     raw = row.get(renames.get(entity, {}).get(col["name"], col["name"]))
-                    if col["name"] in refs and col["name"] != x["surrogate_columns"][0]:
+                    if col["name"] in refs and col["name"] != surrogate:
                         values[col["name"]] = keys[refs[col["name"]]].get(raw) if raw else None
                     elif raw is not None:
                         value = _value(raw, col["type"].split("{")[0])
                         values[col["name"]] = self.flag(value) if col["type"] == "Flag" and value is not None else value
                 values.update(self.temporal(x, values.get("opened_dts") or datetime(2020, 1, 1, tzinfo=timezone.utc)))
                 if keymap:
-                    key = self.allocate(keymap, row[source_key])
-                    values[x["surrogate_columns"][0]] = key
-                    self.insert(entity, values)
+                    values[surrogate] = allocated[row[source_key]]
+                return values
+
+            while pending:
+                ready = [row for row in pending if not any(
+                    row[c] in present and row[c] not in keys[entity.lower()] for c in own)] or pending
+                self.insert_many(entity, [values_of(row) for row in ready])
+                pending = [row for row in pending if row not in ready]
+                if entity == "Ticket":
+                    continue
+                if keymap:
+                    keys[entity.lower()].update({row[source_key]: allocated[row[source_key]] for row in ready})
                 else:
-                    key = self.insert(entity, values, returning=x["surrogate_columns"][0])
-                if entity != "Ticket":
-                    keys[entity.lower()][row[source_key]] = key
+                    cn = x["column_names"]
+                    natural = self.binding.ident(cn[x["identity"]["natural"][0]])
+                    keys[entity.lower()].update(self.q(
+                        f"SELECT {natural}, {self.binding.ident(cn[surrogate])} FROM {self.table(entity)}"))
 
     def check(self, check, scope_id):
         c = next(c for c in self.manifest["checks"] if c["check"] == check and c["scope_id"] == scope_id)
@@ -910,6 +959,10 @@ class PostgreSQL(EngineTests, unittest.TestCase):
         self.con.rollback()
         self.con.close()
 
+    def executemany(self, sql, rows):
+        with self.con.cursor() as cur:
+            cur.executemany(sql, rows)
+
     def apply(self, files):
         """Every phase in the test's own transaction, so the rollback removes roles too."""
         for name in self.manifest["phases"]:
@@ -1123,6 +1176,9 @@ class Teradata(EngineTests, unittest.TestCase):
     def apply(self, files):
         for name in self.manifest["phases"]:
             self.run_statements(statements(files[name]))
+
+    def run_writes(self, sql):
+        self.run_statements(sql)
 
     def snapshot(self, key):
         """The rows the build wrote, copied once per deployment into volatile tables. They live

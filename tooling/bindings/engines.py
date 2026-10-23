@@ -95,6 +95,12 @@ class TeradataConnection:
         cur.execute(sql, params or None)
         return TeradataCursor(cur)
 
+    def executemany(self, sql, rows):
+        """One statement for many rows of parameters, sent as one batched request."""
+        cur = self.raw.cursor()
+        cur.executemany(sql, rows)
+        return TeradataCursor(cur)
+
     def commit(self):
         self.raw.commit()
 
