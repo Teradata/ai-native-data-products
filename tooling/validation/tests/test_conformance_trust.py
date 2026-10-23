@@ -60,7 +60,7 @@ class CommittedEngine(unittest.TestCase):
 
 
 class Trust(unittest.TestCase):
-    def test_only_skipped_engine_tests_the_committed_run_carries_become_passes(self):
+    def test_only_engine_tests_the_committed_run_carries_turn_from_skips_to_passes(self):
         result = Result({
             ("Teradata", "test_itsd", "ITSD deploys and every check passes"): {"teradata": ("skip", "no DSN")},
             ("Teradata", "test_new", "A new engine test"): {"teradata": ("skip", "no DSN")},

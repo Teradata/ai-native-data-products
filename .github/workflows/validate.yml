@@ -99,7 +99,9 @@ jobs:
           # Trusting the committed Teradata report, conformance.py has already failed on any
           # skip that report could not cover, so only the validation suite is checked here.
           if [ -z "$TERADATA_TEST_DSN" ]; then logs="validation.log"; fi
-          if grep -E "skipped|\.\.\. skipped" $logs; then
+          # unittest's own markers: "... skipped 'reason'" per test and "skipped=N" in the
+          # summary, so a test whose name says "skipped" is not mistaken for one.
+          if grep -E "\.\.\. skipped|skipped=" $logs; then
             echo "A skipped test is a conformance gap, not a pass." >&2
             exit 1
           fi
