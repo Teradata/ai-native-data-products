@@ -243,7 +243,7 @@ Binding of [Domain](../../design/modules/domain.md). The design remains the sour
 - An Enum attribute gets a `CHECK` over its members.
 - A history table's primary key is its version columns plus `valid_from_dts` (and `transaction_from_dts` when bitemporal). It gets a partial unique index on the version columns where the row is current (one open version) and a `btree_gist` exclusion constraint over the validity interval, and the knowledge interval when bitemporal (non-overlap).
 
-`02-key-allocation.sql.j2` is caller-rendered with `keymap` (a Keymap entity from the context) and `natural_value`. It inserts the natural value and returns the stable identifier; an existing natural value returns its existing identifier through `ON CONFLICT`. Only the first natural-key attribute (`identity.natural[0]`) is used. The caller opens the transaction.
+`02-key-allocation.sql.j2` is caller-rendered with `keymap` (a Keymap entity from the context) and `natural_value`. It inserts the natural value and returns the stable identifier; an existing natural value returns its existing identifier through `ON CONFLICT`. Given `staged` instead, `{container, name, column}` naming a table the caller has written a set of natural values to (`container` null for a session-local table), it allocates the whole set in one `INSERT ... SELECT ... ON CONFLICT DO NOTHING`, ignoring NULLs and duplicates and keeping every existing identifier, then returns each staged value with its identifier. Load a batch this way rather than one value at a time. Only the first natural-key attribute (`identity.natural[0]`) is used. The caller opens the transaction.
 
 Comments, consumer views and point-in-time functions come from the temporal pattern; registration from Semantic; checks from Validation.
 

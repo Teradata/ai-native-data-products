@@ -18,6 +18,7 @@ gap, never a pass.
 Run:
     python -m unittest discover -s tooling/bindings/tests -v
 """
+import contextlib
 import copy
 import csv
 import json
@@ -376,18 +377,30 @@ class EngineTests:
         for statement in sql:
             self.con.execute(statement)
 
+    STAGE = "anptest_stage"
+
+    def staging_table(self, name):
+        """A session's temporary table for one column of natural values."""
+        return f"CREATE TEMP TABLE {self.binding.ident(name)} (natural_value VARCHAR(100))"
+
     def allocate_all(self, keymap, naturals):
-        """The binding's own key allocation for every natural value, its writes sent together,
-        and the keymap read back once: natural value to identifier."""
-        k = named(self.ctx, keymap)
-        template = environment(self.binding, self.ctx).get_template("modules/domain/02-key-allocation.sql.j2")
-        writes = []
-        for natural in dict.fromkeys(naturals):
-            *statement, _ = statements(template.render(**dict(self.ctx, keymap=k, natural_value=natural)))
-            writes += statement
-        self.run_writes(writes)
-        natural = self.binding.ident(k["column_names"][k["identity"]["natural"][0]])
-        return dict(self.q(f"SELECT {natural}, {self.binding.ident(k['key_columns'][0])} FROM {self.table(keymap)}"))
+        """The binding's set form of key allocation: the natural values staged in a temporary
+        table, allocated in one statement, and each read back with its identifier in one
+        query: natural value to identifier."""
+        stage = self.binding.ident(self.STAGE)
+        self.con.execute(self.staging_table(self.STAGE))
+        try:
+            self.executemany(f"INSERT INTO {stage} (natural_value) VALUES ({self.marker})",
+                             [[value] for value in dict.fromkeys(naturals)])
+            *writes, read = statements(environment(self.binding, self.ctx).get_template(
+                "modules/domain/02-key-allocation.sql.j2").render(**dict(
+                    self.ctx, keymap=named(self.ctx, keymap),
+                    staged={"container": None, "name": self.STAGE, "column": "natural_value"})))
+            self.run_writes(writes)
+            return dict(self.q(read))
+        finally:
+            with contextlib.suppress(Exception):  # after a failure, the failure is what matters
+                self.con.execute(f"DROP TABLE {stage}")
 
     def load_itsd(self):
         """Test-only loading of the four ITSD source files, a set at a time: each entity's rows
@@ -773,6 +786,15 @@ class EngineTests:
         first = self.allocate("TicketKeymap", "SRC-1")
         self.assertEqual(self.allocate("TicketKeymap", "SRC-1"), first)
         self.assertNotEqual(self.allocate("TicketKeymap", "SRC-2"), first)
+        # The set form keeps every existing identifier, allocates each new value once, and
+        # ignores duplicates and NULLs; a second run over the same set changes nothing.
+        keys = self.allocate_all("TicketKeymap", ["SRC-1", "SRC-3", None, "SRC-3", "SRC-4"])
+        self.assertEqual(set(keys), {"SRC-1", "SRC-3", "SRC-4"})
+        self.assertEqual(keys["SRC-1"], first)
+        self.assertEqual(len(set(keys.values())), 3)
+        self.assertEqual(self.allocate_all("TicketKeymap", ["SRC-3", "SRC-4"]),
+                         {k: keys[k] for k in ("SRC-3", "SRC-4")})
+        self.assertEqual(self.allocate("TicketKeymap", "SRC-3"), keys["SRC-3"])
 
     def test_mutations_are_detected(self):
         self.deploy()
@@ -1179,6 +1201,10 @@ class Teradata(EngineTests, unittest.TestCase):
 
     def run_writes(self, sql):
         self.run_statements(sql)
+
+    def staging_table(self, name):
+        return (f"CREATE VOLATILE TABLE {self.binding.ident(name)} "
+                f"(natural_value VARCHAR(100) CHARACTER SET UNICODE) ON COMMIT PRESERVE ROWS")
 
     def snapshot(self, key):
         """The rows the build wrote, copied once per deployment into volatile tables. They live
