@@ -19,9 +19,9 @@
 {% macro inner(text) -%}{{ (text|literal)|replace("'", "''") }}{%- endmacro %}
 {% set measures = {'cosine': 'cosine', 'dot': 'dotproduct', 'euclidean': 'euclidean', 'manhattan': 'manhattan'} %}
 {% set procedures = embeddings|selectattr('objects.procedure', 'defined')|list %}
-{% if procedures and settings['Deploying user'] != 'none' %}
+{% if procedures and settings['deploying_user'] != 'none' %}
 {% for container in procedures|map(attribute='objects.procedure.container')|unique %}
-GRANT CREATE PROCEDURE ON {{ container|ident }} TO {{ settings['Deploying user']|ident }};
+GRANT CREATE PROCEDURE ON {{ container|ident }} TO {{ settings['deploying_user']|ident }};
 {%- endfor %}
 {% endif %}
 {% for b in procedures %}

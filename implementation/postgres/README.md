@@ -8,7 +8,7 @@ A build has three inputs: a **design specification** (the product, platform-agno
 
 The templates read only the build context, and derive no names: every container, object, column and principal name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Its **Binding declarations** section lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below: one per module and pattern, in deployment order, each saying what its templates emit, which build-context fields they read and where its templates are. The index gives the line each section starts on.
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Then [`binding.toml`](binding.toml), which lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below: one per module and pattern, in deployment order, each saying what its templates emit, which build-context fields they read and where its templates are. The index gives the line each section starts on.
 
 <!-- index:start -->
 | Line | Section | Covers |
@@ -75,11 +75,11 @@ Binding of [Object Placement](../../design/patterns/object-placement.md). The de
 
 Every container name, and the container of every object, comes from the organisation profile through the resolver. No name is inferred from a product prefix, and the example profile is one possible placement, not a required convention.
 
-The phase order in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations) creates containers, then Memory, Semantic, Domain, Observability, Search and Prediction tables, then comments, views and functions, registration, discovery, the trust map, documentation capture and, last, access. `deploy.sql` applies them in one transaction; deploying phase files separately must keep that order.
+The phase order in [`binding.toml`](binding.toml) creates containers, then Memory, Semantic, Domain, Observability, Search and Prediction tables, then comments, views and functions, registration, discovery, the trust map, documentation capture and, last, access. `deploy.sql` applies them in one transaction; deploying phase files separately must keep that order.
 
 PostgreSQL roles are cluster-wide and are provisioned deliberately by the access-layer phase or by an operator.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## 2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)
 
@@ -122,7 +122,7 @@ Validity and knowledge intervals are half-open; infinity appears only as an open
 | `PointInTimeReconstruction` | `at` macro behind the point-in-time functions. |
 | `SoftDelete` | `is_deleted` and `deleted_dts` with a consistency check; deleted rows are excluded from current and point-in-time reads. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## 3. Memory module (`memory`)
 
@@ -156,7 +156,7 @@ The [access-layer template](#10-access-layer-pattern-access-layer) enables row-l
 | `DocumentationCapture` | Versioned documentation relations; `02-capture.sql.j2` writes the settled records; `validation.sql.j2` reports modules below the floor. |
 | `AgentContinuity` | Runtime relations with required scope columns, no consumer view and `USER` row-level security. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -167,7 +167,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-MEMORY-005` | Shared versioned temporal macros and the `entity temporal` check. |
 | `INV-MEMORY-006` | `module memory` check of the capture floor; the reference specifications meet it. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 4. Semantic module (`semantic`)
 
@@ -214,7 +214,7 @@ Registration uses the placement and relationships the context carries, never nam
 | `SemanticRegistration` | Registration inserts for the product, modules, entities, columns, relationships, access and primary objects, orientation, metrics, synonyms and naming standards. |
 | `RichMetadata` | `COMMENT ON` for physical objects, plus authored entity and column metadata and the hybrid column catalogue. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -226,7 +226,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-SEMANTIC-005,007..010` | Declared relationships and access objects; composite access objects are not rendered. |
 | `INV-SEMANTIC-013..015` | Metrics and synonyms registered from the specification; metric recipes execute in engine tests. Reference checks over the registrations remain to be written. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 5. Domain module (`domain`)
 
@@ -259,7 +259,7 @@ Comments, consumer views and point-in-time functions come from the temporal patt
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |
 | `RichMetadata` | `COMMENT ON` for every table and column, plus Semantic registration. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -270,7 +270,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-DOMAIN-003,004` | Permanent keymap with foreign key; allocation test. Retention is operational. |
 | `INV-DOMAIN-005,007` | Review the specification's attributes and relationships; no generic duplication detector is claimed. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 6. Observability module (`observability`)
 
@@ -295,7 +295,7 @@ Capture is a producer obligation: deployers wire their ingestion, temporal write
 | `LineageCapture` | Separate definition and run tables, with the lineage graph and latest-run views over active definitions. |
 | `QualityScore` | Quality-metric time series, separate from validation evidence. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -307,7 +307,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-OBS-005` | Wire 2.1 run and area records appended by the validator; engine tests of failures, errors, staleness and producer selection. |
 | `INV-OBS-007..009` | Optional graph-native facet not rendered; no graph identity guarantee claimed. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 7. Search module (`search`)
 
@@ -338,7 +338,7 @@ Vectors come from the encoder the specification declares, outside the database; 
 | `EntityJoinBack` | Results carry the Domain identifier; recipes join to the Domain consumer view. |
 | `CurrentStateFilter` | The function reads the store's consumer view. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -348,7 +348,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-SEARCH-002,004` | Engine test that the function ranks current vectors of its embedding and applies the threshold. |
 | `INV-SEARCH-005` | Shared temporal macros and the `entity temporal` check. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 8. Prediction module (`prediction`)
 
@@ -370,7 +370,7 @@ No template computes features or scores. Product feature SQL must apply both eff
 | `CurrentStateFilter` | Consumer view over current, undeleted rows. |
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ### Invariants and checks
 
@@ -380,7 +380,7 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 | `INV-PRED-002` | Point-in-time functions support reconstruction; the product's feature pipeline must prove cutoff correctness. |
 | `INV-PRED-004,005` | Semantic and Observability stores are separate; product capture and lineage checks remain required. |
 
-Physical types come from the `Types:` block of the [binding declarations](PLATFORM_PROFILE.md#binding-declarations). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
+Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 9. Validation pattern (`validation`)
 
@@ -390,7 +390,7 @@ Binding of [Validation](../../design/patterns/validation.md). The design remains
 
 ### Checks
 
-Each check is a query whose every row is a defect. The `Checks:` block of [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations) names them, and [`render.py`](../../tooling/bindings/README.md) renders them into the manifest with test ids `{PRODUCT_CODE}-{CHECK}-{NNN}`:
+Each check is a query whose every row is a defect. The `checks` of [`binding.toml`](binding.toml) names them, and [`render.py`](../../tooling/bindings/README.md) renders them into the manifest with test ids `{PRODUCT_CODE}-{CHECK}-{NNN}`:
 
 | Check | Template | Rendered for | Returns |
 |---|---|---|---|
@@ -422,7 +422,7 @@ The reference check is current-surface coverage, not historical proof. A join of
 
 [`validate.py`](../../tooling/bindings/README.md) connects through `POSTGRES_DSN`, runs each check in its own savepoint and records an erroring check as `ERROR`, never as zero defects. Where the manifest places `ValidationRun` and `ValidationArea`, it appends one run and one area record per entity, module and the product (wire schema 2.1). Failed `ERROR` or `CRITICAL` checks give weak confidence; a failed `WARNING` leaves partial. The gaps the manifest reports cap the PRODUCT area at partial. This is a structural profile, not a certification of business rules; add design-specific checks in the product workspace with explicit scope and provenance.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## 10. Access Layer pattern (`access-layer`)
 
@@ -451,7 +451,7 @@ The deploy script does not create login users, assign passwords or grant role me
 | `AccessView` | Consumer views are the read and agent tiers' only table-like surface. |
 | `ProductRoleAccess` | Native roles named by the profile; grants per object or per container; `USER` row-level security on runtime Memory. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## 11. Physical Storage pattern (`physical-storage`)
 
@@ -461,7 +461,7 @@ This pattern has no template. The baseline is native, unpartitioned storage. The
 
 The validator does not establish backup and restore, durability, replication, disaster recovery or performance. Publish operator evidence separately. Rendered SQL and deployment packages belong in the user's output location, not this repository.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md#binding-declarations); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
 
 ## Catalogue
 

@@ -46,7 +46,7 @@ from org_profile import (  # noqa: E402
     parse_profile,
     render,
 )
-from binding import load_binding  # noqa: E402
+from binding import load_binding, snake  # noqa: E402
 from expressions import ExpressionError, Node, Unrenderable, functions_used, parse as parse_expression  # noqa: E402
 from expressions import references as expression_references, render as render_expression  # noqa: E402
 from org_profile import _snake  # noqa: E402
@@ -733,13 +733,13 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
 
     # ---- binding settings: the binding's defaults, as the profile sets them ---------------
     settings = {}
-    chosen = dict(profile.blocks["Settings"].fields) if "Settings" in profile.blocks else {}
+    chosen = ({snake(k): v for k, v in profile.blocks["Settings"].fields.items()}
+              if "Settings" in profile.blocks else {})
     for name, declared in binding.settings.items():
-        values, _, default = declared.partition("; default ")
         if name in chosen:
             settings[name] = chosen[name]
         else:
-            settings[name] = default.strip() or None
+            settings[name] = declared["default"] or None
             r.default(f"settings.{name}", settings[name], f"the {binding.platform} binding's declaration")
     for name in chosen:
         if name not in binding.settings:

@@ -1,6 +1,6 @@
 # Rendering and validating Jinja bindings
 
-Tools for the platform bindings whose `PLATFORM_PROFILE.md` declares its phases (currently
+Tools for the platform bindings whose `binding.toml` declares its phases (currently
 PostgreSQL, DuckDB and Teradata). A build has three inputs: a design specification, an organisation
 profile and the platform binding. [`tooling/build`](../build/) resolves the first two and the
 binding's declarations into one build context; `render.py` renders the binding's declared
@@ -52,7 +52,7 @@ these tests and the package tests once, records every outcome against the bindin
 evidence for (an engine class's `platform`, or a subtest's `platform` parameter), renders both
 reference specifications under every example profile for the platform, and writes: the
 outcomes, each failure and skip, every gap the builds' manifests report, and the gaps the
-binding declares in its `PLATFORM_PROFILE.md` `Gaps` field. A binding is `standard` only when
+binding declares in the `gaps` of its `binding.toml`. A binding is `standard` only when
 its report shows no failure, no skip and no gap.
 
 `--check` writes nothing in place and fails when a regenerated report differs from the

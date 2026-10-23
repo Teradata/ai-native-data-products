@@ -194,7 +194,7 @@ The framework is split along one boundary, defined by the [Design Language](DESI
 - **`implementation/{platform}/`**: platform-specific. The concrete bindings, data types, DDL, queries, access grants, that satisfy the design. Every platform is a sibling directory held to the same [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md); adding one changes no design document.
 - **Organisation profile**: organisation-specific. Placement, naming, access principals, classification and existing structures, supplied at build time, so neither tree encodes one organisation's conventions.
 
-A platform binding *is* an `implementation/{platform}/` tree, and its `PLATFORM_PROFILE.md` declares what the binding supports and which settings an organisation may set: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
+A platform binding *is* an `implementation/{platform}/` tree, and its `binding.toml` declares what the binding supports and which settings an organisation may set: platform capabilities can evolve, and new platforms can be added, without touching the structural standards.
 
 ---
 

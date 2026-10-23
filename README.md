@@ -38,7 +38,7 @@ ai-native-data-products/
 │   └── patterns/               temporal-lifecycle-metadata · object-placement ·
 │                               physical-storage · validation · access-layer
 ├── implementation/
-│   ├── teradata/               README (one section per module and pattern), PLATFORM_PROFILE, templates
+│   ├── teradata/               README (a section per module and pattern), PLATFORM_PROFILE, binding.toml, templates
 │   ├── duckdb/                 reusable Jinja bindings for a portable file engine
 │   └── postgres/               reusable Jinja bindings, native grants and history constraints
 ├── tooling/

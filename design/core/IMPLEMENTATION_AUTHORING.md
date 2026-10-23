@@ -92,7 +92,8 @@ The modes of adoption (referencing an existing object, wrapping it, or migrating
 Each platform directory provides:
 
 - **`README.md`**: supported compositions, deployment order and limitations, then **one numbered section per supported module and pattern**, headed with its design anchor, as in ``## 5. Domain module (`domain`)``. Each section maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, lists the build-context fields its templates read, and names the directory its templates are in. The sections are numbered in deployment order: object placement, temporal lifecycle metadata, then Memory, Semantic, Domain, Observability, Search and Prediction, then validation, access layer and physical storage, then any further pattern. The numbers are the same on every binding, because the role files cite them. The README opens with an index, kept by `tooling/catalogue/build_catalogue.py`, giving the line each section starts on, since an agent may read only a file's first 100 lines before deciding where to look.
-- **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults, naming limits, and every **binding setting** the organisation profile may supply, with its permitted values and default.
+- **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults and naming limits, as guidance an agent reads.
+- **`binding.toml`**: the declarations of §5.1, which tooling reads, including every **binding setting** an organisation's configuration may supply, with its permitted values and default. A directory under `implementation/` with a `binding.toml` is a platform binding.
 - **A template directory per module and pattern that renders something**, mirroring `design/` by anchor: `modules/{module}/` and `patterns/{pattern}/`. A module or pattern with nothing to render has its README section and no directory. A binding's documentation is that one README: a new module or pattern adds a section, not a file, because the skill ships under a file limit.
 - **Templates** for every deployment, access, maintenance, discovery and validation artefact the binding produces, with ordering and dependencies documented.
 
@@ -100,9 +101,9 @@ Unsupported capabilities, compositions, profile settings and adoption modes are 
 
 ### 5.1 Binding declarations
 
-A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when it builds a context for that platform. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. Each block opens `<Block>: -` in a fenced code block, as in an organisation profile.
+A binding's `binding.toml` carries three tables the resolver and renderer read: `[binding]`, `[types]` and `[functions]`. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. The tables below are the schema. A key is its field name in snake_case (`Identifier quote` is `identifier_quote`), anything in order is an array, and the file is TOML so that no tool needs a parser of its own.
 
-#### `Binding:`
+#### `Binding:` (the `[binding]` table)
 
 | Field | Required | Type | Value |
 |---|---|---|---|
@@ -110,28 +111,28 @@ A binding's `PLATFORM_PROFILE.md` carries three blocks the resolver reads when i
 | `Literal quote` | yes | text | The character that quotes a text literal; it is doubled inside one. |
 | `Principals` | yes | enum | `native` or `unsupported`: whether the platform grants to principals. |
 | `Runtime scope` | yes | enum | `enforced` or `unsupported`: whether the binding restricts runtime Memory records to the requesting identity's scope at the access surface ([access-layer](../patterns/access-layer.md) §4). `unsupported` is reported as a gap in every build with runtime relations. |
-| `Emits` | no | mappings | Object roles the binding emits beyond `table` and `consumer_view`, each with what it emits them for: `base_view: all`, `sequence: <allocations>`, or `function: <profiles>`; and `embedding` under `function` or `procedure` for one similarity search object per `Embedding:` block, as the platform can express it. |
-| `Settings` | no | mappings | Each binding setting an organisation profile may set, with its permitted values and default, as `<setting>: <values>; default <value>`. |
-| `Phases` | no | mappings | The deployment phases in order, each as `<file>: <template>`. A template that renders nothing for a composition emits no file. |
+| `Emits` | no | mappings | A `[binding.emits]` table of the object roles the binding emits beyond `table` and `consumer_view`, each with an array of what it emits them for: `base_view = ['all']`, `sequence = [<allocations>]`, or `function = [<profiles>]`; and `embedding` under `function` or `procedure` for one similarity search object per `Embedding:` block, as the platform can express it. |
+| `Settings` | no | mappings | A `[binding.settings]` table of each binding setting an organisation's configuration may set, as `<setting> = { values = '<permitted values>', default = '<value>' }`. |
+| `Phases` | no | mappings | The deployment phases, an array in order of `{ file = '<file>', template = '<template>' }`. A template that renders nothing for a composition emits no file. |
 | `Deploy` | no | text | The template that joins the rendered phases into one deployable script. It reads `phases`, the rendered files in order, each with its `file` and `sql`. |
-| `Gaps` | no | mappings | Each known gap no check can detect, as `<area>: <what is not covered>`: an untested composition or adoption mode, a constraint the engine cannot enforce, evidence the binding cannot produce. The conformance report lists them with the gaps the builds report (§8.1). |
-| `Checks` | no | mappings | The validation checks a build manifest carries, each as `<scope> <check>: <template>`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
+| `Gaps` | no | mappings | An array of each known gap no check can detect, as `{ area = '<area>', gap = '<what is not covered>' }`: an untested composition or adoption mode, a constraint the engine cannot enforce, evidence the binding cannot produce. The conformance report lists them with the gaps the builds report (§8.1). |
+| `Checks` | no | mappings | The validation checks a build manifest carries, an array of `{ scope = '<scope>', check = '<check>', template = '<template>' }`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
 
-#### `Types:`
+#### `Types:` (the `[types]` table)
 
-One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension, and `{dim*n}` for the dimension times `n`, as for a binary encoding of `n` bytes an element. A logical type with no line is unsupported, and a context that needs it fails with a reported gap.
-
-| Field | Required | Type | Value |
-|---|---|---|---|
-| `*` | yes | text | One line per logical type. |
-
-#### `Functions:`
-
-One field per function of the [Design Specification Standard](DESIGN_SPECIFICATION.md)'s expression vocabulary the binding can render, as a SQL fragment in which `{0}`, `{1}` ... stand for rendered arguments and `{args}` for all of them, comma-separated. A name may carry an arity, `name/2`, for a form that differs by argument count. `duration` renders a duration from `{n}` and `{unit}`; `map case` renders one `{key}`/`{value}` pair of a `map`; `true`, `false` and `null` render literals; and `flag test`, on a platform with no boolean type, renders a `Flag` that stands as a condition. A function with no line is unsupported: expressions using it carry no rendered SQL, and the binding reports the gap.
+One field per logical type of the [Design Language](DESIGN_LANGUAGE.md), giving its physical type. `{p}` and `{s}` stand for a `Decimal`'s precision and scale and `{dim}` for a `Vector`'s dimension, and `{dim*n}` for the dimension times `n`, as for a binary encoding of `n` bytes an element. A logical type with no entry is unsupported, and a context that needs it fails with a reported gap.
 
 | Field | Required | Type | Value |
 |---|---|---|---|
-| `*` | yes | text | One line per function. |
+| `*` | yes | text | One entry per logical type. |
+
+#### `Functions:` (the `[functions]` table)
+
+One field per function of the [Design Specification Standard](DESIGN_SPECIFICATION.md)'s expression vocabulary the binding can render, as a SQL fragment in which `{0}`, `{1}` ... stand for rendered arguments and `{args}` for all of them, comma-separated. A name may carry an arity, `name/2`, for a form that differs by argument count. `duration` renders a duration from `{n}` and `{unit}`; `map case` renders one `{key}`/`{value}` pair of a `map`; `true`, `false` and `null` render literals; and `flag test`, on a platform with no boolean type, renders a `Flag` that stands as a condition. A function with no entry is unsupported: expressions using it carry no rendered SQL, and the binding reports the gap.
+
+| Field | Required | Type | Value |
+|---|---|---|---|
+| `*` | yes | text | One entry per function. |
 
 ## 6. Template rules
 
@@ -153,7 +154,7 @@ Test fixtures and test-only loaders belong with the tests. Synthetic facts and m
 
 ## 8. Automated acceptance checks
 
-Repository validation discovers platform directories directly under `implementation/`. There is no platform allowlist and no exception register; a new platform cannot escape a check by omitting a file, an example or a template.
+Repository validation discovers platform directories directly under `implementation/`, by their `binding.toml`. There is no platform allowlist and no exception register; a new platform cannot escape a check by omitting a file, an example or a template.
 
 | Check | Acceptance evidence |
 |---|---|

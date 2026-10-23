@@ -3,7 +3,7 @@
    not created. Space comes from the `Container space` setting, per container that holds
    objects. Each database created carries a comment. #}
 {% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
-{% set space = settings['Container space']|int %}
+{% set space = settings['container_space']|int %}
 {% set purpose = m.comment('Container of the ' ~ product.name ~ ' data product, as the organisation profile places it.') %}
 {% for c in containers if not c.parent and not c.adopted %}
 {% set children = containers|selectattr('parent', 'equalto', c.name)|list %}

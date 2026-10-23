@@ -85,7 +85,7 @@ def platforms(root: Path) -> List[str]:
     """Every binding the corpus holds: a directory under implementation/ with a platform
     profile. Discovered, never listed, so no platform is the one routes are checked on."""
     impl = root / "implementation"
-    return sorted(p.name for p in impl.iterdir() if (p / "PLATFORM_PROFILE.md").exists()) if impl.is_dir() else []
+    return sorted(p.name for p in impl.iterdir() if (p / "binding.toml").exists()) if impl.is_dir() else []
 
 
 def expand(path: str, root: Path = REPO_ROOT) -> List[List[str]]:

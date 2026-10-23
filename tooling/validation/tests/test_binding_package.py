@@ -1,6 +1,6 @@
 """Keep reusable bindings, their inputs and generated products apart.
 
-A binding is Jinja templates, the declarations in its PLATFORM_PROFILE.md, and one README with a
+A binding is Jinja templates, the declarations in its binding.toml, and one README with a
 section per module and pattern; the inputs are
 a design specification and an organisation profile; what a build renders lives outside this
 repository. Platforms are discovered from the bindings that declare their phases, never listed.
@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "tooling" / "build"))
 from binding import load_binding  # noqa: E402
 
 PLATFORMS = tuple(p.name for p in sorted((ROOT / "implementation").iterdir())
-                  if (p / "PLATFORM_PROFILE.md").exists() and load_binding(p.name)[0]
+                  if (p / "binding.toml").exists() and load_binding(p.name)[0]
                   and load_binding(p.name)[0].phases)
 assert PLATFORMS, "No binding declares its phases"
 EXAMPLE = ROOT / "examples" / "it-service-desk-data-product"
@@ -52,8 +52,8 @@ class BindingPackage(unittest.TestCase):
                 self.assertEqual([str(p.relative_to(base)) for p in base.rglob("*.py")], [],
                                  "Binding directories hold no compilers")
                 self.assertEqual([str(p.relative_to(base)) for p in base.rglob("*.json")], [],
-                                 "Bindings declare their inputs in PLATFORM_PROFILE.md, not JSON")
-                for name in ("README.md", "PLATFORM_PROFILE.md", "CONFORMANCE.md"):
+                                 "Bindings declare their inputs in binding.toml, not JSON")
+                for name in ("README.md", "PLATFORM_PROFILE.md", "CONFORMANCE.md", "binding.toml"):
                     self.assertTrue((base / name).exists(), f"{platform} lacks {name}")
                 self.assertEqual([p.relative_to(base).as_posix() for p in base.rglob("README.md")], ["README.md"],
                                  "A binding documents its modules and patterns as README sections, not files")

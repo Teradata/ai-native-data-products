@@ -131,7 +131,7 @@ class VerifySkillTest(unittest.TestCase):
     def test_placeholder_route_resolves_when_one_expansion_exists(self):
         impl = self.pkg.root / "implementation" / "teradata" / "modules" / "domain"
         impl.mkdir(parents=True)
-        (impl.parents[1] / "PLATFORM_PROFILE.md").write_text("# Profile\n", encoding="utf-8")
+        (impl.parents[1] / "binding.toml").write_text("[binding]\n", encoding="utf-8")
         (impl / "validation.sql.j2").write_text("SELECT 1;\n", encoding="utf-8")
         self.pkg.write_role(
             "build",
@@ -146,7 +146,7 @@ class VerifySkillTest(unittest.TestCase):
     def test_a_platform_route_must_resolve_on_every_binding(self):
         for platform in ("alpha", "beta"):
             (self.pkg.root / "implementation" / platform).mkdir(parents=True)
-            (self.pkg.root / "implementation" / platform / "PLATFORM_PROFILE.md").write_text("# P\n", encoding="utf-8")
+            (self.pkg.root / "implementation" / platform / "binding.toml").write_text("[binding]\n", encoding="utf-8")
         (self.pkg.root / "implementation" / "alpha" / "README.md").write_text("# A\n", encoding="utf-8")
         self.pkg.write_role("build", "# Build\n\nRead `implementation/{platform}/README.md`.\n")
         self.assertIn("implementation/beta/README.md", "\n".join(str(f) for f in verify(self.pkg.root)))

@@ -413,7 +413,7 @@ Before a design document is considered conforming:
 
 ## Appendix A: Where the Bindings Live
 
-How each logical type and capability is realised is the binding's, declared once as data in each `implementation/{platform}/PLATFORM_PROFILE.md`: its `Types:` block gives the physical type of every logical type, its `Functions:` block the SQL for every expression function, and its module and pattern directories the capability bindings. This document deliberately carries no copy of them, which would drift from the bindings it describes.
+How each logical type and capability is realised is the binding's, declared once as data in each `implementation/{platform}/binding.toml`: its `[types]` table gives the physical type of every logical type, its `[functions]` table the SQL for every expression function, and its module and pattern directories the capability bindings. This document deliberately carries no copy of them, which would drift from the bindings it describes.
 
 ---
 

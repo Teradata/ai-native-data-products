@@ -45,7 +45,7 @@ from engines import engine, statements  # noqa: E402
 from validate import publish, run_checks, summarize, validate  # noqa: E402
 
 PLATFORMS = tuple(p.name for p in sorted((REPO / "implementation").iterdir())
-                  if (p / "PLATFORM_PROFILE.md").exists() and load_binding(p.name)[0].phases)
+                  if (p / "binding.toml").exists() and load_binding(p.name)[0].phases)
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
 ITSD = EXAMPLE / "design-output" / "design_specification.md"
 CUSTORD = REPO / "tooling" / "evals" / "reference" / "customer-orders.md"

@@ -80,7 +80,7 @@ caught in Phase 1 is cheap, and the same failure found after Phase 3 may have be
 
 Coverage is not uniform, so know what exists before you rely on it:
 
-| Area | Runnable check, as each binding's `PLATFORM_PROFILE.md` `Checks:` declares it |
+| Area | Runnable check, as each binding's `binding.toml` `checks` declares it |
 |---|---|
 | every persisted relation | `metadata` (every placed column exists and is described) and `temporal` (the temporal profile's invariants) |
 | every relationship | `reference` (every current reference has a current target) |

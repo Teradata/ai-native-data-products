@@ -95,7 +95,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Platform binding**: A platform's implementation of the standards: the `implementation/{platform}/` tree of templates, binding documents and **platform profile**. It reads only the **build context**. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
-**Platform profile**: A platform binding's `PLATFORM_PROFILE.md`. It declares the engine versions the binding supports, its naming limits and the **binding settings** an organisation may set, which are normative for the binding; and it records physical-design defaults (key strategy, partitioning, indexing, compression, statistics), which a workload with different needs may depart from. Distinct from an **organisation profile**.
+**Platform profile**: A platform binding's `PLATFORM_PROFILE.md`, with its `binding.toml`. Together they declare the engine versions the binding supports, its naming limits and the **binding settings** an organisation may set, which are normative for the binding; and it records physical-design defaults (key strategy, partitioning, indexing, compression, statistics), which a workload with different needs may depart from. Distinct from an **organisation profile**.
 
 **Point-in-Time (PIT)**: Reconstructing data as it existed at a specific past moment. This is what makes ML features reproducible without leakage. Realised by the `PointInTimeReconstruction` capability.
 

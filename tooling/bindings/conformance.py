@@ -6,7 +6,7 @@ Runs the binding tests (`tooling/bindings/tests`) and the package tests
 (`tooling/validation/tests/test_binding_package.py`) once, recording every outcome against
 the binding it is evidence for. It then renders both reference specifications under every
 example organisation profile for each platform and collects the gaps their manifests
-report. With the gaps the binding declares (its `PLATFORM_PROFILE.md` `Gaps`), that is the
+report. With the gaps the binding declares (the `gaps` in its `binding.toml`), that is the
 report: what passes, what fails, what was skipped, and each gap. A binding is `standard`
 only when its report shows none of the last three.
 
@@ -57,7 +57,7 @@ ENGINE_LINE = "Engine evidence:"
 
 def platforms():
     return [p.name for p in sorted((REPO / "implementation").iterdir())
-            if (p / "PLATFORM_PROFILE.md").exists() and load_binding(p.name)[0].phases]
+            if (p / "binding.toml").exists() and load_binding(p.name)[0].phases]
 
 
 class Recorder(unittest.TextTestResult):
@@ -221,8 +221,7 @@ def report(platform, result, title):
     else:
         lines += ["None.", ""]
     lines += ["## Gaps the binding declares", "",
-              "What no check can detect, declared in the `Gaps` field of [PLATFORM_PROFILE.md]"
-              "(PLATFORM_PROFILE.md#binding-declarations).", ""]
+              "What no check can detect, declared in the `gaps` of [binding.toml](binding.toml).", ""]
     if binding.gaps:
         lines += ["| Area | Gap |", "|---|---|"]
         lines += [f"| {_cell(area)} | {_cell(text[:1].upper() + text[1:])}. |"
