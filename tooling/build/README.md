@@ -7,13 +7,16 @@ step between the first two and the third: it validates a profile and resolves a
 specification and a profile into one **build context**, the only thing a binding's templates
 read. See the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3.
 
-Stdlib only, Python 3.8+.
+Stdlib only, Python 3.11 or later (for `tomllib`).
 
-## Check a profile
+## Check a configuration
 
 ```bash
-python tooling/build/org_profile.py examples/it-service-desk-data-product/profiles/teradata.md
+python tooling/build/org_profile.py config/implementation.example.toml
 ```
+
+It lints every target, each with the design file beside it (`--target` for one, `--design` for a
+design file elsewhere).
 
 Rules come from the tables of the [Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md):
 required headings and blocks, field types and enumerations, template variables and filters,
@@ -57,9 +60,9 @@ concatenated container names, no in-template defaults (Authoring Standard §6).
 
 ## Worked inputs
 
-| Specification | Profiles |
+| Specification | Configurations |
 |---|---|
-| [`examples/it-service-desk-data-product/design-output/design_specification.md`](../../examples/it-service-desk-data-product/design-output/design_specification.md) | any profile in [`examples/it-service-desk-data-product/profiles/`](../../examples/it-service-desk-data-product/profiles/): [`teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) (one database per module, `ITSD_*`), [`teradata-type-grouped.md`](../../examples/it-service-desk-data-product/profiles/teradata-type-grouped.md) (type-grouped, snake case, mapped column names, an adopted entity, container-isolated environments), [`postgres.md`](../../examples/it-service-desk-data-product/profiles/postgres.md) and [`duckdb.md`](../../examples/it-service-desk-data-product/profiles/duckdb.md) |
+| [`examples/it-service-desk-data-product/design-output/design_specification.md`](../../examples/it-service-desk-data-product/design-output/design_specification.md) | any target of [`config/implementation.example.toml`](../../config/implementation.example.toml) (`teradata`: one database per module, `ITSD_*`; `postgres`; `duckdb`), or of [`examples/it-service-desk-data-product/contrasting/implementation.toml`](../../examples/it-service-desk-data-product/contrasting/implementation.toml) (type-grouped, snake case, mapped column names, an adopted entity, container-isolated environments) |
 | [`tooling/evals/reference/customer-orders.md`](../evals/reference/customer-orders.md) | any of them: every name derives from the specification's `product_code` |
 
 To render a binding from a resolved context, see [`tooling/bindings`](../bindings/).

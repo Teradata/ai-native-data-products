@@ -19,6 +19,7 @@ sys.path.insert(0, str(REPO_ROOT / "tooling" / "evals"))
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "build"))
 
 import build_context  # noqa: E402
+from org_profile import Configuration  # noqa: E402
 from binding import load_binding  # noqa: E402
 from expressions import ExpressionError, Unrenderable, functions_used, parse, references, render  # noqa: E402
 from spec_notation import load_standard  # noqa: E402
@@ -26,7 +27,7 @@ from spec_notation import load_standard  # noqa: E402
 PLATFORMS = sorted(p.name for p in (REPO_ROOT / "implementation").iterdir() if p.is_dir())
 EXAMPLE = REPO_ROOT / "examples" / "it-service-desk-data-product"
 ITSD_SPEC = EXAMPLE / "design-output" / "design_specification.md"
-TERADATA_PROFILE = EXAMPLE / "profiles" / "teradata.md"
+TERADATA_PROFILE = Configuration(REPO_ROOT / "config" / "implementation.example.toml", "teradata")
 
 
 def sql(text, platform, **kw):

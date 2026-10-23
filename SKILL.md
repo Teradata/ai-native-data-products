@@ -50,6 +50,8 @@ implementation/
 tooling/
   validation/      design_lint.py - checks the standards are well formed
   evals/           spec_lint.py   - checks a design specification against the standards
+config/            the organisation configuration template: design.example.toml (classification,
+                   retention) and implementation.example.toml (one target per platform)
 examples/          worked products: fixed inputs for an end-to-end run
 roles/             the four working procedures
 ```

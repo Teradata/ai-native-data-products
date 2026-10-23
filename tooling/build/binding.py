@@ -75,8 +75,9 @@ class Binding:
 
 
 def snake(name: str) -> str:
-    """A field or setting name as a TOML key: `Identifier quote` is `identifier_quote`."""
-    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+    """A field, block or setting name as a TOML key: `Identifier quote` is `identifier_quote`
+    and `StorageAccess` is `storage_access`."""
+    return re.sub(r"[^a-z0-9]+", "_", re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()).strip("_")
 
 
 def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], List[Finding]):

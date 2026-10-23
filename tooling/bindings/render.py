@@ -20,7 +20,7 @@ sys.path.insert(0, str(REPO / "tooling" / "build"))
 import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
 
-RESERVED = ("design", "implementation", "examples", "roles", "tooling")
+RESERVED = ("config", "design", "implementation", "examples", "roles", "tooling")
 
 
 class RenderError(Exception):
@@ -172,9 +172,9 @@ def render_context(context):
     return files
 
 
-def render_product(spec, profile, environment_name=None, version=None):
-    """Resolve the inputs into a build context and render the binding the profile names."""
-    context, findings = build_context.resolve(Path(spec), Path(profile), environment_name,
+def render_product(spec, configuration, environment_name=None, version=None):
+    """Resolve the inputs into a build context and render the binding its target names."""
+    context, findings = build_context.resolve(Path(spec), configuration, environment_name,
                                               version=version)
     if findings:
         raise RenderError("\n".join(str(f) for f in findings))
@@ -184,7 +184,9 @@ def render_product(spec, profile, environment_name=None, version=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("spec", type=Path, help="the design specification")
-    parser.add_argument("profile", type=Path, help="the organisation profile; it names the platform")
+    parser.add_argument("implementation", type=Path, help="the organisation's implementation configuration")
+    parser.add_argument("--target", required=True, help="the deployment target under [targets]; it names the platform")
+    parser.add_argument("--design", type=Path, help="the design configuration; default: the sibling design file")
     parser.add_argument("--environment", help="the lifecycle phase to place for")
     parser.add_argument("--version", help="the product version, when the specification leaves it open")
     parser.add_argument("--output", type=Path, required=True)
@@ -195,7 +197,8 @@ def main():
     if out.exists() and any(out.iterdir()):
         parser.error("Output directory must be empty; existing products are never overwritten")
     try:
-        files = render_product(args.spec, args.profile, args.environment, args.version)
+        files = render_product(args.spec, build_context.Configuration(args.implementation, args.target, args.design),
+                               args.environment, args.version)
     except RenderError as exc:
         parser.exit(1, f"render: {exc}\n")
     out.mkdir(parents=True, exist_ok=True)

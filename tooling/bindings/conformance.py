@@ -40,7 +40,7 @@ sys.path.insert(0, str(REPO / "tooling" / "build"))
 
 import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
-from design_lint import parse_frontmatter  # noqa: E402
+from org_profile import example_targets  # noqa: E402
 from render import render_context  # noqa: E402
 
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
@@ -146,18 +146,21 @@ def run_tests(stream):
 def build_gaps(platform):
     """Each gap the reference builds report on this platform, with the builds reporting it."""
     gaps = defaultdict(list)
-    profiles = [p for p in sorted((EXAMPLE / "profiles").glob("*.md"))
-                if (parse_frontmatter(p.read_text(encoding="utf-8"))[0] or {}).get("platform") == platform]
+    targets = [c for c, p in example_targets() if p == platform]
     for spec in SPECIFICATIONS:
-        for profile in profiles:
-            ctx, findings = build_context.resolve(spec, profile)
-            label = f"{(ctx.get('product') or {}).get('name', spec.stem)} under `{profile.name}`"
+        for target in targets:
+            ctx, findings = build_context.resolve(spec, target)
+            label = f"{(ctx.get('product') or {}).get('name', spec.stem)} under {_target_label(target)}"
             if findings:
                 gaps[f"the build does not resolve: {findings[0]}"].append(label)
                 continue
             for gap in json.loads(render_context(ctx)["manifest.json"])["gaps"]:
                 gaps[gap].append(label)
-    return dict(sorted(gaps.items())), profiles
+    return dict(sorted(gaps.items())), targets
+
+
+def _target_label(target):
+    return f"`{target.target}` of `{target.label(target.implementation)}`"
 
 
 def evidence(result, platform):
@@ -185,7 +188,7 @@ def _cell(text):
 def report(platform, result, title):
     binding, _ = load_binding(platform)
     rows = evidence(result, platform)
-    gaps, profiles = build_gaps(platform)
+    gaps, targets = build_gaps(platform)
     counts = {s: sum(1 for r in rows if r[2] == s) for s in RANK}
     problems = counts["fail"] + counts["error"] + counts["skip"]
     status = "standard" if not (problems or gaps or binding.gaps) else "draft"
@@ -214,7 +217,7 @@ def report(platform, result, title):
         lines += [f"| {g} | {_cell(label)} | {_cell(detail)} |" for g, label, s, detail in rows if s == "skip"] + [""]
     lines += ["## Gaps reported by the builds", "",
               "Every gap the reference specifications' manifests report on this platform, built under "
-              + ", ".join(f"`{p.name}`" for p in profiles) + ".", ""]
+              + ", ".join(_target_label(t) for t in targets) + ".", ""]
     if gaps:
         lines += ["| Gap | Reported by |", "|---|---|"]
         lines += [f"| {_cell(gap)} | {_cell('; '.join(builds))} |" for gap, builds in gaps.items()] + [""]

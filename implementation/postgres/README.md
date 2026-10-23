@@ -31,16 +31,16 @@ Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first. Then [`binding.toml`](bin
 
 ## Render, deploy and validate
 
-The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) with its [PostgreSQL profile](../../examples/it-service-desk-data-product/profiles/postgres.md). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under the same profile.
+The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) under the `postgres` target of the [example configuration](../../config/implementation.example.toml). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under the same target.
 
 ```sh
 python -m pip install -r tooling/bindings/requirements.txt "psycopg[binary]"
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/postgres.md --output build/itsd-postgres
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/itsd-postgres
 psql "$POSTGRES_DSN" -v ON_ERROR_STOP=1 -f build/itsd-postgres/deploy.sql
 python tooling/bindings/validate.py build/itsd-postgres/manifest.json
 ```
 
-The profile names the platform. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
+The target names the platform; `--design` names the design configuration where it is not the implementation file's sibling. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `config/`, `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
 
 - one SQL file per declared phase that renders something for this composition;
 - `deploy.sql`, every phase in one transaction;

@@ -22,7 +22,7 @@ sys.path.insert(0, str(REPO / "tooling" / "bindings"))
 import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
 from build_context import STANDARD_PATTERNS  # noqa: E402
-from org_profile import _snake  # noqa: E402
+from org_profile import _snake, example_targets  # noqa: E402
 import render  # noqa: E402
 
 REFERENCE = REPO / "examples" / "it-service-desk-data-product"
@@ -53,9 +53,15 @@ def _platforms(repo=REPO):
     return sorted(p.name for p in (repo / "implementation").iterdir() if p.is_dir() and (p / "README.md").exists())
 
 
+def _reference_target(platform, repo=REPO):
+    """The template configuration's target for a platform: how the reference product builds there."""
+    return next((c for c, p in example_targets(repo) if p == platform
+                 and c.label(c.implementation) == "config/implementation.example.toml"), None)
+
+
 def _build(platform, repo=REPO):
     """Resolve and render the reference product on one platform: its context and rendered files."""
-    context, findings = build_context.resolve(REFERENCE_SPEC, REFERENCE / "profiles" / f"{platform}.md")
+    context, findings = build_context.resolve(REFERENCE_SPEC, _reference_target(platform, repo))
     if findings:
         raise ValueError(f"the reference product does not resolve on {platform}: " + "; ".join(map(str, findings)))
     return context, render.render_context(context)
@@ -133,8 +139,10 @@ def build_examples(repo=REPO):
     platforms = _platforms(repo)
     result = []
     for example in sorted(p for p in (repo / "examples").iterdir() if p.is_dir() and (p / "README.md").exists()):
-        covered = [p for p in platforms if (example / p).is_dir() or example.name.endswith("-" + p)
-                   or (example / "profiles" / f"{p}.md").exists()]
+        configured = {p for c, p in example_targets(repo)
+                      if c.label(c.implementation).startswith(f"examples/{example.name}/")
+                      or (example == REFERENCE and c.label(c.implementation).startswith("config/"))}
+        covered = [p for p in platforms if (example / p).is_dir() or example.name.endswith("-" + p) or p in configured]
         result.append({"example": example.name, "platforms": covered, "readme": f"examples/{example.name}/README.md"})
     return {"standard_version": read_version(repo), "examples": result}
 
@@ -143,7 +151,7 @@ def build_checks(repo=REPO):
     """checks.json: the checks a conforming deployment of the reference product runs, per platform."""
     rendered = {}
     for platform in _platforms(repo):
-        if not (REFERENCE / "profiles" / f"{platform}.md").exists():
+        if _reference_target(platform, repo) is None:
             continue
         _, files = _build(platform, repo)
         manifest = json.loads(files["manifest.json"])

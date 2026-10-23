@@ -33,15 +33,15 @@ The graph-lineage exposure and the catalogue interface have no binding: their te
 
 ## Render, deploy and validate
 
-The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) with either Teradata profile: [`teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) (a database per module, upper-case names, roles created per product) or [`teradata-type-grouped.md`](../../examples/it-service-desk-data-product/profiles/teradata-type-grouped.md) (type-grouped databases under a parent, snake-case names, an adopted entity, container-isolated environments). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under both.
+The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) under either Teradata target: `teradata` of the [example configuration](../../config/implementation.example.toml) (a database per module, upper-case names, roles created per product) or `teradata` of the [contrasting configuration](../../examples/it-service-desk-data-product/contrasting/implementation.toml) (type-grouped databases under a parent, snake-case names, an adopted entity, container-isolated environments). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under both.
 
 ```sh
 python -m pip install -r tooling/bindings/requirements.txt teradatasql
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/teradata.md --output build/itsd-teradata
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target teradata --output build/itsd-teradata
 TERADATA_DSN='{"host": "...", "user": "...", "password": "..."}' python tooling/bindings/validate.py build/itsd-teradata/manifest.json
 ```
 
-The profile names the platform. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
+The target names the platform; `--design` names the design configuration where it is not the implementation file's sibling. `--environment PHASE` places the product for one lifecycle phase; `--version V` supplies the product version where the specification leaves it open. The output directory must be empty and outside `config/`, `design/`, `implementation/`, `examples/`, `roles/` and `tooling/`. The renderer writes:
 
 - one SQL file per declared phase that renders something for this composition;
 - `deploy.sql`, the phases in order;

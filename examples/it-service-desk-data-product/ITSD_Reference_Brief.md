@@ -55,7 +55,8 @@ itsd-data-product/
 │   ├── customers.csv
 │   └── tickets.csv
 ├── standards/
-│   └── organisation-profile.md      # Organisation profile: placement, naming, roles (this repo)
+│   ├── design.toml                  # Organisation profile: classification (from config/)
+│   └── implementation.toml          # Organisation profile: placement, naming, roles, one target per platform
 ├── design/
 │   └── design_specification.md      # Platform-agnostic design, decisions included (Design phase output)
 ├── build/
@@ -387,8 +388,8 @@ Paste this block into the Build Starter prompt's **Intake** section.
 **Target platform:** Teradata Vantage 17.20  
 **Product name:** `ITServiceDesk`  
 **Design input:** `design/design_specification.md` in the repository  
-**Organisation profile:** `standards/organisation-profile.md` in this repository. Resolve
-it with the design specification into the build context before generating any object  
+**Organisation profile:** `standards/design.toml` and `standards/implementation.toml` (target `teradata`) in this repository. Resolve
+them with the design specification into the build context before generating any object  
 **Object storage in use?** No
 
 ---

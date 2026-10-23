@@ -9,12 +9,12 @@ phases, deploy script and checks from that context alone. SQL stays in
 
 ```sh
 python -m pip install -r tooling/bindings/requirements.txt
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/postgres.md --output build/itsd-postgres
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/itsd-postgres
 ```
 
-The profile names the platform, so the same specification with
-[`profiles/duckdb.md`](../../examples/it-service-desk-data-product/profiles/duckdb.md) renders the
-DuckDB binding, and with [`profiles/teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) the Teradata one. An invalid specification or profile renders nothing and reports why.
+The target names the platform, so the same specification with `--target duckdb` renders the
+DuckDB binding, and with `--target teradata` the Teradata one. An invalid specification or
+configuration renders nothing and reports why.
 `--output` must be empty and outside the skill corpus; use an ignored `build/` directory or a
 separate product repository. Rendering neither connects to a database nor executes SQL.
 

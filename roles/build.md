@@ -34,14 +34,15 @@ When adding a platform or changing its binding, read the [Platform Implementatio
 
 ## Procedure
 
-1. **Resolve the build context before generating any object.** The organisation profile
-   is the organisation's placement, naming, access and classification configuration for
-   this platform. Validate it and resolve it with the design specification:
+1. **Resolve the build context before generating any object.** The organisation's
+   configuration is its placement, naming, access and classification: `design.toml` and
+   `implementation.toml`, with one target per platform (`config/*.example.toml` is the
+   template). Ask the user for theirs. Validate it and resolve it with the design specification:
 
    ```bash
-   python tooling/build/build_context.py design_specification.md organisation-profile.md --out build_context.json
+   python tooling/build/build_context.py design_specification.md implementation.toml --target teradata --out build_context.json
    # or, for a binding that declares its phases, resolve and render in one step:
-   python tooling/bindings/render.py design_specification.md organisation-profile.md --output build/
+   python tooling/bindings/render.py design_specification.md implementation.toml --target teradata --output build/
    ```
 
    Every container, object and principal name comes from that context; if object storage is

@@ -25,12 +25,13 @@ sys.path.insert(0, str(REPO / "tooling" / "build"))
 import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
 from engines import statements  # noqa: E402
+from org_profile import example_targets  # noqa: E402
 from render import environment, render_context  # noqa: E402
 
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
 ITSD = EXAMPLE / "design-output" / "design_specification.md"
 CUSTORD = REPO / "tooling" / "evals" / "reference" / "customer-orders.md"
-PROFILES = sorted((EXAMPLE / "profiles").glob("teradata*.md"))
+PROFILES = [c for c, p in example_targets() if p == "teradata"]
 COMMENT_LIMIT = 255
 
 
@@ -228,7 +229,7 @@ class TeradataDialect(unittest.TestCase):
                 for profile in PROFILES:
                     ctx, findings = build_context.resolve(spec, profile)
                     assert not findings, [str(f) for f in findings]
-                    label = f"{name} on {profile.name}"
+                    label = f"{name} on {profile.label(profile.implementation)} [{profile.target}]"
                     files = render_context(ctx)
                     cls.built[label] = (ctx, files)
                     cls.rendered[label] = cls.everything(ctx, files)

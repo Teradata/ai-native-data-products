@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tooling" / "build"))
 
 from binding import load_binding  # noqa: E402
+from org_profile import example_targets  # noqa: E402
 
 PLATFORMS = tuple(p.name for p in sorted((ROOT / "implementation").iterdir())
                   if (p / "binding.toml").exists() and load_binding(p.name)[0]
@@ -131,13 +132,14 @@ class BindingPackage(unittest.TestCase):
                         self.assertIsNone(match, f"{label} {match and match.group(0)!r} in {path}")
 
     def test_examples_are_build_inputs_not_generated_output(self):
-        """The example holds a specification and organisation profiles: no rendered SQL and no
-        binding-specific input files, which a build context replaces."""
+        """The example holds a specification and configurations: no rendered SQL and no
+        binding-specific input files, which a build context replaces. Every binding has a
+        target in the template configuration, so the reference products build on it."""
         self.assertTrue((EXAMPLE / "design-output" / "design_specification.md").exists())
+        template = {p for c, p in example_targets() if c.label(c.implementation) == "config/implementation.example.toml"}
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
-                self.assertTrue((EXAMPLE / "profiles" / f"{platform}.md").exists(),
-                                f"no organisation profile for {platform}")
+                self.assertIn(platform, template, f"config/implementation.example.toml has no target for {platform}")
         self.assertEqual([p.relative_to(EXAMPLE).as_posix() for p in EXAMPLE.rglob("*.sql")], [])
         self.assertEqual([p.relative_to(EXAMPLE).as_posix() for p in EXAMPLE.rglob("*.json")], [])
 

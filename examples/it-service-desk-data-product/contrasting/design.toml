@@ -1,0 +1,28 @@
+# Design configuration: Contrasting example organisation
+#
+# How this organisation's standards apply to every design, on any platform: its classification
+# scheme and the retention it permits. No platform belongs here; the design role reads this file.
+#
+# Keys are the Organisation Profile Standard's field names in snake_case
+# (design/core/ORGANISATION_PROFILE.md); your own names - container keys, object roles,
+# tiers, classes, entities - are written as they are.
+
+organisation = 'Contrasting example organisation'
+
+[classification]
+scheme = ['Public', 'Internal', 'Sensitive']
+default = 'Internal'
+
+[classification.markers]
+pii = 'Sensitive'
+pii-incidental = 'Internal'
+
+[classification.protection]
+Public = 'none'
+Internal = 'none'
+Sensitive = 'mask for ROLE_READ, ROLE_AGENT'
+
+[retention]
+audit_minimum = '1 years'
+audit_maximum = '7 years'
+personal_data_maximum = '2 years'

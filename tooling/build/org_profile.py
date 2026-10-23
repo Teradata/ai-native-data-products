@@ -1,17 +1,22 @@
 """The Organisation Profile Standard as data, and a parser, checker and deriver for a profile.
 
 An organisation profile configures the standards for one organisation on one platform:
-placement, naming, principals, classification, retention, environments and adoption. Its
-rules live in notation blocks, read by the same parser as a design specification
-(`tooling/evals/spec_notation.py`), and everything a profile may contain is read from the
-tables of `design/core/ORGANISATION_PROFILE.md`. Nothing about the standard is hard-coded.
+placement, naming, principals, classification, retention, environments and adoption. It is
+two TOML files: a design configuration, which names no platform, and an implementation
+configuration with one entry per deployment target. Everything a profile may contain is read
+from the tables of `design/core/ORGANISATION_PROFILE.md`; nothing about the standard is
+hard-coded.
 
-Stdlib only.
+    python tooling/build/org_profile.py config/implementation.example.toml [--target NAME]
+
+Stdlib only (tomllib, Python 3.11 or later).
 """
 from __future__ import annotations
 
+import argparse
 import re
 import sys
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -20,7 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "validation"))
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "evals"))
 
-from design_lint import Finding, parse_frontmatter  # noqa: E402
+from binding import snake  # noqa: E402
+from design_lint import Finding  # noqa: E402
 from spec_notation import (  # noqa: E402
     BACKTICK,
     Block,
@@ -28,7 +34,6 @@ from spec_notation import (  # noqa: E402
     Standard,
     field_tables,
     load_standard,
-    parse_blocks,
     table_rows,
 )
 
@@ -63,7 +68,7 @@ def load_profile_standard(design_root: Path) -> ProfileStandard:
     text = (design_root / "core" / "ORGANISATION_PROFILE.md").read_text(encoding="utf-8")
     pstd = ProfileStandard()
     tables = field_tables(text)
-    pstd.frontmatter = tables.pop("Frontmatter", {})
+    pstd.frontmatter = tables.pop("Identity", {})
     pstd.blocks = tables
     header = ""
     for heading, cells in table_rows(text):
@@ -71,7 +76,7 @@ def load_profile_standard(design_root: Path) -> ProfileStandard:
             header = cells[0]
             continue
         key = BACKTICK.findall(cells[0])[0]
-        if heading == "Document structure" and len(cells) >= 3:
+        if heading == "Sections" and len(cells) >= 3:
             pstd.headings[key] = (cells[1] == "yes", BACKTICK.findall(cells[2]))
         elif heading == "Templates" and header == "Variable":
             pstd.variables.add(key)
@@ -98,6 +103,7 @@ class Profile:
     blocks: Dict[str, Block]
     duplicates: List[Block]
     path: str
+    problems: List[str] = field(default_factory=list)  # what the configuration files got wrong
 
     def field(self, block: str, name: str, default=None):
         b = self.blocks.get(block)
@@ -117,17 +123,150 @@ class Profile:
         return {k: v for k, v in b.fields.items()} if b else {}
 
 
-def parse_profile(text: str, pstd: ProfileStandard, path: str = "<profile>") -> Profile:
-    fm, _ = parse_frontmatter(text)
-    parsed = parse_blocks(text, set(pstd.blocks))
-    blocks, duplicates = {}, []
-    for b in parsed.blocks:
-        if b.kind in blocks:
-            duplicates.append(b)
+# The blocks a design configuration holds; every other block is the implementation's.
+DESIGN_BLOCKS = ("Classification", "Retention")
+# A block's table is its name in snake_case, except where that would collide with a target key.
+TABLES = {"Platform": "platform_terms"}
+TARGET_KEYS = ("platform", "platform_version", "extends")
+
+
+def table_name(kind: str) -> str:
+    return TABLES.get(kind, snake(kind))
+
+
+@dataclass
+class Configuration:
+    """An organisation's configuration and the deployment target a build uses. Each file is a
+    path, or its parsed contents; the design file defaults to the implementation file's
+    sibling, with `implementation` in its name read as `design`."""
+    implementation: object
+    target: str
+    design: object = None
+
+    def design_source(self):
+        if self.design is not None or isinstance(self.implementation, dict):
+            return self.design
+        path = Path(self.implementation)
+        return path.with_name(path.name.replace("implementation", "design"))
+
+    def label(self, source) -> str:
+        """A file as the context records it: relative to the repository when inside it, so a
+        context does not depend on where the checkout is."""
+        if source is None or isinstance(source, dict):
+            return "<inline>"
+        path = Path(source)
+        try:
+            return path.resolve().relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+
+def _read(source) -> Tuple[dict, Optional[str]]:
+    if source is None:
+        return {}, "no design configuration"
+    if isinstance(source, dict):
+        return source, None
+    path = Path(source)
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8")), None
+    except FileNotFoundError:
+        return {}, f"{path.as_posix()} does not exist"
+    except tomllib.TOMLDecodeError as exc:
+        return {}, f"{path.as_posix()} is not valid TOML: {exc}"
+
+
+def _text(value) -> str:
+    return str(value).lower() if isinstance(value, bool) else str(value)
+
+
+def _block(kind: str, table: dict, pstd: ProfileStandard, where: str, problems: List[str]) -> Block:
+    """A configuration table as the block the standard defines: a standard field's key is its
+    name in snake_case, and keys a block leaves to the organisation keep their own spelling."""
+    spec = pstd.blocks[kind]
+    names = {snake(n): n for n in spec if n != "*"}
+    fields = {}
+    for key, value in table.items():
+        name = names.get(snake(key), key)
+        fspec = spec.get(name) or spec.get("*")
+        if isinstance(value, dict):
+            if any(isinstance(v, (dict, list)) for v in value.values()):
+                problems.append(f"{where}.{key}: each entry of a mapping is a single value")
+                continue
+            fields[name] = [f"{k}: {_text(v)}" for k, v in value.items()]
+        elif isinstance(value, list):
+            if fspec and fspec.type in ("examples", "path-examples"):
+                fields[name] = [f"- {_text(v)}" for v in value]
+            else:
+                fields[name] = ", ".join(_text(v) for v in value)
         else:
-            blocks[b.kind] = b
-    headings = [m.group(1).strip() for m in re.finditer(r"^##\s+(.+)$", text, re.M)]
-    return Profile(fm or {}, headings, blocks, duplicates, path)
+            fields[name] = _text(value)
+    return Block(kind, "-", fields, {}, 1)
+
+
+def _target(targets: dict, name: str, problems: List[str], seen=()) -> dict:
+    """A target with what it `extends` beneath it: its own tables replace inherited ones whole."""
+    if name not in targets or not isinstance(targets[name], dict):
+        problems.append(f"no target '{name}' under [targets]")
+        return {}
+    own = targets[name]
+    merged = {}
+    base = own.get("extends")
+    if base is not None:
+        if base in seen + (name,):
+            problems.append(f"targets.{name} extends '{base}', which extends it in turn")
+        else:
+            merged = dict(_target(targets, base, problems, seen + (name,)))
+    merged.update({k: v for k, v in own.items() if k != "extends"})
+    return merged
+
+
+def load_configuration(config: Configuration, pstd: ProfileStandard) -> Profile:
+    """The organisation profile a build uses: the design configuration, and one target of the
+    implementation configuration with the tables every target shares."""
+    problems: List[str] = []
+    design, err = _read(config.design_source())
+    if err:
+        problems.append(err)
+    implementation, err = _read(config.implementation)
+    if err:
+        problems.append(err)
+    kinds = {table_name(k): k for k in pstd.blocks}
+    for key in design:
+        if key != "organisation" and kinds.get(key) not in DESIGN_BLOCKS:
+            problems.append(f"design configuration: '{key}' does not belong here"
+                            + (": it is the implementation's" if key in kinds else ""))
+    for key in implementation:
+        if key == "targets":
+            continue
+        if kinds.get(key) in DESIGN_BLOCKS:
+            problems.append(f"implementation configuration: [{key}] belongs in the design configuration")
+        elif key not in kinds:
+            problems.append(f"implementation configuration: unknown table [{key}]")
+    target = _target(implementation.get("targets", {}), config.target, problems)
+    for key in target:
+        if key not in TARGET_KEYS and key not in kinds:
+            problems.append(f"targets.{config.target}: unknown key '{key}'")
+        elif kinds.get(key) in DESIGN_BLOCKS:
+            problems.append(f"targets.{config.target}: [{key}] belongs in the design configuration")
+
+    blocks = {}
+    for kind in pstd.blocks:
+        name = table_name(kind)
+        source = design if kind in DESIGN_BLOCKS else (target if name in target else implementation)
+        table = source.get(name)
+        if isinstance(table, dict):
+            blocks[kind] = _block(kind, table, pstd, f"{'' if source is not target else f'targets.{config.target}.'}{name}",
+                                  problems)
+    frontmatter = {k: _text(v) for k, v in (("organisation", design.get("organisation")),
+                                            ("platform", target.get("platform")),
+                                            ("platform_version", target.get("platform_version")))
+                   if v is not None}
+    storage = any(k in blocks for k in ("Storage", "Paths", "Files", "Partitioning", "Lifecycle", "StorageAccess"))
+    headings = [h for h, (required, kinds_) in pstd.headings.items()
+                if (kinds_ and all(k in blocks for k in kinds_))
+                or (not kinds_ and (storage if h.startswith("Storage") else required))]
+    path = f"{config.label(config.implementation)} [targets.{config.target}]"
+    return Profile(frontmatter, headings, blocks, [], path, problems)
 
 
 # --------------------------------------------------------------------------- #
@@ -314,6 +453,8 @@ def check_profile(profile: Profile, pstd: ProfileStandard) -> List[Finding]:
     def add(rule, message, line=1):
         findings.append(Finding(path, line, rule, message))
 
+    for problem in profile.problems:
+        add("profile-configuration", problem)
     fm = profile.frontmatter
     for name, spec in pstd.frontmatter.items():
         if spec.required and not fm.get(name):
@@ -527,21 +668,40 @@ def _check_examples(profile: Profile, relations: Set[str]) -> List[Finding]:
     return findings
 
 
-def lint_profile(path: Path, design_root: Path = None) -> List[Finding]:
+def example_targets(repo_root: Path = None) -> List[Tuple[Configuration, str]]:
+    """Every target of every example configuration, with its platform: the template in
+    `config/` and each organisation an example supplies. Discovered, never listed."""
+    root = repo_root or REPO_ROOT
+    sources = [root / "config" / "implementation.example.toml"]
+    sources += sorted((root / "examples").rglob("implementation.toml"))
+    out = []
+    for source in sources:
+        data, _ = _read(source)
+        for name, target in sorted(data.get("targets", {}).items()):
+            out.append((Configuration(source, name), _target(data["targets"], name, []).get("platform")))
+    return out
+
+
+def lint_configuration(implementation: Path, design: Path = None, targets: List[str] = None,
+                       design_root: Path = None) -> List[Finding]:
+    """Every problem with an organisation's configuration, for each of its targets."""
     pstd = load_profile_standard(design_root or (REPO_ROOT / "design"))
-    profile = parse_profile(path.read_text(encoding="utf-8"), pstd, str(path))
-    return check_profile(profile, pstd)
+    data, _ = _read(implementation)
+    findings = []
+    for name in targets or sorted(data.get("targets", {})) or ["(none)"]:
+        findings += check_profile(load_configuration(Configuration(implementation, name, design), pstd), pstd)
+    return findings
 
 
 def main(argv: List[str]) -> int:
-    if not argv:
-        print("usage: org_profile.py <organisation-profile.md> [...]", file=sys.stderr)
-        return 2
-    findings = []
-    for arg in argv:
-        findings += lint_profile(Path(arg))
+    parser = argparse.ArgumentParser(description="Lint an organisation's configuration.")
+    parser.add_argument("implementation", type=Path, help="the implementation configuration (TOML)")
+    parser.add_argument("--target", action="append", help="lint only this target (repeatable)")
+    parser.add_argument("--design", type=Path, help="the design configuration; default: the sibling design file")
+    args = parser.parse_args(argv)
+    findings = lint_configuration(args.implementation, args.design, args.target)
     if not findings:
-        print(f"profile-lint: clean ({', '.join(argv)})")
+        print(f"profile-lint: clean ({args.implementation.as_posix()})")
         return 0
     for f in findings:
         print(str(f))
