@@ -8,7 +8,7 @@ The branch implements the three-input build: a **design specification** (the des
 output, platform- and organisation-agnostic), an **organisation profile** (one per
 organisation per platform), and a **platform binding**. `tooling/build/build_context.py`
 resolves the specification, the profile and the binding's declarations into one build
-context. Every binding's Jinja templates read only that context.
+context. Every binding's dialect reads only that context.
 
 | Area | State |
 |---|---|
@@ -16,7 +16,7 @@ context. Every binding's Jinja templates read only that context.
 | Tooling | `spec_lint`, `org_profile` and `build_context` (resolver), plus `tooling/bindings/render.py` and `validate.py` |
 | PostgreSQL binding | On the build context. Both reference specifications deploy on PostgreSQL 16.4 and every rendered check passes |
 | DuckDB binding | On the build context. Both reference specifications deploy on DuckDB 1.5 and every rendered check passes |
-| Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates were retired (task 1a) |
+| Teradata binding | On the build context. Both reference specifications deploy on Teradata 20.00.24 (ClearScape) and every rendered check passes. The graph-lineage and catalogue-interface templates were retired (task 1a); every binding now generates from a Python dialect |
 | Tests | `tooling/validation/tests`: 253 of 255 pass; the 2 failures are the untouched Teradata extras (task 1a). `tooling/bindings/tests`: 75 pass (20 engine tests each on DuckDB, PostgreSQL and Teradata, 11 rendering, 4 Teradata dialect), none skipped. Each binding's `CONFORMANCE.md` is generated from them (`tooling/bindings/conformance.py`) |
 
 Nothing has been pushed since the earlier review push. This branch is ahead of `origin` by the
@@ -26,9 +26,9 @@ PR #72/#74 merge, the binding-conflict commits, the Teradata WIP and the Teradat
 
 ```bash
 python -m unittest discover -s tooling/validation/tests
-pip install jinja2 duckdb pytz "psycopg[binary]" teradatasql
+pip install duckdb pytz "psycopg[binary]" teradatasql
 POSTGRES_TEST_DSN="host=localhost port=5432 user=postgres dbname=scratch" TERADATA_TEST_DSN="$(cat ~/teradata_test.json)" python -m unittest discover -s tooling/bindings/tests
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/postgres.md --output build/itsd-postgres
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/itsd-postgres
 ```
 
 The PostgreSQL tests need a disposable database whose role can create roles and schemas. Each

@@ -58,7 +58,7 @@ The nulls and the hierarchy are there for a reason. A fixture where every column
 
 ## Before you start
 
-You will need Python 3.8 or later for the linters. They are stdlib-only. `jinja2` is needed only if you want to render the DDL templates locally.
+You will need Python 3.8 or later for the linters. They are stdlib-only, as is rendering the DDL locally, which needs Python 3.11 or later.
 
 You will need a Teradata system you can create databases and roles on. Role creation needs elevated privilege, so confirm it before you begin. The build starter asks you to check this early rather than discover it two phases later:
 

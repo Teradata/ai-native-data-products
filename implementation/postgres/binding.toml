@@ -6,51 +6,16 @@ identifier_quote = '"'
 literal_quote = "'"
 principals = 'native'
 runtime_scope = 'enforced'
-deploy = 'deploy.sql.j2'
-
-# Deployment phases in order: the file each writes and the template that renders it.
-phases = [
-  { file = '00-containers.sql', template = 'patterns/object-placement/01-containers.sql.j2' },
-  { file = '01-memory.sql', template = 'modules/memory/01-tables.sql.j2' },
-  { file = '02-semantic.sql', template = 'modules/semantic/01-tables.sql.j2' },
-  { file = '03-domain.sql', template = 'modules/domain/01-tables.sql.j2' },
-  { file = '04-observability.sql', template = 'modules/observability/01-tables.sql.j2' },
-  { file = '05-search.sql', template = 'modules/search/01-tables.sql.j2' },
-  { file = '06-prediction.sql', template = 'modules/prediction/01-tables.sql.j2' },
-  { file = '07-comments.sql', template = 'patterns/temporal-lifecycle-metadata/02-comments.sql.j2' },
-  { file = '08-views.sql', template = 'patterns/temporal-lifecycle-metadata/03-access-views.sql.j2' },
-  { file = '09-similarity.sql', template = 'modules/search/02-similarity.sql.j2' },
-  { file = '10-registration.sql', template = 'modules/semantic/02-registration.sql.j2' },
-  { file = '11-discovery.sql', template = 'modules/semantic/03-discovery.sql.j2' },
-  { file = '12-trust.sql', template = 'patterns/validation/04-trust-map.sql.j2' },
-  { file = '13-documentation.sql', template = 'modules/memory/02-capture.sql.j2' },
-  { file = '14-access.sql', template = 'patterns/access-layer/01-grants.sql.j2' },
-]
-
-# Checks a build manifest carries: scope, check and template. Every row a check returns is a defect.
-checks = [
-  { scope = 'entity', check = 'metadata', template = 'patterns/validation/01-entity-metadata.sql.j2' },
-  { scope = 'entity', check = 'temporal', template = 'patterns/validation/02-entity-temporal.sql.j2' },
-  { scope = 'relationship', check = 'reference', template = 'patterns/validation/03-relationship-reference.sql.j2' },
-  { scope = 'module', check = 'semantic', template = 'modules/semantic/validation.sql.j2' },
-  { scope = 'module', check = 'memory', template = 'modules/memory/validation.sql.j2' },
-  { scope = 'contract', check = 'identity', template = 'modules/semantic/contract/identity.sql.j2' },
-  { scope = 'contract', check = 'keys', template = 'modules/semantic/contract/keys.sql.j2' },
-  { scope = 'contract', check = 'relationships', template = 'modules/semantic/contract/relationships.sql.j2' },
-  { scope = 'contract', check = 'access-columns', template = 'modules/semantic/contract/access-columns.sql.j2' },
-  { scope = 'contract', check = 'composition', template = 'modules/semantic/contract/composition.sql.j2' },
-  { scope = 'product', check = 'comment-coverage', template = 'patterns/validation/05-comment-coverage.sql.j2' },
-]
 
 # Gaps no check can detect; the conformance report lists them.
 gaps = [
   { area = 'Composition', gap = 'only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy' },
   { area = 'Adoption', gap = "the reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered" },
-  { area = 'Maintenance', gap = 'only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted' },
+  { area = 'Maintenance', gap = 'only the bitemporal path of the maintenance statement is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted' },
   { area = 'Historical references', gap = 'the reference check covers current surfaces only' },
   { area = 'Cookbook recipes', gap = 'cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join' },
   { area = 'Embedding, model and operations', gap = 'no encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these' },
-  { area = 'Concurrency', gap = 'the maintenance template takes an advisory lock, but no concurrent-writer test exists' },
+  { area = 'Concurrency', gap = 'the maintenance statement takes an advisory lock, but no concurrent-writer test exists' },
   { area = 'Principals and membership', gap = 'roles are NOLOGIN; login users, memberships and a shared-scope Memory policy are operator work' },
 ]
 

@@ -33,7 +33,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Binding setting**: A physical choice a **platform binding** declares configurable, with its permitted values and default, in its **platform profile**. An organisation sets it in its **organisation profile**; a setting the binding does not declare fails the build.
 
-**Build context**: The single resolved input every platform binding's templates read, produced by shared tooling from a **design specification** and an **organisation profile**. Its schema is the same for every platform. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
+**Build context**: The single resolved input every platform binding's dialect reads, produced by shared tooling from a **design specification** and an **organisation profile**. Its schema is the same for every platform. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
 **Capability**: A named operation a design requires, declared abstractly and bound per platform. See the [capability catalogue](DESIGN_LANGUAGE.md).
 
@@ -93,7 +93,7 @@ Terms used across the design standards. Notation terms (logical types, capabilit
 
 **Placement**: Deciding which **container** an object lives in. Stated as rules in the **organisation profile** and executed once, when the **build context** is resolved.
 
-**Platform binding**: A platform's implementation of the standards: the `implementation/{platform}/` tree of templates, binding documents and **platform profile**. It reads only the **build context**. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
+**Platform binding**: A platform's implementation of the standards: the `implementation/{platform}/` directory holding its dialect module, declarations, binding documents and **platform profile**. It reads only the **build context**. See the [Platform Implementation Authoring Standard](IMPLEMENTATION_AUTHORING.md).
 
 **Platform profile**: A platform binding's `PLATFORM_PROFILE.md`, with its `binding.toml`. Together they declare the engine versions the binding supports, its naming limits and the **binding settings** an organisation may set, which are normative for the binding; and it records physical-design defaults (key strategy, partitioning, indexing, compression, statistics), which a workload with different needs may depart from. Distinct from an **organisation profile**.
 

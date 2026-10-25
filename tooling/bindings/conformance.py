@@ -57,7 +57,7 @@ ENGINE_LINE = "Engine evidence:"
 
 def platforms():
     return [p.name for p in sorted((REPO / "implementation").iterdir())
-            if (p / "binding.toml").exists() and load_binding(p.name)[0].phases]
+            if (p / "binding.toml").exists() and (p / "dialect.py").exists()]
 
 
 class Recorder(unittest.TextTestResult):

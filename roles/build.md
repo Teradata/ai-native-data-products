@@ -16,11 +16,11 @@ and invariant the design declares.
 3. **`implementation/{platform}/README.md`** - one numbered section per module and pattern,
    in deployment order: modules §3 to §8, patterns §1, §2 and §9 onwards. Read each section as
    you reach it. It carries the capability→binding table, the logical-type bindings and the
-   invariant→check mapping, and names the directory its templates are in
-   (`implementation/{platform}/modules/{module}/`, `implementation/{platform}/patterns/{pattern}/`).
-   The `.sql.j2` files are templates over the build context; `tooling/bindings/render.py`
-   renders them from the approved specification and the organisation profile, in the order
-   the binding's `Phases` declare.
+   invariant→check mapping, and names the dialect methods that generate it.
+   `implementation/{platform}/dialect.py` generates every phase and check from the build
+   context, extending `implementation/portable/dialect.py`; `tooling/bindings/render.py`
+   runs it over the approved specification and the organisation's configuration, in the order
+   the dialect's `PHASES` declare.
 
 `design/modules/{module}.md` when you need to know *why* a binding exists. The design
 document owns what and why; the binding owns how.
@@ -30,18 +30,18 @@ ask if it has not been given.
 
 ## Authoring or extending a platform binding
 
-When adding a platform or changing its binding, read the [Platform Implementation Authoring Standard](../design/core/IMPLEMENTATION_AUTHORING.md) before writing implementation artefacts. A binding builds from three inputs only (the design specification, the organisation profile and its own templates), its templates read only the shared build context, generated product output stays outside the corpus, and conformance is shown by the required portability and engine evidence. It applies to every platform alike.
+When adding a platform or changing its binding, read the [Platform Implementation Authoring Standard](../design/core/IMPLEMENTATION_AUTHORING.md) before writing implementation artefacts. A binding builds from three inputs only (the design specification, the organisation's configuration and its own dialect), its dialect reads only the shared build context, generated product output stays outside the corpus, and conformance is shown by the required portability and engine evidence. It applies to every platform alike.
 
 ## Procedure
 
 1. **Resolve the build context before generating any object.** The organisation's
    configuration is its placement, naming, access and classification: `design.toml` and
    `implementation.toml`, with one target per platform (`config/*.example.toml` is the
-   template). Ask the user for theirs. Validate it and resolve it with the design specification:
+   example to start from). Ask the user for theirs. Validate it and resolve it with the design specification:
 
    ```bash
    python tooling/build/build_context.py design_specification.md implementation.toml --target teradata --out build_context.json
-   # or, for a binding that declares its phases, resolve and render in one step:
+   # or resolve and render in one step:
    python tooling/bindings/render.py design_specification.md implementation.toml --target teradata --output build/
    ```
 
@@ -59,7 +59,7 @@ When adding a platform or changing its binding, read the [Platform Implementatio
    create roles, emit those statements separately so the rest of the deployment proceeds and
    the outstanding step stays visible. Do not discover this when a view fails to compile two
    phases later.
-4. **Per module or pattern:** render the templates with the product's names, bind each
+4. **Per module or pattern:** render the binding with the product's names, bind each
    capability the design requires, and **preserve validated platform SQL verbatim**.
    Recursive CTEs, vector functions, and catalogue decodes are load-bearing and must not be
    paraphrased or "tidied". Register entities into the Semantic map and write the

@@ -10,11 +10,11 @@ platform: duckdb
 
 # DuckDB platform binding
 
-This binds the [design language](../../design/core/DESIGN_LANGUAGE.md) and the [implementation authoring standard](../../design/core/IMPLEMENTATION_AUTHORING.md) without changing them. The module and pattern directories bind platform-neutral contracts through Jinja; no product model is selected by this profile.
+This binds the [design language](../../design/core/DESIGN_LANGUAGE.md) and the [implementation authoring standard](../../design/core/IMPLEMENTATION_AUTHORING.md) without changing them. The dialect binds platform-neutral contracts; no product model is selected by this profile.
 
 ## 1. Engine versions and driver constraints
 
-Target DuckDB 1.4 or later. The suite has been run against DuckDB **1.5.6** through the Python driver; other versions are untested, and a target version is not itself proof of a native execution matrix. Tooling needs Python 3.10+ and Jinja2 3.1. Match client and driver engine versions and test reopening a file after any upgrade. Record the versions tested in [CONFORMANCE.md](CONFORMANCE.md).
+Target DuckDB 1.4 or later. The suite has been run against DuckDB **1.5.6** through the Python driver; other versions are untested, and a target version is not itself proof of a native execution matrix. Tooling needs Python 3.11+ and nothing outside the standard library. Match client and driver engine versions and test reopening a file after any upgrade. Record the versions tested in [CONFORMANCE.md](CONFORMANCE.md).
 
 ## 2. Binding settings
 
@@ -63,7 +63,7 @@ Native roles, grants, view-only access and row isolation are **unsupported**. Th
 
 ## 8. Extensions
 
-Extensions execute code in the host: pin and approve packages and restrict loading in a serving process. The templates neither install nor load any extension and download no model. DuckDB documents [persistent HNSW as experimental](https://duckdb.org/docs/current/core_extensions/vss#persistence); an optional approximate index would be a separate, rebuildable in-memory cache and is not emitted.
+Extensions execute code in the host: pin and approve packages and restrict loading in a serving process. The binding neither installs nor loads any extension and download no model. DuckDB documents [persistent HNSW as experimental](https://duckdb.org/docs/current/core_extensions/vss#persistence); an optional approximate index would be a separate, rebuildable in-memory cache and is not emitted.
 
 ## 9. Capabilities and gaps
 
@@ -82,7 +82,7 @@ Extensions execute code in the host: pin and approve packages and restrict loadi
 
 ## 10. SQL idioms and driver constraints
 
-Use quoted identifiers and escaped literals through the documented filters. Use `?` parameters for data values through the driver. History surfaces are table macros with untyped parameters; pass typed timestamps. Fixed-size arrays enforce their dimension at insert. Render StrictUndefined templates with a loader rooted at this platform directory. Type and constraint expressions are builder-authored SQL, not user data. Run DuckDB checks in autocommit mode so that one failed query does not poison the following checks.
+Use quoted identifiers and escaped literals through the dialect's `ident` and `literal`. Use `?` parameters for data values through the driver. History surfaces are table macros with untyped parameters; pass typed timestamps. Fixed-size arrays enforce their dimension at insert. Type and constraint expressions are builder-authored SQL, not user data. Run DuckDB checks in autocommit mode so that one failed query does not poison the following checks.
 
 ---
 

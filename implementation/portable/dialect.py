@@ -25,6 +25,19 @@ def tojson(value):
 
 
 class PortableDialect(Dialect):
+    # The deployment phases in order (Master Design §10: Memory and Semantic first, so every
+    # other module has somewhere to register as it lands). Each is the method `phase_<name>`
+    # and writes the file `NN-<name>.sql`; a phase that renders nothing writes no file.
+    PHASES = ("containers", "memory", "semantic", "domain", "observability", "search", "prediction", "comments",
+              "views", "similarity", "registration", "discovery", "trust", "documentation", "access")
+    # The checks a build manifest carries, each the method `check_<scope>_<name>`. Scope `entity`
+    # runs once per persisted relation, `relationship` once per relationship, `module` once where
+    # that module is composed, `contract` once where Semantic is, and `product` once.
+    CHECKS = (("entity", "metadata"), ("entity", "temporal"), ("relationship", "reference"),
+              ("module", "semantic"), ("module", "memory"), ("contract", "identity"), ("contract", "keys"),
+              ("contract", "relationships"), ("contract", "access-columns"), ("contract", "composition"),
+              ("product", "comment-coverage"))
+
     # ---- expressions a platform may spell differently --------------------------------------
     open_end = "'infinity'::TIMESTAMPTZ"  # the end of an interval still open
     now = "current_timestamp"
@@ -1148,6 +1161,79 @@ class PortableDialect(Dialect):
             f"        AND (c.{via} IS NOT NULL OR c.{direction} IS NOT NULL))",
             f"    OR NOT EXISTS (SELECT 1 FROM {em} e",
             f"                   WHERE e.{c('EntityMetadata', 'entity_name')} = c.{me}))"])
+
+    # ---- caller-rendered: what a product's own pipelines run ------------------------------------
+    def natural_column(self, keymap):
+        n = keymap["column_names"][keymap["identity"]["natural"][0]]
+        return n, next(c for c in keymap["columns"] if c["physical_name"] == n)["physical_type"]
+
+    def staged_source(self, staged):
+        """A table the caller has written natural values to: {container (null for a session's
+        own table), name, column}."""
+        source = self.qualified(staged) if staged["container"] else self.ident(staged["name"])
+        return source, self.ident(staged["column"])
+
+    def key_allocation(self, keymap, natural_value=None, staged=None):
+        """The stable identifier of a natural value, allocated once and never recycled; an
+        existing mapping keeps its identifier. Given `staged`, the whole set in one statement,
+        NULLs and duplicates ignored, then each staged value with its identifier. The caller
+        opens the transaction."""
+        n, ntype = self.natural_column(keymap)
+        km, cn, ident = self.qualified(keymap["objects"]["table"]), keymap["column_names"], self.ident
+        stamps = f"{ident(n)}, {ident(cn['created_dts'])}, {ident(cn['updated_dts'])}"
+        key = ident(keymap["key_columns"][0])
+        if staged is not None:
+            source, v = self.staged_source(staged)
+            return "\n".join([
+                f"INSERT INTO {km} ({stamps})",
+                f"SELECT DISTINCT CAST(s.{v} AS {ntype}), current_timestamp, current_timestamp FROM {source} AS s WHERE s.{v} IS NOT NULL",
+                f"ON CONFLICT ({ident(n)}) DO NOTHING;",
+                f"SELECT k.{ident(n)}, k.{key} FROM {km} AS k WHERE k.{ident(n)} IN (SELECT s.{v} FROM {source} AS s);"])
+        return self.single_key_allocation(keymap, natural_value, km, stamps, key)
+
+    def single_key_allocation(self, keymap, natural_value, km, stamps, key):
+        n = self.ident(self.natural_column(keymap)[0])
+        return "\n".join([f"INSERT INTO {km} ({stamps})",
+                          f"VALUES ({self.literal(natural_value)}, current_timestamp, current_timestamp)",
+                          f"ON CONFLICT ({n}) DO UPDATE SET {n} = excluded.{n}", f"RETURNING {key};"])
+
+    def maintenance_lock(self, x, stable_key):
+        """A statement serialising writers of one identity, where the platform has one."""
+        return None
+
+    def instant(self, text):
+        return f"{self.literal(text)}::TIMESTAMPTZ"
+
+    def maintenance_value(self, value, col):
+        return self.literal(value)
+
+    def maintenance(self, entity, stable_key, effective_at, recorded_at, replacement_rows):
+        """A transaction body closing an identity's current version and writing its replacement
+        rows. `replacement_rows` are complete, non-overlapping business intervals for the
+        identity, keyed by physical column name; for a bitemporal change, the complete new known
+        timeline. Values are literals, never SQL; the caller controls the transaction and runs
+        the checks before it commits."""
+        x, ident = entity, self.ident
+        cn, t, key = x["column_names"], self.qualified(x["objects"]["table"]), ident(x["version_columns"][0])
+        out = [s for s in [self.maintenance_lock(x, stable_key)] if s]
+        if x["bitemporal"]:
+            out.append(f"UPDATE {t} SET {ident(cn['transaction_to_dts'])} = {self.instant(recorded_at)}, "
+                       f"{ident(cn['is_current'])} = {self.false}, {ident(cn['updated_dts'])} = {self.now}\n"
+                       f"WHERE {key} = {self.maintenance_key(stable_key)} AND {ident(cn['transaction_to_dts'])} = {self.open_end};")
+        else:
+            at = self.instant(effective_at)
+            out.append(f"UPDATE {t} SET {ident(cn['valid_to_dts'])} = {at}, {ident(cn['is_current'])} = {self.false}, "
+                       f"{ident(cn['updated_dts'])} = {self.now}\n"
+                       f"WHERE {key} = {self.maintenance_key(stable_key)} AND {ident(cn['valid_from_dts'])} < {at} "
+                       f"AND {at} < {ident(cn['valid_to_dts'])};")
+        names = self.cols(c["physical_name"] for c in x["columns"])
+        for row in replacement_rows:
+            values = ", ".join(self.maintenance_value(row[c["physical_name"]], c) for c in x["columns"])
+            out.append(f"INSERT INTO {t} ({names})\nVALUES ({values});")
+        return "\n\n".join(out)
+
+    def maintenance_key(self, stable_key):
+        return self.literal(stable_key)
 
     # ---- descriptions and views -------------------------------------------------------------
     def phase_comments(self):

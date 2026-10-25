@@ -1,6 +1,6 @@
-"""Contract and engine tests for the Jinja bindings, driven by build contexts.
+"""Contract and engine tests for the platform bindings, driven by build contexts.
 
-Every binding that declares its phases is rendered from the same design specifications and
+Every binding is rendered from the same design specifications and
 the example organisation's profile for that platform, so one specification is shown to build
 on every platform. The engine tests are written once, against the build context, and run on
 every engine; what differs between engines is only how a test writes a value (a flag, an open
@@ -41,13 +41,12 @@ sys.path.insert(0, str(REPO / "tooling" / "build"))
 import build_context  # noqa: E402
 from org_profile import Configuration, example_targets  # noqa: E402
 from binding import load_binding  # noqa: E402
-from jinja2 import UndefinedError  # noqa: E402
-from render import RenderError, environment, persisted, render_context, render_product  # noqa: E402
+from render import RenderError, dialect_for, persisted, render_context, render_product  # noqa: E402
 from engines import engine, statements  # noqa: E402
 from validate import publish, run_checks, summarize, validate  # noqa: E402
 
 PLATFORMS = tuple(p.name for p in sorted((REPO / "implementation").iterdir())
-                  if (p / "binding.toml").exists() and load_binding(p.name)[0].phases)
+                  if (p / "binding.toml").exists() and (p / "dialect.py").exists())
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
 ITSD = EXAMPLE / "design-output" / "design_specification.md"
 CUSTORD = REPO / "tooling" / "evals" / "reference" / "customer-orders.md"
@@ -55,13 +54,13 @@ TRUST_CASES = json.loads((Path(__file__).parent / "trust_cases.json").read_text(
 
 
 def configuration(platform):
-    """The template configuration's target for a platform: how the reference products build there."""
+    """The example configuration's target for a platform: how the reference products build there."""
     return next(c for c, p in example_targets() if p == platform
                 and c.label(c.implementation) == "config/implementation.example.toml")
 
 
 def edited(platform, change):
-    """The platform's template target with `change(configuration, target)` applied to its
+    """The platform's example target with `change(configuration, target)` applied to its
     parsed tables, as another organisation would have written it."""
     base = configuration(platform)
     data = tomllib.loads(Path(base.implementation).read_text(encoding="utf-8"))
@@ -118,7 +117,7 @@ class Rendering(unittest.TestCase):
                                         for c in manifest["checks"]))
 
     def test_names_come_from_the_specification_and_profile(self):
-        """Another product, or another organisation's naming, changes every name and no template."""
+        """Another product, or another organisation's naming, changes every name and no dialect code."""
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 b = load_binding(platform)[0]
@@ -144,27 +143,25 @@ class Rendering(unittest.TestCase):
                 _, findings = build_context.resolve(ITSD, edited(platform, create))
                 self.assertIn("unsupported-principal", {f.rule for f in findings})
 
-    def test_templates_are_strict(self):
+    def test_generation_is_strict(self):
+        """A context without what generation needs fails; it never renders around the hole."""
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
-                with self.assertRaises(UndefinedError):
-                    env.from_string("{{ product.no_such_field }}").render(**ctx)
+                del ctx["relationships"]
+                with self.assertRaises(KeyError):
+                    render_context(ctx)
 
-    def test_caller_templates_quote_their_values(self):
+    def test_caller_rendered_statements_quote_their_values(self):
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
-                sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-                    **dict(ctx, keymap=named(ctx, "TicketKeymap"), natural_value="T-1'; DROP"))
+                dialect = dialect_for(ctx)
+                sql = dialect.key_allocation(named(ctx, "TicketKeymap"), natural_value="T-1'; DROP")
                 self.assertIn("'T-1''; DROP'", sql)
                 ticket = named(ctx, "Ticket")
                 row = {c["physical_name"]: None for c in ticket["columns"]}
-                sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-                    **dict(ctx, entity=ticket, stable_key=1, effective_at="2026-01-01", recorded_at="2026-02-01",
-                           replacement_rows=[row]))
+                sql = dialect.maintenance(ticket, 1, "2026-01-01", "2026-02-01", [row])
                 self.assertIn("INSERT INTO", sql)
 
     def test_one_specification_gives_every_binding_the_same_product(self):
@@ -189,14 +186,13 @@ class Rendering(unittest.TestCase):
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
+                dialect = dialect_for(ctx)
                 paths = named(ctx, "RelationshipPaths")
                 self.assertEqual(paths["max_hops"], build_context.PATH_HOPS)
-                template = env.get_template("modules/semantic/03-discovery.sql.j2")
                 rendered = []
                 for hops in (2, 5):
                     paths["max_hops"] = hops
-                    rendered.append(template.render(**ctx))
+                    rendered.append(dialect.phase("discovery"))
                 self.assertNotEqual(*rendered)
 
     def test_gaps_are_reported_not_hidden(self):
@@ -334,9 +330,7 @@ class EngineTests:
         return self.q(f"SELECT MAX({self.binding.ident(cn[returning])}) FROM {self.table(name)}")[0][0]
 
     def allocate(self, keymap, natural):
-        env = environment(self.binding, self.ctx)
-        sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-            **dict(self.ctx, keymap=named(self.ctx, keymap), natural_value=natural))
+        sql = dialect_for(self.ctx).key_allocation(named(self.ctx, keymap), natural_value=natural)
         *writes, read = statements(sql)
         for statement in writes:
             self.con.execute(statement)
@@ -387,10 +381,8 @@ class EngineTests:
         try:
             self.executemany(f"INSERT INTO {stage} (natural_value) VALUES ({self.marker})",
                              [[value] for value in dict.fromkeys(naturals)])
-            *writes, read = statements(environment(self.binding, self.ctx).get_template(
-                "modules/domain/02-key-allocation.sql.j2").render(**dict(
-                    self.ctx, keymap=named(self.ctx, keymap),
-                    staged={"container": None, "name": self.STAGE, "column": "natural_value"})))
+            *writes, read = statements(dialect_for(self.ctx).key_allocation(
+                named(self.ctx, keymap), staged={"container": None, "name": self.STAGE, "column": "natural_value"}))
             self.run_writes(writes)
             return dict(self.q(read))
         finally:
@@ -626,10 +618,7 @@ class EngineTests:
                     cn["is_current"]: True, cn["is_deleted"]: False, cn["deleted_dts"]: None,
                     cn["updated_dts"]: "2026-08-01 00:00:00+00:00"})
         row = {k: (str(v) if isinstance(v, (datetime, date)) else v) for k, v in row.items()}
-        env = environment(self.binding, self.ctx)
-        sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-            **dict(self.ctx, entity=ticket, stable_key=stable, effective_at=None,
-                   recorded_at="2026-08-01 00:00:00+00:00", replacement_rows=[row]))
+        sql = dialect_for(self.ctx).maintenance(ticket, stable, None, "2026-08-01 00:00:00+00:00", [row])
         for statement in statements(sql):
             self.con.execute(statement)
         prio = self.binding.ident(cn["priority"])
@@ -667,12 +656,8 @@ class EngineTests:
         return self.binding.ident(named(self.ctx, relation)["key_columns"][0])
 
     def register(self, relation, values, sql=None):
-        """Insert a catalogue row the way registration does, through the shared insert macro."""
-        env = environment(self.binding, self.ctx)
-        text = env.from_string("{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}"
-                               "{{ m.insert(rel, values, sql) }}").render(
-            **dict(self.ctx, rel=named(self.ctx, relation), values=values, sql=sql or {}))
-        self.con.execute(text)
+        """Insert a catalogue row the way registration does, through the dialect's insert."""
+        self.con.execute(dialect_for(self.ctx).insert(named(self.ctx, relation), values, sql or {}))
 
     def contract_check(self, name):
         return next(c for c in self.manifest["checks"] if c["check"] == name)
@@ -1204,15 +1189,14 @@ class Teradata(EngineTests, unittest.TestCase):
         check sees them, and they go when the session ends. Each is declared from the context's
         columns with the binding's own character set, since CREATE TABLE AS refuses a source
         with an identity column."""
-        macros = environment(self.binding, self.ctx).get_template(
-            "patterns/temporal-lifecycle-metadata/00-macros.sql.j2").make_module(self.ctx)
+        dialect = dialect_for(self.ctx)
         taken, start = [], sum(len(s) for s in self.snapshots.values())
         for i, x in enumerate(persisted(self.ctx), start):
             table = self.binding.qualified(x["objects"]["table"]["container"], x["objects"]["table"]["name"])
             copy = f"{TEST_PREFIX}_snapshot_{i}"
             cols = ", ".join(self.binding.ident(c["physical_name"]) for c in x["columns"])
             self.con.execute(f"CREATE VOLATILE TABLE {copy} ("
-                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{macros.unicode(c)}"
+                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{dialect.unicode(c)}"
                                          for c in x["columns"])
                              + ") ON COMMIT PRESERVE ROWS")
             self.con.execute(f"INSERT INTO {copy} ({cols}) SELECT {cols} FROM {table}")

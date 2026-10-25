@@ -7,9 +7,6 @@ context and returns SQL text: it reads no file, clock or environment, so generat
 pure function of the context. This module holds no SQL; it loads the dialects and gives them
 the context and the binding's quoting.
 
-While the bindings move from Jinja templates to dialects, a phase or check the dialect has
-no method for is still rendered from the template the binding declares for it.
-
 Stdlib only.
 """
 from __future__ import annotations
@@ -34,10 +31,10 @@ def _load(name: str, path: Path):
 
 
 def dialect_class(platform: str):
-    """The dialect a platform generates with, or the base class where it has none yet."""
+    """The dialect a platform generates with: `DIALECT` in its `dialect.py`."""
     path = IMPLEMENTATION / platform / "dialect.py"
     if not path.is_file():
-        return Dialect
+        raise FileNotFoundError(f"the {platform} binding has no dialect.py")
     _load(PORTABLE, IMPLEMENTATION / "portable" / "dialect.py")
     return _load(f"{platform}_dialect", path).DIALECT
 
@@ -78,12 +75,10 @@ class Dialect:
                 if x["relation"] == "table" and x.get("defined", True) and not x.get("adopted", False)]
 
     # ---- what the generator asks for ------------------------------------------------------
-    def phase(self, key: str):
-        """The SQL of one deployment phase, or None where this dialect has no method for it."""
-        method = getattr(self, "phase_" + key.replace("-", "_"), None)
-        return method() if method else None
+    def phase(self, name: str) -> str:
+        """The SQL of one deployment phase: the method `phase_<name>`."""
+        return getattr(self, "phase_" + name.replace("-", "_"))()
 
-    def check(self, scope: str, name: str, **item):
-        """The SQL of one check, or None where this dialect has no method for it."""
-        method = getattr(self, f"check_{scope}_{name.replace('-', '_')}", None)
-        return method(**item) if method else None
+    def check(self, scope: str, name: str, **item) -> str:
+        """The SQL of one check: the method `check_<scope>_<name>`."""
+        return getattr(self, f"check_{scope}_{name.replace('-', '_')}")(**item)

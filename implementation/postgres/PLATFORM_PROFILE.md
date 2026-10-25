@@ -12,7 +12,7 @@ platform: postgres
 
 ## 1. Scope
 
-Target PostgreSQL 16+. The module and pattern directories bind platform-neutral contracts through Jinja; no product model is selected by this profile.
+Target PostgreSQL 16+. The dialect binds platform-neutral contracts; no product model is selected by this profile.
 
 ## 2. Type bindings
 
@@ -44,7 +44,7 @@ Exact cosine retrieval joins vectors back to Domain. Encoder/model execution and
 
 ## 7. SQL Idioms and Driver Constraints
 
-Use quoted identifiers and escaped literals through the documented filters. Use Psycopg %s parameters for data values and savepoints after query errors. Arrays do not enforce declared dimensions without checks. JSONB supports equality used by conformance. Historical surfaces are SQL functions with typed timestamp arguments; bitemporal surfaces take both valid_at and known_at. Render StrictUndefined templates with a loader rooted at this platform directory. Type/constraint expressions are builder-authored SQL, not user data.
+Use quoted identifiers and escaped literals through the dialect's `ident` and `literal`. Use Psycopg %s parameters for data values and savepoints after query errors. Arrays do not enforce declared dimensions without checks. JSONB supports equality used by conformance. Historical surfaces are SQL functions with typed timestamp arguments; bitemporal surfaces take both valid_at and known_at. Type/constraint expressions are builder-authored SQL, not user data.
 
 Runtime versions tested are recorded in CONFORMANCE.md; a target version is not itself proof of a native execution matrix.
 

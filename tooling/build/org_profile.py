@@ -669,7 +669,7 @@ def _check_examples(profile: Profile, relations: Set[str]) -> List[Finding]:
 
 
 def example_targets(repo_root: Path = None) -> List[Tuple[Configuration, str]]:
-    """Every target of every example configuration, with its platform: the template in
+    """Every target of every example configuration, with its platform: the example in
     `config/` and each organisation an example supplies. Discovered, never listed."""
     root = repo_root or REPO_ROOT
     sources = [root / "config" / "implementation.example.toml"]

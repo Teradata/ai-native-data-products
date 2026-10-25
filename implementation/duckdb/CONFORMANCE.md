@@ -43,7 +43,7 @@ What no check can detect, declared in the `gaps` of [binding.toml](binding.toml)
 |---|---|
 | Composition | Only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy. |
 | Adoption | The reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered. |
-| Maintenance | Only the bitemporal path of the maintenance template is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted. |
+| Maintenance | Only the bitemporal path of the maintenance statement is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted. |
 | Historical references | The reference check covers current surfaces only. |
 | Cookbook recipes | Cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join. |
 | Embedding, model and operations | No encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these. |
@@ -98,23 +98,23 @@ What no check can detect, declared in the `gaps` of [binding.toml](binding.toml)
 |---|---|
 | A platform without principals refuses to create them | pass |
 | An invalid specification renders nothing | pass |
-| Caller templates quote their values | pass |
+| Caller rendered statements quote their values | pass |
 | CLI refuses reserved and existing output | pass |
 | Every binding renders every reference specification | pass |
 | Every binding takes the path bound from the context | pass |
 | Gaps are reported not hidden | pass |
+| Generation is strict | pass |
 | Names come from the specification and profile | pass |
 | Shared trust cases | pass |
-| Templates are strict | pass |
 
 ### Package
 
 | Test | Outcome |
 |---|---|
+| A binding is one dialect and its declarations | pass |
 | Conformance is generated and status follows it | pass |
+| Dialects are pure and hold no product literals | pass |
+| Every dialect extends the portable dialect | pass |
+| Every dialect method is reached | pass |
 | Every module and pattern has a section numbered alike on every binding | pass |
-| Every template is declared or caller rendered | pass |
 | Examples are build inputs not generated output | pass |
-| Platform bindings are templates not product compilers | pass |
-| Platform directories hold only jinja and declarations | pass |
-| Templates use only jinja substitution and no product literals | pass |

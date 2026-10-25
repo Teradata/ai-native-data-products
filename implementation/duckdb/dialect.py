@@ -8,6 +8,9 @@ from portable_dialect import PortableDialect
 
 
 class DuckDBDialect(PortableDialect):
+    # No access phase: DuckDB has no principals, and each tier is enforced outside the engine.
+    PHASES = tuple(p for p in PortableDialect.PHASES if p != "access")
+
     # The column catalogue reads this database file's catalogue only.
     catalogue_scope = "col.table_catalog = current_database() AND "
     text_type = "VARCHAR"
@@ -43,6 +46,13 @@ class DuckDBDialect(PortableDialect):
             f"AND actual.table_name = {self.literal(t['name'])}",
             " AND actual.column_name = expected.column_name",
             "WHERE actual.column_name IS NULL OR nullif(actual.comment, '') IS NULL"])
+
+    def single_key_allocation(self, keymap, natural_value, km, stamps, key):
+        """An existing mapping returns its identifier unchanged."""
+        n, u = self.ident(self.natural_column(keymap)[0]), self.ident(keymap["column_names"]["updated_dts"])
+        return "\n".join([f"INSERT INTO {km} AS k ({stamps})",
+                          f"VALUES ({self.literal(natural_value)}, current_timestamp, current_timestamp)",
+                          f"ON CONFLICT ({n}) DO UPDATE SET {u} = k.{u}", f"RETURNING {key};"])
 
     def check_product_comment_coverage(self):
         """DuckDB cannot comment a schema, so schemas are not swept."""

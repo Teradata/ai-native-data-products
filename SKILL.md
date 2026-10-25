@@ -44,13 +44,14 @@ design/            platform-agnostic standards: the source of truth for what and
   patterns/        temporal-lifecycle-metadata · object-placement · physical-storage ·
                    validation · access-layer
 implementation/
-  teradata/        the concrete binding: DDL templates, queries, grants, platform profile
-  duckdb/          reusable Jinja bindings for a portable single-file engine (no native roles)
-  postgres/        reusable Jinja bindings with native roles and temporal constraints
+  portable/        the portable dialect every binding extends
+  teradata/        the concrete binding: its dialect, declarations, platform profile
+  duckdb/          reusable binding for a portable single-file engine (no native roles)
+  postgres/        reusable binding with native roles and temporal constraints
 tooling/
   validation/      design_lint.py - checks the standards are well formed
   evals/           spec_lint.py   - checks a design specification against the standards
-config/            the organisation configuration template: design.example.toml (classification,
+config/            the example organisation configuration: design.example.toml (classification,
                    retention) and implementation.example.toml (one target per platform)
 examples/          worked products: fixed inputs for an end-to-end run
 roles/             the four working procedures

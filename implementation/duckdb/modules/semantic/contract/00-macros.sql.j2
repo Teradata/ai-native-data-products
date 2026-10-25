@@ -1,9 +1,0 @@
-{# Shared by the Semantic metadata-contract checks (INV-SEMANTIC-016 to 020). A standard-owned
-   relation is read through the physical names the build context places; nothing here composes one. #}
-{% macro tbl(name) -%}{{ named(name).objects.table|qualified }}{%- endmacro %}
-{% macro col(name, column) -%}{{ named(name).column_names[column]|ident }}{%- endmacro %}
-{% macro pk(name) -%}{{ named(name).key_columns[0]|ident }}{%- endmacro %}
-{# A run of ordinals is 1..n with no gaps and no repeats. #}
-{% macro contiguous(alias, ordinal) -%}
-count(DISTINCT {{ alias }}.{{ ordinal }}) <> count(*) OR min({{ alias }}.{{ ordinal }}) <> 1 OR max({{ alias }}.{{ ordinal }}) <> count(*)
-{%- endmacro %}

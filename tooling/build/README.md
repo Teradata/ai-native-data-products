@@ -4,7 +4,7 @@ A build has three inputs: a **design specification** (what the product is), an
 **organisation profile** (where it lives and what it is called in this organisation), and a
 **platform binding** (how it is realised on this platform). This directory holds the shared
 step between the first two and the third: it validates a profile and resolves a
-specification and a profile into one **build context**, the only thing a binding's templates
+specification and a profile into one **build context**, the only thing a binding's dialect
 read. See the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3.
 
 Stdlib only, Python 3.11 or later (for `tomllib`).
@@ -56,7 +56,7 @@ no context is written.
 
 The context's shape is fixed by [`build_context.schema.json`](build_context.schema.json),
 the same for every platform. A binding reads names from it and never derives one: no
-concatenated container names, no in-template defaults (Authoring Standard §6).
+concatenated container names, no defaults in a dialect (Authoring Standard §6).
 
 ## Worked inputs
 

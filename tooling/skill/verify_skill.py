@@ -50,6 +50,15 @@ ROLES = ("design", "build", "review", "access")
 # only context this package spends unconditionally, so both are budgeted.
 MAX_SKILL_LINES = 120
 MAX_ROLE_LINES = 150
+# Routes cite sections, so one file is read a section at a time; past this, a document is
+# too long to scan for the section it needs.
+MAX_DOCUMENT_LINES = 600
+# The skill upload accepts at most 200 files (issue #80). The package is held well under it:
+# about 75 files of corpus and tooling, and five per platform binding, so ten platforms fit
+# in about 125. A package past the warning is told so; past the budget it fails.
+PACKAGE_LIMIT = 200
+MAX_PACKAGE_FILES = 180
+WARN_PACKAGE_FILES = 160
 MIN_DESCRIPTION_CHARS = 120
 
 MODULES = ("domain", "search", "prediction", "observability", "semantic", "memory")
@@ -176,6 +185,14 @@ def check_budgets(root: Path) -> List[Finding]:
                 "too-long", path.name,
                 f"{lines} lines, budget {budget}. Detail belongs in the corpus, which is "
                 f"read on demand; this file is not."))
+    documents = sorted(root.glob("design/**/*.md")) + sorted(root.glob("implementation/*/*.md"))
+    for path in documents:
+        lines = len(path.read_text(encoding="utf-8").splitlines())
+        if lines > MAX_DOCUMENT_LINES and path.name != "CONFORMANCE.md":
+            found.append(Finding(
+                "too-long", path.relative_to(root).as_posix(),
+                f"{lines} lines, budget {MAX_DOCUMENT_LINES}. Split what an agent reads on its own "
+                f"from what it does not, or move detail a route never cites out of the package."))
     return found
 
 
@@ -274,14 +291,32 @@ def check_package(root: Path) -> List[Finding]:
                           "package-route", "the package (commit it, or stop routing to it)")
     found += [Finding("package-ignored", name, "is shipped although .gitignore excludes it; "
                       "untrack it or narrow the ignore rule.") for name in _ignored(root, names)]
+    if len(names) > MAX_PACKAGE_FILES:
+        largest = ", ".join(f"{area} {n}" for area, n in _areas(names).most_common(5))
+        found.append(Finding(
+            "package-budget", "package",
+            f"{len(names)} files, budget {MAX_PACKAGE_FILES} under the upload limit of {PACKAGE_LIMIT}. "
+            f"Largest areas: {largest}. Fold documents into sections, or export-ignore what no "
+            f"session reads."))
     return found
+
+
+def _areas(names: Set[str]) -> Counter:
+    """Files per area: the first two path segments, so each binding counts on its own."""
+    def area(name):
+        parts = name.split("/")
+        return "(root)" if len(parts) == 1 else parts[0] if len(parts) == 2 else "/".join(parts[:2])
+    return Counter(area(n) for n in names)
 
 
 def package_summary(root: Path) -> str:
     names = package_files(root) or set()
     tops = Counter(n.split("/")[0] if "/" in n else "(root)" for n in names)
-    return "Package (git archive HEAD): " + ", ".join(f"{k} {v}" for k, v in sorted(tops.items())) \
-        + f"; {len(names)} files."
+    summary = "Package (git archive HEAD): " + ", ".join(f"{k} {v}" for k, v in sorted(tops.items())) \
+        + f"; {len(names)} files, budget {MAX_PACKAGE_FILES}."
+    if WARN_PACKAGE_FILES < len(names) <= MAX_PACKAGE_FILES:
+        summary += f" Warning: past {WARN_PACKAGE_FILES}; the budget is near."
+    return summary
 
 
 def verify(root: Path) -> List[Finding]:

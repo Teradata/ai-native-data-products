@@ -5,7 +5,7 @@ failed a real deployment, usually with a bare error number several statements af
 cause. The rules run over both reference specifications under both Teradata example
 profiles, and over a product whose name is long enough to push a comment past the
 dictionary's limit: every phase, the deploy script, every check, and the caller-rendered key
-allocation and maintenance templates. Each rule is also shown to catch the construct it
+allocation and maintenance statements. Each rule is also shown to catch the construct it
 names, so a rule that silently matches nothing cannot pass.
 
 Run:
@@ -26,7 +26,7 @@ import build_context  # noqa: E402
 from binding import load_binding  # noqa: E402
 from engines import statements  # noqa: E402
 from org_profile import example_targets  # noqa: E402
-from render import environment, render_context  # noqa: E402
+from render import dialect_for, render_context  # noqa: E402
 
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
 ITSD = EXAMPLE / "design-output" / "design_specification.md"
@@ -141,10 +141,6 @@ def colon_name_in_string(s):
     return [x for x in literals(s) if re.search(r"(?<![:\w]):[A-Za-z_]\w*", x)]
 
 
-def unrendered_jinja(s):
-    return re.findall(r"\{\{|\{%|\{#", s)
-
-
 def text_without_character_set(s):
     if not re.match(r"CREATE\s+(MULTISET\s+|SET\s+)?TABLE\b", s, re.I):
         return []
@@ -173,7 +169,6 @@ RULES = {
     "a FROM-less SELECT in a set operation [3888]": fromless_select_in_union,
     "an untyped NULL in a set operation [3654]": untyped_null_in_union,
     "a :name inside a stored string (the driver binds it)": colon_name_in_string,
-    "unrendered Jinja": unrendered_jinja,
     "a text column without its character set [6706]": text_without_character_set,
     "another dialect's CREATE INDEX [3706]": index_in_another_dialect,
     "a dictionary view or column that does not exist [3807, 5628]": wrong_dictionary_view,
@@ -190,7 +185,6 @@ CAUGHT = {
     "a FROM-less SELECT in a set operation [3888]": "SELECT a FROM d.t UNION ALL SELECT 'x'",
     "an untyped NULL in a set operation [3654]": "SELECT a, b FROM d.t UNION ALL SELECT a, NULL FROM d.u",
     "a :name inside a stored string (the driver binds it)": "INSERT INTO d.t VALUES ('WHERE id = :ticket_id')",
-    "unrendered Jinja": "SELECT {{ x }} FROM d.t",
     "a text column without its character set [6706]": "CREATE MULTISET TABLE d.t (a VARCHAR(10))",
     "another dialect's CREATE INDEX [3706]": "CREATE INDEX i ON d.t (a)",
     "a dictionary view or column that does not exist [3807, 5628]": "SELECT Grantee FROM DBC.AllRightsV",
@@ -240,18 +234,14 @@ class TeradataDialect(unittest.TestCase):
     def everything(ctx, files):
         sql = [text for name, text in files.items() if name.endswith(".sql")]
         sql += [c["sql"] for c in json.loads(files["manifest.json"])["checks"]]
-        binding, _ = load_binding("teradata")
-        env = environment(binding, ctx)
+        dialect = dialect_for(ctx)
         named = {x["name"]: x for x in ctx["entities"] + ctx["relations"]}
         for keymap in (x for x in ctx["entities"] if x["kind"] == "Keymap"):
-            sql.append(env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-                **dict(ctx, keymap=keymap, natural_value="SRC-1")))
+            sql.append(dialect.key_allocation(keymap, natural_value="SRC-1"))
         for x in (x for x in named.values() if x.get("history") and "table" in x.get("objects", {})):
             row = {c["physical_name"]: "infinity" if c["name"] in ("valid_to_dts", "transaction_to_dts") else None
                    for c in x["columns"]}
-            sql.append(env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-                **dict(ctx, entity=x, stable_key=1, effective_at="2026-01-01T00:00:00+00:00",
-                       recorded_at="2026-01-01T00:00:00+00:00", replacement_rows=[row])))
+            sql.append(dialect.maintenance(x, 1, "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", [row]))
         return [s for text in sql for s in statements(text)]
 
     def test_every_rendered_statement_keeps_the_dialect_rules(self):

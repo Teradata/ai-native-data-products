@@ -15,6 +15,10 @@ COMMENT_LIMIT = 255
 
 
 class TeradataDialect(PortableDialect):
+    # The implied grants a view needs before it compiles come straight after the databases;
+    # statistics are collected once the rows are written, before the access tiers.
+    PHASES = ("containers", "implied-grants", *PortableDialect.PHASES[1:-1], "statistics", "access")
+
     open_end = SENTINEL
     now = "CURRENT_TIMESTAMP(6)"
     true, false = "1", "0"
@@ -400,6 +404,44 @@ class TeradataDialect(PortableDialect):
             f"        AND (c.{via} IS NOT NULL OR c.{direction} IS NOT NULL))",
             f"    OR NOT EXISTS (SELECT 1 FROM {em} e",
             f"                   WHERE e.{c('EntityMetadata', 'entity_name')} = c.{me}))"])
+
+    # ---- caller-rendered ----------------------------------------------------------------------
+    def key_allocation(self, keymap, natural_value=None, staged=None):
+        """A MERGE on the keymap's primary index, its natural key, as Teradata requires a MERGE
+        to match on, inserting each natural value only when it is new; then the SELECT of the
+        identifiers. The caller runs both in one transaction."""
+        n, ntype = self.natural_column(keymap)
+        km, cn, ident = self.qualified(keymap["objects"]["table"]), keymap["column_names"], self.ident
+        insert = (f"WHEN NOT MATCHED THEN INSERT ({ident(n)}, {ident(cn['created_dts'])}, {ident(cn['updated_dts'])})\n"
+                  "VALUES (s.natural_value, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));")
+        key = ident(keymap["key_columns"][0])
+        if staged is not None:
+            source, v = self.staged_source(staged)
+            return "\n".join([
+                f"MERGE INTO {km} AS k",
+                f"USING (SELECT DISTINCT CAST(s.{v} AS {ntype}) AS natural_value FROM {source} AS s WHERE s.{v} IS NOT NULL) AS s",
+                f"ON k.{ident(n)} = s.natural_value", insert,
+                f"SELECT k.{ident(n)}, k.{key} FROM {km} AS k WHERE k.{ident(n)} IN (SELECT s.{v} FROM {source} AS s);"])
+        return "\n".join([
+            f"MERGE INTO {km} AS k",
+            f"USING (SELECT CAST({self.literal(natural_value)} AS {ntype}) AS natural_value) AS s",
+            f"ON k.{ident(n)} = s.natural_value", insert,
+            f"SELECT {key} FROM {km} WHERE {ident(n)} = {self.literal(natural_value)};"])
+
+    def instant(self, text):
+        return f"CAST({self.literal(text)} AS TIMESTAMP(6) WITH TIME ZONE)"
+
+    def maintenance_key(self, stable_key):
+        return self.value(stable_key)
+
+    def maintenance_value(self, value, col):
+        """An open interval end is given as 'infinity' and written as the sentinel; an instant is
+        given as text, `YYYY-MM-DD HH:MM:SS[.ffffff]+HH:MM`."""
+        if value == "infinity":
+            return SENTINEL
+        if value is not None and col["physical_type"].startswith("TIMESTAMP"):
+            return f"CAST({self.literal(value)} AS {col['physical_type']})"
+        return self.value(value)
 
     # ---- access, and statistics ---------------------------------------------------------------
     def phase_implied_grants(self):

@@ -284,7 +284,7 @@ Values for the settings the target's binding declares in its `binding.toml`, key
 
 ## 7. What the resolver checks
 
-The resolver rejects a profile, before any template renders, when:
+The resolver rejects a profile, before any SQL is generated, when:
 
 - a required heading or block is missing, or a block carries a field outside its table or a value invalid for its type;
 - a template uses a variable or filter outside section 4, or a placement rule names a container key that does not exist;

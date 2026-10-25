@@ -60,7 +60,7 @@ Where an object lives determines who can reach it. This pattern makes container 
 When generating any object:
 
 1. **Locate** the organisation's conforming implementation (priority order below).
-2. **Read placement from the build context.** Every object's container and physical name is resolved once, from the organisation profile's rules, before any template renders ([Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md) §3). An agent does not call the derivation function at generation time and never derives a container or name itself; it reads the resolved value.
+2. **Read placement from the build context.** Every object's container and physical name is resolved once, from the organisation profile's rules, before any SQL is generated ([Platform Implementation Authoring Standard](../core/IMPLEMENTATION_AUTHORING.md) §3). An agent does not call the derivation function at generation time and never derives a container or name itself; it reads the resolved value.
 3. **Generate** the object in its resolved container only: never in a structural or parent container, nor one for a different role.
 4. **Provision implied grants** as part of the standard sequence, not as an afterthought. The binding computes them from the resolved placement.
 5. **Validate** after each deployment phase; on failure, halt and report: do not proceed with dependent objects.

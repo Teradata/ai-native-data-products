@@ -65,6 +65,11 @@ class PostgresDialect(PortableDialect):
             "LEFT JOIN pg_catalog.pg_attribute attr ON attr.attrelid = tab.oid AND attr.attname = actual.column_name",
             "WHERE actual.column_name IS NULL OR nullif(pg_catalog.col_description(tab.oid, attr.attnum), '') IS NULL"])
 
+    def maintenance_lock(self, x, stable_key):
+        t = x["objects"]["table"]
+        return (f"SELECT pg_advisory_xact_lock(hashtextextended("
+                f"{self.literal(t['container'] + '.' + t['name'] + ':' + str(stable_key))}, 0));")
+
     def check_product_comment_coverage(self):
         """Objects owned by an extension are not the product's to document and are skipped."""
         inside = self.owned_containers()

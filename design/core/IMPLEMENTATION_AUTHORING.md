@@ -25,7 +25,7 @@ A build has exactly three inputs. A platform binding may depend on nothing else.
 |---|---|---|---|---|
 | **Design specification** | The design agent, approved by the designer | One product | Composition, entity models, settled decisions, module configuration, sensitivity, volumes and workload | Platform, container, role or physical names; platform types; SQL; organisation conventions |
 | **Organisation profile** | The organisation's platform or data team | One organisation, reused by every product | Placement, naming, access model, classification and protection policy, retention constraints, environments, existing structures to adopt, permitted physical overrides | Product design |
-| **Platform binding** | Binding authors, under `implementation/{platform}/` | One platform | Templates, platform profile, declared settings and defaults, coverage | Product or organisation specifics |
+| **Platform binding** | Binding authors, under `implementation/{platform}/` | One platform | A dialect module, platform profile, declared settings and defaults, coverage | Product or organisation specifics |
 
 The **design brief** is the design agent's input and is not a build input. The target platform is selected at build time; a design specification does not choose it and must build on every platform whose binding covers its composition.
 
@@ -45,7 +45,7 @@ The specification must not name containers, principals, physical objects or a pl
 
 Shared tooling under `tooling/` resolves the design specification and the organisation profile into a single **build context**: one document, validated against one schema maintained in this repository. Every binding consumes the same build context. No binding defines its own input contract.
 
-Resolution happens once, before any template renders:
+Resolution happens once, before any SQL is generated:
 
 - **Placement.** Every object's container is derived from the profile's placement rules.
 - **Names.** Every physical name is derived from the profile's naming rules, including the physical names the organisation maps to standard-owned logical names (section 4.2).
@@ -60,7 +60,7 @@ The build context schema is platform-independent: its *shape* is the same for ev
 
 ## 4. Organisation configuration
 
-The organisation profile is how an organisation adapts the standard to its own environment without editing a standard or a template. It is machine-readable and validated before resolution; its format is defined by the [Organisation Profile Standard](ORGANISATION_PROFILE.md).
+The organisation profile is how an organisation adapts the standard to its own environment without editing a standard or a binding. It is machine-readable and validated before resolution; its format is defined by the [Organisation Profile Standard](ORGANISATION_PROFILE.md).
 
 ### 4.1 Required coverage
 
@@ -91,17 +91,19 @@ The modes of adoption (referencing an existing object, wrapping it, or migrating
 
 Each platform directory provides:
 
-- **`README.md`**: supported compositions, deployment order and limitations, then **one numbered section per supported module and pattern**, headed with its design anchor, as in ``## 5. Domain module (`domain`)``. Each section maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, lists the build-context fields its templates read, and names the directory its templates are in. The sections are numbered in deployment order: object placement, temporal lifecycle metadata, then Memory, Semantic, Domain, Observability, Search and Prediction, then validation, access layer and physical storage, then any further pattern. The numbers are the same on every binding, because the role files cite them. The README opens with an index, kept by `tooling/catalogue/build_catalogue.py`, giving the line each section starts on, since an agent may read only a file's first 100 lines before deciding where to look.
+- **`README.md`**: supported compositions, deployment order and limitations, then **one numbered section per supported module and pattern**, headed with its design anchor, as in ``## 5. Domain module (`domain`)``. Each section maps capabilities to bindings, logical types to physical representations, and invariants to executable checks or explicitly reported gaps, lists the build-context fields its methods read, and names the dialect methods that generate it. The sections are numbered in deployment order: object placement, temporal lifecycle metadata, then Memory, Semantic, Domain, Observability, Search and Prediction, then validation, access layer and physical storage, then any further pattern. The numbers are the same on every binding, because the role files cite them. The README opens with an index, kept by `tooling/catalogue/build_catalogue.py`, giving the line each section starts on, since an agent may read only a file's first 100 lines before deciding where to look.
 - **`PLATFORM_PROFILE.md`**: supported engine versions, driver constraints, physical defaults and naming limits, as guidance an agent reads.
 - **`binding.toml`**: the declarations of §5.1, which tooling reads, including every **binding setting** an organisation's configuration may supply, with its permitted values and default. A directory under `implementation/` with a `binding.toml` is a platform binding.
-- **A template directory per module and pattern that renders something**, mirroring `design/` by anchor: `modules/{module}/` and `patterns/{pattern}/`. A module or pattern with nothing to render has its README section and no directory. A binding's documentation is that one README: a new module or pattern adds a section, not a file, because the skill ships under a file limit.
-- **Templates** for every deployment, access, maintenance, discovery and validation artefact the binding produces, with ordering and dependencies documented.
+- **`dialect.py`**: the module that generates every deployment, access, maintenance, discovery and validation artefact the binding produces (§6). It defines `DIALECT`, a subclass of `PortableDialect` in `implementation/portable/dialect.py`, and overrides only what the platform does differently. Its `PHASES` are the deployment phases in order: each is generated by the method `phase_<name>` and written to `NN-<name>.sql`, and a phase that generates nothing for a composition writes no file; `deploy` joins the generated phases into one deployable script. Its `CHECKS` are the validation checks a build manifest carries, as `(scope, check)`, each generated by `check_<scope>_<check>`: scope `entity` runs once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; `module` once where `<check>` names a composed module, with `module`; `contract` once for the Semantic module's metadata contract; and `product` once for the product. Every returned row is a defect. `key_allocation` and `maintenance` generate the statements a product's own pipelines run, and are called by them rather than by the build.
+- **`CONFORMANCE.md`**: the generated conformance report (§8.1).
+
+A binding is those five files, and no more than six: a new module or pattern adds a README section and dialect methods, not files, because the skill ships under a file limit. `implementation/portable/` holds the portable dialect every binding extends; it has no `binding.toml` and is not a platform.
 
 Unsupported capabilities, compositions, profile settings and adoption modes are declared explicitly. An absent binding, a skipped check or an unexecuted engine test is never reported as conformance. Support for a minimal composition does not imply support for every module.
 
 ### 5.1 Binding declarations
 
-A binding's `binding.toml` carries three tables the resolver and renderer read: `[binding]`, `[types]` and `[functions]`. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. The tables below are the schema. A key is its field name in snake_case (`Identifier quote` is `identifier_quote`), anything in order is an array, and the file is TOML so that no tool needs a parser of its own.
+A binding's `binding.toml` carries three tables the resolver and the dialect read: `[binding]`, `[types]` and `[functions]`. They are how platform SQL reaches the context without tooling holding any: the binding states its types, functions and quoting once, as data, and the resolver only substitutes. The tables below are the schema. A key is its field name in snake_case (`Identifier quote` is `identifier_quote`), anything in order is an array, and the file is TOML so that no tool needs a parser of its own.
 
 #### `Binding:` (the `[binding]` table)
 
@@ -113,10 +115,7 @@ A binding's `binding.toml` carries three tables the resolver and renderer read: 
 | `Runtime scope` | yes | enum | `enforced` or `unsupported`: whether the binding restricts runtime Memory records to the requesting identity's scope at the access surface ([access-layer](../patterns/access-layer.md) §4). `unsupported` is reported as a gap in every build with runtime relations. |
 | `Emits` | no | mappings | A `[binding.emits]` table of the object roles the binding emits beyond `table` and `consumer_view`, each with an array of what it emits them for: `base_view = ['all']`, `sequence = [<allocations>]`, or `function = [<profiles>]`; and `embedding` under `function` or `procedure` for one similarity search object per `Embedding:` block, as the platform can express it. |
 | `Settings` | no | mappings | A `[binding.settings]` table of each binding setting an organisation's configuration may set, as `<setting> = { values = '<permitted values>', default = '<value>' }`. |
-| `Phases` | no | mappings | The deployment phases, an array in order of `{ file = '<file>', template = '<template>' }`. A template that renders nothing for a composition emits no file. |
-| `Deploy` | no | text | The template that joins the rendered phases into one deployable script. It reads `phases`, the rendered files in order, each with its `file` and `sql`. |
 | `Gaps` | no | mappings | An array of each known gap no check can detect, as `{ area = '<area>', gap = '<what is not covered>' }`: an untested composition or adoption mode, a constraint the engine cannot enforce, evidence the binding cannot produce. The conformance report lists them with the gaps the builds report (§8.1). |
-| `Checks` | no | mappings | The validation checks a build manifest carries, an array of `{ scope = '<scope>', check = '<check>', template = '<template>' }`. Scope `entity` renders the template once per persisted relation, with `entity`; `relationship` once per relationship, with `relationship`; and `module` once, where `<check>` names a module anchor and that module is composed, with `module`. Every returned row is a defect. |
 
 #### `Types:` (the `[types]` table)
 
@@ -134,19 +133,20 @@ One field per function of the [Design Specification Standard](DESIGN_SPECIFICATI
 |---|---|---|---|
 | `*` | yes | text | One entry per function. |
 
-## 6. Template rules
+## 6. Dialect rules
 
-- **Jinja is the only template language.** Every platform artefact a binding maintains is a Jinja template. No other substitution convention (format placeholders, angle-bracket or brace tokens, find-and-replace markers) appears in a binding.
-- **Templates read only the build context.** They contain no product, organisation, entity, container, principal or credential literal. Structure definitions owned by a standard and documented platform constants may be fixed; the names of standard-owned structures come from the context (section 4.2).
-- **Templates do not derive.** They do not build container or object names by concatenation, infer placement from a naming convention, or supply their own default for a context value. Placement, names and defaults arrive resolved.
-- **Missing values fail.** Rendering uses `StrictUndefined` or an equivalent that rejects a missing value.
-- **Identifiers and literals are emitted through binding macros** that apply the platform's quoting and escaping. Runtime query parameters use the driver's value binding where one exists.
-- **Composition is honoured.** Only included modules and facets render, and only their declared dependencies are assumed present.
-- **Templates emit; they do not execute.** Rendered output is written to a product location outside this repository. Tooling may validate inputs, select templates and order phases; it must not become a second store of platform SQL.
+- **A dialect is a pure function of the build context.** Each method takes values from the context and returns SQL text, written as multi-line string literals laid out like the SQL they produce. A dialect imports only the dialect it extends and pure standard-library helpers, and makes no file, network, clock or environment call, so the same context always generates the same SQL. No other substitution convention (templates, format placeholders, find-and-replace markers) appears in a binding.
+- **Dialects read only the build context.** They contain no product, organisation, entity, container, principal or credential literal. Structure definitions owned by a standard and documented platform constants may be fixed; the names of standard-owned structures come from the context (section 4.2).
+- **Dialects do not derive.** They do not build container or object names by concatenation, infer placement from a naming convention, or supply their own default for a context value. Placement, names and defaults arrive resolved.
+- **Missing values fail.** A context value a method needs and does not find raises an error; generation never works around it.
+- **Identifiers and literals go through the dialect's primitives** (`ident`, `literal`, `qualified`), which apply the quoting `binding.toml` declares. Runtime query parameters use the driver's value binding where one exists.
+- **Override; do not copy.** SQL that is the same on every platform lives once, in the portable dialect. A platform overrides the narrowest method that differs, so a fix to shared SQL reaches every binding.
+- **Composition is honoured.** Only included modules and facets generate, and only their declared dependencies are assumed present.
+- **Dialects emit; they do not execute.** Generated output is written to a product location outside this repository. Tooling may validate inputs and order phases; it must not become a second store of platform SQL.
 
 ## 7. Packaging and examples
 
-Resolution, rendering, validation and test utilities belong under `tooling/`. Platform directories contain binding documentation, declarations and templates, not product-specific compilers or completed applications.
+Resolution, rendering, validation and test utilities belong under `tooling/`. Platform directories contain binding documentation, declarations and one dialect module, not product-specific compilers or completed applications.
 
 Examples supply inputs: a design brief, the reference design specification the design phase produces from it, one or more organisation profiles, and source data. They do not ship generated deployment SQL, populated databases or completed pipelines. The IT Service Desk example is the shared comparison case, and every binding must build it. The shared example does not limit a binding to IT Service Desk products.
 
@@ -154,18 +154,18 @@ Test fixtures and test-only loaders belong with the tests. Synthetic facts and m
 
 ## 8. Automated acceptance checks
 
-Repository validation discovers platform directories directly under `implementation/`, by their `binding.toml`. There is no platform allowlist and no exception register; a new platform cannot escape a check by omitting a file, an example or a template.
+Repository validation discovers platform directories directly under `implementation/`, by their `binding.toml`. There is no platform allowlist and no exception register; a new platform cannot escape a check by omitting a file, an example or a method.
 
 | Check | Acceptance evidence |
 |---|---|
 | Input conformance | The reference specifications and organisation profiles validate against their schemas. A specification naming a platform, container, principal or physical object fails. |
 | Resolution | A missing fact, invalid name, unsupported setting, retention conflict or incompatible composition fails with a message naming the fact and its source input. |
-| Structure and coverage | Required documents exist. Every capability and invariant in a supported module or pattern maps to a binding and check, or to a declared gap. Every template is rendered by at least one test. |
-| Template hygiene | No substitution convention other than Jinja. No product, organisation, container or principal literals. No in-template name derivation or defaults. |
+| Structure and coverage | Required documents exist. Every capability and invariant in a supported module or pattern maps to a binding and check, or to a declared gap. Every dialect method is reached by a phase, a check or a pipeline statement of the reference builds. |
+| Dialect hygiene | A binding is its five files and no more than six. Its dialect extends the portable dialect, imports nothing else but pure standard-library helpers, makes no I/O call, and holds no product, organisation, container or principal literal. No name derivation or defaults in a dialect. |
 | Portability | The IT Service Desk specification builds under two organisation profiles that differ in placement, naming and principals, and an unrelated product builds under one. No output contains another case's names or an unresolved expression. |
 | Cross-platform | One specification and profile resolve to one build context, and every binding consumes it. Each binding reports the context fields and settings it does not support. |
 | Composition | Declared minimal and larger compositions render with only their required dependencies. |
-| Packaging | No generated product artefacts or product compilers in binding or example directories. |
+| Packaging | No generated product artefacts or product compilers in binding or example directories. The shipped package stays within its budget of 180 files, under the skill upload's limit of 200, so ten bindings fit, and no design or binding document passes 600 lines. |
 | Engine behaviour | Rendered artefacts execute on the declared engine and version; temporal, metadata, discovery, access and invariant checks exercise actual behaviour. Engine tests use disposable environments and report the versions tested. |
 | Corpus integrity | Design lint, frontmatter, catalogue and skill-package validation remain clean. |
 
@@ -189,7 +189,7 @@ This document specifies the policy; it does not install CI or configure branch p
 
 Before presenting a binding change as ready to merge, its author provides:
 
-- [ ] Templates that read only the build context, with coverage mappings for every supported module and pattern.
+- [ ] A dialect that reads only the build context, with coverage mappings for every supported module and pattern.
 - [ ] Declared binding settings, defaults and unsupported features in the platform profile.
 - [ ] The IT Service Desk build under two organisation profiles, and the unrelated-product build.
 - [ ] Test and engine results with honest gaps, and the binding's conformance report.

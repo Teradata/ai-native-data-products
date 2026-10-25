@@ -1,14 +1,14 @@
 # Teradata implementation
 
-Reusable binding for **any conforming data product** on Teradata Vantage. Target: Teradata 17.20 or later; tested on 20.00.24 (see [CONFORMANCE.md](CONFORMANCE.md)). These are Jinja templates and binding documents, not a finished deployment or a compiler.
+Reusable binding for **any conforming data product** on Teradata Vantage. Target: Teradata 17.20 or later; tested on 20.00.24 (see [CONFORMANCE.md](CONFORMANCE.md)). This is a dialect module and binding documents, not a finished deployment.
 
 ## How a build reads this binding
 
 A build has three inputs: a **design specification** (the product, platform-agnostic), an **organisation profile** (placement, naming, principals and classification for one organisation on Teradata) and this **binding**. [`tooling/build/build_context.py`](../../tooling/build/README.md) resolves the specification, the profile and the binding's declarations into one build context, whose shape is fixed by [`build_context.schema.json`](../../tooling/build/build_context.schema.json) ([Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3).
 
-The templates read only the build context, and derive no names: every database, object, column and role name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
+[`dialect.py`](dialect.py) extends the [portable dialect](../portable/dialect.py) and overrides only what this platform does differently. It reads only the build context, and derives no names: every database, object, column and role name arrives resolved. Standard-owned relations (the Semantic catalogue, the Observability and Memory stores, the validation relations and the discovery and trust-map views) are defined by the module and pattern standards under [`design/`](../../design/) and placed by the resolver. This directory carries no input contract or entity declarations of its own.
 
-Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writing any SQL by hand: it lists, by error code, the constructs Teradata rejects. Then [`binding.toml`](binding.toml), which lists the phase files in order with the template that renders each, the deploy template, the checks, and the physical type and SQL fragment for each logical type and expression function. Then read the sections below: one per module and pattern, in deployment order, each saying what its templates emit, which build-context fields they read and where its templates are. The index gives the line each section starts on.
+Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writing any SQL by hand: it lists, by error code, the constructs Teradata rejects. Then [`binding.toml`](binding.toml), which declares the physical type and SQL fragment for each logical type and expression function, the binding's settings and its gaps; the dialect's `PHASES` and `CHECKS` list the phase files in order and the checks. Then read the sections below: one per module and pattern, in deployment order, each saying what its methods emit and which build-context fields they read. The index gives the line each section starts on.
 
 <!-- index:start -->
 | Line | Section | Covers |
@@ -16,7 +16,7 @@ Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writin
 | 34 | [Render, deploy and validate](#render-deploy-and-validate) | Rendering the worked example, deploying it, running the validator; what the renderer writes |
 | 57 | [Verification](#verification) | The test and lint commands for this binding |
 | 69 | [1. Object Placement pattern (`object-placement`)](#1-object-placement-pattern-object-placement) | Databases, parents first, with their permanent space |
-| 87 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared macros, comments, governed base views and consumer views, statistics, caller-rendered maintenance |
+| 87 | [2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) | Shared methods, comments, governed base views and consumer views, statistics, caller-rendered maintenance |
 | 139 | [3. Memory module (`memory`)](#3-memory-module-memory) | Tables; design-memory capture |
 | 184 | [4. Semantic module (`semantic`)](#4-semantic-module-semantic) | Tables; registration; discovery views; the metadata-contract checks |
 | 259 | [5. Domain module (`domain`)](#5-domain-module-domain) | Tables; key allocation |
@@ -29,14 +29,14 @@ Read [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) first, and its §7 before writin
 | 504 | [Catalogue](#catalogue) | The binding's design documents (generated) |
 <!-- index:end -->
 
-The graph-lineage exposure and the catalogue interface have no binding: their templates, written for the flat context that preceded the build context, were retired, and their last versions are in the history at commit `5fe4803`. A specification or profile that asks for either has it reported as a gap.
+The graph-lineage exposure and the catalogue interface have no binding: their templates, written for the flat context that preceded the build context, were retired rather than ported to the dialect, and their last versions are in the history at commit `5fe4803`. A specification or profile that asks for either has it reported as a gap.
 
 ## Render, deploy and validate
 
 The worked inputs are the [IT Service Desk specification](../../examples/it-service-desk-data-product/design-output/design_specification.md) under either Teradata target: `teradata` of the [example configuration](../../config/implementation.example.toml) (a database per module, upper-case names, roles created per product) or `teradata` of the [contrasting configuration](../../examples/it-service-desk-data-product/contrasting/implementation.toml) (type-grouped databases under a parent, snake-case names, an adopted entity, container-isolated environments). The [customer-orders reference](../../tooling/evals/reference/customer-orders.md) builds under both.
 
 ```sh
-python -m pip install -r tooling/bindings/requirements.txt teradatasql
+python -m pip install teradatasql
 python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target teradata --output build/itsd-teradata
 TERADATA_DSN='{"host": "...", "user": "...", "password": "..."}' python tooling/bindings/validate.py build/itsd-teradata/manifest.json
 ```
@@ -68,33 +68,33 @@ python tooling/skill/verify_skill.py
 
 ## 1. Object Placement pattern (`object-placement`)
 
-Templates: [`patterns/object-placement/`](patterns/object-placement/).
+Generated by [`dialect.py`](dialect.py): `phase_containers`.
 
 Binding of [Object Placement](../../design/patterns/object-placement.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Template
+### Generation
 
-`01-containers.sql.j2` is the first phase. It creates one database for each entry in the context's `containers` that is not adopted: parents first, then each child `FROM` its parent. Adopted containers already exist and are never created. A database that holds objects gets the `Container space` binding setting as permanent space (the organisation profile's `Settings:`, or the binding's declared default of 1 GB, recorded in `defaults_applied`); a parent that holds no objects gets enough to allocate its children. `CREATE DATABASE` fails on an existing name, so accidental reuse fails rather than blending two products. Each database it creates carries a `COMMENT ON DATABASE`, which the `comment-coverage` product check requires.
+`phase_containers` is the first phase. It creates one database for each entry in the context's `containers` that is not adopted: parents first, then each child `FROM` its parent. Adopted containers already exist and are never created. A database that holds objects gets the `Container space` binding setting as permanent space (the organisation profile's `Settings:`, or the binding's declared default of 1 GB, recorded in `defaults_applied`); a parent that holds no objects gets enough to allocate its children. `CREATE DATABASE` fails on an existing name, so accidental reuse fails rather than blending two products. Each database it creates carries a `COMMENT ON DATABASE`, which the `comment-coverage` product check requires.
 
 Every database name, and the database of every object, comes from the organisation profile through the resolver: the profile is the organisation's object-placement implementation ([Organisation Profile Standard](../../design/core/ORGANISATION_PROFILE.md) §1). No name is inferred from a product prefix, and the example profiles are two possible placements, not a required convention.
 
 A view in one database that reads another compiles only once its database holds `SELECT WITH GRANT OPTION` on the database it reads. Those implied grants are the second phase, computed from the placement ([access-layer](#10-access-layer-pattern-access-layer)); the profile never declares them.
 
-The phase order in [`binding.toml`](binding.toml) creates databases, the implied grants, then Memory, Semantic, Domain, Observability, Search and Prediction tables, then comments, views, registration, discovery, the trust map, documentation capture, statistics and, last, roles and grants. Teradata commits each DDL statement on its own, so deploying phase files separately must keep that order, and a failed deployment is cleared by dropping its databases.
+The phase order in the dialect's `PHASES` creates databases, the implied grants, then Memory, Semantic, Domain, Observability, Search and Prediction tables, then comments, views, registration, discovery, the trust map, documentation capture, statistics and, last, roles and grants. Teradata commits each DDL statement on its own, so deploying phase files separately must keep that order, and a failed deployment is cleared by dropping its databases.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ## 2. Temporal Lifecycle Metadata pattern (`temporal-lifecycle-metadata`)
 
-Templates: [`patterns/temporal-lifecycle-metadata/`](patterns/temporal-lifecycle-metadata/).
+Generated by [`dialect.py`](dialect.py) and the shared methods of [`PortableDialect`](../portable/dialect.py): `phase_comments`, `phase_views`, `phase_statistics`.
 
 Binding of [Temporal Lifecycle Metadata](../../design/patterns/temporal-lifecycle-metadata.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`00-macros.sql.j2` holds the macros every other template imports. Each takes a relation from the context (an entity or a standard-owned relation, with its `columns`, `column_names`, `key_columns`, `version_columns` and placed `objects`) and composes no name:
+Every phase and check calls the shared methods of [`PortableDialect`](../portable/dialect.py). Each takes a relation from the context (an entity or a standard-owned relation, with its `columns`, `column_names`, `key_columns`, `version_columns` and placed `objects`) and composes no name:
 
-| Macro | Emits |
+| Method | Emits |
 |---|---|
 | `sentinel` | The open end of an interval, `TIMESTAMP '9999-12-31 23:59:59.999999+00:00'`, written by every statement that opens a version and never as a `DEFAULT` (PLATFORM_PROFILE §7) |
 | `cols`, `column`, `unicode`, `vector_pattern` | A quoted column list; one column definition with type, `CHARACTER SET UNICODE` for text, identity, `NOT NULL`, `UNIQUE`, and Enum, flag and vector-dimension checks |
@@ -105,16 +105,16 @@ Binding of [Temporal Lifecycle Metadata](../../design/patterns/temporal-lifecycl
 | `value`, `ref`, `insert`, `member` | A Python value as SQL; a subquery for a current row's key; an insert by logical attribute name with open-row values for temporal columns; whether an Enum permits a value |
 | `comment` | A comment literal held to the dictionary's 255 characters |
 
-`02-comments.sql.j2` applies `COMMENT ON TABLE` and `COMMENT ON COLUMN` to every persisted relation from its `description` and each column's description (or its logical name), after the tables and before anything depends on them.
+`phase_comments` applies `COMMENT ON TABLE` and `COMMENT ON COLUMN` to every persisted relation from its `description` and each column's description (or its logical name), after the tables and before anything depends on them.
 
-`03-access-views.sql.j2` creates two views per persisted relation, each with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, so a consumer never blocks a load:
+`phase_views` creates two views per persisted relation, each with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, so a consumer never blocks a load:
 
 - the **governed base view**, for every relation with a `base_view` object (this binding emits `base_view: all`): every column and every row, the full temporal contract. Teradata SQL has no table functions, so a read as at an instant applies the profile's predicates to this view. For versioned relations it is granted to the read and agent tiers ([access-layer](#10-access-layer-pattern-access-layer));
-- the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` macro) over the base view, carrying the context's `view_columns` (every column except the open interval ends `valid_to_dts` and `transaction_to_dts`). Semantic registers the same list as the view's `AccessColumn` rows, so the two cannot drift. Runtime relations have no consumer view.
+- the **consumer view**, for every relation with a `consumer_view` object: its current rows (the `current` method) over the base view, carrying the context's `view_columns` (every column except the open interval ends `valid_to_dts` and `transaction_to_dts`). Semantic registers the same list as the view's `AccessColumn` rows, so the two cannot drift. Runtime relations have no consumer view.
 
 Both views are created with a column list, and the view and each of its columns is commented from the entity description and the table column's description (or its logical name), each held to 255 characters.
 
-`04-maintenance.sql.j2` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls the transaction and runs the checks before ending it. It:
+`maintenance` is caller-rendered with `entity`, `stable_key`, `effective_at`, `recorded_at` and `replacement_rows` (each keyed by physical column name). It is a transaction body: the caller controls the transaction and runs the checks before ending it. It:
 
 - for a bitemporal relation, closes every open knowledge interval of the identity at `recorded_at` and clears its current flag;
 - otherwise, closes the version whose validity covers `effective_at` at that instant;
@@ -122,7 +122,7 @@ Both views are created with a column list, and the view and each of its columns 
 
 It is not a change planner. The caller supplies complete, non-overlapping intervals (for a bitemporal correction, the whole new known timeline), detects unchanged replay, preserves unaffected segments and tombstones, and rejects non-monotonic correction instants. Teradata enforces none of the cross-row rules in its schema; the `entity temporal` check finds them.
 
-`05-statistics.sql.j2` collects statistics on every persisted relation's key and version columns and its currency, deletion and interval-start columns (PLATFORM_PROFILE §6).
+`phase_statistics` collects statistics on every persisted relation's key and version columns and its currency, deletion and interval-start columns (PLATFORM_PROFILE §6).
 
 Validity and knowledge intervals are half-open; the sentinel appears only as an open end. For bitemporal history, overlap is prohibited only where both axes overlap. The current flag is true exactly when every applicable end is open.
 
@@ -130,23 +130,23 @@ Validity and knowledge intervals are half-open; the sentinel appears only as an 
 
 | Capability | Binding |
 |---|---|
-| `CurrentStateFilter` | `current` macro behind the consumer views and reference checks. |
+| `CurrentStateFilter` | `current` method behind the consumer views and reference checks. |
 | `PointInTimeReconstruction` | The governed base view, granted to the read and agent tiers; the profile's predicates select the rows at an instant. |
 | `SoftDelete` | `is_deleted` and `deleted_dts`; the `entity temporal` check finds a disagreement; deleted rows are excluded from current reads. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ## 3. Memory module (`memory`)
 
-Templates: [`modules/memory/`](modules/memory/).
+Generated by [`dialect.py`](dialect.py): `phase_memory`, `phase_documentation`, `check_module_memory`.
 
 Binding of [Memory](../../design/modules/memory.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('memory')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The relations are those the Memory standard defines and the resolver places: the documentation relations (module registry, design decisions, glossary, cookbook, implementation notes, change log), versioned with governed and consumer views, and the runtime relations the context includes, which have no consumer view. Text is `CHARACTER SET UNICODE`, so prose with typographic characters is stored as written.
+`phase_memory` calls `module_tables('memory')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The relations are those the Memory standard defines and the resolver places: the documentation relations (module registry, design decisions, glossary, cookbook, implementation notes, change log), versioned with governed and consumer views, and the runtime relations the context includes, which have no consumer view. Text is `CHARACTER SET UNICODE`, so prose with typographic characters is stored as written.
 
-`02-capture.sql.j2` writes the design-memory records the build context settles in `capture`, one insert per record, by logical attribute name through the `insert` macro:
+`phase_documentation` writes the design-memory records the build context settles in `capture`, one insert per record, by logical attribute name through the `insert` method:
 
 - `capture.modules` into the module registry, with `product.version`;
 - `capture.decisions` into design decisions, each with its settled `DD-{MODULE}-{NNN}` id, version 1 and status `ACCEPTED`;
@@ -155,20 +155,20 @@ Binding of [Memory](../../design/modules/memory.md). The design remains the sour
 
 A record the context does not carry is not written. What capture could not settle is listed in `capture.gaps` and reported in the manifest.
 
-`validation.sql.j2` is the `module memory` check. Every row it returns is a registered module below the capture floor: three design decisions, three glossary terms and one cookbook recipe.
+`check_module_memory` is the `module memory` check. Every row it returns is a registered module below the capture floor: three design decisions, three glossary terms and one cookbook recipe.
 
 ### Access
 
-The [access-layer template](#10-access-layer-pattern-access-layer) grants the agent tier `SELECT`, `INSERT` and `UPDATE` on each runtime relation. Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported`: runtime records are not restricted to the requesting identity's scope, and every build with runtime relations reports it as a gap.
+The [access-layer phase](#10-access-layer-pattern-access-layer) grants the agent tier `SELECT`, `INSERT` and `UPDATE` on each runtime relation. Teradata has no row-level security in SQL, so the binding declares `Runtime scope: unsupported`: runtime records are not restricted to the requesting identity's scope, and every build with runtime relations reports it as a gap.
 
 ### Capability bindings
 
 | Capability | Binding |
 |---|---|
-| `DocumentationCapture` | Versioned documentation relations; `02-capture.sql.j2` writes the settled records; `validation.sql.j2` reports modules below the floor. |
+| `DocumentationCapture` | Versioned documentation relations; `phase_documentation` writes the settled records; `check_module_memory` reports modules below the floor. |
 | `AgentContinuity` | Runtime relations with required scope columns and no consumer view. Scope enforcement is a reported gap. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -176,22 +176,22 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 |---|---|
 | `INV-MEMORY-001,002,004` | Standard-owned structures separate process and design context; producer payload review remains necessary. |
 | `INV-MEMORY-003` | Required scope columns. Enforcement at the access surface is not rendered (`Runtime scope: unsupported`), and reported. |
-| `INV-MEMORY-005` | Shared versioned temporal macros and the `entity temporal` check. |
+| `INV-MEMORY-005` | Shared versioned temporal methods and the `entity temporal` check. |
 | `INV-MEMORY-006` | `module memory` check of the capture floor; the reference specifications meet it on the engine. |
 
 Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 4. Semantic module (`semantic`)
 
-Templates: [`modules/semantic/`](modules/semantic/).
+Generated by [`dialect.py`](dialect.py): `phase_semantic`, `phase_registration`, `phase_discovery`, `check_contract_identity`, `check_contract_keys`, `check_contract_relationships`, `check_contract_access_columns`, `check_contract_composition`, `check_module_semantic`.
 
 Binding of [Semantic](../../design/modules/semantic.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('semantic')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) for the catalogue relations the Semantic standard defines and the resolver places.
+`phase_semantic` calls `module_tables('semantic')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) for the catalogue relations the Semantic standard defines and the resolver places.
 
-`02-registration.sql.j2` writes the product's description of itself, each block only where its relation is placed:
+`phase_registration` writes the product's description of itself, each block only where its relation is placed:
 
 - the product registry row from `product` (code, name, description, domain, version, owner, trust producer) and `orientation.access_mode`, with the manifest's consumer view as the approved entry point;
 - the module map from `module_containers`, for object types the relation's vocabulary permits;
@@ -208,7 +208,7 @@ Binding of [Semantic](../../design/modules/semantic.md). The design remains the 
 
 Composite access objects (`access_objects`) are not registered; the manifest reports each as a gap.
 
-`03-discovery.sql.j2` creates the standard-owned discovery views with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, each only where the composition places it and the relations it reads:
+`phase_discovery` creates the standard-owned discovery views with `REPLACE VIEW` and `LOCKING ROW FOR ACCESS`, each only where the composition places it and the relations it reads:
 
 - `ColumnCatalogue`: `DBC.ColumnsV` for the product's databases, left-joined to column metadata, with `description_source` `authored` or `missing`;
 - `DataProductManifest`: the active registry row with one column per orientation resource role;
@@ -220,17 +220,17 @@ Every text column a union produces is cast, because a union takes its column typ
 
 `contract/` holds the five metadata-contract checks, declared as `contract <kind>` in the platform profile and rendered once for the Semantic module. Each returns one row per defect, as `object_identity` and `defect`:
 
-| Check | Template | Returns |
+| Check | Method | Returns |
 |---|---|---|
-| `contract-identity` | `contract/identity.sql.j2` | an entity identity outside the `module.entity` grammar (`REGEXP_SIMILAR`, case-sensitive) or outside its own module, a duplicate identity, an access identity that breaks the grammar or does not match its entity and surface (`INV-SEMANTIC-016`) |
-| `contract-keys` | `contract/keys.sql.j2` | an entity with no key, a key with no columns, ordinals not running 1 to n, a key column absent from the entity (`INV-SEMANTIC-017`) |
-| `contract-relationships` | `contract/relationships.sql.j2` | a relationship with no column pair, ordinals not running 1 to n, an unregistered entity, a pair column absent from its entity (`INV-SEMANTIC-018`) |
-| `contract-access-columns` | `contract/access-columns.sql.j2` | a consumer view column with no mapping, a mapping naming no column or repeated, ordinals not running 1 to n, an absent non-derived source (`INV-SEMANTIC-019`) |
-| `contract-composition` | `contract/composition.sql.j2` | a composite without exactly one anchor, members not ordered 1 to n, a member not joined to a prior member, an anchor carrying a join (`INV-SEMANTIC-020`) |
+| `contract-identity` | `check_contract_identity` | an entity identity outside the `module.entity` grammar (`REGEXP_SIMILAR`, case-sensitive) or outside its own module, a duplicate identity, an access identity that breaks the grammar or does not match its entity and surface (`INV-SEMANTIC-016`) |
+| `contract-keys` | `check_contract_keys` | an entity with no key, a key with no columns, ordinals not running 1 to n, a key column absent from the entity (`INV-SEMANTIC-017`) |
+| `contract-relationships` | `check_contract_relationships` | a relationship with no column pair, ordinals not running 1 to n, an unregistered entity, a pair column absent from its entity (`INV-SEMANTIC-018`) |
+| `contract-access-columns` | `check_contract_access_columns` | a consumer view column with no mapping, a mapping naming no column or repeated, ordinals not running 1 to n, an absent non-derived source (`INV-SEMANTIC-019`) |
+| `contract-composition` | `check_contract_composition` | a composite without exactly one anchor, members not ordered 1 to n, a member not joined to a prior member, an anchor carrying a join (`INV-SEMANTIC-020`) |
 
-Columns of tables and views are read from `DBC.ColumnsV`; the shared macros are in `contract/00-macros.sql.j2`. The build does not execute Teradata, so these are verified by rendering, and by the shared engine tests when a system is attached.
+Columns of tables and views are read from `DBC.ColumnsV`; the shared helpers are the dialect's `who`, `what`, `has_column`, `similar` and `contiguous`. The build does not execute Teradata, so these are verified by generation, and by the shared engine tests when a system is attached.
 
-`validation.sql.j2` is the `module semantic` check: every table in a database the product places objects in (`DBC.TablesV`, kinds `T` and `O`), keymaps included, is registered in entity metadata.
+`check_module_semantic` is the `module semantic` check: every table in a database the product places objects in (`DBC.TablesV`, kinds `T` and `O`), keymaps included, is registered in entity metadata.
 
 Registration uses the placement and relationships the context carries, never name inference. Structural facts come from the `DBC` dictionary views; meanings come from the specification.
 
@@ -241,7 +241,7 @@ Registration uses the placement and relationships the context carries, never nam
 | `SemanticRegistration` | Registration inserts for the product, modules, entities, columns, relationships, access and primary objects, orientation, metrics, synonyms and naming standards. |
 | `RichMetadata` | `COMMENT ON` for physical objects, plus authored entity and column metadata and the hybrid column catalogue. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -258,13 +258,13 @@ Physical types come from the `[types]` table of [`binding.toml`](binding.toml). 
 
 ## 5. Domain module (`domain`)
 
-Templates: [`modules/domain/`](modules/domain/).
+Generated by [`dialect.py`](dialect.py): `phase_domain`.
 
 Binding of [Domain](../../design/modules/domain.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('domain')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). It emits one `CREATE MULTISET TABLE` per persisted Domain relation in the context's `entities` and `relations`, keymaps first so references to them resolve, and skips any the context marks `adopted` or not `defined`. It reads each relation's `objects.table`, `columns` (physical name and type, `required`, `unique`, `members`, `dimensions`), `kind`, `key_columns`, `natural_columns`, `version_columns`, `column_names`, `history`, `bitemporal`, `supports_deletion`, `generated_key` and `identity.keymap`.
+`phase_domain` calls `module_tables('domain')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). It emits one `CREATE MULTISET TABLE` per persisted Domain relation in the context's `entities` and `relations`, keymaps first so references to them resolve, and skips any the context marks `adopted` or not `defined`. It reads each relation's `objects.table`, `columns` (physical name and type, `required`, `unique`, `members`, `dimensions`), `kind`, `key_columns`, `natural_columns`, `version_columns`, `column_names`, `history`, `bitemporal`, `supports_deletion`, `generated_key` and `identity.keymap`.
 
 - The primary index follows the access path: a keymap is read by its natural key (`UNIQUE PRIMARY INDEX`), a versioned table keeps every version of an identity on one AMP (`PRIMARY INDEX` on the version columns), and anything else is read by its key (`UNIQUE PRIMARY INDEX`).
 - A relation with `generated_key` gets an identity column (`GENERATED BY DEFAULT AS IDENTITY`). Teradata allocates identity values in ranges per AMP, so they are unique but neither dense nor ordered.
@@ -272,7 +272,7 @@ Binding of [Domain](../../design/modules/domain.md). The design remains the sour
 - An entity with a keymap gets `FOREIGN KEY ... REFERENCES WITH NO CHECK OPTION` to the keymap: declared for the optimiser and for discovery, not enforced.
 - An Enum attribute gets a `CHECK` over its members; a `Flag` is `BYTEINT` with a `CHECK (... IN (0, 1))`; text is `CHARACTER SET UNICODE`.
 
-`02-key-allocation.sql.j2` is caller-rendered with `keymap` (a Keymap entity from the context) and `natural_value`. It renders two statements: a `MERGE` on the keymap's natural-key primary index, which Teradata requires a `MERGE` to match on, inserting the natural value only when it is new; then the `SELECT` of the stable identifier. Given `staged` instead, `{container, name, column}` naming a table the caller has written a set of natural values to (`container` null for a session-local table), it allocates the whole set in one `MERGE` over the staged set, still matched on the primary index, ignoring NULLs and duplicates and keeping every existing identifier, then returns each staged value with its identifier. Load a batch this way rather than one value at a time. Teradata is a set engine, and one value per request costs a round trip and a parse each. Only the first natural-key attribute (`identity.natural[0]`) is used. The caller runs both in one transaction.
+`key_allocation` is caller-rendered with `keymap` (a Keymap entity from the context) and `natural_value`. It renders two statements: a `MERGE` on the keymap's natural-key primary index, which Teradata requires a `MERGE` to match on, inserting the natural value only when it is new; then the `SELECT` of the stable identifier. Given `staged` instead, `{container, name, column}` naming a table the caller has written a set of natural values to (`container` null for a session-local table), it allocates the whole set in one `MERGE` over the staged set, still matched on the primary index, ignoring NULLs and duplicates and keeping every existing identifier, then returns each staged value with its identifier. Load a batch this way rather than one value at a time. Teradata is a set engine, and one value per request costs a round trip and a parse each. Only the first natural-key attribute (`identity.natural[0]`) is used. The caller runs both in one transaction.
 
 Comments, governed and consumer views and statistics come from the temporal pattern; registration from Semantic; checks from Validation.
 
@@ -280,7 +280,7 @@ Comments, governed and consumer views and statistics come from the temporal patt
 
 | Capability | Binding |
 |---|---|
-| `SurrogateKeyAllocation` | Identity column on each keymap or inline-keyed table; `02-key-allocation.sql.j2` returns the permanent identifier. |
+| `SurrogateKeyAllocation` | Identity column on each keymap or inline-keyed table; `key_allocation` returns the permanent identifier. |
 | `CurrentStateFilter` | Consumer view over current, undeleted rows. |
 | `PointInTimeReconstruction` | The governed base view carries the full temporal contract and is granted to the read and agent tiers; a read as at an instant applies the profile's predicates to it. Teradata SQL has no table functions, so there is no parameterised call. |
 | `NaturalKeyLookup` | Unique primary index on each keymap's natural key; consumer views carry the stable identifier. |
@@ -288,7 +288,7 @@ Comments, governed and consumer views and statistics come from the temporal patt
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |
 | `RichMetadata` | `COMMENT ON` for every table and column, held to 255 characters, plus Semantic registration. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -303,17 +303,17 @@ Physical types come from the `[types]` table of [`binding.toml`](binding.toml). 
 
 ## 6. Observability module (`observability`)
 
-Templates: [`modules/observability/`](modules/observability/).
+Generated by [`dialect.py`](dialect.py): `phase_observability`.
 
 Binding of [Observability](../../design/modules/observability.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('observability')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The relations are those the Observability standard defines and the resolver places: change events, quality metrics, lineage definitions and runs, model performance, agent outcomes, and the validation relations `ValidationRun` and `ValidationArea`. Event relations are append-only by profile; lineage definitions are current-state. Each gets a governed and a consumer view from the temporal pattern.
+`phase_observability` calls `module_tables('observability')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The relations are those the Observability standard defines and the resolver places: change events, quality metrics, lineage definitions and runs, model performance, agent outcomes, and the validation relations `ValidationRun` and `ValidationArea`. Event relations are append-only by profile; lineage definitions are current-state. Each gets a governed and a consumer view from the temporal pattern.
 
 The module's views are rendered elsewhere: `LineageGraph` and `LineageRunLatest` by [Semantic discovery](#4-semantic-module-semantic), and `TrustMap` by [Validation](#9-validation-pattern-validation).
 
-Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. No trigger or synthetic quality score is emitted. The [access-layer template](#10-access-layer-pattern-access-layer) grants the agent tier `INSERT` on agent outcomes, the write target the context marks; validation evidence is written by [`validate.py`](../../tooling/bindings/README.md) using the placement the manifest carries. Privileged administration can bypass append-only intent. Retention is a settled design decision and an operator-managed process; no template deletes records.
+Capture is a producer obligation: deployers wire their ingestion, temporal writer and agent runtime to these stores. No trigger or synthetic quality score is emitted. The [access-layer phase](#10-access-layer-pattern-access-layer) grants the agent tier `INSERT` on agent outcomes, the write target the context marks; validation evidence is written by [`validate.py`](../../tooling/bindings/README.md) using the placement the manifest carries. Privileged administration can bypass append-only intent. Retention is a settled design decision and an operator-managed process; nothing the binding generates deletes records.
 
 ### Capability bindings
 
@@ -325,7 +325,7 @@ Capture is a producer obligation: deployers wire their ingestion, temporal write
 | `QualityScore` | Quality-metric time series, separate from validation evidence. |
 | `GraphNativeLineageTraversal` | Not rendered: see below. A specification enabling `observability:graph-lineage` has it reported as a gap. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -341,21 +341,21 @@ Physical types come from the `[types]` table of [`binding.toml`](binding.toml). 
 
 ### Graph-lineage facet
 
-Not bound. The templates for it, written for the flat template context that preceded the build context, were retired with the catalogue-interface binding; their last versions are in the history at commit `5fe4803`. A product that enables the facet has the exposure reported as a gap.
+Not bound. The templates for it, written for the flat context that preceded the build context, were retired with the catalogue-interface binding; their last versions are in the history at commit `5fe4803`. A product that enables the facet has the exposure reported as a gap.
 
 ## 7. Search module (`search`)
 
-Templates: [`modules/search/`](modules/search/).
+Generated by [`dialect.py`](dialect.py): `phase_search`, `phase_similarity`.
 
 Binding of [Search](../../design/modules/search.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('search')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The embedding store holds identifiers, vectors and provenance, never source content.
+`phase_search` calls `module_tables('search')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). The embedding store holds identifiers, vectors and provenance, never source content.
 
 A `Vector[n]` binds to `VARBYTE(n × 8)`: its elements as little-endian 8-byte floats, with a `CHECK (BYTES(...) = n × 8)` so a vector of the wrong dimension is refused. That is the encoding `TD_VECTORDISTANCE` reads directly; 4-byte floats in the same column are misread without an error (PLATFORM_PROFILE §7, Vectors). A producer packs a vector as `numpy.asarray(v, dtype="<f8").tobytes()` or `struct.pack(f"<{n}d", *v)` and binds it as a `VARBYTE` parameter.
 
-`02-similarity.sql.j2` emits one stored procedure per `Embedding:` block in the context's `embeddings` that has an `objects.procedure`. It reads the block's `store` (through `named`), `vector_column`, `dimensions`, `similarity`, `threshold`, `name` and, where present, `model`, and the `Deploying user` binding setting. The procedure `(query_vector VARBYTE(n × 8), result_limit INTEGER)`:
+`phase_similarity` emits one stored procedure per `Embedding:` block in the context's `embeddings` that has an `objects.procedure`. It reads the block's `store` (through `named`), `vector_column`, `dimensions`, `similarity`, `threshold`, `name` and, where present, `model`, and the `Deploying user` binding setting. The procedure `(query_vector VARBYTE(n × 8), result_limit INTEGER)`:
 
 - reads the store's consumer view, so only current vectors are ranked, restricted to rows whose source attribute is the block's name (and to its model, where the block names one);
 - scores through `TD_VECTORDISTANCE`, with the store as the target table and the query as a one-row dimension, by the declared similarity, as every binding scores it: cosine and dot as `1 - distance` (the function's distances are `1 - cosine` and `1 - dot`), euclidean and manhattan as `1 / (1 + distance)`;
@@ -374,7 +374,7 @@ Vectors come from the encoder the specification declares, outside the database o
 | `EntityJoinBack` | Results carry the Domain identifier; consumers join to the Domain consumer view. |
 | `CurrentStateFilter` | The procedure reads the store's consumer view. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -382,21 +382,21 @@ Templates read only the build context: see [tooling/build](../../tooling/build/R
 |---|---|
 | `INV-SEARCH-001,003` | Review the declared embedding and model provenance; the vector `CHECK` enforces the dimension, with an engine test that a wrong one is refused. |
 | `INV-SEARCH-002,004` | Engine test that the procedure ranks current vectors of its embedding and applies the threshold. |
-| `INV-SEARCH-005` | Shared temporal macros and the `entity temporal` check. |
+| `INV-SEARCH-005` | Shared temporal methods and the `entity temporal` check. |
 
 Physical types come from the `[types]` table of [`binding.toml`](binding.toml). Temporal and lifecycle columns come only from the shared pattern. Semantic registration and Memory capture are soft dependencies and render nothing when those modules are absent.
 
 ## 8. Prediction module (`prediction`)
 
-Templates: [`modules/prediction/`](modules/prediction/).
+Generated by [`dialect.py`](dialect.py): `phase_prediction`.
 
 Binding of [Prediction](../../design/modules/prediction.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`01-tables.sql.j2` calls `module_tables('prediction')` from the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). It creates the feature and prediction entities the specification assigns to Prediction, with the columns, keys and temporal profile the context resolves for each. The temporal pattern adds their governed and consumer views.
+`phase_prediction` calls `module_tables('prediction')` from the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata). It creates the feature and prediction entities the specification assigns to Prediction, with the columns, keys and temporal profile the context resolves for each. The temporal pattern adds their governed and consumer views.
 
-No template computes features or scores. Product feature SQL must apply both effective and knowledge-time cutoffs to each source and respect observation and availability time. Definitions belong to Semantic and monitoring to Observability; Domain context is reached by identifier join-back, not copied into feature or prediction rows. Prediction tables begin empty: no score or model quality is fabricated.
+Nothing the binding generates computes features or scores. Product feature SQL must apply both effective and knowledge-time cutoffs to each source and respect observation and availability time. Definitions belong to Semantic and monitoring to Observability; Domain context is reached by identifier join-back, not copied into feature or prediction rows. Prediction tables begin empty: no score or model quality is fabricated.
 
 Feature derivations the specification declares are rendered in the Teradata dialect where the binding declares every function they use. `hours_between` and `days_between` take both instants in UTC and are exact to the microsecond; `as_of` is not declared on any binding, so derivations using it are carried unrendered and reported.
 
@@ -408,7 +408,7 @@ Feature derivations the specification declares are rendered in the Teradata dial
 | `CurrentStateFilter` | Consumer view over current, undeleted rows. |
 | `AccessView` | One consumer view per relation with a `consumer_view` object. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ### Invariants and checks
 
@@ -422,7 +422,7 @@ Physical types come from the `[types]` table of [`binding.toml`](binding.toml). 
 
 ## 9. Validation pattern (`validation`)
 
-Templates: [`patterns/validation/`](patterns/validation/).
+Generated by [`dialect.py`](dialect.py): `check_entity_metadata`, `check_entity_temporal`, `check_relationship_reference`, `check_module_semantic`, `check_module_memory`, `check_product_comment_coverage`, `phase_trust`.
 
 Binding of [Validation](../../design/patterns/validation.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
@@ -430,21 +430,21 @@ Binding of [Validation](../../design/patterns/validation.md). The design remains
 
 Each check is a query whose every row is a defect. The `checks` of [`binding.toml`](binding.toml) names them, and [`render.py`](../../tooling/bindings/README.md) renders them into the manifest with test ids `{PRODUCT_CODE}-{CHECK}-{NNN}`:
 
-| Check | Template | Rendered for | Returns |
+| Check | Method | Rendered for | Returns |
 |---|---|---|---|
-| `entity metadata` | `01-entity-metadata.sql.j2` | each persisted relation (`entity`) | each placed column the table lacks or that has no comment, from `DBC.ColumnsV`. Teradata has no table constructor, so the expected columns are a union of one-row selects from `DBC.DBCInfoV` |
-| `entity temporal` | `02-entity-temporal.sql.j2` | each persisted relation (`entity`) | identities with an empty interval, a current flag that disagrees with the open ends, overlapping versions (both axes when bitemporal), or a deletion flag without its instant |
-| `relationship reference` | `03-relationship-reference.sql.j2` | each entry in `relationships` (`relationship`) | current source references with no current target, read through the consumer views (the tables where no view is placed); an optional reference may be null; a generic reference is checked only where its discriminator names this target |
-| `module semantic` | [`modules/semantic/validation.sql.j2`](#4-semantic-module-semantic) | the Semantic module | unregistered tables |
-| `module memory` | [`modules/memory/validation.sql.j2`](#3-memory-module-memory) | the Memory module | modules below the capture floor |
+| `entity metadata` | `check_entity_metadata` | each persisted relation (`entity`) | each placed column the table lacks or that has no comment, from `DBC.ColumnsV`. Teradata has no table constructor, so the expected columns are a union of one-row selects from `DBC.DBCInfoV` |
+| `entity temporal` | `check_entity_temporal` | each persisted relation (`entity`) | identities with an empty interval, a current flag that disagrees with the open ends, overlapping versions (both axes when bitemporal), or a deletion flag without its instant |
+| `relationship reference` | `check_relationship_reference` | each entry in `relationships` (`relationship`) | current source references with no current target, read through the consumer views (the tables where no view is placed); an optional reference may be null; a generic reference is checked only where its discriminator names this target |
+| `module semantic` | [`check_module_semantic`](#4-semantic-module-semantic) | the Semantic module | unregistered tables |
+| `module memory` | [`check_module_memory`](#3-memory-module-memory) | the Memory module | modules below the capture floor |
 | `contract identity`, `contract keys`, `contract relationships`, `contract access-columns`, `contract composition` | [`modules/semantic/contract/`](#4-semantic-module-semantic) | once, for the Semantic module (`contract` scope); rendered as `contract-identity` and so on | the defects of the Semantic metadata contract (`INV-SEMANTIC-016` to `020`), as `object_identity` and `defect` |
-| `product comment-coverage` | `05-comment-coverage.sql.j2` | once, for the product (`product` scope) | each database, table, view, macro, procedure, function and table or view column with no comment, read from `DBC.DatabasesV`, `DBC.TablesV` and `DBC.ColumnsV` over the containers the product creates (databases) and those that hold objects (objects and columns); an adopted container is not swept |
+| `product comment-coverage` | `check_product_comment_coverage` | once, for the product (`product` scope) | each database, table, view, macro, procedure, function and table or view column with no comment, read from `DBC.DatabasesV`, `DBC.TablesV` and `DBC.ColumnsV` over the containers the product creates (databases) and those that hold objects (objects and columns); an adopted container is not swept |
 
 The reference check is current-surface coverage, not historical proof. A join of several columns resolves only when every pair matches, so the check tests all of them.
 
 ### Trust map
 
-`04-trust-map.sql.j2` is a phase, not a check. Where the product places `TrustMap`, `ValidationRun`, `ValidationArea` and the product registry, it creates one `TrustMap` view with the same columns as every binding's:
+`phase_trust` is a phase, not a check. Where the product places `TrustMap`, `ValidationRun`, `ValidationArea` and the product registry, it creates one `TrustMap` view with the same columns as every binding's:
 
 - evidence is the area records joined to their run, plus one PRODUCT entry for each run at a registered legacy wire version (`quality.legacy_wire_versions`) with no area records, graded on the run's counts by Validation §4.3 and never above `partial` (`no-evidence` and `unknown` if the run had no checks);
 - the registry's designated producer, where one is set, is the only producer read;
@@ -458,19 +458,19 @@ Teradata views take no `WITH` clause and no `ORDER BY`, so each step is a derive
 
 [`validate.py`](../../tooling/bindings/README.md) connects with the teradatasql parameters in `TERADATA_DSN`, runs each check (a failed request rolls back only itself) and records an erroring check as `ERROR`, never as zero defects. Where the manifest places `ValidationRun` and `ValidationArea`, it appends one run and one area record per entity, module and the product in one transaction (wire schema 2.1). Failed `ERROR` or `CRITICAL` checks give weak confidence; a failed `WARNING` leaves partial. The gaps the manifest reports cap the PRODUCT area at partial. This is a structural profile, not a certification of business rules; add design-specific checks in the product workspace with explicit scope and provenance.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ## 10. Access Layer pattern (`access-layer`)
 
-Templates: [`patterns/access-layer/`](patterns/access-layer/).
+Generated by [`dialect.py`](dialect.py): `phase_implied_grants`, `phase_access`.
 
 Binding of [Access Layer](../../design/patterns/access-layer.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-### Templates
+### Generation
 
-`00-implied-grants.sql.j2` is the second phase, before any view. A view in one database compiles, and serves its readers, only once that database holds `SELECT WITH GRANT OPTION` on the database it reads; without it view creation fails with `[5315]`. The template derives each pair from what a view reads, from `entities`, `relations` and their placed `objects`: a base view reads its table; a consumer view reads its base view, or its table where there is none; a discovery view reads the Semantic and Observability tables it is built over. It grants nothing else, and never a database to itself.
+`phase_implied_grants` is the second phase, before any view. A view in one database compiles, and serves its readers, only once that database holds `SELECT WITH GRANT OPTION` on the database it reads; without it view creation fails with `[5315]`. It derives each pair from what a view reads, from `entities`, `relations` and their placed `objects`: a base view reads its table; a consumer view reads its base view, or its table where there is none; a discovery view reads the Semantic and Observability tables it is built over. It grants nothing else, and never a database to itself.
 
-`01-grants.sql.j2` is the last phase. It reads `principals` (the name of each of `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN`, and whether the build creates it), `product.name`, `grant_level`, `containers`, `module_containers` and the placed objects of `entities` and `relations`. In order it:
+`phase_access` is the last phase. It reads `principals` (the name of each of `ROLE_READ`, `ROLE_AGENT` and `ROLE_ADMIN`, and whether the build creates it), `product.name`, `grant_level`, `containers`, `module_containers` and the placed objects of `entities` and `relations`. In order it:
 
 1. creates each principal the profile says to `create` as a role, with a comment naming who it is for, never what it reaches; an `existing` principal is used by name and not altered;
 2. grants the admin tier `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `DROP TABLE`, `CREATE VIEW`, `DROP VIEW` and `STATISTICS` on every database the product owns (never an adopted one) that holds objects (`ALL` carries `CREATE USER`, which Teradata grants to no role);
@@ -489,17 +489,17 @@ The deploy script does not create users, assign passwords or grant roles to user
 | `AccessView` | Consumer views, and the governed views that carry history, are the read and agent tiers' only table-like surfaces; the engine tests read the read role's rights from `DBC.AllRoleRightsV`. |
 | `ProductRoleAccess` | Roles named by the profile; grants per object or per database. Runtime scope enforcement is a reported gap. |
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ## 11. Physical Storage pattern (`physical-storage`)
 
 Binding of [Physical Storage](../../design/patterns/physical-storage.md). The design remains the source of truth; the binding supplies reusable mechanisms, not a product schema.
 
-This pattern has no template. Every table is created in Teradata's own block storage: a `MULTISET` table with the primary index the [shared macros](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) choose from its access path, and statistics collected on its key, versioning and temporal columns after deployment. No secondary, join or partitioned primary index, column partitioning or compression is emitted; those are chosen from measured workloads, following the advice in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) §§1 to 6.
+This pattern generates nothing of its own. Every table is created in Teradata's own block storage: a `MULTISET` table with the primary index the [shared methods](#2-temporal-lifecycle-metadata-pattern-temporal-lifecycle-metadata) choose from its access path, and statistics collected on its key, versioning and temporal columns after deployment. No secondary, join or partitioned primary index, column partitioning or compression is emitted; those are chosen from measured workloads, following the advice in [PLATFORM_PROFILE.md](PLATFORM_PROFILE.md) §§1 to 6.
 
-No table is placed in object storage. An organisation profile with the `Storage Section` headings (object storage under an open table format) is honoured by no template: the build creates its tables in block storage and reports the storage placement in the manifest as a gap.
+No table is placed in object storage. An organisation profile with the `Storage Section` headings (object storage under an open table format) is honoured by no phase: the build creates its tables in block storage and reports the storage placement in the manifest as a gap.
 
-Templates read only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases, checks, types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). Rendering uses StrictUndefined.
+The dialect reads only the build context: see [tooling/build](../../tooling/build/README.md) and the [Platform Implementation Authoring Standard](../../design/core/IMPLEMENTATION_AUTHORING.md) §3 and §6. Phases and checks are the dialect's `PHASES` and `CHECKS`; types and expression fragments are declared in [`binding.toml`](binding.toml); coverage and gaps are in [CONFORMANCE.md](CONFORMANCE.md). A missing context value fails generation.
 
 ## Catalogue
 

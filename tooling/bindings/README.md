@@ -1,14 +1,15 @@
-# Rendering and validating Jinja bindings
+# Rendering and validating bindings
 
-Tools for the platform bindings whose `binding.toml` declares its phases (currently
+Tools for the platform bindings, each a `binding.toml` and a `dialect.py` (currently
 PostgreSQL, DuckDB and Teradata). A build has three inputs: a design specification, an organisation
 profile and the platform binding. [`tooling/build`](../build/) resolves the first two and the
-binding's declarations into one build context; `render.py` renders the binding's declared
-phases, deploy script and checks from that context alone. SQL stays in
-`implementation/{platform}/`.
+binding's declarations into one build context; `render.py` asks the binding's dialect for each
+phase, the deploy script and each check from that context alone. [`dialect.py`](dialect.py) loads
+the dialects and holds no SQL: SQL stays in `implementation/{platform}/dialect.py` and the
+portable defaults every platform extends, `implementation/portable/dialect.py`. Everything here
+is standard-library Python 3.11 or later.
 
 ```sh
-python -m pip install -r tooling/bindings/requirements.txt
 python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/itsd-postgres
 ```
 
@@ -19,7 +20,7 @@ configuration renders nothing and reports why.
 separate product repository. Rendering neither connects to a database nor executes SQL.
 
 The output holds one file per phase that renders anything for the composition, `deploy.sql`
-(the phases joined by the binding's `Deploy` template, in one transaction where the engine can
+(the phases joined by the dialect's `deploy`, in one transaction where the engine can
 roll DDL back), `context.json` (the resolved build context) and `manifest.json`: the checks with their test ids
 (`{PRODUCT_CODE}-{CHECK}-{NNN}`) and scopes, where evidence is published, and every **gap**,
 meaning something the specification asks for that this binding does not render. Gaps are

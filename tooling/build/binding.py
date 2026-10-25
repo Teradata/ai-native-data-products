@@ -26,9 +26,6 @@ from spec_notation import field_tables  # noqa: E402
 
 DECLARATIONS = "binding.toml"
 BLOCKS = ("Binding", "Types", "Functions")
-# entity and relationship run once per item; module once per included module; contract once for the
-# Semantic module's metadata contract (INV-SEMANTIC-016 to 020); product once for the whole product.
-CHECK_SCOPES = ("entity", "relationship", "module", "contract", "product")
 EXTRA_FRAGMENTS = {"duration", "map case", "true", "false", "null", "flag test"}
 
 
@@ -41,10 +38,7 @@ class Binding:
     runtime_scope: str = "unsupported"
     emits: Dict[str, List[str]] = field(default_factory=dict)
     settings: Dict[str, Dict[str, str]] = field(default_factory=dict)  # name -> {values, default}
-    phases: Dict[str, str] = field(default_factory=dict)
-    checks: Dict[str, str] = field(default_factory=dict)
     gaps: Dict[str, str] = field(default_factory=dict)
-    deploy: Optional[str] = None
     types: Dict[str, str] = field(default_factory=dict)
     functions: Dict[str, str] = field(default_factory=dict)
     path: str = ""
@@ -125,21 +119,10 @@ def load_binding(platform: str, repo_root: Path = None) -> (Optional[Binding], L
     for name, setting in b.settings.items():
         if set(setting) != {"values", "default"}:
             fail(f"[binding.settings] {name} is not {{ values, default }}")
-    b.deploy = fields.get("deploy")
     try:
-        b.phases = {p["file"]: p["template"] for p in fields.get("phases", [])}
-        b.checks = {f"{c['scope']} {c['check']}": c["template"] for c in fields.get("checks", [])}
         b.gaps = {g["area"]: g["gap"] for g in fields.get("gaps", [])}
     except (KeyError, TypeError):
-        return None, findings + [Finding(where, 1, "binding-declaration", "phases need file and template, checks "
-                                         "scope, check and template, gaps area and gap")]
-    for c in fields.get("checks", []):
-        if c["scope"] not in CHECK_SCOPES or " " in c["check"]:
-            fail(f"check '{c['scope']} {c['check']}' is not '<{'|'.join(CHECK_SCOPES)}> <check>'")
-    templates = root / "implementation" / platform
-    for name in list(b.phases.values()) + list(b.checks.values()) + ([b.deploy] if b.deploy else []):
-        if not (templates / name).is_file():
-            fail(f"template '{name}' does not exist")
+        return None, findings + [Finding(where, 1, "binding-declaration", "gaps need area and gap")]
     b.types = dict(data["types"])
     b.functions = dict(data["functions"])
     vocabulary = {name for name, _ in _function_names(root)} | EXTRA_FRAGMENTS

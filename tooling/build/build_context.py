@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """build_context: resolve a design specification and an organisation profile into the
-single build context every platform binding's templates read.
+single build context every platform binding's dialect reads.
 
-    python tooling/build/build_context.py SPEC.md PROFILE.md [--environment production] [--out context.json]
+    python tooling/build/build_context.py SPEC.md implementation.toml --target T [--environment production] [--out context.json]
 
 This is the shared resolution step of the Platform Implementation Authoring Standard (§3).
-It runs once, before any template renders, and does everything a template must not:
+It runs once, before any SQL is generated, and does everything a dialect must not:
 places every object, names it, names or binds every principal, maps the design's
 sensitivity markers onto the organisation's classes, marks adoptions, derives storage
-paths, and checks names against the platform's limits. A template then reads resolved
+paths, and checks names against the platform's limits. A dialect then reads resolved
 names and never derives one.
 
 The specification is validated by `spec_lint` and the profile by `org_profile`; resolution
@@ -970,8 +970,7 @@ def resolve(spec_path: Path, configuration: Configuration, environment: str = No
         "platform": platform,
         "binding": {"platform": binding.platform, "principals": binding.principals,
                     "emits": binding.emits, "identifier_quote": binding.identifier_quote,
-                    "literal_quote": binding.literal_quote, "phases": binding.phases,
-                    "checks": binding.checks},
+                    "literal_quote": binding.literal_quote},
         "environment": {"name": environment, "phases": phases,
                         "isolation": profile.field("Environments", "Isolation")},
         "composition": fm.get("composition"),

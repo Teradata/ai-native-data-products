@@ -11,7 +11,8 @@ Three families of rule:
     names *in its body* resolves against the catalogues, and a standard that
     recommends other than the advocated option says why.
   * **TLM-04** (prohibited generic names): applies to `implementation/` only, over SQL
-    and template artifacts, since that is where a column name is actually spelled.
+    artifacts and the SQL a dialect module writes, since that is where a column name is
+    actually spelled.
 
 Used two ways:
 
@@ -36,6 +37,7 @@ Stdlib only: runs anywhere Python 3.8+ runs (Teradata, Postgres, DuckDB shops al
 """
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from dataclasses import dataclass
@@ -182,7 +184,9 @@ PLAIN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 #     python tooling/validation/design_lint.py design implementation path/to/product
 # The design tree has to be among the paths either way, since the prohibited-name table
 # is read from the pattern document rather than copied here.
-SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2", ".dcl", ".dcl.j2")
+SQL_ARTIFACT_SUFFIXES = (".sql", ".dcl")
+# A dialect module writes its SQL as Python string literals; TLM-04 reads those strings.
+DIALECT_MODULE = "dialect.py"
 
 # Comment length. Teradata rejects a COMMENT ON longer than 255 characters with
 # [5550] Comment string is longer than permitted, and the failure is quiet in the way
@@ -191,13 +195,10 @@ SQL_ARTIFACT_SUFFIXES = (".sql", ".sql.j2", ".dcl", ".dcl.j2")
 # CHARACTER SET UNICODE), so prose carrying an em dash is not penalised for it and a
 # plain len() is the right measure.
 #
-# A literal containing Jinja control flow is skipped: its static length is the sum of
-# every branch, not what any deployment sees. Those are measured after rendering, by
-# tooling/bindings/tests/test_teradata_dialect.py, which is also where a simple
-# {{ placeholder }} gets its real width.
+# A dialect composes its comments from the build context, so their real length is known
+# only after generation; tooling/bindings/tests/test_teradata_dialect.py measures them there.
 COMMENT_LIMIT = 255
 COMMENT_RE = re.compile(r"COMMENT ON [A-Z]+ ([^\n]+?) IS\s*'(.*?)';", re.S)
-JINJA_CONTROL_RE = re.compile(r"\{%")
 
 
 @dataclass(frozen=True)
@@ -510,8 +511,8 @@ def mask_sql_noise(text: str) -> str:
 
     Comments and string literals are replaced with spaces, newlines preserved, so line
     numbers still point at the source. This is what lets the rule be stated without
-    exceptions: a check may scan *for* the prohibited names, and a template header may
-    explain which spellings it replaced, and neither is a column named that way. A prohibited name inside SQL embedded in a
+    exceptions: a check may scan *for* the prohibited names, and a header may explain
+    which spellings it replaced, and neither is a column named that way. A prohibited name inside SQL embedded in a
     string literal (a stored `Query_Cookbook` recipe) is invisible here, which is the
     accepted cost of not needing an allowlist.
     """
@@ -525,9 +526,6 @@ def mask_sql_noise(text: str) -> str:
             j = n if j == -1 else j
         elif ch == "/" and nxt == "*":                   # /* block comment */
             j = text.find("*/", i + 2)
-            j = n if j == -1 else j + 2
-        elif ch == "{" and nxt == "#":                   # {# jinja comment #}
-            j = text.find("#}", i + 2)
             j = n if j == -1 else j + 2
         elif ch == "'":                                  # 'string literal', '' escapes
             j = i + 1
@@ -570,8 +568,6 @@ def find_comment_length_violations(text: str, path: str,
     findings: List[Finding] = []
     for m in COMMENT_RE.finditer(text):
         target, body = m.group(1), m.group(2)
-        if JINJA_CONTROL_RE.search(body):
-            continue
         if len(body) <= limit:
             continue
         line = text.count("\n", 0, m.start()) + 1
@@ -762,11 +758,12 @@ def lint_text(path: str, text: str) -> List[Finding]:
 
 def platform_names(repo_root: Path = None) -> List[str]:
     """Every platform name a design document must not use: the known platforms, and every
-    binding directory under implementation/."""
+    binding under implementation/: a directory with a binding.toml. The portable dialect
+    every binding extends is not a platform."""
     names = list(KNOWN_PLATFORMS)
     impl = (repo_root or Path(__file__).resolve().parents[2]) / "implementation"
     if impl.is_dir():
-        names += sorted(p.name for p in impl.iterdir() if p.is_dir())
+        names += sorted(p.name for p in impl.iterdir() if (p / "binding.toml").is_file())
     return names
 
 
@@ -807,8 +804,27 @@ def is_design_document(path: Path) -> bool:
 
 
 def is_sql_artifact(path: Path) -> bool:
-    """A file whose content spells column names: `.sql` or a `.sql.j2` template."""
-    return path.name.endswith(SQL_ARTIFACT_SUFFIXES)
+    """A file whose content spells column names: `.sql`, `.dcl`, or a dialect module."""
+    return path.name.endswith(SQL_ARTIFACT_SUFFIXES) or path.name == DIALECT_MODULE
+
+
+def dialect_strings(text: str) -> List[Tuple[int, str]]:
+    """The string literals of a dialect module, with the line each starts on: the SQL it
+    writes. Docstrings are prose, not SQL, and are left out."""
+    tree = ast.parse(text)
+    docstrings = {id(node.body[0].value) for node in ast.walk(tree)
+                  if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                  and node.body and isinstance(node.body[0], ast.Expr)
+                  and isinstance(node.body[0].value, ast.Constant)}
+    return [(node.lineno, node.value) for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings]
+
+
+def find_dialect_name_violations(text: str, path: str, names: dict) -> List[Finding]:
+    """TLM-04 over the SQL a dialect module writes."""
+    return [Finding(f.path, line + f.line - 1, f.rule, f.message)
+            for line, sql in dialect_strings(text)
+            for f in find_prohibited_name_violations(sql, path, names)]
 
 
 def lint_paths(paths: List[str]) -> List[Finding]:
@@ -862,6 +878,9 @@ def lint_paths(paths: List[str]) -> List[Finding]:
             prohibited = load_prohibited_names(text)
     for sql in sql_artifacts:
         sql_text = sql.read_text(encoding="utf-8")
+        if sql.name == DIALECT_MODULE:
+            findings += find_dialect_name_violations(sql_text, str(sql), prohibited)
+            continue
         findings += find_prohibited_name_violations(sql_text, str(sql), prohibited)
         # The 255-character limit is a Teradata platform constraint, not a
         # platform-neutral RichMetadata requirement.

@@ -213,7 +213,7 @@ Every design decision a product makes is **recorded as part of designing it**, n
 
 **`DocumentationCapture` is a `[soft]` requirement** for exactly this reason. A composition without Memory does not fail; it loses the in-product destination, not the record itself. Decisions that were never written down cannot be reviewed or explained, and a reviewer meeting them later cannot tell a deliberate departure from an oversight.
 
-The record definitions, capture workflow, and templates are owned by the Memory module design and its binding; they are not restated here.
+The record definitions, capture workflow, and generated statements are owned by the Memory module design and its binding; they are not restated here.
 
 ---
 
