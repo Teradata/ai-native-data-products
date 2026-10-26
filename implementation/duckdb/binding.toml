@@ -1,0 +1,80 @@
+# DuckDB binding declarations: Platform Implementation Authoring Standard §5.1.
+# The resolver and renderer read this file; physical-design guidance is in PLATFORM_PROFILE.md.
+
+[binding]
+identifier_quote = '"'
+literal_quote = "'"
+principals = 'unsupported'
+runtime_scope = 'unsupported'
+
+# Gaps no check can detect; the conformance report lists them.
+gaps = [
+  { area = 'Composition', gap = 'only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy' },
+  { area = 'Adoption', gap = "the reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered" },
+  { area = 'Maintenance', gap = 'only the bitemporal path of the maintenance statement is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted' },
+  { area = 'Historical references', gap = 'the reference check covers current surfaces only' },
+  { area = 'Cookbook recipes', gap = 'cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join' },
+  { area = 'Embedding, model and operations', gap = 'no encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these' },
+  { area = 'Roles, grants and runtime privacy', gap = 'unsupported by the engine; there is no access phase, the profile declares how each tier is enforced outside the database, and no access evidence is published' },
+  { area = 'Temporal enforcement', gap = 'no exclusion constraint or partial unique index, so non-overlap and a single current version are found by the temporal check, not prevented' },
+  { area = 'Concurrency', gap = 'one writing connection is assumed; no concurrent-writer or crash-recovery test exists' },
+  { area = 'Catalogue scope', gap = 'discovery and validation queries filter by schema name, not by current_database()' },
+  { area = 'Coverage not carried over', gap = "the earlier reference's bespoke checks are not reproduced: a point-in-time training function and retrospective-rewrite guard for Prediction, metric and synonym reference checks, content-duplication allowlists and placement inventory checks" },
+]
+
+# Object roles emitted beyond table and consumer_view, and what each is emitted for.
+[binding.emits]
+sequence = ['keymap', 'inline']
+function = ['SCD2_HISTORY', 'ASSOCIATION_SCD2', 'SCD2_BITEMPORAL', 'embedding']
+
+# The physical type for each logical type. {p} and {s} are a Decimal's precision and scale,
+# {dim} a Vector's dimension and {dim*n} that dimension times n.
+[types]
+Identifier = 'BIGINT'
+Reference = 'BIGINT'
+NaturalKey = 'VARCHAR'
+Code = 'VARCHAR'
+ShortText = 'VARCHAR'
+Text = 'VARCHAR'
+LongText = 'VARCHAR'
+Json = 'JSON'
+Enum = 'VARCHAR'
+Integer = 'INTEGER'
+Decimal = 'DECIMAL({p},{s})'
+Timestamp = 'TIMESTAMPTZ'
+Date = 'DATE'
+Flag = 'BOOLEAN'
+Vector = 'FLOAT[{dim}]'
+
+# The SQL fragment for each expression function: {0}, {1} ... are rendered arguments and
+# {args} all of them. A name may carry an arity, as name/2.
+[functions]
+sum = 'SUM({0})'
+avg = 'AVG({0})'
+min = 'MIN({0})'
+max = 'MAX({0})'
+count = 'COUNT({0})'
+count_distinct = 'COUNT(DISTINCT {0})'
+count_rows = 'COUNT(*)'
+ratio = '({0}) / NULLIF({1}, 0)'
+'completeness/1' = 'AVG(CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END)'
+'completeness/2' = 'AVG(CASE WHEN {1} THEN CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END END)'
+validity = 'AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)'
+consistency = 'AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)'
+'map/2' = 'CASE {0} {cases} ELSE NULL END'
+'map case' = 'WHEN {key} THEN {value}'
+when = 'CASE WHEN {0} THEN {1} ELSE {2} END'
+coalesce = 'COALESCE({args})'
+is_null = '({0} IS NULL)'
+is_not_null = '({0} IS NOT NULL)'
+null = 'NULL'
+concat = "CONCAT_WS(' ', {args})"
+length = 'length({0})'
+hours_between = "date_diff('second', {0}, {1}) / 3600.0"
+days_between = "date_diff('second', {0}, {1}) / 86400.0"
+hour_of_day = "hour(timezone('UTC', {0}))"
+day_of_week = "(isodow(timezone('UTC', {0})) - 1)"
+as_flag = '({0})'
+duration = "INTERVAL '{n} {unit}'"
+true = 'TRUE'
+false = 'FALSE'

@@ -1,8 +1,0 @@
-{# Rendered per persisted relation, with `entity`. Every returned row is a defect: a column
-   the build context places that the table lacks, or one with no description. #}
-{% set x = entity %}{% set t = x.objects.table %}
-SELECT expected.column_name FROM (VALUES {% for col in x.columns %}({{ col.physical_name|literal }}){% if not loop.last %}, {% endif %}{% endfor %}) expected(column_name)
-LEFT JOIN duckdb_columns() actual
-  ON actual.database_name = current_database() AND actual.schema_name = {{ t.container|literal }} AND actual.table_name = {{ t.name|literal }}
- AND actual.column_name = expected.column_name
-WHERE actual.column_name IS NULL OR nullif(actual.comment, '') IS NULL

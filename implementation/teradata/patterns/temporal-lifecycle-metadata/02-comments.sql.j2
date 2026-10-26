@@ -1,9 +1,0 @@
-{# Descriptions from the specification and the module standards (RichMetadata), applied after
-   the tables and before anything depends on them, each held to the dictionary's limit. #}
-{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}
-{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and not (x.adopted|default(false)) %}
-COMMENT ON TABLE {{ x.objects.table|qualified }} IS {{ m.comment(x.description) }};
-{%- for col in x.columns %}
-COMMENT ON COLUMN {{ x.objects.table|qualified }}.{{ col.physical_name|ident }} IS {{ m.comment(col.description or col.name) }};
-{%- endfor %}
-{% endfor %}

@@ -1,0 +1,24 @@
+# Design configuration: IT Service Desk example organisation
+#
+# How this organisation's standards apply to every design, on any platform: its classification
+# scheme and the retention it permits. No platform belongs here; the design role reads this file.
+#
+# Keys are the Organisation Profile Standard's field names in snake_case
+# (design/core/ORGANISATION_PROFILE.md); your own names - container keys, object roles,
+# tiers, classes, entities - are written as they are.
+
+organisation = 'IT Service Desk example organisation'
+
+[classification]
+scheme = ['Public', 'Internal', 'Confidential', 'Restricted']
+default = 'Internal'
+
+[classification.markers]
+pii = 'Restricted'
+pii-incidental = 'Confidential'
+
+[classification.protection]
+Public = 'none'
+Internal = 'none'
+Confidential = 'none'
+Restricted = 'none'

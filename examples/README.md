@@ -6,9 +6,9 @@ Each example supplies the inputs a full design, build and review cycle needs: a 
 
 | Example | Composition | Platform | What it exercises |
 |---|---|---|---|
-| [`it-service-desk-data-product/`](it-service-desk-data-product/) with [`profiles/duckdb.md`](it-service-desk-data-product/profiles/duckdb.md) | AI-Native (all six modules, Memory both facets) | DuckDB | The same ITSD inputs and Jinja workflow into a portable single file, with an explicit external security boundary. |
-| [`it-service-desk-data-product/`](it-service-desk-data-product/) with [`profiles/postgres.md`](it-service-desk-data-product/profiles/postgres.md) | AI-Native (all six modules, Memory both facets) | PostgreSQL | The same ITSD inputs and Jinja workflow, with native roles and bitemporal exclusion constraints. |
-| [`it-service-desk-data-product/`](it-service-desk-data-product/) | AI-Native (all six modules, Memory both facets) | Teradata | The full pipeline, including a deliberate departure from an advocated option and a `STRICT_SEPARATION` placement standard. |
+| [`it-service-desk-data-product/`](it-service-desk-data-product/), target `duckdb` of [`config/implementation.example.toml`](../config/implementation.example.toml) | AI-Native (all six modules, Memory both facets) | DuckDB | The same ITSD inputs and generation workflow into a portable single file, with an explicit external security boundary. |
+| [`it-service-desk-data-product/`](it-service-desk-data-product/), target `postgres` of [`config/implementation.example.toml`](../config/implementation.example.toml) | AI-Native (all six modules, Memory both facets) | PostgreSQL | The same ITSD inputs and generation workflow, with native roles and bitemporal exclusion constraints. |
+| [`it-service-desk-data-product/`](it-service-desk-data-product/), target `teradata` of [`config/implementation.example.toml`](../config/implementation.example.toml) | AI-Native (all six modules, Memory both facets) | Teradata | The full pipeline, including a deliberate departure from an advocated option and a `STRICT_SEPARATION` placement standard. |
 
 ---
 

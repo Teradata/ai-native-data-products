@@ -19,14 +19,15 @@ sys.path.insert(0, str(REPO_ROOT / "tooling" / "evals"))
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "build"))
 
 import build_context  # noqa: E402
+from org_profile import Configuration  # noqa: E402
 from binding import load_binding  # noqa: E402
 from expressions import ExpressionError, Unrenderable, functions_used, parse, references, render  # noqa: E402
 from spec_notation import load_standard  # noqa: E402
 
-PLATFORMS = sorted(p.name for p in (REPO_ROOT / "implementation").iterdir() if p.is_dir())
+PLATFORMS = sorted(p.name for p in (REPO_ROOT / "implementation").iterdir() if (p / "binding.toml").exists())
 EXAMPLE = REPO_ROOT / "examples" / "it-service-desk-data-product"
 ITSD_SPEC = EXAMPLE / "design-output" / "design_specification.md"
-TERADATA_PROFILE = EXAMPLE / "profiles" / "teradata.md"
+TERADATA_PROFILE = Configuration(REPO_ROOT / "config" / "implementation.example.toml", "teradata")
 
 
 def sql(text, platform, **kw):
@@ -85,11 +86,11 @@ class Bindings(unittest.TestCase):
             for rel in ("design/core/IMPLEMENTATION_AUTHORING.md", "design/core/DESIGN_SPECIFICATION.md"):
                 (root / rel).parent.mkdir(parents=True, exist_ok=True)
                 (root / rel).write_text((REPO_ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
-            target = root / "implementation" / "fake" / "PLATFORM_PROFILE.md"
+            target = root / "implementation" / "fake" / "binding.toml"
             target.parent.mkdir(parents=True)
-            text = (REPO_ROOT / "implementation" / "duckdb" / "PLATFORM_PROFILE.md").read_text(encoding="utf-8")
-            target.write_text(text.replace("  Flag:       BOOLEAN", "  Flag:       BOOLEAN\n  Hologram:   BLOB")
-                              .replace("  true: TRUE", "  true: TRUE\n  teleport: X({0})"), encoding="utf-8")
+            text = (REPO_ROOT / "implementation" / "duckdb" / "binding.toml").read_text(encoding="utf-8")
+            target.write_text(text.replace("[types]\n", "[types]\nHologram = 'BLOB'\n")
+                              .replace("[functions]\n", "[functions]\nteleport = 'X({0})'\n"), encoding="utf-8")
             _, findings = load_binding("fake", root)
             messages = " ".join(str(f) for f in findings)
             self.assertIn("Hologram", messages)

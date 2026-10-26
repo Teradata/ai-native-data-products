@@ -2,7 +2,7 @@ name: validate
 
 # Required check for merging to main (see design/core/IMPLEMENTATION_AUTHORING.md
 # section 8). Runs every repository validation suite: design and specification
-# lint, template hygiene (Jinja only), template rendering for every binding,
+# lint, dialect hygiene and the file budgets, rendering for every binding,
 # and native engine tests for DuckDB, PostgreSQL and Teradata.
 #
 # Teradata has no container image, so its engine tests run against a disposable
@@ -68,7 +68,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python -m pip install -r tooling/bindings/requirements.txt duckdb pytz "psycopg[binary]" teradatasql
+        run: python -m pip install duckdb pytz "psycopg[binary]" teradatasql
 
       - name: Validation suite (design lint, template hygiene, rendering)
         run: python -m unittest discover -s tooling/validation/tests -v 2>&1 | tee validation.log

@@ -1,25 +1,26 @@
-# Rendering and validating Jinja bindings
+# Rendering and validating bindings
 
-Tools for the platform bindings whose `PLATFORM_PROFILE.md` declares its phases (currently
+Tools for the platform bindings, each a `binding.toml` and a `dialect.py` (currently
 PostgreSQL, DuckDB and Teradata). A build has three inputs: a design specification, an organisation
 profile and the platform binding. [`tooling/build`](../build/) resolves the first two and the
-binding's declarations into one build context; `render.py` renders the binding's declared
-phases, deploy script and checks from that context alone. SQL stays in
-`implementation/{platform}/`.
+binding's declarations into one build context; `render.py` asks the binding's dialect for each
+phase, the deploy script and each check from that context alone. [`dialect.py`](dialect.py) loads
+the dialects and holds no SQL: SQL stays in `implementation/{platform}/dialect.py` and the
+portable defaults every platform extends, `implementation/portable/dialect.py`. Everything here
+is standard-library Python 3.11 or later.
 
 ```sh
-python -m pip install -r tooling/bindings/requirements.txt
-python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md examples/it-service-desk-data-product/profiles/postgres.md --output build/itsd-postgres
+python tooling/bindings/render.py examples/it-service-desk-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/itsd-postgres
 ```
 
-The profile names the platform, so the same specification with
-[`profiles/duckdb.md`](../../examples/it-service-desk-data-product/profiles/duckdb.md) renders the
-DuckDB binding, and with [`profiles/teradata.md`](../../examples/it-service-desk-data-product/profiles/teradata.md) the Teradata one. An invalid specification or profile renders nothing and reports why.
+The target names the platform, so the same specification with `--target duckdb` renders the
+DuckDB binding, and with `--target teradata` the Teradata one. An invalid specification or
+configuration renders nothing and reports why.
 `--output` must be empty and outside the skill corpus; use an ignored `build/` directory or a
 separate product repository. Rendering neither connects to a database nor executes SQL.
 
 The output holds one file per phase that renders anything for the composition, `deploy.sql`
-(the phases joined by the binding's `Deploy` template, in one transaction where the engine can
+(the phases joined by the dialect's `deploy`, in one transaction where the engine can
 roll DDL back), `context.json` (the resolved build context) and `manifest.json`: the checks with their test ids
 (`{PRODUCT_CODE}-{CHECK}-{NNN}`) and scopes, where evidence is published, and every **gap**,
 meaning something the specification asks for that this binding does not render. Gaps are
@@ -52,7 +53,7 @@ these tests and the package tests once, records every outcome against the bindin
 evidence for (an engine class's `platform`, or a subtest's `platform` parameter), renders both
 reference specifications under every example profile for the platform, and writes: the
 outcomes, each failure and skip, every gap the builds' manifests report, and the gaps the
-binding declares in its `PLATFORM_PROFILE.md` `Gaps` field. A binding is `standard` only when
+binding declares in the `gaps` of its `binding.toml`. A binding is `standard` only when
 its report shows no failure, no skip and no gap.
 
 `--check` writes nothing in place and fails when a regenerated report differs from the

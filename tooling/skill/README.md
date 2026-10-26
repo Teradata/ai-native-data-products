@@ -61,7 +61,7 @@ reintroduce it by moving or renaming a file the routing names.
 
 Placeholders are expanded before checking, so `implementation/{platform}/modules/{module}/`
 is tested against every platform and module the corpus defines. The platforms are discovered
-(every directory under `implementation/` with a `PLATFORM_PROFILE.md`), never listed. A
+(every directory under `implementation/` with a `binding.toml`), never listed. A
 `{platform}` route must resolve on every binding, since a builder may target any of them.
 Within one binding, a path passes if at least one `{module}` or `{pattern}` expansion exists,
 because a route may legitimately cover an area that not every module implements.

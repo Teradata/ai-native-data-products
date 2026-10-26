@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """build_context: resolve a design specification and an organisation profile into the
-single build context every platform binding's templates read.
+single build context every platform binding's dialect reads.
 
-    python tooling/build/build_context.py SPEC.md PROFILE.md [--environment production] [--out context.json]
+    python tooling/build/build_context.py SPEC.md implementation.toml --target T [--environment production] [--out context.json]
 
 This is the shared resolution step of the Platform Implementation Authoring Standard (§3).
-It runs once, before any template renders, and does everything a template must not:
+It runs once, before any SQL is generated, and does everything a dialect must not:
 places every object, names it, names or binds every principal, maps the design's
 sensitivity markers onto the organisation's classes, marks adoptions, derives storage
-paths, and checks names against the platform's limits. A template then reads resolved
+paths, and checks names against the platform's limits. A dialect then reads resolved
 names and never derives one.
 
 The specification is validated by `spec_lint` and the profile by `org_profile`; resolution
@@ -37,16 +37,17 @@ from design_lint import Finding, parse_frontmatter  # noqa: E402
 from org_profile import (  # noqa: E402
     PRINCIPAL,
     TIERS,
+    Configuration,
     check_profile,
     container_name,
     container_parts,
     derive,
     derive_path,
+    load_configuration,
     load_profile_standard,
-    parse_profile,
     render,
 )
-from binding import load_binding  # noqa: E402
+from binding import load_binding, snake  # noqa: E402
 from expressions import ExpressionError, Node, Unrenderable, functions_used, parse as parse_expression  # noqa: E402
 from expressions import references as expression_references, render as render_expression  # noqa: E402
 from org_profile import _snake  # noqa: E402
@@ -148,14 +149,15 @@ def _fields(block) -> dict:
     return {k.lower().replace(" ", "_"): v for k, v in block.fields.items()}
 
 
-def resolve(spec_path: Path, profile_path: Path, environment: str = None,
+def resolve(spec_path: Path, configuration: Configuration, environment: str = None,
             design_root: Path = None, version: str = None) -> Tuple[dict, List[Finding]]:
+    """The build context for a specification under one target of an organisation's
+    configuration, and every problem found building it."""
     design_root = design_root or (REPO_ROOT / "design")
-    r = Resolution(str(spec_path), str(profile_path))
-
     spec_findings = lint_spec(spec_path, design_root)
     pstd = load_profile_standard(design_root)
-    profile = parse_profile(profile_path.read_text(encoding="utf-8"), pstd, str(profile_path))
+    profile = load_configuration(configuration, pstd)
+    r = Resolution(str(spec_path), profile.path)
     profile_findings = check_profile(profile, pstd)
     binding, binding_findings = (load_binding(profile.frontmatter["platform"], design_root.parent)
                                  if profile.frontmatter.get("platform") else (None, []))
@@ -733,13 +735,13 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
 
     # ---- binding settings: the binding's defaults, as the profile sets them ---------------
     settings = {}
-    chosen = dict(profile.blocks["Settings"].fields) if "Settings" in profile.blocks else {}
+    chosen = ({snake(k): v for k, v in profile.blocks["Settings"].fields.items()}
+              if "Settings" in profile.blocks else {})
     for name, declared in binding.settings.items():
-        values, _, default = declared.partition("; default ")
         if name in chosen:
             settings[name] = chosen[name]
         else:
-            settings[name] = default.strip() or None
+            settings[name] = declared["default"] or None
             r.default(f"settings.{name}", settings[name], f"the {binding.platform} binding's declaration")
     for name in chosen:
         if name not in binding.settings:
@@ -959,14 +961,16 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
                **(single("Product") or {})}
     context = {
         "schema_version": SCHEMA_VERSION,
-        "inputs": {"specification": spec_path.as_posix(), "profile": profile_path.as_posix()},
+        "inputs": {"specification": spec_path.as_posix(),
+                   "design_configuration": configuration.label(configuration.design_source()),
+                   "implementation_configuration": configuration.label(configuration.implementation),
+                   "target": configuration.target},
         "product": product,
         "organisation": profile.frontmatter.get("organisation"),
         "platform": platform,
         "binding": {"platform": binding.platform, "principals": binding.principals,
                     "emits": binding.emits, "identifier_quote": binding.identifier_quote,
-                    "literal_quote": binding.literal_quote, "phases": binding.phases,
-                    "checks": binding.checks},
+                    "literal_quote": binding.literal_quote},
         "environment": {"name": environment, "phases": phases,
                         "isolation": profile.field("Environments", "Isolation")},
         "composition": fm.get("composition"),
@@ -1018,13 +1022,15 @@ def resolve(spec_path: Path, profile_path: Path, environment: str = None,
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("specification", type=Path)
-    parser.add_argument("profile", type=Path)
+    parser.add_argument("implementation", type=Path, help="the organisation's implementation configuration")
+    parser.add_argument("--target", required=True, help="the deployment target under [targets]")
+    parser.add_argument("--design", type=Path, help="the design configuration; default: the sibling design file")
     parser.add_argument("--environment")
     parser.add_argument("--version", help="the product version being built")
     parser.add_argument("--out", type=Path, help="write the context here instead of stdout")
     args = parser.parse_args(argv)
-    context, findings = resolve(args.specification, args.profile, args.environment,
-                                version=args.version)
+    context, findings = resolve(args.specification, Configuration(args.implementation, args.target, args.design),
+                                args.environment, version=args.version)
     if findings:
         for f in findings:
             print(str(f))
