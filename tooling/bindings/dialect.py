@@ -21,12 +21,18 @@ PORTABLE = "portable_dialect"
 
 
 def _load(name: str, path: Path):
+    """Import a dialect module. Loading writes nothing: no bytecode cache lands beside the
+    dialect, inside the skill."""
     if name in sys.modules:
         return sys.modules[name]
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    spec.loader.exec_module(module)
+    writes, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = writes
     return module
 
 

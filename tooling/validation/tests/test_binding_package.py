@@ -93,12 +93,14 @@ class BindingPackage(unittest.TestCase):
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 base = IMPLEMENTATION / platform
-                found = {p.relative_to(base).as_posix() for p in base.rglob("*")}
+                found = {p.relative_to(base).as_posix() for p in base.rglob("*")
+                         if "__pycache__" not in p.parts}
                 self.assertEqual(sorted(BINDING_FILES - found), [], f"{platform} lacks a binding file")
                 self.assertEqual(sorted(found - BINDING_FILES), [],
                                  "A binding holds its dialect, declarations and three documents; nothing else")
                 self.assertLessEqual(len(found), BINDING_BUDGET, f"{platform} is over the binding budget")
-        self.assertEqual(sorted(p.name for p in (IMPLEMENTATION / "portable").iterdir()), ["dialect.py"])
+        self.assertEqual(sorted(p.name for p in (IMPLEMENTATION / "portable").iterdir()
+                                if p.name != "__pycache__"), ["dialect.py"])
 
     def test_every_dialect_extends_the_portable_dialect(self):
         for platform in PLATFORMS:
