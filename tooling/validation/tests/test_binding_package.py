@@ -162,6 +162,17 @@ class BindingPackage(unittest.TestCase):
         self.assertEqual({a: n for a, n in numbering.items() if len(n) > 1}, {},
                          "a section has a different number on different bindings")
 
+    def test_every_platform_profile_keeps_its_sql_idioms_at_section_7(self):
+        """Authoring Standard §5: roles/build.md sends every build to the profile's §7 before
+        it writes SQL, so §7 is the SQL idioms on every binding, not whatever a profile put
+        seventh."""
+        route = (ROOT / "roles" / "build.md").read_text(encoding="utf-8")
+        self.assertRegex(route, r"§7, SQL Idioms and Driver\s+Constraints")
+        for platform in PLATFORMS:
+            with self.subTest(platform=platform):
+                profile = (IMPLEMENTATION / platform / "PLATFORM_PROFILE.md").read_text(encoding="utf-8")
+                self.assertRegex(profile, r"(?m)^## 7\. SQL Idioms and Driver Constraints\s*$")
+
     def test_conformance_is_generated_and_status_follows_it(self):
         """Authoring Standard §8.1: the report is generated, never kept by hand, and a binding
         document is `standard` only when its binding's report is."""

@@ -8,7 +8,7 @@ Engine evidence: Teradata 20.00.24.60 through teradatasql 20.0.0.72.
 
 | Outcome | Count |
 |---|---|
-| Passed | 60 |
+| Passed | 61 |
 | Failed | 0 |
 | Skipped | 0 |
 | Gaps reported by the builds | 17 |
@@ -138,4 +138,5 @@ What no check can detect, declared in the `gaps` of [binding.toml](binding.toml)
 | Every dialect extends the portable dialect | pass |
 | Every dialect method is reached | pass |
 | Every module and pattern has a section numbered alike on every binding | pass |
+| Every platform profile keeps its sql idioms at section 7 | pass |
 | Examples are build inputs not generated output | pass |

@@ -8,7 +8,7 @@ Engine evidence: DuckDB v2.0.0 through the duckdb 2.0.0 Python driver.
 
 | Outcome | Count |
 |---|---|
-| Passed | 49 |
+| Passed | 50 |
 | Failed | 0 |
 | Skipped | 0 |
 | Gaps reported by the builds | 14 |
@@ -117,4 +117,5 @@ What no check can detect, declared in the `gaps` of [binding.toml](binding.toml)
 | Every dialect extends the portable dialect | pass |
 | Every dialect method is reached | pass |
 | Every module and pattern has a section numbered alike on every binding | pass |
+| Every platform profile keeps its sql idioms at section 7 | pass |
 | Examples are build inputs not generated output | pass |

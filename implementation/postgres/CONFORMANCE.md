@@ -8,7 +8,7 @@ Engine evidence: PostgreSQL 16.11 through psycopg 3.3.6.
 
 | Outcome | Count |
 |---|---|
-| Passed | 49 |
+| Passed | 50 |
 | Failed | 0 |
 | Skipped | 0 |
 | Gaps reported by the builds | 13 |
@@ -113,4 +113,5 @@ What no check can detect, declared in the `gaps` of [binding.toml](binding.toml)
 | Every dialect extends the portable dialect | pass |
 | Every dialect method is reached | pass |
 | Every module and pattern has a section numbered alike on every binding | pass |
+| Every platform profile keeps its sql idioms at section 7 | pass |
 | Examples are build inputs not generated output | pass |
