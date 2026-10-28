@@ -2,6 +2,16 @@
   "standard_version": "2.0.0",
   "examples": [
     {
+      "example": "customer-service-agreements-data-product",
+      "platforms": [],
+      "readme": "examples/customer-service-agreements-data-product/README.md"
+    },
+    {
+      "example": "it-asset-configuration-data-product",
+      "platforms": [],
+      "readme": "examples/it-asset-configuration-data-product/README.md"
+    },
+    {
       "example": "it-service-desk-data-product",
       "platforms": [
         "duckdb",

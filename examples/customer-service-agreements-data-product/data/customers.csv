@@ -1,0 +1,24 @@
+customer_id,legal_name,trading_name,industry,tier,region,billing_country,billing_contact_email,account_manager,customer_since,valid_from
+CUST-001,Meridian Financial Group Ltd,Meridian Financial Group,Financial services,Platinum,ANZ,New Zealand,accounts@meridianfg.com,Account team East,2019-01-01,2019-01-01
+CUST-002,Pacific Logistics Co Pty Ltd,Pacific Logistics Co,Transport and logistics,Platinum,ANZ,Australia,accounts@paclogistics.com,Account team South,2020-03-15,2020-03-15
+CUST-003,Nexus Healthcare Pte Ltd,Nexus Healthcare,Healthcare,Platinum,APAC,Singapore,accounts@nexushealth.com,Account team Asia,2018-07-01,2018-07-01
+CUST-004,Summit Energy Pty Ltd,Summit Energy,Energy and utilities,Platinum,ANZ,Australia,accounts@summitenergy.com,Account team South,2021-06-01,2021-06-01
+CUST-005,Vantage Retail Group Pte Ltd,Vantage Retail Group,Retail,Platinum,APAC,Hong Kong,accounts@vantageretail.com,Account team Asia,2020-11-01,2020-11-01
+CUST-006,BlueStar Manufacturing Pty Ltd,BlueStar Manufacturing,Manufacturing,Gold,ANZ,Australia,accounts@bluestar.com,Account team South,2021-01-15,2021-01-15
+CUST-007,Clearwater Consulting Pte Ltd,Clearwater Consulting,Professional services,Gold,APAC,Hong Kong,accounts@clearwater.com,Account team Asia,2022-03-01,2022-03-01
+CUST-007,Clearwater Consulting Pte Ltd,Clearwater Consulting,Professional services,Platinum,APAC,Hong Kong,accounts@clearwater.com,Account team Asia,2022-03-01,2026-04-01
+CUST-008,Ironbridge Engineering Pty Ltd,Ironbridge Engineering,Engineering,Gold,ANZ,Australia,accounts@ironbridge.com,Account team South,2021-08-20,2021-08-20
+CUST-009,TrueNorth Analytics Pty Ltd,TrueNorth Analytics,Professional services,Gold,ANZ,Australia,accounts@truenorth.com,Account team East,2022-07-01,2022-07-01
+CUST-010,Keystone Property Group Pte Ltd,Keystone Property Group,Property,Gold,APAC,Japan,accounts@keystone.com,Account team Asia,2020-09-15,2020-09-15
+CUST-011,Redwood Insurance Pty Ltd,Redwood Insurance,Financial services,Gold,ANZ,Australia,accounts@redwoodins.com,Account team East,2023-01-01,2023-01-01
+CUST-012,Optima Pharmaceuticals Pte Ltd,Optima Pharmaceuticals,Healthcare,Gold,APAC,Singapore,accounts@optimapharma.com,Account team Asia,2021-05-01,2021-05-01
+CUST-013,Coastal Media Group Pty Ltd,Coastal Media Group,Media,Silver,ANZ,New Zealand,accounts@coastalmedia.com,Account team East,2022-02-01,2022-02-01
+CUST-014,Pioneer Tech Solutions Pte Ltd,Pioneer Tech Solutions,Technology,Silver,APAC,Japan,accounts@pioneertech.com,Account team Asia,2023-03-15,2023-03-15
+CUST-015,Harborview Hotels Pty Ltd,Harborview Hotels,Hospitality,Silver,ANZ,Australia,accounts@harborview.com,Account team East,2022-08-01,2022-08-01
+CUST-016,Delta Freight Services Pty Ltd,Delta Freight Services,Transport and logistics,Silver,ANZ,New Zealand,accounts@deltafreight.com,Account team South,2021-11-01,2021-11-01
+CUST-016,Delta Freight Services Pty Ltd,Delta Freight Services,Transport and logistics,Bronze,ANZ,New Zealand,accounts@deltafreight.com,Account team South,2021-11-01,2026-05-01
+CUST-017,Sterling Accounting Pte Ltd,Sterling Accounting,Professional services,Silver,APAC,Singapore,accounts@sterlingacc.com,Account team Asia,2023-06-01,2023-06-01
+CUST-018,Apex Recruitment Pty Ltd,Apex Recruitment,Professional services,Bronze,ANZ,Australia,accounts@apexrecruit.com,Account team South,2023-04-01,2023-04-01
+CUST-019,Milestone Construction Pty Ltd,Milestone Construction,Construction,Bronze,ANZ,New Zealand,accounts@milestone.com,Account team East,2023-07-01,2023-07-01
+CUST-020,Greenfield Agri Pte Ltd,Greenfield Agri,Agriculture,Bronze,APAC,Japan,accounts@greenfield.com,Account team Asia,2023-09-01,2023-09-01
+CUST-021,Northwind Utilities Pty Ltd,Northwind Utilities,Energy and utilities,Gold,ANZ,Australia,accounts@northwind.com.au,Account team East,2026-06-15,2026-06-15

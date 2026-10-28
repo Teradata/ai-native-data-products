@@ -1,0 +1,18 @@
+ci_type_code,name,ci_class,parent_ci_type_code,description
+CIT-HW,End-user hardware,Hardware,,Devices issued to customer staff
+CIT-INF,Infrastructure,Infrastructure,,"Compute, storage and network that services run on"
+CIT-APP,Applications and services,Software,,Business applications and platform services
+CIT-LAPTOP,Laptop,Hardware,CIT-HW,Portable computer issued to one person
+CIT-DESKTOP,Desktop,Hardware,CIT-HW,Fixed workstation
+CIT-MONITOR,Monitor,Hardware,CIT-HW,External display
+CIT-PHONE,Mobile phone,Hardware,CIT-HW,Managed mobile device
+CIT-HOST,Physical host,Infrastructure,CIT-INF,Physical server running virtual machines
+CIT-VM,Virtual server,Infrastructure,CIT-INF,Virtual machine running application workloads
+CIT-DB,Database server,Infrastructure,CIT-INF,Server running a database engine
+CIT-NET,Network device,Network,CIT-INF,"Switch, router or firewall"
+CIT-VPN,VPN gateway,Network,CIT-INF,Remote-access gateway
+CIT-BIZAPP,Business application,Software,CIT-APP,Application a customer runs its business on
+CIT-IDP,Identity service,Service,CIT-APP,"Directory, single sign-on and MFA"
+CIT-MAIL,Email and messaging service,Service,CIT-APP,"Mail, chat and collaboration"
+CIT-BI,Reporting platform,Software,CIT-APP,Reporting and BI tooling
+CIT-PORTAL,Customer portal,Software,CIT-APP,Externally facing web application

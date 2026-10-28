@@ -1,0 +1,12 @@
+location_code,name,city,country,region,location_type
+LOC-SYD-DC1,Sydney datacentre 1,Sydney,Australia,ANZ,Datacentre
+LOC-MEL-DC2,Melbourne datacentre 2,Melbourne,Australia,ANZ,Datacentre
+LOC-SGP-DC1,Singapore datacentre 1,Singapore,Singapore,APAC,Datacentre
+LOC-CLOUD-AU,"Public cloud, Australia East",Sydney,Australia,ANZ,Cloud
+LOC-CLOUD-SG,"Public cloud, Southeast Asia",Singapore,Singapore,APAC,Cloud
+LOC-SYD-OFF,Sydney customer offices,Sydney,Australia,ANZ,Office
+LOC-MEL-OFF,Melbourne customer offices,Melbourne,Australia,ANZ,Office
+LOC-AKL-OFF,Auckland customer offices,Auckland,New Zealand,ANZ,Office
+LOC-SGP-OFF,Singapore customer offices,Singapore,Singapore,APAC,Office
+LOC-HKG-OFF,Hong Kong customer offices,Hong Kong,Hong Kong,APAC,Office
+LOC-TYO-OFF,Tokyo customer offices,Tokyo,Japan,APAC,Office

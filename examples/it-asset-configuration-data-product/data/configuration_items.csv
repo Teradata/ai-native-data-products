@@ -1,0 +1,236 @@
+configuration_item_id,name,ci_type_code,location_code,customer_id,environment,lifecycle_status,criticality,support_team,manufacturer,model_name,serial_number,purchase_date,warranty_end_date,end_of_support_date,purchase_cost,last_discovered_at
+CI-00001,Managed identity platform,CIT-IDP,LOC-CLOUD-AU,,Production,Live,Critical,Infrastructure,,,,,,,,2026-06-24T02:07:00
+CI-00002,Managed email and collaboration,CIT-MAIL,LOC-CLOUD-AU,,Production,Live,Critical,Applications,,,,,,,,2026-06-24T02:14:00
+CI-00003,Host cluster node SYD-1,CIT-HOST,LOC-SYD-DC1,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE29052945,2020-03-01,2023-03-01,2026-03-01,28694.76,2026-06-24T02:21:00
+CI-00004,Host cluster node SYD-2,CIT-HOST,LOC-SYD-DC1,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE41299540,2021-03-01,2024-03-01,2027-03-01,28415.61,2026-06-24T02:28:00
+CI-00005,Core switch SYD,CIT-NET,LOC-SYD-DC1,,Production,Live,Critical,Infrastructure,Cisco,Catalyst 9300,CI14457799,2018-09-01,2021-09-01,2025-09-01,9415.98,2026-06-24T02:35:00
+CI-00006,Host cluster node MEL-1,CIT-HOST,LOC-MEL-DC2,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE64662599,2020-03-01,2023-03-01,2026-03-01,26690.17,2026-06-24T02:42:00
+CI-00007,Host cluster node MEL-2,CIT-HOST,LOC-MEL-DC2,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE21575557,2021-03-01,2024-03-01,2027-03-01,26702.30,2026-06-24T02:49:00
+CI-00008,Core switch MEL,CIT-NET,LOC-MEL-DC2,,Production,Live,Critical,Infrastructure,Cisco,Catalyst 9300,CI21200425,2018-09-01,2021-09-01,2025-09-01,9956.35,2026-06-24T02:56:00
+CI-00009,Remote access gateway ANZ,CIT-VPN,LOC-SYD-DC1,,Production,Live,Critical,Infrastructure,Palo Alto,PA-3220,PA82098953,2020-02-01,2023-02-01,2026-02-01,23398.91,2026-06-24T03:03:00
+CI-00010,Host cluster node SGP-1,CIT-HOST,LOC-SGP-DC1,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE62909506,2020-03-01,2023-03-01,2026-03-01,30477.82,2026-06-24T03:10:00
+CI-00011,Host cluster node SGP-2,CIT-HOST,LOC-SGP-DC1,,Production,Live,High,Infrastructure,Dell,PowerEdge R750,DE41765803,2021-03-01,2024-03-01,2027-03-01,28650.98,2026-06-24T03:17:00
+CI-00012,Core switch SGP,CIT-NET,LOC-SGP-DC1,,Production,Live,Critical,Infrastructure,Fortinet,FortiGate 100F,FO66046603,2018-09-01,2021-09-01,2025-09-01,8967.86,2026-06-24T03:24:00
+CI-00013,Remote access gateway APAC,CIT-VPN,LOC-SGP-DC1,,Production,Live,Critical,Infrastructure,Palo Alto,PA-3220,PA41193049,2021-07-01,2024-07-01,2027-07-01,24154.02,2026-06-24T03:31:00
+CI-00014,Meridian Financial Group database server,CIT-DB,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Infrastructure,PostgreSQL,PostgreSQL 14,PO76233898,2022-07-24,2025-07-24,2027-07-24,11148.59,2026-06-24T03:38:00
+CI-00015,Meridian Financial Group CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Applications,,,,,,,,2026-06-24T03:45:00
+CI-00016,Meridian Financial Group CRM application server,CIT-VM,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T03:52:00
+CI-00017,Meridian Financial Group ERP,CIT-BIZAPP,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Applications,,,,,,,,2026-06-24T03:59:00
+CI-00018,Meridian Financial Group ERP application server,CIT-VM,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T04:06:00
+CI-00019,Meridian Financial Group Customer portal,CIT-PORTAL,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Applications,,,,,,,,2026-06-24T04:13:00
+CI-00020,Meridian Financial Group Customer portal application server,CIT-VM,LOC-SYD-DC1,CUST-001,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T04:20:00
+CI-00021,Meridian Financial Group Reporting,CIT-BI,LOC-CLOUD-AU,CUST-001,Production,Live,Critical,Applications,,,,,,,,2026-06-24T04:27:00
+CI-00022,Meridian Financial Group laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE54147387,2022-12-27,2025-12-27,2026-12-27,2210.95,2026-06-24T04:34:00
+CI-00023,Meridian Financial Group laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP83266408,2023-12-24,2026-12-24,2027-12-24,2347.17,2026-06-24T04:41:00
+CI-00024,Meridian Financial Group mobile phone 3,CIT-PHONE,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,Apple,iPhone 14,AP11611124,2021-10-28,2024-10-28,2024-10-28,1476.47,2026-06-24T04:48:00
+CI-00025,Meridian Financial Group laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE50910418,2022-12-28,2025-12-28,2026-12-28,2228.59,2026-06-24T04:55:00
+CI-00026,Meridian Financial Group laptop 5,CIT-LAPTOP,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP18592265,2019-01-22,2022-01-22,2023-01-22,2039.98,2026-06-24T05:02:00
+CI-00027,Meridian Financial Group monitor 6,CIT-MONITOR,LOC-MEL-OFF,CUST-001,Production,Live,Low,Service Desk,LG,27UP850,LG47669107,2020-06-21,2023-06-21,2026-06-21,496.54,2026-06-24T05:09:00
+CI-00028,Pacific Logistics Co database server,CIT-DB,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Infrastructure,PostgreSQL,PostgreSQL 14,PO62214250,2023-05-05,2026-05-05,2028-05-05,13254.09,2026-06-24T05:16:00
+CI-00029,Pacific Logistics Co CRM,CIT-BIZAPP,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Applications,,,,,,,,2026-06-24T05:23:00
+CI-00030,Pacific Logistics Co CRM application server,CIT-VM,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T05:30:00
+CI-00031,Pacific Logistics Co ERP,CIT-BIZAPP,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Applications,,,,,,,,2026-06-24T05:37:00
+CI-00032,Pacific Logistics Co ERP application server,CIT-VM,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T05:44:00
+CI-00033,Pacific Logistics Co Customer portal,CIT-PORTAL,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Applications,,,,,,,,2026-06-24T05:51:00
+CI-00034,Pacific Logistics Co Customer portal application server,CIT-VM,LOC-MEL-DC2,CUST-002,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T05:58:00
+CI-00035,Pacific Logistics Co Reporting,CIT-BI,LOC-CLOUD-AU,CUST-002,Production,Live,Critical,Applications,,,,,,,,2026-06-24T06:05:00
+CI-00036,Pacific Logistics Co laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE12223601,2019-05-15,2022-05-15,2023-05-15,2372.70,2026-06-24T06:12:00
+CI-00037,Pacific Logistics Co laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP99315016,2023-01-04,2026-01-04,2027-01-04,2048.58,2026-06-24T06:19:00
+CI-00038,Pacific Logistics Co monitor 3,CIT-MONITOR,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Dell,P2723DE,DE88080348,2023-08-27,2026-08-27,2029-08-27,455.20,2026-06-24T06:26:00
+CI-00039,Pacific Logistics Co laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE40818895,2023-11-07,2026-11-07,2027-11-07,2498.68,2026-06-24T06:33:00
+CI-00040,Pacific Logistics Co laptop 5,CIT-LAPTOP,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,AP18592265,2020-09-11,2023-09-11,2024-09-11,2344.95,2026-06-24T06:40:00
+CI-00041,Pacific Logistics Co mobile phone 6,CIT-PHONE,LOC-MEL-OFF,CUST-002,Production,Live,Low,Service Desk,Samsung,Galaxy S23,SA57826800,2020-01-21,2023-01-21,2023-01-21,1220.90,2026-06-24T06:47:00
+CI-00042,Nexus Healthcare database server,CIT-DB,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Infrastructure,PostgreSQL,PostgreSQL 14,PO52053990,2020-08-25,2023-08-25,2025-08-25,12842.86,2026-06-24T06:54:00
+CI-00043,Nexus Healthcare CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Applications,,,,,,,,2026-06-24T07:01:00
+CI-00044,Nexus Healthcare CRM application server,CIT-VM,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T07:08:00
+CI-00045,Nexus Healthcare ERP,CIT-BIZAPP,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Applications,,,,,,,,2026-06-24T07:15:00
+CI-00046,Nexus Healthcare ERP application server,CIT-VM,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T07:22:00
+CI-00047,Nexus Healthcare Customer portal,CIT-PORTAL,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Applications,,,,,,,,2026-06-24T07:29:00
+CI-00048,Nexus Healthcare Customer portal application server,CIT-VM,LOC-SGP-DC1,CUST-003,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T07:36:00
+CI-00049,Nexus Healthcare Reporting,CIT-BI,LOC-CLOUD-SG,CUST-003,Production,Live,Critical,Applications,,,,,,,,2026-06-24T07:43:00
+CI-00050,Nexus Healthcare laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP24872496,2021-05-16,2024-05-16,,2016.05,2026-06-24T07:50:00
+CI-00051,Nexus Healthcare laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP62243567,2019-04-04,2022-04-04,2023-04-04,2049.97,2026-06-24T07:57:00
+CI-00052,Nexus Healthcare mobile phone 3,CIT-PHONE,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Samsung,Galaxy S23,SA79940007,2023-02-04,2026-02-04,2026-02-04,1183.79,2026-06-24T08:04:00
+CI-00053,Nexus Healthcare laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE93500006,2024-05-11,2027-05-11,2028-05-11,2162.53,2026-06-24T08:11:00
+CI-00054,Nexus Healthcare laptop 5,CIT-LAPTOP,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE99140382,2021-08-26,2024-08-26,2025-08-26,2214.90,2026-06-24T08:18:00
+CI-00055,Nexus Healthcare monitor 6,CIT-MONITOR,LOC-HKG-OFF,CUST-003,Production,Live,Low,Service Desk,Dell,P2723DE,DE56598185,2025-09-19,2028-09-19,2031-09-19,423.36,2026-06-24T08:25:00
+CI-00056,Summit Energy database server,CIT-DB,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Infrastructure,PostgreSQL,PostgreSQL 14,PO27448308,2021-04-25,2024-04-25,2026-04-25,11964.79,2026-06-24T08:32:00
+CI-00057,Summit Energy CRM,CIT-BIZAPP,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Applications,,,,,,,,2026-06-24T08:39:00
+CI-00058,Summit Energy CRM application server,CIT-VM,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T08:46:00
+CI-00059,Summit Energy ERP,CIT-BIZAPP,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Applications,,,,,,,,2026-06-24T08:53:00
+CI-00060,Summit Energy ERP application server,CIT-VM,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T09:00:00
+CI-00061,Summit Energy Customer portal,CIT-PORTAL,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Applications,,,,,,,,2026-06-24T09:07:00
+CI-00062,Summit Energy Customer portal application server,CIT-VM,LOC-MEL-DC2,CUST-004,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T09:14:00
+CI-00063,Summit Energy Reporting,CIT-BI,LOC-CLOUD-AU,CUST-004,Production,Live,Critical,Applications,,,,,,,,2026-06-24T09:21:00
+CI-00064,Summit Energy laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE50295108,2020-11-06,2023-11-06,2024-11-06,2289.50,2026-06-24T09:28:00
+CI-00065,Summit Energy laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP88361930,2019-11-25,2022-11-25,2023-11-25,2150.65,2026-06-24T09:35:00
+CI-00066,Summit Energy monitor 3,CIT-MONITOR,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,Dell,P2723DE,DE86649767,2024-01-12,2027-01-12,2030-01-12,417.52,2026-06-24T09:42:00
+CI-00067,Summit Energy laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP43010409,2022-09-02,2025-09-02,2026-09-02,2464.71,2026-06-24T09:49:00
+CI-00068,Summit Energy laptop 5,CIT-LAPTOP,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE92371408,2023-11-24,2026-11-24,2027-11-24,2139.70,2026-06-24T09:56:00
+CI-00069,Summit Energy monitor 6,CIT-MONITOR,LOC-MEL-OFF,CUST-004,Production,Live,Low,Service Desk,LG,27UP850,LG36681839,2019-12-15,2022-12-15,2025-12-15,484.24,2026-06-24T10:03:00
+CI-00070,Vantage Retail Group database server,CIT-DB,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Infrastructure,Microsoft,SQL Server 2019,MI47049007,2024-07-27,2027-07-27,2029-07-27,13223.73,2026-06-24T10:10:00
+CI-00071,Vantage Retail Group CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Applications,,,,,,,,2026-06-24T10:17:00
+CI-00072,Vantage Retail Group CRM application server,CIT-VM,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T10:24:00
+CI-00073,Vantage Retail Group ERP,CIT-BIZAPP,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Applications,,,,,,,,2026-06-24T10:31:00
+CI-00074,Vantage Retail Group ERP application server,CIT-VM,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T10:38:00
+CI-00075,Vantage Retail Group Customer portal,CIT-PORTAL,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Applications,,,,,,,,2026-06-24T10:45:00
+CI-00076,Vantage Retail Group Customer portal application server,CIT-VM,LOC-SGP-DC1,CUST-005,Production,Live,Critical,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T10:52:00
+CI-00077,Vantage Retail Group Reporting,CIT-BI,LOC-CLOUD-SG,CUST-005,Production,Live,Critical,Applications,,,,,,,,2026-06-24T10:59:00
+CI-00078,Vantage Retail Group laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE20896263,2025-10-16,2028-10-16,2029-10-16,2075.80,2026-06-24T11:06:00
+CI-00079,Vantage Retail Group laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE76211613,2022-07-10,2025-07-10,2026-07-10,2068.54,2026-06-24T11:13:00
+CI-00080,Vantage Retail Group monitor 3,CIT-MONITOR,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Dell,P2723DE,DE38601907,2023-12-25,2026-12-25,2029-12-25,485.39,2026-06-24T11:20:00
+CI-00081,Vantage Retail Group laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE95490452,2021-05-08,2024-05-08,2025-05-08,2403.99,2026-06-24T11:27:00
+CI-00082,Vantage Retail Group laptop 5,CIT-LAPTOP,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE10534178,2024-12-05,2027-12-05,2028-12-05,2192.95,2026-06-24T11:34:00
+CI-00083,Vantage Retail Group monitor 6,CIT-MONITOR,LOC-HKG-OFF,CUST-005,Production,Live,Low,Service Desk,Dell,P2723DE,DE74504723,2019-05-28,2022-05-28,2025-05-28,424.84,2026-06-24T11:41:00
+CI-00084,BlueStar Manufacturing database server,CIT-DB,LOC-MEL-DC2,CUST-006,Production,Live,High,Infrastructure,PostgreSQL,PostgreSQL 14,PO13017135,2022-10-23,2025-10-23,2027-10-23,11343.25,2026-06-24T11:48:00
+CI-00085,BlueStar Manufacturing CRM,CIT-BIZAPP,LOC-MEL-DC2,CUST-006,Production,Live,High,Applications,,,,,,,,2026-06-24T11:55:00
+CI-00086,BlueStar Manufacturing CRM application server,CIT-VM,LOC-MEL-DC2,CUST-006,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T12:02:00
+CI-00087,BlueStar Manufacturing ERP,CIT-BIZAPP,LOC-MEL-DC2,CUST-006,Production,Live,High,Applications,,,,,,,,2026-06-24T12:09:00
+CI-00088,BlueStar Manufacturing ERP application server,CIT-VM,LOC-MEL-DC2,CUST-006,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T12:16:00
+CI-00089,BlueStar Manufacturing Customer portal,CIT-PORTAL,LOC-MEL-DC2,CUST-006,Production,Live,High,Applications,,,,,,,,2026-06-24T12:23:00
+CI-00090,BlueStar Manufacturing Customer portal application server,CIT-VM,LOC-MEL-DC2,CUST-006,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T12:30:00
+CI-00091,BlueStar Manufacturing Reporting,CIT-BI,LOC-CLOUD-AU,CUST-006,Production,Live,High,Applications,,,,,,,,2026-06-24T12:37:00
+CI-00092,BlueStar Manufacturing laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-006,Production,Retired,Low,Service Desk,Dell,Latitude 7440,DE23563393,2020-04-16,2023-04-16,2024-04-16,2173.37,2026-06-24T12:44:00
+CI-00093,BlueStar Manufacturing laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-006,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP66241507,2021-08-27,2024-08-27,2025-08-27,2413.66,2026-06-24T12:51:00
+CI-00094,BlueStar Manufacturing monitor 3,CIT-MONITOR,LOC-MEL-OFF,CUST-006,Production,Live,Low,Service Desk,LG,27UP850,LG96423744,2021-07-04,2024-07-04,2027-07-04,472.54,2026-06-24T12:58:00
+CI-00095,BlueStar Manufacturing laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-006,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE32524624,2019-09-14,2022-09-14,2023-09-14,2464.62,2026-06-24T13:05:00
+CI-00096,BlueStar Manufacturing laptop 5,CIT-LAPTOP,LOC-MEL-OFF,CUST-006,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE79955570,2025-04-16,2028-04-16,2029-04-16,2077.67,2026-06-24T13:12:00
+CI-00097,Clearwater Consulting database server,CIT-DB,LOC-SGP-DC1,CUST-007,Production,Live,High,Infrastructure,PostgreSQL,PostgreSQL 14,PO52587717,2024-09-25,2027-09-25,2029-09-25,13690.41,2026-06-24T13:19:00
+CI-00098,Clearwater Consulting CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-007,Production,Live,High,Applications,,,,,,,,2026-06-24T13:26:00
+CI-00099,Clearwater Consulting CRM application server,CIT-VM,LOC-SGP-DC1,CUST-007,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T13:33:00
+CI-00100,Clearwater Consulting ERP,CIT-BIZAPP,LOC-SGP-DC1,CUST-007,Production,Live,High,Applications,,,,,,,,2026-06-24T13:40:00
+CI-00101,Clearwater Consulting ERP application server,CIT-VM,LOC-SGP-DC1,CUST-007,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T13:47:00
+CI-00102,Clearwater Consulting Customer portal,CIT-PORTAL,LOC-SGP-DC1,CUST-007,Production,Live,High,Applications,,,,,,,,2026-06-24T13:54:00
+CI-00103,Clearwater Consulting Customer portal application server,CIT-VM,LOC-SGP-DC1,CUST-007,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T14:01:00
+CI-00104,Clearwater Consulting Reporting,CIT-BI,LOC-CLOUD-SG,CUST-007,Production,Live,High,Applications,,,,,,,,2026-06-24T14:08:00
+CI-00105,Clearwater Consulting laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-007,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE18838864,2019-06-20,2022-06-20,2023-06-20,2299.62,2026-06-24T14:15:00
+CI-00106,Clearwater Consulting laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-007,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE33676107,2025-08-28,2028-08-28,2029-08-28,1980.56,2026-06-24T14:22:00
+CI-00107,Clearwater Consulting mobile phone 3,CIT-PHONE,LOC-HKG-OFF,CUST-007,Production,Live,Low,Service Desk,Samsung,Galaxy S23,SA80309915,2023-08-10,2026-08-10,2026-08-10,1207.60,2026-06-24T14:29:00
+CI-00108,Clearwater Consulting laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-007,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP87347757,2023-01-11,2026-01-11,2027-01-11,2042.82,2026-06-24T14:36:00
+CI-00109,Clearwater Consulting laptop 5,CIT-LAPTOP,LOC-HKG-OFF,CUST-007,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE53529224,2019-08-12,2022-08-12,2023-08-12,2111.35,2026-06-24T14:43:00
+CI-00110,Ironbridge Engineering database server,CIT-DB,LOC-SYD-DC1,CUST-008,Production,Live,High,Infrastructure,PostgreSQL,PostgreSQL 14,PO53389977,2024-03-26,2027-03-26,2029-03-26,12647.72,2026-06-24T14:50:00
+CI-00111,Ironbridge Engineering CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-008,Production,Live,High,Applications,,,,,,,,2026-06-24T14:57:00
+CI-00112,Ironbridge Engineering CRM application server,CIT-VM,LOC-SYD-DC1,CUST-008,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T15:04:00
+CI-00113,Ironbridge Engineering ERP,CIT-BIZAPP,LOC-SYD-DC1,CUST-008,Production,Live,High,Applications,,,,,,,,2026-06-24T15:11:00
+CI-00114,Ironbridge Engineering ERP application server,CIT-VM,LOC-SYD-DC1,CUST-008,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T15:18:00
+CI-00115,Ironbridge Engineering Customer portal,CIT-PORTAL,LOC-SYD-DC1,CUST-008,Production,Live,High,Applications,,,,,,,,2026-06-24T15:25:00
+CI-00116,Ironbridge Engineering Customer portal application server,CIT-VM,LOC-SYD-DC1,CUST-008,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T15:32:00
+CI-00117,Ironbridge Engineering Reporting,CIT-BI,LOC-CLOUD-AU,CUST-008,Production,Live,High,Applications,,,,,,,,2026-06-24T15:39:00
+CI-00118,Ironbridge Engineering laptop 1,CIT-LAPTOP,LOC-SYD-OFF,CUST-008,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE32432619,2019-05-28,2022-05-28,2023-05-28,2294.10,2026-06-24T15:46:00
+CI-00119,Ironbridge Engineering laptop 2,CIT-LAPTOP,LOC-SYD-OFF,CUST-008,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP93493292,2023-01-07,2026-01-07,2027-01-07,2225.77,2026-06-24T15:53:00
+CI-00120,Ironbridge Engineering monitor 3,CIT-MONITOR,LOC-SYD-OFF,CUST-008,Production,Live,Low,Service Desk,LG,27UP850,LG71341183,2019-05-27,2022-05-27,2025-05-27,435.11,2026-06-24T16:00:00
+CI-00121,Ironbridge Engineering laptop 4,CIT-LAPTOP,LOC-SYD-OFF,CUST-008,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP42479244,2025-12-10,2028-12-10,2029-12-10,2077.43,2026-06-24T16:07:00
+CI-00122,Ironbridge Engineering laptop 5,CIT-LAPTOP,LOC-SYD-OFF,CUST-008,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE59661522,2019-08-01,2022-08-01,2023-08-01,1990.63,2026-06-24T16:14:00
+CI-00123,TrueNorth Analytics database server,CIT-DB,LOC-SYD-DC1,CUST-009,Production,Live,High,Infrastructure,Microsoft,SQL Server 2019,MI35053970,2023-05-28,2026-05-28,2028-05-28,11765.92,2026-06-24T16:21:00
+CI-00124,TrueNorth Analytics CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-009,Production,Live,High,Applications,,,,,,,,2026-06-24T16:28:00
+CI-00125,TrueNorth Analytics CRM application server,CIT-VM,LOC-SYD-DC1,CUST-009,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T16:35:00
+CI-00126,TrueNorth Analytics ERP,CIT-BIZAPP,LOC-SYD-DC1,CUST-009,Production,Live,High,Applications,,,,,,,,2026-06-24T16:42:00
+CI-00127,TrueNorth Analytics ERP application server,CIT-VM,LOC-SYD-DC1,CUST-009,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T16:49:00
+CI-00128,TrueNorth Analytics Customer portal,CIT-PORTAL,LOC-SYD-DC1,CUST-009,Production,Live,High,Applications,,,,,,,,2026-06-24T16:56:00
+CI-00129,TrueNorth Analytics Customer portal application server,CIT-VM,LOC-SYD-DC1,CUST-009,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T17:03:00
+CI-00130,TrueNorth Analytics Reporting,CIT-BI,LOC-CLOUD-AU,CUST-009,Production,Live,High,Applications,,,,,,,,2026-06-24T17:10:00
+CI-00131,TrueNorth Analytics laptop 1,CIT-LAPTOP,LOC-SYD-OFF,CUST-009,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP24742914,2024-06-19,2027-06-19,2028-06-19,2491.15,2026-06-24T17:17:00
+CI-00132,TrueNorth Analytics laptop 2,CIT-LAPTOP,LOC-SYD-OFF,CUST-009,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE55584460,2024-08-20,2027-08-20,2028-08-20,2407.02,2026-06-24T17:24:00
+CI-00133,TrueNorth Analytics desktop 3,CIT-DESKTOP,LOC-SYD-OFF,CUST-009,Production,Live,Low,Service Desk,HP,EliteDesk 800,HP80412911,2019-06-24,2022-06-24,2024-06-24,1567.82,2026-06-24T17:31:00
+CI-00134,TrueNorth Analytics laptop 4,CIT-LAPTOP,LOC-SYD-OFF,CUST-009,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP33633825,2024-05-02,2027-05-02,2028-05-02,2387.29,2026-06-24T17:38:00
+CI-00135,TrueNorth Analytics laptop 5,CIT-LAPTOP,LOC-SYD-OFF,CUST-009,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP90115262,2023-02-16,2026-02-16,2027-02-16,2361.24,2026-06-24T17:45:00
+CI-00136,Keystone Property Group database server,CIT-DB,LOC-SGP-DC1,CUST-010,Production,Live,High,Infrastructure,Microsoft,SQL Server 2019,MI26571033,2020-06-06,2023-06-06,2025-06-06,12142.96,2026-06-24T17:52:00
+CI-00137,Keystone Property Group CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-010,Production,Live,High,Applications,,,,,,,,2026-06-24T17:59:00
+CI-00138,Keystone Property Group CRM application server,CIT-VM,LOC-SGP-DC1,CUST-010,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T18:06:00
+CI-00139,Keystone Property Group ERP,CIT-BIZAPP,LOC-SGP-DC1,CUST-010,Production,Live,High,Applications,,,,,,,,2026-06-24T18:13:00
+CI-00140,Keystone Property Group ERP application server,CIT-VM,LOC-SGP-DC1,CUST-010,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T18:20:00
+CI-00141,Keystone Property Group Customer portal,CIT-PORTAL,LOC-SGP-DC1,CUST-010,Production,Live,High,Applications,,,,,,,,2026-06-24T18:27:00
+CI-00142,Keystone Property Group Customer portal application server,CIT-VM,LOC-SGP-DC1,CUST-010,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T18:34:00
+CI-00143,Keystone Property Group Reporting,CIT-BI,LOC-CLOUD-SG,CUST-010,Production,Live,High,Applications,,,,,,,,2026-06-24T18:41:00
+CI-00144,Keystone Property Group laptop 1,CIT-LAPTOP,LOC-TYO-OFF,CUST-010,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP43362569,2024-03-07,2027-03-07,2028-03-07,2305.53,2026-06-24T18:48:00
+CI-00145,Keystone Property Group laptop 2,CIT-LAPTOP,LOC-TYO-OFF,CUST-010,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE26582011,2024-04-25,2027-04-25,2028-04-25,2397.29,2026-06-24T18:55:00
+CI-00146,Keystone Property Group mobile phone 3,CIT-PHONE,LOC-TYO-OFF,CUST-010,Production,Retired,Low,Service Desk,Samsung,Galaxy S23,SA33325946,2022-05-05,2025-05-05,2025-05-05,1360.35,2026-06-24T19:02:00
+CI-00147,Keystone Property Group laptop 4,CIT-LAPTOP,LOC-TYO-OFF,CUST-010,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP19387738,2021-09-20,2024-09-20,2025-09-20,2201.39,2026-06-24T19:09:00
+CI-00148,Keystone Property Group laptop 5,CIT-LAPTOP,LOC-TYO-OFF,CUST-010,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE11006075,2019-01-15,2022-01-15,2023-01-15,2498.97,2026-06-24T19:16:00
+CI-00149,Redwood Insurance database server,CIT-DB,LOC-MEL-DC2,CUST-011,Production,Live,High,Infrastructure,Microsoft,SQL Server 2019,MI58576160,2022-12-18,2025-12-18,2027-12-18,11202.00,2026-06-24T19:23:00
+CI-00150,Redwood Insurance CRM,CIT-BIZAPP,LOC-MEL-DC2,CUST-011,Production,Live,High,Applications,,,,,,,,2026-06-24T19:30:00
+CI-00151,Redwood Insurance CRM application server,CIT-VM,LOC-MEL-DC2,CUST-011,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T19:37:00
+CI-00152,Redwood Insurance ERP,CIT-BIZAPP,LOC-MEL-DC2,CUST-011,Production,Live,High,Applications,,,,,,,,2026-06-24T19:44:00
+CI-00153,Redwood Insurance ERP application server,CIT-VM,LOC-MEL-DC2,CUST-011,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T19:51:00
+CI-00154,Redwood Insurance Customer portal,CIT-PORTAL,LOC-MEL-DC2,CUST-011,Production,Live,High,Applications,,,,,,,,2026-06-24T19:58:00
+CI-00155,Redwood Insurance Customer portal application server,CIT-VM,LOC-MEL-DC2,CUST-011,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T20:05:00
+CI-00156,Redwood Insurance Reporting,CIT-BI,LOC-CLOUD-AU,CUST-011,Production,Live,High,Applications,,,,,,,,2026-06-24T20:12:00
+CI-00157,Redwood Insurance laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-011,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP53999558,2024-12-28,2027-12-28,2028-12-28,2338.29,2026-06-24T20:19:00
+CI-00158,Redwood Insurance laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-011,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP96569886,2020-07-24,2023-07-24,2024-07-24,2221.37,2026-06-24T20:26:00
+CI-00159,Redwood Insurance mobile phone 3,CIT-PHONE,LOC-MEL-OFF,CUST-011,Production,Retired,Low,Service Desk,Samsung,Galaxy S23,SA18618559,2022-04-23,2025-04-23,2025-04-23,1309.71,2026-06-24T20:33:00
+CI-00160,Redwood Insurance laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-011,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP96911023,2024-06-04,2027-06-04,2028-06-04,2063.00,2026-06-24T20:40:00
+CI-00161,Redwood Insurance laptop 5,CIT-LAPTOP,LOC-MEL-OFF,CUST-011,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE15730018,2024-07-04,2027-07-04,2028-07-04,2223.75,2026-06-24T20:47:00
+CI-00162,Optima Pharmaceuticals database server,CIT-DB,LOC-SGP-DC1,CUST-012,Production,Live,High,Infrastructure,Microsoft,SQL Server 2019,MI99612859,2020-11-01,2023-11-01,2025-11-01,12470.60,2026-06-24T20:54:00
+CI-00163,Optima Pharmaceuticals CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-012,Production,Live,High,Applications,,,,,,,,2026-06-24T21:01:00
+CI-00164,Optima Pharmaceuticals CRM application server,CIT-VM,LOC-SGP-DC1,CUST-012,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T21:08:00
+CI-00165,Optima Pharmaceuticals ERP,CIT-BIZAPP,LOC-SGP-DC1,CUST-012,Production,Live,High,Applications,,,,,,,,2026-06-24T21:15:00
+CI-00166,Optima Pharmaceuticals ERP application server,CIT-VM,LOC-SGP-DC1,CUST-012,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T21:22:00
+CI-00167,Optima Pharmaceuticals Customer portal,CIT-PORTAL,LOC-SGP-DC1,CUST-012,Production,Live,High,Applications,,,,,,,,2026-06-24T21:29:00
+CI-00168,Optima Pharmaceuticals Customer portal application server,CIT-VM,LOC-SGP-DC1,CUST-012,Production,Live,High,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T21:36:00
+CI-00169,Optima Pharmaceuticals Reporting,CIT-BI,LOC-CLOUD-SG,CUST-012,Production,Live,High,Applications,,,,,,,,2026-06-24T21:43:00
+CI-00170,Optima Pharmaceuticals laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-012,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE15743689,2025-05-08,2028-05-08,2029-05-08,2019.98,2026-06-24T21:50:00
+CI-00171,Optima Pharmaceuticals laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-012,Production,Retired,Low,Service Desk,Dell,Latitude 7440,DE56302705,2020-07-23,2023-07-23,2024-07-23,2069.56,2026-06-24T21:57:00
+CI-00172,Optima Pharmaceuticals desktop 3,CIT-DESKTOP,LOC-HKG-OFF,CUST-012,Production,Live,Low,Service Desk,HP,EliteDesk 800,HP50856582,2021-01-24,2024-01-24,2026-01-24,1384.97,2026-06-24T22:04:00
+CI-00173,Optima Pharmaceuticals laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-012,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP37322344,2023-03-11,2026-03-11,2027-03-11,2426.66,2026-06-24T22:11:00
+CI-00174,Optima Pharmaceuticals laptop 5,CIT-LAPTOP,LOC-HKG-OFF,CUST-012,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP45042404,2020-11-15,2023-11-15,2024-11-15,2157.02,2026-06-24T22:18:00
+CI-00175,Coastal Media Group database server,CIT-DB,LOC-SYD-DC1,CUST-013,Production,Live,Medium,Infrastructure,Microsoft,SQL Server 2019,MI33772186,2022-06-20,2025-06-20,2027-06-20,12421.55,2026-06-24T22:25:00
+CI-00176,Coastal Media Group CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-013,Production,Live,Medium,Applications,,,,,,,,2026-06-24T22:32:00
+CI-00177,Coastal Media Group CRM application server,CIT-VM,LOC-SYD-DC1,CUST-013,Production,Live,Medium,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T22:39:00
+CI-00178,Coastal Media Group Reporting,CIT-BI,LOC-CLOUD-AU,CUST-013,Production,Live,Medium,Applications,,,,,,,,2026-06-24T22:46:00
+CI-00179,Coastal Media Group laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-013,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE38560322,2025-06-14,2028-06-14,2029-06-14,2408.15,2026-06-24T22:53:00
+CI-00180,Coastal Media Group laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-013,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE81927619,2025-01-07,2028-01-07,2029-01-07,2365.10,2026-06-24T23:00:00
+CI-00181,Coastal Media Group desktop 3,CIT-DESKTOP,LOC-MEL-OFF,CUST-013,Production,Live,Low,Service Desk,HP,EliteDesk 800,HP55193474,2019-01-23,2022-01-23,2024-01-23,1522.05,2026-06-24T23:07:00
+CI-00182,Coastal Media Group laptop 4,CIT-LAPTOP,LOC-MEL-OFF,CUST-013,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE81178003,2024-03-07,2027-03-07,2028-03-07,2259.95,2026-06-24T23:14:00
+CI-00183,Pioneer Tech Solutions database server,CIT-DB,LOC-SGP-DC1,CUST-014,Production,Live,Medium,Infrastructure,PostgreSQL,PostgreSQL 14,PO69711004,2023-11-06,2026-11-06,2028-11-06,13278.03,2026-06-24T23:21:00
+CI-00184,Pioneer Tech Solutions CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-014,Production,Live,Medium,Applications,,,,,,,,2026-06-24T23:28:00
+CI-00185,Pioneer Tech Solutions CRM application server,CIT-VM,LOC-SGP-DC1,CUST-014,Production,Live,Medium,Infrastructure,VMware,vSphere VM,,,,,,2026-06-24T23:35:00
+CI-00186,Pioneer Tech Solutions Reporting,CIT-BI,LOC-CLOUD-SG,CUST-014,Production,Live,Medium,Applications,,,,,,,,2026-06-24T23:42:00
+CI-00187,Pioneer Tech Solutions laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-014,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP76302721,2021-12-04,2024-12-04,2025-12-04,2108.20,2026-06-24T23:49:00
+CI-00188,Pioneer Tech Solutions laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-014,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP49632134,2020-11-02,2023-11-02,2024-11-02,1984.80,2026-06-24T23:56:00
+CI-00189,Pioneer Tech Solutions desktop 3,CIT-DESKTOP,LOC-HKG-OFF,CUST-014,Production,Live,Low,Service Desk,HP,EliteDesk 800,HP95163612,2019-11-12,2022-11-12,2024-11-12,1614.46,2026-06-25T00:03:00
+CI-00190,Pioneer Tech Solutions laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-014,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE82687962,2024-12-25,2027-12-25,2028-12-25,2368.95,2026-06-25T00:10:00
+CI-00191,Harborview Hotels database server,CIT-DB,LOC-SYD-DC1,CUST-015,Production,Live,Medium,Infrastructure,Microsoft,SQL Server 2019,MI57920628,2021-11-12,2024-11-12,2026-11-12,12855.19,2026-06-25T00:17:00
+CI-00192,Harborview Hotels CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-015,Production,Live,Medium,Applications,,,,,,,,2026-06-25T00:24:00
+CI-00193,Harborview Hotels CRM application server,CIT-VM,LOC-SYD-DC1,CUST-015,Production,Live,Medium,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T00:31:00
+CI-00194,Harborview Hotels Reporting,CIT-BI,LOC-CLOUD-AU,CUST-015,Production,Live,Medium,Applications,,,,,,,,2026-06-25T00:38:00
+CI-00195,Harborview Hotels laptop 1,CIT-LAPTOP,LOC-AKL-OFF,CUST-015,Production,Live,Low,Service Desk,Lenovo,ThinkPad T14,LE96851535,2023-03-02,2026-03-02,2027-03-02,2063.83,2026-06-25T00:45:00
+CI-00196,Harborview Hotels laptop 2,CIT-LAPTOP,LOC-AKL-OFF,CUST-015,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE62046247,2024-03-05,2027-03-05,2028-03-05,2354.11,2026-06-25T00:52:00
+CI-00197,Harborview Hotels mobile phone 3,CIT-PHONE,LOC-AKL-OFF,CUST-015,Production,Live,Low,Service Desk,Samsung,Galaxy S23,SA36061407,2025-06-05,2028-06-05,2028-06-05,1447.23,2026-06-25T00:59:00
+CI-00198,Harborview Hotels laptop 4,CIT-LAPTOP,LOC-AKL-OFF,CUST-015,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP97035505,2022-01-06,2025-01-06,2026-01-06,2173.15,2026-06-25T01:06:00
+CI-00199,Delta Freight Services database server,CIT-DB,LOC-MEL-DC2,CUST-016,Production,Live,Medium,Infrastructure,Microsoft,SQL Server 2019,MI31117680,2023-04-20,2026-04-20,2028-04-20,11002.24,2026-06-25T01:13:00
+CI-00200,Delta Freight Services CRM,CIT-BIZAPP,LOC-MEL-DC2,CUST-016,Production,Live,Medium,Applications,,,,,,,,2026-06-25T01:20:00
+CI-00201,Delta Freight Services CRM application server,CIT-VM,LOC-MEL-DC2,CUST-016,Production,Live,Medium,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T01:27:00
+CI-00202,Delta Freight Services Reporting,CIT-BI,LOC-CLOUD-AU,CUST-016,Production,Live,Medium,Applications,,,,,,,,2026-06-25T01:34:00
+CI-00203,Delta Freight Services laptop 1,CIT-LAPTOP,LOC-SYD-OFF,CUST-016,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP63942318,2022-09-28,2025-09-28,2026-09-28,2204.55,2026-06-25T01:41:00
+CI-00204,Delta Freight Services laptop 2,CIT-LAPTOP,LOC-SYD-OFF,CUST-016,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP36570541,2021-04-27,2024-04-27,2025-04-27,2260.28,2026-06-25T01:48:00
+CI-00205,Delta Freight Services mobile phone 3,CIT-PHONE,LOC-SYD-OFF,CUST-016,Production,Live,Low,Service Desk,Samsung,Galaxy S23,SA35315724,2019-06-13,2022-06-13,2022-06-13,1284.86,2026-06-25T01:55:00
+CI-00206,Delta Freight Services laptop 4,CIT-LAPTOP,LOC-SYD-OFF,CUST-016,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE66513563,2025-01-13,2028-01-13,2029-01-13,2492.27,2026-06-25T02:02:00
+CI-00207,Sterling Accounting database server,CIT-DB,LOC-SGP-DC1,CUST-017,Production,Live,Medium,Infrastructure,Microsoft,SQL Server 2019,MI56944274,2021-07-21,2024-07-21,2026-07-21,11926.85,2026-06-25T02:09:00
+CI-00208,Sterling Accounting CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-017,Production,Live,Medium,Applications,,,,,,,,2026-06-25T02:16:00
+CI-00209,Sterling Accounting CRM application server,CIT-VM,LOC-SGP-DC1,CUST-017,Production,Live,Medium,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T02:23:00
+CI-00210,Sterling Accounting Reporting,CIT-BI,LOC-CLOUD-SG,CUST-017,Production,Live,Medium,Applications,,,,,,,,2026-06-25T02:30:00
+CI-00211,Sterling Accounting laptop 1,CIT-LAPTOP,LOC-HKG-OFF,CUST-017,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP98099100,2022-07-03,2025-07-03,2026-07-03,2228.87,2026-06-25T02:37:00
+CI-00212,Sterling Accounting laptop 2,CIT-LAPTOP,LOC-HKG-OFF,CUST-017,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP88816369,2022-07-02,2025-07-02,2026-07-02,2012.35,2026-06-25T02:44:00
+CI-00213,Sterling Accounting mobile phone 3,CIT-PHONE,LOC-HKG-OFF,CUST-017,Production,Live,Low,Service Desk,Apple,iPhone 14,AP27982325,2019-04-19,2022-04-19,2022-04-19,1314.79,2026-06-25T02:51:00
+CI-00214,Sterling Accounting laptop 4,CIT-LAPTOP,LOC-HKG-OFF,CUST-017,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP26969805,2023-03-16,2026-03-16,2027-03-16,2446.28,2026-06-25T02:58:00
+CI-00215,Apex Recruitment database server,CIT-DB,LOC-SYD-DC1,CUST-018,Production,Live,Low,Infrastructure,Microsoft,SQL Server 2019,MI70763379,2021-04-19,2024-04-19,2026-04-19,11149.72,2026-06-25T03:05:00
+CI-00216,Apex Recruitment CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-018,Production,Live,Low,Applications,,,,,,,,2026-06-25T03:12:00
+CI-00217,Apex Recruitment CRM application server,CIT-VM,LOC-SYD-DC1,CUST-018,Production,Live,Low,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T03:19:00
+CI-00218,Apex Recruitment Reporting,CIT-BI,LOC-CLOUD-AU,CUST-018,Production,Live,Low,Applications,,,,,,,,2026-06-25T03:26:00
+CI-00219,Apex Recruitment laptop 1,CIT-LAPTOP,LOC-AKL-OFF,CUST-018,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE17362999,2024-05-17,2027-05-17,2028-05-17,1998.72,2026-06-25T03:33:00
+CI-00220,Apex Recruitment laptop 2,CIT-LAPTOP,LOC-AKL-OFF,CUST-018,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE28675892,2022-05-03,2025-05-03,2026-05-03,2253.95,2026-06-25T03:40:00
+CI-00221,Apex Recruitment desktop 3,CIT-DESKTOP,LOC-AKL-OFF,CUST-018,Production,Retired,Low,Service Desk,Dell,OptiPlex 7010,DE13398326,2019-09-21,2022-09-21,2024-09-21,1536.79,2026-06-25T03:47:00
+CI-00222,Milestone Construction database server,CIT-DB,LOC-SYD-DC1,CUST-019,Production,Live,Low,Infrastructure,PostgreSQL,PostgreSQL 14,PO36313799,2022-01-26,2025-01-26,2027-01-26,13709.70,2026-06-25T03:54:00
+CI-00223,Milestone Construction CRM,CIT-BIZAPP,LOC-SYD-DC1,CUST-019,Production,Live,Low,Applications,,,,,,,,2026-06-25T04:01:00
+CI-00224,Milestone Construction CRM application server,CIT-VM,LOC-SYD-DC1,CUST-019,Production,Live,Low,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T04:08:00
+CI-00225,Milestone Construction Reporting,CIT-BI,LOC-CLOUD-AU,CUST-019,Production,Live,Low,Applications,,,,,,,,2026-06-25T04:15:00
+CI-00226,Milestone Construction laptop 1,CIT-LAPTOP,LOC-MEL-OFF,CUST-019,Production,Live,Low,Service Desk,Apple,MacBook Pro 14,AP70825379,2022-10-25,2025-10-25,2026-10-25,2169.71,2026-06-25T04:22:00
+CI-00227,Milestone Construction laptop 2,CIT-LAPTOP,LOC-MEL-OFF,CUST-019,Production,Retired,Low,Service Desk,Dell,Latitude 7440,DE12184369,2019-05-19,2022-05-19,2023-05-19,2150.78,2026-06-25T04:29:00
+CI-00228,Milestone Construction desktop 3,CIT-DESKTOP,LOC-MEL-OFF,CUST-019,Production,Live,Low,Service Desk,Dell,OptiPlex 7010,DE85464117,2021-07-22,2024-07-22,2026-07-22,1591.57,2026-06-25T04:36:00
+CI-00229,Greenfield Agri database server,CIT-DB,LOC-SGP-DC1,CUST-020,Production,Live,Low,Infrastructure,PostgreSQL,PostgreSQL 14,PO36321518,2025-09-24,2028-09-24,2030-09-24,13055.09,2026-06-25T04:43:00
+CI-00230,Greenfield Agri CRM,CIT-BIZAPP,LOC-SGP-DC1,CUST-020,Production,Live,Low,Applications,,,,,,,,2026-06-25T04:50:00
+CI-00231,Greenfield Agri CRM application server,CIT-VM,LOC-SGP-DC1,CUST-020,Production,Live,Low,Infrastructure,VMware,vSphere VM,,,,,,2026-06-25T04:57:00
+CI-00232,Greenfield Agri Reporting,CIT-BI,LOC-CLOUD-SG,CUST-020,Production,Live,Low,Applications,,,,,,,,2026-06-25T05:04:00
+CI-00233,Greenfield Agri laptop 1,CIT-LAPTOP,LOC-TYO-OFF,CUST-020,Production,Retired,Low,Service Desk,Lenovo,ThinkPad T14,LE42240370,2020-12-01,2023-12-01,2024-12-01,2025.82,2026-06-25T05:11:00
+CI-00234,Greenfield Agri laptop 2,CIT-LAPTOP,LOC-TYO-OFF,CUST-020,Production,Live,Low,Service Desk,Dell,Latitude 7440,DE37542479,2025-12-04,2028-12-04,2029-12-04,2463.91,2026-06-25T05:18:00
+CI-00235,Greenfield Agri desktop 3,CIT-DESKTOP,LOC-TYO-OFF,CUST-020,Production,Live,Low,Service Desk,HP,EliteDesk 800,HP79611611,2025-09-24,2028-09-24,2030-09-24,1350.27,2026-06-25T05:25:00
