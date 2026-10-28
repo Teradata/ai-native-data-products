@@ -15,6 +15,7 @@ Six entities: `Customer` and `Contract` (History, bi-temporal, keymap), `Service
 | File | What it is |
 |---|---|
 | [`CSA_Reference_Brief.md`](CSA_Reference_Brief.md) | The fixed input: intake blocks for each phase, every catalogued decision pre-settled. |
+| [`load.toml`](load.toml) | How the source files load into the entities, for `tooling/bindings/load.py`. |
 | [`design-output/design_specification.md`](design-output/design_specification.md) | The reference design specification, validated by `spec_lint`. |
 | [`config/`](../../config/) | The organisation profile, shared with the IT Service Desk. Target `duckdb` places a schema per module in one file, with access enforced outside it. |
 | `data/customers.csv` | 21 customers in 23 versions: one row per version from its `valid_from`. |
@@ -52,4 +53,11 @@ python tooling/evals/spec_lint.py examples/customer-service-agreements-data-prod
 python tooling/bindings/render.py examples/customer-service-agreements-data-product/design-output/design_specification.md config/implementation.example.toml --target duckdb --output build/csa-duckdb
 ```
 
-Run `deploy.sql` into a new database file, load the four source files and the contract embeddings, then run `tooling/bindings/validate.py build/csa-duckdb/manifest.json --database <file>`. The corpus ships no product loader and no embedding or feature pipeline: those are the product's own.
+Then deploy into a new database file, load the four source files through [`load.toml`](load.toml), and run the checks:
+
+```bash
+python tooling/bindings/load.py build/csa-duckdb examples/customer-service-agreements-data-product/load.toml --database csa.duckdb --deploy --embedder mymodule:embed
+python tooling/bindings/validate.py build/csa-duckdb/manifest.json --database csa.duckdb
+```
+
+`--embedder` takes a function that embeds texts with the declared model. Without one, `--embeddings placeholder` stores stand-in vectors that the similarity function ignores. Nothing populates the feature set or scores the model: those are the product's own pipelines. The data is rebuilt from the service desk's files by `tooling/examples/generate_seed.py`, as a frozen fixture.

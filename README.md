@@ -14,9 +14,9 @@ A modular library of data design patterns for building **AI-Native Data Products
 | 130 | [The five patterns](#the-five-patterns) | The cross-cutting patterns modules apply |
 | 144 | [Deployment order](#deployment-order) | Which module deploys first, and why that differs from design order |
 | 158 | [Tooling](#tooling) | The linters, catalogue, skill check and binding tools, with their commands |
-| 192 | [Key principles](#key-principles) | The principles the standards hold to |
-| 203 | [Learn More](#learn-more) | Blogs and further reading |
-| 217 | [License](#license) | Licence and authorship |
+| 200 | [Key principles](#key-principles) | The principles the standards hold to |
+| 211 | [Learn More](#learn-more) | Blogs and further reading |
+| 225 | [License](#license) | Licence and authorship |
 <!-- index:end -->
 
 ## The design / implementation split
@@ -173,6 +173,14 @@ python tooling/evals/spec_lint.py path/to/design_specification.md
 
 ```bash
 python tooling/catalogue/build_catalogue.py
+```
+
+`tooling/bindings/render.py` turns a design specification and an organisation's configuration into a platform build, `load.py` deploys it and loads seed data (an example's own, or what `seed.py` generates for any specification), and `validate.py` runs the build's checks. [`tooling/bindings/README.md`](tooling/bindings/README.md) has the commands.
+
+```bash
+python tooling/bindings/render.py examples/it-asset-configuration-data-product/design-output/design_specification.md config/implementation.example.toml --target duckdb --output build/cmdb-duckdb
+python tooling/bindings/load.py build/cmdb-duckdb examples/it-asset-configuration-data-product/load.toml --database cmdb.duckdb --deploy
+python tooling/bindings/validate.py build/cmdb-duckdb/manifest.json --database cmdb.duckdb
 ```
 
 `tooling/skill/verify_skill.py` checks that the repository is a well-formed agent skill: frontmatter, the `SKILL.md` and role-file line budgets, and that every path the routing names actually exists.

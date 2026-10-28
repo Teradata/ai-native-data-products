@@ -97,6 +97,12 @@ specification asks for that this binding does not render.
 Where nothing ships, verify by hand against the design document's Invariants or Conformance
 section and tell the user that area has no automated check.
 
+Checks over empty tables prove structure only. Load data before trusting them: do not write a
+loader. `tooling/bindings/load.py` deploys a build and loads seed files on any binding, through
+a `load.toml` mapping (each example carries one); for a product with no data,
+`tooling/bindings/seed.py` generates valid rows and the mapping from the build context
+(`tooling/bindings/README.md`). Seed rows are not the product's pipeline: say so to the user.
+
 **Deploy the trust map with the results table.** The validation pattern ships two relations:
 `validation_run` (the run summary) and `validation_area` (the per-area map a consumer reads), plus
 their views. They deploy with the build, wherever the organisation profile places them. Each area you verify above

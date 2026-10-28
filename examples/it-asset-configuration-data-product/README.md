@@ -15,6 +15,7 @@ Six entities: `ConfigurationItem` (History, `SCD2_HISTORY`, keymap), `ItemType` 
 | File | What it is |
 |---|---|
 | [`CMDB_Reference_Brief.md`](CMDB_Reference_Brief.md) | The fixed input: intake blocks for each phase, every catalogued decision pre-settled with its reason. |
+| [`load.toml`](load.toml) | How the source files load into the entities, for `tooling/bindings/load.py`. |
 | [`design-output/design_specification.md`](design-output/design_specification.md) | The reference design specification, validated by `spec_lint`. |
 | [`config/`](../../config/) | The organisation profile, shared with the IT Service Desk: one organisation, three products. Target `postgres` places a schema per module and creates three roles. |
 | `data/configuration_items.csv` | 235 items: 20 customers' devices, applications, servers and databases, and the provider's shared platforms. One live laptop lacks an end-of-support date, and two laptops share a serial number. |
@@ -41,4 +42,11 @@ python tooling/evals/spec_lint.py examples/it-asset-configuration-data-product/d
 python tooling/bindings/render.py examples/it-asset-configuration-data-product/design-output/design_specification.md config/implementation.example.toml --target postgres --output build/cmdb-postgres
 ```
 
-Apply the phases in `manifest.json` order, load the five source files, then run `tooling/bindings/validate.py build/cmdb-postgres/manifest.json` with `POSTGRES_DSN` set. The corpus ships no product loader: loading is the product's own pipeline.
+Then, with `POSTGRES_DSN` set, deploy and load the five source files through [`load.toml`](load.toml), and run the checks:
+
+```bash
+python tooling/bindings/load.py build/cmdb-postgres examples/it-asset-configuration-data-product/load.toml --deploy
+python tooling/bindings/validate.py build/cmdb-postgres/manifest.json
+```
+
+The data is rebuilt from the service desk's files by `tooling/examples/generate_seed.py`; it is a frozen fixture, so regenerate it only between cycles.

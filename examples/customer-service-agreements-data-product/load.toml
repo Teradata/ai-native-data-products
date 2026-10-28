@@ -1,0 +1,35 @@
+# Seed load: how this example's source files fill the design specification's entities.
+# Read by tooling/bindings/load.py, in order: a target loads before what refers to it.
+# Paths are relative to this file. Attributes not listed under `columns` read the source
+# column of the same name; a reference's source value is its target's natural key.
+
+# One row per version: each closes when the customer's next version starts.
+[[entity]]
+name = "Customer"
+file = "data/customers.csv"
+key = "customer_id"
+valid_from = "valid_from"
+versions = true
+
+[[entity]]
+name = "Contract"
+file = "data/contracts.csv"
+key = "contract_id"
+valid_from = "start_date"
+[entity.columns]
+signed_dts = "signed_at"
+
+# A term is valid from its contract's start.
+[[entity]]
+name = "ServiceLevelTerm"
+file = "data/service_level_terms.csv"
+valid_from = "contract_id.start_date"
+
+[[entity]]
+name = "ServiceCredit"
+file = "data/service_credits.csv"
+key = "service_credit_id"
+[entity.columns]
+service_credit_code = "service_credit_id"
+ticket_key = "ticket_id"
+issued_dts = "issued_at"

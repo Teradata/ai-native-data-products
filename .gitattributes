@@ -8,3 +8,4 @@
 docs/               export-ignore
 REMAINING_WORK.md   export-ignore
 tooling/**/tests/   export-ignore
+tooling/examples/   export-ignore

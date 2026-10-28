@@ -1,0 +1,52 @@
+# Seed load: how this example's source files fill the design specification's entities.
+# Read by tooling/bindings/load.py, in order: a target loads before what refers to it.
+# Paths are relative to this file. Attributes not listed under `columns` read the source
+# column of the same name; a reference's source value is its target's natural key.
+
+[[entity]]
+name = "ItemType"
+file = "data/ci_types.csv"
+key = "ci_type_code"
+default_valid_from = "2019-01-01"
+[entity.columns]
+item_type_code = "ci_type_code"
+short_description = "name"
+long_description = "description"
+parent_item_type_id = "parent_ci_type_code"
+
+[[entity]]
+name = "Location"
+file = "data/locations.csv"
+key = "location_code"
+default_valid_from = "2019-01-01"
+[entity.columns]
+short_description = "name"
+
+[[entity]]
+name = "ConfigurationItem"
+file = "data/configuration_items.csv"
+key = "configuration_item_id"
+valid_from = "purchase_date"
+default_valid_from = "2019-01-01"
+[entity.columns]
+item_type_id = "ci_type_code"
+location_id = "location_code"
+customer_key = "customer_id"
+last_discovered_dts = "last_discovered_at"
+
+[[entity]]
+name = "ItemDependency"
+file = "data/ci_relationships.csv"
+valid_from = "established_date"
+[entity.columns]
+dependent_item_id = "source_ci_id"
+supporting_item_id = "target_ci_id"
+dependency_type = "relationship_type"
+
+[[entity]]
+name = "AffectedItem"
+file = "data/ticket_item_links.csv"
+valid_from = "linked_at"
+[entity.columns]
+ticket_key = "ticket_id"
+linked_dts = "linked_at"

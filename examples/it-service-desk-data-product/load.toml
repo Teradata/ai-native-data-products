@@ -1,0 +1,34 @@
+# Seed load: how this example's source files fill the design specification's entities.
+# Read by tooling/bindings/load.py, in order: a target loads before what refers to it.
+# Paths are relative to this file. Attributes not listed under `columns` read the source
+# column of the same name; a reference's source value is its target's natural key.
+
+[[entity]]
+name = "Category"
+file = "data/categories.csv"
+key = "category_id"
+[entity.columns]
+category_code = "category_id"
+
+[[entity]]
+name = "Agent"
+file = "data/agents.csv"
+key = "agent_id"
+valid_from = "hire_date"
+
+[[entity]]
+name = "Customer"
+file = "data/customers.csv"
+key = "customer_id"
+valid_from = "contract_start_date"
+
+[[entity]]
+name = "Ticket"
+file = "data/tickets.csv"
+key = "ticket_id"
+valid_from = "created_at"
+[entity.columns]
+opened_dts = "created_at"
+first_response_dts = "first_response_at"
+resolved_dts = "resolved_at"
+closed_dts = "closed_at"

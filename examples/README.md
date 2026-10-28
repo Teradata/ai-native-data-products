@@ -49,5 +49,6 @@ Supply at minimum:
 - A reference brief with every catalogued decision answered, and a stated reason for any departure from the advocated option. The seven catalogued decisions are in [`design/core/ADVOCATED_STANDARDS.md`](../design/core/ADVOCATED_STANDARDS.md).
 - An [organisation profile](../design/core/ORGANISATION_PROFILE.md), which is also the object-placement implementation, since the build refuses to invent containers. A second, contrasting profile lets the example test portability.
 - Seed data small enough to load quickly and varied enough to exercise the invariants. Include nulls where the model permits them, at least one entity with no children, and referential edges worth validating.
+- A `load.toml` mapping the seed files onto the specification's entities, so `tooling/bindings/load.py` can load them on any binding; `tooling/validation/tests/test_seed_load.py` holds it to the specification and the files.
 
 Keep the brief's column names canonical. A brief is an input the design agent is told not to re-open, so a non-canonical name in it propagates into the product, and the run then reports a defect the fixture introduced instead of one the standards permitted.
