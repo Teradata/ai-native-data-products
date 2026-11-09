@@ -118,6 +118,10 @@ def _sections(base, kind, repo=REPO):
 
 def build_bindings(repo=REPO):
     """bindings.json: per platform, what is present and whether it declares the version."""
+    if repo != REPO:
+        # The dialects load from the checkout this module is in (tooling/bindings/dialect.py),
+        # so a release built from another checkout would report this checkout's bindings.
+        raise ValueError(f"the dialects load from {REPO}; build a release from that checkout")
     result = []
     for platform in _platforms(repo):
         base = repo / "implementation" / platform

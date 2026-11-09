@@ -14,7 +14,10 @@ sys.path.insert(0, str(ROOT / "tooling" / "bindings"))
 
 from conformance import ENGINE_LINE, committed_engine, trust  # noqa: E402
 
+DIGEST = "ab" * 32
+
 REPORT = f"""{ENGINE_LINE} Teradata 20.00 through teradatasql 20.0.
+Rendered output: sha256 {DIGEST}. It digests the files the reference builds render.
 
 ## Evidence
 
@@ -45,9 +48,15 @@ class Result:
 
 class CommittedEngine(unittest.TestCase):
     def test_a_clean_live_run_is_read_with_its_engine_tests(self):
-        version, rows = committed_engine(REPORT)
+        version, rows, digest = committed_engine(REPORT)
         self.assertEqual(version, "Teradata 20.00 through teradatasql 20.0")
         self.assertEqual(rows, {"ITSD deploys and every check passes": "pass", "Mutations are detected": "pass"})
+        self.assertEqual(digest, DIGEST, "a live run is trusted only against the output it recorded")
+
+    def test_a_live_run_with_no_rendered_output_digest_is_not_trusted(self):
+        text = REPORT.replace(f"Rendered output: sha256 {DIGEST}. It digests the files the reference builds render.",
+                              "")
+        self.assertIsNone(committed_engine(text))
 
     def test_a_report_with_no_engine_run_is_not_trusted(self):
         text = REPORT.replace("Teradata 20.00 through teradatasql 20.0.", "none: the engine tests did not run.")
@@ -66,7 +75,8 @@ class Trust(unittest.TestCase):
             ("Teradata", "test_new", "A new engine test"): {"teradata": ("skip", "no DSN")},
             ("Teradata", "test_mut", "Mutations are detected"): {"teradata": ("fail", "broke")},
         })
-        self.assertEqual(trust(result, "teradata", committed_engine(REPORT)), 1)
+        committed = committed_engine(REPORT)
+        self.assertEqual(trust(result, "teradata", committed), 1)
         self.assertEqual(result.outcomes[("Teradata", "test_itsd")]["teradata"], ("pass", None))
         self.assertEqual(result.outcomes[("Teradata", "test_new")]["teradata"][0], "skip",
                          "an engine test the committed run does not carry needs a new live run")

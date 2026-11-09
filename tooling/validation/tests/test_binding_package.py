@@ -35,7 +35,12 @@ BINDING_FILES = {"README.md", "PLATFORM_PROFILE.md", "CONFORMANCE.md", "binding.
 BINDING_BUDGET = 6
 # What a dialect may import: the dialect it extends, and pure standard-library helpers.
 IMPORTS = {"portable_dialect", "dialect", "json", "re"}
-IO_CALLS = {"open", "print", "input", "eval", "exec", "compile", "__import__", "globals", "breakpoint"}
+IO_CALLS = {"open", "print", "input", "eval", "exec", "compile", "__import__", "globals", "breakpoint",
+            "getattr", "setattr", "delattr", "vars"}
+# Names and attributes through which a dialect could reach I/O, the interpreter or the
+# environment without calling one of IO_CALLS by name.
+REACHES = {"__builtins__", "__loader__", "__spec__", "__import__", "__globals__", "__subclasses__",
+           "__dict__", "__code__", "__class__", "sys", "os", "io", "pathlib", "time", "datetime", "random"}
 PRODUCT_LITERALS = re.compile(r"customer360|itsd|custord|laboratory|lab_store|lab_public", re.I)
 CALLER_API = {"key_allocation", "maintenance", "insert"}
 
@@ -67,6 +72,10 @@ def reached():
             seen.add((frame.f_code.co_filename, frame.f_code.co_firstlineno))
         return None
 
+    # sys.settrace replaces any tracer already running (coverage, a debugger) for the length of
+    # the loop, so coverage does not count these calls, and this test's answer is only as good
+    # as the trace. The tracer that was running is restored afterwards, not cleared.
+    previous = sys.gettrace()
     for configuration, platform in example_targets():
         for spec in SPECIFICATIONS:
             ctx, findings = build_context.resolve(spec, configuration)
@@ -84,7 +93,7 @@ def reached():
                         for effective_at in (None, "2026-01-01T00:00:00+00:00"):
                             dialect.maintenance(x, 1, effective_at, "2026-01-01T00:00:00+00:00", [row])
             finally:
-                sys.settrace(None)
+                sys.settrace(previous)
     return seen
 
 
@@ -116,7 +125,8 @@ class BindingPackage(unittest.TestCase):
 
     def test_dialects_are_pure_and_hold_no_product_literals(self):
         """A dialect reads only the build context: no I/O, clock or environment, and no names
-        of a product or organisation (Authoring Standard §6)."""
+        of a product or organisation (Authoring Standard §6). This is a guardrail over the usual
+        routes, checked by AST, not a sandbox: it does not stop every possible indirect call."""
         for path in DIALECTS:
             with self.subTest(dialect=path.parent.name):
                 tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -128,6 +138,9 @@ class BindingPackage(unittest.TestCase):
                         self.assertIn(node.module, IMPORTS, f"line {node.lineno} imports {node.module}")
                     elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                         self.assertNotIn(node.func.id, IO_CALLS, f"line {node.lineno} calls {node.func.id}")
+                    elif isinstance(node, (ast.Name, ast.Attribute)):
+                        name = node.id if isinstance(node, ast.Name) else node.attr
+                        self.assertNotIn(name, REACHES, f"line {node.lineno} reaches {name}")
                     elif isinstance(node, ast.Constant) and isinstance(node.value, str):
                         self.assertIsNone(PRODUCT_LITERALS.search(node.value),
                                           f"line {node.lineno} holds a product literal")

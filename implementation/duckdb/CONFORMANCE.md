@@ -6,6 +6,8 @@ Status: **draft**. A binding is `standard` only when this report shows no failur
 
 Engine evidence: DuckDB v2.0.0 through the duckdb 2.0.0 Python driver.
 
+Rendered output: sha256 d4c278a5620f36d8e31358d35d9d6301945a75b09169f1f20953c1f90dc234c5. It digests the files the reference builds render; a live engine run is trusted only against the same digest.
+
 | Outcome | Count |
 |---|---|
 | Passed | 50 |

@@ -144,15 +144,22 @@ class Configuration:
     design: object = None
 
     def design_source(self):
+        """The design file: the one given, or the sibling of the implementation file. None when
+        the implementation file's name does not say `implementation`, so no sibling can be named
+        and the caller must be told to pass one."""
         if self.design is not None or isinstance(self.implementation, dict):
             return self.design
         path = Path(self.implementation)
+        if "implementation" not in path.name:
+            return None
         return path.with_name(path.name.replace("implementation", "design"))
 
     def label(self, source) -> str:
         """A file as the context records it: relative to the repository when inside it, so a
         context does not depend on where the checkout is."""
-        if source is None or isinstance(source, dict):
+        if source is None:
+            return "<none>"
+        if isinstance(source, dict):
             return "<inline>"
         path = Path(source)
         try:
@@ -194,6 +201,9 @@ def _block(kind: str, table: dict, pstd: ProfileStandard, where: str, problems: 
                 continue
             fields[name] = [f"{k}: {_text(v)}" for k, v in value.items()]
         elif isinstance(value, list):
+            if any(isinstance(v, (dict, list)) for v in value):
+                problems.append(f"{where}.{key}: each entry of a list is a single value, not a table or a list")
+                continue
             if fspec and fspec.type in ("examples", "path-examples"):
                 fields[name] = [f"- {_text(v)}" for v in value]
             else:
@@ -224,9 +234,16 @@ def load_configuration(config: Configuration, pstd: ProfileStandard) -> Profile:
     """The organisation profile a build uses: the design configuration, and one target of the
     implementation configuration with the tables every target shares."""
     problems: List[str] = []
-    design, err = _read(config.design_source())
-    if err:
-        problems.append(err)
+    design_file = config.design_source()
+    if design_file is None:
+        problems.append(f"no design configuration: {config.label(config.implementation)} does not say "
+                        f"'implementation' in its name, so its design file cannot be found beside it; "
+                        f"pass --design")
+        design = {}
+    else:
+        design, err = _read(design_file)
+        if err:
+            problems.append(err)
     implementation, err = _read(config.implementation)
     if err:
         problems.append(err)

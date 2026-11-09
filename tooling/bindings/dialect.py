@@ -37,7 +37,9 @@ def _load(name: str, path: Path):
 
 
 def dialect_class(platform: str):
-    """The dialect a platform generates with: `DIALECT` in its `dialect.py`."""
+    """The dialect a platform generates with: `DIALECT` in its `dialect.py`. Always loaded from
+    the checkout this module is in; it takes no repository argument, so callers that name
+    another checkout must refuse, as build_release does."""
     path = IMPLEMENTATION / platform / "dialect.py"
     if not path.is_file():
         raise FileNotFoundError(f"the {platform} binding has no dialect.py")
