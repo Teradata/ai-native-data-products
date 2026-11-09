@@ -961,7 +961,7 @@ def resolve(spec_path: Path, configuration: Configuration, environment: str = No
                **(single("Product") or {})}
     context = {
         "schema_version": SCHEMA_VERSION,
-        "inputs": {"specification": spec_path.as_posix(),
+        "inputs": {"specification": configuration.label(spec_path),
                    "design_configuration": configuration.label(configuration.design_source()),
                    "implementation_configuration": configuration.label(configuration.implementation),
                    "target": configuration.target},

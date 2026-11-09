@@ -6,7 +6,7 @@ Status: **draft**. A binding is `standard` only when this report shows no failur
 
 Engine evidence: Teradata 20.00.24.60 through teradatasql 20.0.0.75.
 
-Rendered output: sha256 b73d4b40f9faa8d846604bf54dc1e941c1567c6478af9b8382b856098f2c9be8. It digests the files the reference builds render; a live engine run is trusted only against the same digest.
+Rendered output: sha256 61bfe6826d2a3481a21dd15aad45eb8f4cc86b040d2fee48df15422a8a196b0d. It digests the files the reference builds render; a live engine run is trusted only against the same digest.
 
 | Outcome | Count |
 |---|---|

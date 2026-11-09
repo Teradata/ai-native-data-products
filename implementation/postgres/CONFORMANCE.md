@@ -6,7 +6,7 @@ Status: **draft**. A binding is `standard` only when this report shows no failur
 
 Engine evidence: PostgreSQL 16.9 through psycopg 3.3.8.
 
-Rendered output: sha256 3c708c7ab3a15dc0855e3653706125983e8545eaad83859c4fbc62c401e38cdc. It digests the files the reference builds render; a live engine run is trusted only against the same digest.
+Rendered output: sha256 fc0cc18bc1eb5846856ec9ba2023d35b54cf2e70333699e80350ab9a5cf5c73d. It digests the files the reference builds render; a live engine run is trusted only against the same digest.
 
 | Outcome | Count |
 |---|---|
