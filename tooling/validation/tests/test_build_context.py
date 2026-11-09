@@ -1,10 +1,10 @@
 """Organisation profiles and the build-context resolver.
 
 The profile checks are tested the way the specification linter is: each rule is made to
-fire by one targeted break of a real profile, so a check that cannot fail is caught. The
-resolver is tested on the worked inputs (two specifications, two deliberately different
-profiles) for the properties the Platform Implementation Authoring Standard requires of
-it: every context matches the one schema, the same specification yields products that
+fire by one targeted break of a real configuration, so a check that cannot fail is caught.
+The resolver is tested on the worked inputs (two specifications, two deliberately different
+organisations' configurations) for the properties the Platform Implementation Authoring
+Standard requires of it: every context matches the one schema, the same specification yields products that
 differ only where the profiles do, and every rule the resolver enforces can be tripped.
 
 Run:
@@ -14,6 +14,7 @@ import json
 import re
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -22,16 +23,22 @@ sys.path.insert(0, str(REPO_ROOT / "tooling" / "build"))
 
 from build_context import resolve  # noqa: E402
 from org_profile import (  # noqa: E402
+    Configuration,
     check_profile,
+    load_configuration,
     load_profile_standard,
-    parse_profile,
 )
 
 EXAMPLE = REPO_ROOT / "examples" / "it-service-desk-data-product"
 ITSD_SPEC = EXAMPLE / "design-output" / "design_specification.md"
 ORDERS_SPEC = REPO_ROOT / "tooling" / "evals" / "reference" / "customer-orders.md"
-PROFILE_A = EXAMPLE / "profiles" / "teradata.md"
-PROFILE_B = EXAMPLE / "profiles" / "teradata-type-grouped.md"
+# Two organisations: the template's, and the contrasting one the example supplies.
+IMPL_A = REPO_ROOT / "config" / "implementation.example.toml"
+DESIGN_A = REPO_ROOT / "config" / "design.example.toml"
+IMPL_B = EXAMPLE / "contrasting" / "implementation.toml"
+DESIGN_B = EXAMPLE / "contrasting" / "design.toml"
+PROFILE_A = Configuration(IMPL_A, "teradata", DESIGN_A)
+PROFILE_B = Configuration(IMPL_B, "teradata", DESIGN_B)
 SCHEMA = json.loads((REPO_ROOT / "tooling" / "build" / "build_context.schema.json")
                     .read_text(encoding="utf-8"))
 PSTD = load_profile_standard(REPO_ROOT / "design")
@@ -89,8 +96,8 @@ def schema_errors(value, schema, root=SCHEMA, at="$"):
 # Helpers
 # --------------------------------------------------------------------------- #
 
-def profile_rules(text):
-    return [f.rule for f in check_profile(parse_profile(text, PSTD, "p.md"), PSTD)]
+def profile_rules(config):
+    return [f.rule for f in check_profile(load_configuration(config, PSTD), PSTD)]
 
 
 def broken(path, old, new, *more):
@@ -103,6 +110,41 @@ def broken(path, old, new, *more):
     return text
 
 
+def target_section(text, target):
+    """Where one target's tables are in an implementation configuration's text."""
+    start = text.index(f"[targets.{target}]")
+    end = start
+    while True:
+        end = text.find("\n[targets.", end + 1)
+        if end < 0 or not text.startswith(f"\n[targets.{target}.", end):
+            return start, (len(text) if end < 0 else end)
+
+
+def changed(config, old, new, *more, design=False):
+    """A configuration with targeted changes, each of which must apply: to its design file,
+    or within its target's tables of the implementation file, so a line every target shares
+    is changed for this one only."""
+    path = Path(config.design_source() if design else config.implementation)
+    text = path.read_text(encoding="utf-8")
+    lo, hi = (0, len(text)) if design else target_section(text, config.target)
+    for o, n in [(old, new)] + list(zip(more[::2], more[1::2])):
+        at = text.find(o, lo, hi)
+        assert at >= 0, f"{path.name} no longer contains {o!r} where expected"
+        text = text[:at] + n + text[at + len(o):]
+        hi += len(n) - len(o)
+    data = tomllib.loads(text)
+    if design:
+        return Configuration(config.implementation, config.target, data)
+    return Configuration(data, config.target, config.design_source())
+
+
+def without_table(config, table):
+    """A configuration whose target lacks one of its tables, and every sub-table of it."""
+    data = tomllib.loads(Path(config.implementation).read_text(encoding="utf-8"))
+    (data["targets"][config.target] if table in data["targets"][config.target] else data).pop(table)
+    return Configuration(data, config.target, config.design_source())
+
+
 
 def placed(obj):
     """Where an object is placed and what it is called, without what it is registered as."""
@@ -111,16 +153,12 @@ def placed(obj):
 class Resolved:
     """Resolve, optionally with modified inputs written to a temporary directory."""
 
-    def __init__(self, spec=ITSD_SPEC, profile=PROFILE_A, spec_text=None, profile_text=None,
-                 environment=None):
+    def __init__(self, spec=ITSD_SPEC, profile=PROFILE_A, spec_text=None, environment=None):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         if spec_text is not None:
             spec = root / "spec.md"
             spec.write_text(spec_text, encoding="utf-8")
-        if profile_text is not None:
-            profile = root / "profile.md"
-            profile.write_text(profile_text, encoding="utf-8")
         self.context, self.findings = resolve(spec, profile, environment)
         self.rules = [f.rule for f in self.findings]
         self.tmp.cleanup()
@@ -141,92 +179,91 @@ def names(context):
 # --------------------------------------------------------------------------- #
 
 class WorkedProfilesAreClean(unittest.TestCase):
-    def test_both_example_profiles_validate(self):
-        for path in (PROFILE_A, PROFILE_B):
-            with self.subTest(profile=path.name):
-                self.assertEqual(profile_rules(path.read_text(encoding="utf-8")), [])
+    def test_both_example_configurations_validate(self):
+        for config in (PROFILE_A, PROFILE_B):
+            with self.subTest(configuration=config.label(config.implementation)):
+                self.assertEqual(profile_rules(config), [])
 
 
 class ProfileRules(unittest.TestCase):
     def test_unknown_platform_flagged(self):
         self.assertIn("profile-frontmatter", profile_rules(
-            broken(PROFILE_A, "platform: teradata", "platform: mainframe")))
+            changed(PROFILE_A, "platform = 'teradata'", "platform = 'mainframe'")))
 
     def test_missing_required_heading_flagged(self):
         self.assertIn("missing-heading", profile_rules(
-            broken(PROFILE_A, "## Section 5. Separation Policy", "## Separation")))
+            without_table(PROFILE_A, "separation")))
 
     def test_missing_block_flagged(self):
-        text = re.sub(r"```\nEnvironments: -\n.*?```", "", PROFILE_A.read_text(encoding="utf-8"),
-                      flags=re.S)
-        self.assertIn("missing-block", profile_rules(text))
+        self.assertIn("missing-block", profile_rules(without_table(PROFILE_A, "environments")))
 
     def test_unknown_field_flagged(self):
         self.assertIn("unknown-field", profile_rules(
-            broken(PROFILE_A, "  Namespace:       flat\n", "  Namespace:       flat\n  Colour: blue\n")))
+            changed(PROFILE_A, "namespace = 'flat'\n", "namespace = 'flat'\ncolour = 'blue'\n")))
 
     def test_value_outside_enumeration_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "Namespace:       flat", "Namespace:       nested")))
+            changed(PROFILE_A, "namespace = 'flat'", "namespace = 'nested'")))
 
     def test_unknown_template_variable_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "{product_code}_ACC", "{product_name}_ACC")))
+            changed(PROFILE_A, "{product_code}_ACC", "{product_name}_ACC")))
 
     def test_unknown_template_filter_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "{product_code}_ACC", "{product_code|kebab}_ACC")))
+            changed(PROFILE_A, "{product_code}_ACC", "{product_code|kebab}_ACC")))
 
     def test_unknown_object_role_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "    consumer_view: {entity}\n",
-                   "    consumer_view: {entity}\n    trigger: {entity}_trg\n")))
+            changed(PROFILE_A, "consumer_view = '{entity}'\n",
+                    "consumer_view = '{entity}'\ntrigger = '{entity}_trg'\n")))
 
     def test_required_role_without_a_template_flagged(self):
         self.assertIn("missing-field", profile_rules(
-            broken(PROFILE_A, "    consumer_view: {entity}\n", "")))
+            changed(PROFILE_A, "consumer_view = '{entity}'\n", "")))
 
     def test_rule_to_an_unknown_container_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "    function: domain", "    function: library")))
+            changed(PROFILE_A, "function = 'domain'", "function = 'library'")))
 
     def test_standard_names_must_be_one_to_one(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "    ValidationArea: validation_area", "    ValidationArea: validation_run")))
+            changed(PROFILE_A, "ValidationArea = 'validation_area'", "ValidationArea = 'validation_run'")))
 
     def test_unknown_standard_name_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "    ValidationArea: validation_area", "    TrustThing: trust_thing")))
+            changed(PROFILE_A, "ValidationArea = 'validation_area'", "TrustThing = 'trust_thing'")))
 
     def test_classification_default_outside_scheme_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_A, "Default: Internal", "Default: Secret")))
+            changed(PROFILE_A, "default = 'Internal'", "default = 'Secret'", design=True)))
 
     def test_unmapped_sensitivity_marker_flagged(self):
         self.assertIn("missing-field", profile_rules(
-            broken(PROFILE_A, "    pii-incidental: Confidential\n", "")))
+            changed(PROFILE_A, "pii-incidental = 'Confidential'\n", "", design=True)))
 
     def test_invalid_protection_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_B, "Sensitive: mask for ROLE_READ, ROLE_AGENT", "Sensitive: mask for EVERYONE")))
+            changed(PROFILE_B, "Sensitive = 'mask for ROLE_READ, ROLE_AGENT'", "Sensitive = 'mask for EVERYONE'", design=True)))
 
     def test_container_isolation_needs_a_template(self):
         self.assertIn("missing-field", profile_rules(
-            broken(PROFILE_B, "  Container template: {container}_{environment}\n", "")))
+            changed(PROFILE_B, "container_template = '{container}_{environment}'\n", "")))
 
     def test_adoption_of_an_unknown_container_flagged(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_B, "    governance: enterprise_catalogue\n  Entities:",
-                   "    archive: old_archive\n  Entities:")))
+            changed(PROFILE_B, "[targets.teradata.adoption.containers]\ngovernance = 'enterprise_catalogue'",
+                    "[targets.teradata.adoption.containers]\narchive = 'old_archive'")))
 
     def test_derivation_example_must_agree(self):
         self.assertIn("derivation-mismatch", profile_rules(
-            broken(PROFILE_A, "-> ITSD_DOM.Ticket_History", "-> ITSD_DOM.Ticket")))
+            changed(PROFILE_A, "-> ITSD_DOM.Ticket_History", "-> ITSD_DOM.Ticket")))
 
     def test_three_derivation_examples_required(self):
-        text = re.sub(r"(    - table domain Ticket History[^\n]*\n).*?(```)", r"\1\2",
-                      PROFILE_A.read_text(encoding="utf-8"), count=1, flags=re.S)
-        self.assertIn("missing-field", profile_rules(text))
+        data = tomllib.loads(IMPL_A.read_text(encoding="utf-8"))
+        derivation = data["targets"]["teradata"]["derivation"]
+        derivation["examples"] = derivation["examples"][:1]
+        self.assertIn("missing-field", profile_rules(Configuration(data, "teradata", DESIGN_A)))
 
 
 # --------------------------------------------------------------------------- #
@@ -237,7 +274,7 @@ class ContextsResolve(unittest.TestCase):
     def test_every_worked_combination_resolves_to_the_schema(self):
         for spec in (ITSD_SPEC, ORDERS_SPEC):
             for profile in (PROFILE_A, PROFILE_B):
-                with self.subTest(spec=spec.name, profile=profile.name):
+                with self.subTest(spec=spec.name, profile=profile.label(profile.implementation)):
                     r = Resolved(spec, profile)
                     self.assertEqual(r.findings, [], "\n".join(map(str, r.findings)))
                     self.assertEqual(schema_errors(r.context, SCHEMA), [])
@@ -305,32 +342,32 @@ class Portability(unittest.TestCase):
 class ProfileExtensions(unittest.TestCase):
     def test_parent_must_be_a_container(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_B, "dp_{product_code|lower}_data in product", "dp_{product_code|lower}_data in estate")))
+            changed(PROFILE_B, "dp_{product_code|lower}_data in product", "dp_{product_code|lower}_data in estate")))
 
     def test_rules_never_route_to_a_parent(self):
-        self.assertIn("invalid-value", profile_rules(broken(PROFILE_B, "    function: data", "    function: product")))
+        self.assertIn("invalid-value", profile_rules(changed(PROFILE_B, "function = 'data'", "function = 'product'")))
 
     def test_classification_routing_names_a_class(self):
-        self.assertIn("invalid-value", profile_rules(broken(PROFILE_B, "table Sensitive: secure", "table Secret: secure")))
+        self.assertIn("invalid-value", profile_rules(changed(PROFILE_B, "'table Sensitive' = 'secure'", "'table Secret' = 'secure'")))
 
     def test_abbrev_needs_every_module_abbreviated(self):
-        self.assertIn("missing-field", profile_rules(broken(PROFILE_A, "    search: SCH\n", "")))
+        self.assertIn("missing-field", profile_rules(changed(PROFILE_A, "search = 'SCH'\n", "")))
 
     def test_storage_sections_come_together(self):
         self.assertIn("missing-heading", profile_rules(
-            broken(PROFILE_B, "## Storage Section 5. Partition Strategy", "## Partitions")))
+            without_table(PROFILE_B, "partitioning")))
 
     def test_storage_example_must_agree(self):
         self.assertIn("derivation-mismatch", profile_rules(
-            broken(PROFILE_B, "-> dp-itsd/dp_itsd_data/ticket", "-> dp-itsd/ticket")))
+            changed(PROFILE_B, "-> dp-itsd/dp_itsd_data/ticket", "-> dp-itsd/ticket")))
 
     def test_standard_name_never_lands_on_another(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_B, "    updated_dts: row_updated_ts", "    updated_dts: created_dts")))
+            changed(PROFILE_B, "updated_dts = 'row_updated_ts'", "updated_dts = 'created_dts'")))
 
     def test_column_alias_shape(self):
         self.assertIn("invalid-value", profile_rules(
-            broken(PROFILE_B, "ITSD.Customer.tier: service_tier", "Customer.tier: service_tier")))
+            changed(PROFILE_B, "'ITSD.Customer.tier' = 'service_tier'", "'Customer.tier' = 'service_tier'")))
 
 
 class ResolutionRules(unittest.TestCase):
@@ -382,7 +419,7 @@ class ResolutionRules(unittest.TestCase):
         ok = Resolved(spec_text=text)
         self.assertEqual(ok.findings, [], "\n".join(map(str, ok.findings)))
         self.assertEqual(ok.context["graph"]["graph_key"], "LIN_ITSD")
-        missing = Resolved(spec_text=text, profile_text=broken(PROFILE_A, "  Graph key: LIN_{product_code}\n", ""))
+        missing = Resolved(spec_text=text, profile=changed(PROFILE_A, "graph_key = 'LIN_{product_code}'\n", ""))
         self.assertIn("missing-graph-key", missing.rules)
 
     def test_external_allocator_needs_the_profile_to_name_it(self):
@@ -393,7 +430,7 @@ class ResolutionRules(unittest.TestCase):
         self.assertNotIn("missing-allocator", Resolved(spec_text=text, profile=PROFILE_B).rules)
 
     def test_standard_name_may_not_take_a_specification_attribute(self):
-        r = Resolved(profile_text=broken(PROFILE_A, "    ValidationArea: validation_area", "    ValidationArea: status"))
+        r = Resolved(profile=changed(PROFILE_A, "ValidationArea = 'validation_area'", "ValidationArea = 'status'"))
         self.assertIn("name-collision", r.rules)
 
     def test_adopted_entity_and_principal(self):
@@ -425,24 +462,24 @@ class ResolutionRules(unittest.TestCase):
         self.assertNotIn("retention-bound", Resolved(profile=PROFILE_B).rules)
 
     def test_name_too_long_flagged(self):
-        r = Resolved(profile_text=broken(PROFILE_A, "Max name length: 30", "Max name length: 8"))
+        r = Resolved(profile=changed(PROFILE_A, "max_name_length = 30", "max_name_length = 8"))
         self.assertIn("name-too-long", r.rules)
 
     def test_reserved_name_flagged(self):
-        r = Resolved(profile_text=broken(PROFILE_A, "Reserved words:  DBC,", "Reserved words:  ITSD_ACC, DBC,"))
+        r = Resolved(profile=changed(PROFILE_A, "reserved_words = ['DBC',", "reserved_words = ['ITSD_ACC', 'DBC',"))
         self.assertIn("reserved-name", r.rules)
 
     def test_name_collision_flagged(self):
-        r = Resolved(profile_text=broken(
-            PROFILE_A, "    consumer_view: access", "    consumer_view: module",
-            "    consumer_view: {entity}\n", "    consumer_view: {entity}_Current\n",
-            "    - consumer_view domain Ticket History -> ITSD_ACC.Ticket\n", ""))
+        r = Resolved(profile=changed(
+            PROFILE_A, "consumer_view = '{entity}'\n", "consumer_view = '{entity}_Current'\n",
+            "consumer_view = 'access'", "consumer_view = 'module'",
+            "  'consumer_view domain Ticket History -> ITSD_ACC.Ticket',\n", ""))
         self.assertIn("name-collision", r.rules)
 
     def test_unplaceable_module_flagged(self):
-        r = Resolved(profile_text=broken(
-            PROFILE_A, "  search:        {product_code}_{module|abbrev}\n", "",
-            "    - table search EntityEmbedding History -> ITSD_SCH.EntityEmbedding\n", ""))
+        r = Resolved(profile=changed(
+            PROFILE_A, "search = '{product_code}_{module|abbrev}'\n", "",
+            "  'table search EntityEmbedding History -> ITSD_SCH.EntityEmbedding',\n", ""))
         self.assertIn("unplaceable", r.rules)
 
     def test_invalid_specification_stops_resolution(self):
@@ -451,8 +488,8 @@ class ResolutionRules(unittest.TestCase):
         self.assertIn("spec-frontmatter", r.rules)
 
 
-DUCKDB_PROFILE = EXAMPLE / "profiles" / "duckdb.md"
-POSTGRES_PROFILE = EXAMPLE / "profiles" / "postgres.md"
+DUCKDB_PROFILE = Configuration(IMPL_A, "duckdb", DESIGN_A)
+POSTGRES_PROFILE = Configuration(IMPL_A, "postgres", DESIGN_A)
 
 
 class SharedBuildDecisions(unittest.TestCase):
@@ -526,9 +563,9 @@ class SharedBuildDecisions(unittest.TestCase):
     def test_tiers_are_enforced_outside_a_platform_without_principals(self):
         ctx = Resolved(profile=DUCKDB_PROFILE).context
         self.assertTrue(all(p["name"] is None and p["outside"] for p in ctx["principals"].values()))
-        r = Resolved(profile=DUCKDB_PROFILE, profile_text=broken(
-            DUCKDB_PROFILE, "ROLE_READ:   outside read-only file access to the database",
-            "ROLE_READ:   create {product_code|lower}_reader"))
+        r = Resolved(profile=changed(
+            DUCKDB_PROFILE, "role_read = 'outside read-only file access to the database'",
+            "role_read = 'create {product_code|lower}_reader'"))
         self.assertIn("unsupported-principal", r.rules)
 
     def test_a_reference_to_a_natural_key_takes_the_key_type(self):

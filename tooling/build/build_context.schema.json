@@ -305,13 +305,21 @@
       "type": "object",
       "required": [
         "specification",
-        "profile"
+        "design_configuration",
+        "implementation_configuration",
+        "target"
       ],
       "properties": {
         "specification": {
           "type": "string"
         },
-        "profile": {
+        "design_configuration": {
+          "type": "string"
+        },
+        "implementation_configuration": {
+          "type": "string"
+        },
+        "target": {
           "type": "string"
         }
       }

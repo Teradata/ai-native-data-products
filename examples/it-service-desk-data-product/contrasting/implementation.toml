@@ -1,0 +1,161 @@
+# Implementation configuration: Contrasting example organisation
+#
+# How this organisation builds, one entry per deployment target under [targets]. A table at the
+# top level holds for every target; a target's own table of the same name replaces it.
+#
+# Keys are the Organisation Profile Standard's field names in snake_case
+# (design/core/ORGANISATION_PROFILE.md); your own names - container keys, object roles,
+# tiers, classes, entities - are written as they are.
+
+[targets.teradata]
+platform = 'teradata'
+platform_version = '20.00'
+
+[targets.teradata.platform_terms]
+container_term = 'DATABASE'
+principal_term = 'ROLE'
+namespace = 'flat'
+max_name_length = 128
+name_characters = 'lower-case letters, digits and underscore'
+reserved_words = ['DBC', 'SYSLIB', 'SYSBAR', 'TDSTATS', 'TDWM']
+
+# A parent database per product holding three children: data, views, and a secured database for
+# tables holding Sensitive data. The enterprise catalogue already exists.
+[targets.teradata.containers]
+product = 'dp_{product_code|lower}'
+data = 'dp_{product_code|lower}_data in product'
+views = 'dp_{product_code|lower}_views in product'
+secure = 'dp_{product_code|lower}_secure in product'
+governance = 'enterprise_catalogue'
+
+# Everything is lower snake case. Base views carry `_cur` and consumer views take the bare name,
+# distinguished by container and suffix. The organisation's column standard names audit and
+# validity columns `_ts`, and its catalogue tooling expects the validation relations in snake
+# case.
+[targets.teradata.naming]
+attributes = '{attribute}'
+graph_key = 'lin_{product_code|lower}'
+
+[targets.teradata.naming.objects]
+table = '{entity|snake}'
+base_view = '{entity|snake}_cur'
+consumer_view = '{entity|snake}'
+procedure = '{entity|snake}_similar'
+
+[targets.teradata.naming.standard_names]
+created_dts = 'row_created_ts'
+updated_dts = 'row_updated_ts'
+valid_from_dts = 'valid_start_ts'
+valid_to_dts = 'valid_end_ts'
+ValidationRun = 'validation_run'
+ValidationArea = 'validation_area'
+LineageGraph = 'lineage_graph'
+LineageRunLatest = 'lineage_run_latest'
+
+# Tables holding Sensitive data go to the secured database.
+[targets.teradata.placement]
+
+[targets.teradata.placement.rules]
+table = 'data'
+'table Sensitive' = 'secure'
+base_view = 'views'
+consumer_view = 'views'
+procedure = 'data'
+function = 'data'
+
+[targets.teradata.separation]
+policy = 'TYPE_GROUPED'
+object_naming = 'name-discriminated'
+exceptions = 'Base and consumer views share the views container; the _cur suffix distinguishes them. Consumers are granted views one by one, never a table.'
+
+[targets.teradata.derivation]
+product_code = 'ITSD'
+examples = [
+  'table domain Ticket History -> dp_itsd_data.ticket',
+  'base_view domain Ticket History -> dp_itsd_views.ticket_cur',
+  'consumer_view domain TicketFeatureSet History -> dp_itsd_views.ticket_feature_set',
+  'table semantic DataProductRegistry -> dp_itsd_data.data_product_registry',
+  'table observability ValidationRun -> dp_itsd_data.validation_run',
+]
+
+# The admin tier binds the organisation's existing data-steward group; the read and agent tiers
+# are created per product.
+[targets.teradata.principals]
+role_read = 'create grp_{product_code|lower}_reader'
+role_agent = 'create svc_{product_code|lower}_agents'
+role_admin = 'existing dba_data_stewards'
+grant_level = 'object'
+
+# Development, acceptance and production share one system; containers carry the phase.
+[targets.teradata.environments]
+phases = ['dev', 'uat', 'prod']
+isolation = 'container'
+container_template = '{container}_{environment}'
+
+# The enterprise catalogue exists already. The IT Service Desk product reads customers from the
+# organisation's customer master rather than holding its own copy.
+[targets.teradata.adoption]
+allocator = 'the enterprise key service'
+
+[targets.teradata.adoption.containers]
+governance = 'enterprise_catalogue'
+
+[targets.teradata.adoption.entities]
+'ITSD.Customer' = 'crm.customer_master'
+
+[targets.teradata.adoption.column_aliases]
+'ITSD.Customer.company_name' = 'cust_name'
+'ITSD.Customer.tier' = 'service_tier'
+
+[targets.teradata.catalogue]
+states = ['proposed', 'active', 'deprecated', 'retired']
+projection = 'release'
+
+# Product tables are held as open-table-format tables in object storage, read by the platform
+# through its object-store integration.
+[targets.teradata.storage]
+object_store = 'S3-compatible object store, one region'
+table_format = 'open table format'
+scope = 'all'
+excluded = ['base_view', 'consumer_view']
+
+# One bucket per product; paths follow the container and object names, so the logical and
+# physical layers line up.
+[targets.teradata.paths]
+path = '{bucket}/{container}/{object}'
+examples = [
+  'table domain Ticket History -> dp-itsd/dp_itsd_data/ticket',
+  'table search EntityEmbedding History -> dp-itsd/dp_itsd_data/entity_embedding',
+  'table observability ValidationRun -> dp-itsd/dp_itsd_data/validation_run',
+]
+
+[targets.teradata.paths.buckets]
+data = 'dp-{product_code|lower}'
+
+[targets.teradata.paths.bucket_rules]
+table = 'data'
+
+[targets.teradata.files]
+format = 'columnar'
+compression = "the format's default"
+schema_evolution = 'Added columns in place; renames and type changes recreate the table.'
+prohibited = ['delimited text']
+
+[targets.teradata.partitioning]
+model = 'hidden'
+rule = "By month of the entity's validity start, or of its event time for event tables."
+maximum = 2
+
+[targets.teradata.lifecycle]
+snapshot_retention = '7 days'
+orphan_cleanup = '3 days'
+executor = 'platform operations'
+
+# Physical principals mirror the logical tiers and never reach further.
+[targets.teradata.storage_access]
+bucket_policy = "One policy per bucket, granting each physical principal its tier's prefixes only."
+
+[targets.teradata.storage_access.principals]
+ROLE_READ = 'obj_{product_code|lower}_read'
+ROLE_AGENT = 'obj_{product_code|lower}_agent'
+ROLE_ADMIN = 'obj_{product_code|lower}_admin'

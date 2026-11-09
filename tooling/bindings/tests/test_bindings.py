@@ -1,6 +1,6 @@
-"""Contract and engine tests for the Jinja bindings, driven by build contexts.
+"""Contract and engine tests for the platform bindings, driven by build contexts.
 
-Every binding that declares its phases is rendered from the same design specifications and
+Every binding is rendered from the same design specifications and
 the example organisation's profile for that platform, so one specification is shown to build
 on every platform. The engine tests are written once, against the build context, and run on
 every engine; what differs between engines is only how a test writes a value (a flag, an open
@@ -28,6 +28,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
@@ -38,27 +39,38 @@ sys.path.insert(0, str(REPO / "tooling" / "bindings"))
 sys.path.insert(0, str(REPO / "tooling" / "build"))
 
 import build_context  # noqa: E402
+from org_profile import Configuration, example_targets  # noqa: E402
 from binding import load_binding  # noqa: E402
-from jinja2 import UndefinedError  # noqa: E402
-from render import RenderError, environment, persisted, render_context, render_product  # noqa: E402
+from render import RenderError, dialect_for, persisted, render_context, render_product  # noqa: E402
 from engines import engine, statements  # noqa: E402
 from validate import publish, run_checks, summarize, validate  # noqa: E402
 
 PLATFORMS = tuple(p.name for p in sorted((REPO / "implementation").iterdir())
-                  if (p / "PLATFORM_PROFILE.md").exists() and load_binding(p.name)[0].phases)
+                  if (p / "binding.toml").exists() and (p / "dialect.py").exists())
 EXAMPLE = REPO / "examples" / "it-service-desk-data-product"
 ITSD = EXAMPLE / "design-output" / "design_specification.md"
 CUSTORD = REPO / "tooling" / "evals" / "reference" / "customer-orders.md"
 TRUST_CASES = json.loads((Path(__file__).parent / "trust_cases.json").read_text(encoding="utf-8"))
 
 
-def profile(platform):
-    return EXAMPLE / "profiles" / f"{platform}.md"
+def configuration(platform):
+    """The example configuration's target for a platform: how the reference products build there."""
+    return next(c for c, p in example_targets() if p == platform
+                and c.label(c.implementation) == "config/implementation.example.toml")
+
+
+def edited(platform, change):
+    """The platform's example target with `change(configuration, target)` applied to its
+    parsed tables, as another organisation would have written it."""
+    base = configuration(platform)
+    data = tomllib.loads(Path(base.implementation).read_text(encoding="utf-8"))
+    change(data, data["targets"][base.target])
+    return Configuration(data, base.target, base.design_source())
 
 
 @lru_cache(maxsize=None)
 def _resolved(spec, platform):
-    ctx, findings = build_context.resolve(Path(spec), profile(platform))
+    ctx, findings = build_context.resolve(Path(spec), configuration(platform))
     assert not findings, [str(f) for f in findings]
     return json.dumps(ctx)
 
@@ -72,33 +84,24 @@ def named(ctx, name):
     return next(x for x in ctx["entities"] + ctx["relations"] if x["name"] == name)
 
 
-def prefixed_containers(text, prefix):
-    """A profile whose every created container, and every derivation example, carries a prefix:
+def prefixed_containers(prefix):
+    """A change giving every created container, and every derivation example, a prefix:
     another organisation's naming, written as that organisation would write it."""
-    text = text.replace("\r\n", "\n")
-    adoption = re.search(r"Adoption: -\n((?:  .*\n)*)", text)
-    adopted = set(re.findall(r"^    (\w+): ", adoption.group(1), re.M)) if adoption else set()
-    block = re.search(r"Containers: -\n((?:  .*\n)+)", text).group(1)
-    lines = []
-    for line in block.splitlines():
-        key, _, template = line.strip().partition(":")
-        lines.append(line if key in adopted else f"  {key}: {prefix}{template.strip()}")
-    text = text.replace(block, "\n".join(lines) + "\n")
-    return re.sub(r"(-> )([^ .]+\.)", lambda m: m.group(1) + prefix + m.group(2), text)
+    def change(_, target):
+        adopted = set(target.get("adoption", {}).get("containers", {}))
+        target["containers"] = {k: v if k in adopted else prefix + v for k, v in target["containers"].items()}
+        derivation = target["derivation"]
+        derivation["examples"] = [re.sub(r"(-> )([^ .]+\.)", lambda m: m.group(1) + prefix + m.group(2), e)
+                                  for e in derivation["examples"]]
+    return change
 
 
-def adopting(text, entity, target):
-    """The profile with one more entity bound to an existing object (Organisation Profile
-    Standard, `Adoption:`), as `<product_code>.<Entity>: <container>.<object>`."""
-    text = text.replace("\r\n", "\n")
-    line = f"    {entity}: {target}\n"
-    block = re.search(r"Adoption: -\n((?:  .*\n)*)", text)
-    if not block:
-        return text.rstrip("\n") + f"\n\n## Adoption\n\n```\nAdoption: -\n  Entities:\n{line}```\n"
-    fields = block.group(1)
-    fields = (fields.replace("  Entities:\n", "  Entities:\n" + line, 1) if "  Entities:\n" in fields
-              else fields + "  Entities:\n" + line)
-    return text[:block.start(1)] + fields + text[block.end(1):]
+def adopting(entity, target_object):
+    """A change binding one more entity to an existing object (Organisation Profile Standard,
+    `Adoption:`), as `<product_code>.<Entity>: <container>.<object>`."""
+    def change(_, target):
+        target.setdefault("adoption", {}).setdefault("entities", {})[entity] = target_object
+    return change
 
 
 class Rendering(unittest.TestCase):
@@ -114,7 +117,7 @@ class Rendering(unittest.TestCase):
                                         for c in manifest["checks"]))
 
     def test_names_come_from_the_specification_and_profile(self):
-        """Another product, or another organisation's naming, changes every name and no template."""
+        """Another product, or another organisation's naming, changes every name and no dialect code."""
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 b = load_binding(platform)[0]
@@ -125,49 +128,40 @@ class Rendering(unittest.TestCase):
                     self.assertIn(b.ident(name), itsd)
                 for name in mine - {c["name"] for c in theirs["containers"]}:
                     self.assertNotIn(b.ident(name), other)
-                with tempfile.TemporaryDirectory() as tmp:
-                    renamed = Path(tmp) / f"{platform}.md"
-                    renamed.write_text(prefixed_containers(profile(platform).read_text(encoding="utf-8"), "dp_"),
-                                       encoding="utf-8")
-                    ctx, findings = build_context.resolve(ITSD, renamed)
-                    self.assertEqual([str(f) for f in findings], [])
-                    domain = named(ours, "Ticket")["objects"]["table"]["container"]
-                    self.assertEqual(named(ctx, "Ticket")["objects"]["table"]["container"], "dp_" + domain)
-                    self.assertIn(b.ident("dp_" + domain), render_context(ctx)["deploy.sql"])
+                ctx, findings = build_context.resolve(ITSD, edited(platform, prefixed_containers("dp_")))
+                self.assertEqual([str(f) for f in findings], [])
+                domain = named(ours, "Ticket")["objects"]["table"]["container"]
+                self.assertEqual(named(ctx, "Ticket")["objects"]["table"]["container"], "dp_" + domain)
+                self.assertIn(b.ident("dp_" + domain), render_context(ctx)["deploy.sql"])
 
     def test_a_platform_without_principals_refuses_to_create_them(self):
         unsupported = [p for p in PLATFORMS if load_binding(p)[0].principals == "unsupported"]
         for platform in unsupported:
             with self.subTest(platform=platform):
-                with tempfile.TemporaryDirectory() as tmp:
-                    bad = Path(tmp) / f"{platform}.md"
-                    bad.write_text(profile(platform).read_text(encoding="utf-8").replace(
-                        "ROLE_READ:   outside read-only file access to the database",
-                        "ROLE_READ:   create {product_code|lower}_reader"), encoding="utf-8")
-                    _, findings = build_context.resolve(ITSD, bad)
-                    self.assertIn("unsupported-principal", {f.rule for f in findings})
+                def create(_, target):
+                    target["principals"]["role_read"] = "create {product_code|lower}_reader"
+                _, findings = build_context.resolve(ITSD, edited(platform, create))
+                self.assertIn("unsupported-principal", {f.rule for f in findings})
 
-    def test_templates_are_strict(self):
+    def test_generation_is_strict(self):
+        """A context without what generation needs fails; it never renders around the hole."""
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
-                with self.assertRaises(UndefinedError):
-                    env.from_string("{{ product.no_such_field }}").render(**ctx)
+                del ctx["relationships"]
+                with self.assertRaises(KeyError):
+                    render_context(ctx)
 
-    def test_caller_templates_quote_their_values(self):
+    def test_caller_rendered_statements_quote_their_values(self):
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
-                sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-                    **dict(ctx, keymap=named(ctx, "TicketKeymap"), natural_value="T-1'; DROP"))
+                dialect = dialect_for(ctx)
+                sql = dialect.key_allocation(named(ctx, "TicketKeymap"), natural_value="T-1'; DROP")
                 self.assertIn("'T-1''; DROP'", sql)
                 ticket = named(ctx, "Ticket")
                 row = {c["physical_name"]: None for c in ticket["columns"]}
-                sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-                    **dict(ctx, entity=ticket, stable_key=1, effective_at="2026-01-01", recorded_at="2026-02-01",
-                           replacement_rows=[row]))
+                sql = dialect.maintenance(ticket, 1, "2026-01-01", "2026-02-01", [row])
                 self.assertIn("INSERT INTO", sql)
 
     def test_one_specification_gives_every_binding_the_same_product(self):
@@ -192,14 +186,13 @@ class Rendering(unittest.TestCase):
         for platform in PLATFORMS:
             with self.subTest(platform=platform):
                 ctx = context(ITSD, platform)
-                env = environment(load_binding(platform)[0], ctx)
+                dialect = dialect_for(ctx)
                 paths = named(ctx, "RelationshipPaths")
                 self.assertEqual(paths["max_hops"], build_context.PATH_HOPS)
-                template = env.get_template("modules/semantic/03-discovery.sql.j2")
                 rendered = []
                 for hops in (2, 5):
                     paths["max_hops"] = hops
-                    rendered.append(template.render(**ctx))
+                    rendered.append(dialect.phase("discovery"))
                 self.assertNotEqual(*rendered)
 
     def test_gaps_are_reported_not_hidden(self):
@@ -210,7 +203,9 @@ class Rendering(unittest.TestCase):
                 self.assertTrue(any("TicketDetail" in g for g in gaps), gaps)
 
     def test_cli_refuses_reserved_and_existing_output(self):
-        cmd = [sys.executable, str(REPO / "tooling" / "bindings" / "render.py"), str(ITSD), str(profile(PLATFORMS[0]))]
+        target = configuration(PLATFORMS[0])
+        cmd = [sys.executable, str(REPO / "tooling" / "bindings" / "render.py"), str(ITSD),
+               str(target.implementation), "--target", target.target]
         reserved = subprocess.run(cmd + ["--output", str(REPO / "implementation" / "x")], capture_output=True)
         self.assertNotEqual(reserved.returncode, 0)
         with tempfile.TemporaryDirectory() as tmp:
@@ -225,7 +220,7 @@ class Rendering(unittest.TestCase):
             bad.write_text(ITSD.read_text(encoding="utf-8").replace("  Module:     memory\n", "  Module:     access-layer\n", 1),
                            encoding="utf-8")
             with self.assertRaises(RenderError):
-                render_product(bad, profile(PLATFORMS[0]))
+                render_product(bad, configuration(PLATFORMS[0]))
 
     def test_shared_trust_cases(self):
         for case in TRUST_CASES:
@@ -283,11 +278,7 @@ class EngineTests:
         self.con.execute(f"CREATE SCHEMA {self.binding.ident(name)}")
 
     def adopting_context(self, spec, entity, target):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / f"{self.platform}.md"
-            path.write_text(adopting(profile(self.platform).read_text(encoding="utf-8"), entity, target),
-                            encoding="utf-8")
-            ctx, findings = build_context.resolve(Path(spec), path)
+        ctx, findings = build_context.resolve(Path(spec), edited(self.platform, adopting(entity, target)))
         assert not findings, [str(f) for f in findings]
         return ctx
 
@@ -339,9 +330,7 @@ class EngineTests:
         return self.q(f"SELECT MAX({self.binding.ident(cn[returning])}) FROM {self.table(name)}")[0][0]
 
     def allocate(self, keymap, natural):
-        env = environment(self.binding, self.ctx)
-        sql = env.get_template("modules/domain/02-key-allocation.sql.j2").render(
-            **dict(self.ctx, keymap=named(self.ctx, keymap), natural_value=natural))
+        sql = dialect_for(self.ctx).key_allocation(named(self.ctx, keymap), natural_value=natural)
         *writes, read = statements(sql)
         for statement in writes:
             self.con.execute(statement)
@@ -392,10 +381,8 @@ class EngineTests:
         try:
             self.executemany(f"INSERT INTO {stage} (natural_value) VALUES ({self.marker})",
                              [[value] for value in dict.fromkeys(naturals)])
-            *writes, read = statements(environment(self.binding, self.ctx).get_template(
-                "modules/domain/02-key-allocation.sql.j2").render(**dict(
-                    self.ctx, keymap=named(self.ctx, keymap),
-                    staged={"container": None, "name": self.STAGE, "column": "natural_value"})))
+            *writes, read = statements(dialect_for(self.ctx).key_allocation(
+                named(self.ctx, keymap), staged={"container": None, "name": self.STAGE, "column": "natural_value"}))
             self.run_writes(writes)
             return dict(self.q(read))
         finally:
@@ -631,10 +618,7 @@ class EngineTests:
                     cn["is_current"]: True, cn["is_deleted"]: False, cn["deleted_dts"]: None,
                     cn["updated_dts"]: "2026-08-01 00:00:00+00:00"})
         row = {k: (str(v) if isinstance(v, (datetime, date)) else v) for k, v in row.items()}
-        env = environment(self.binding, self.ctx)
-        sql = env.get_template("patterns/temporal-lifecycle-metadata/04-maintenance.sql.j2").render(
-            **dict(self.ctx, entity=ticket, stable_key=stable, effective_at=None,
-                   recorded_at="2026-08-01 00:00:00+00:00", replacement_rows=[row]))
+        sql = dialect_for(self.ctx).maintenance(ticket, stable, None, "2026-08-01 00:00:00+00:00", [row])
         for statement in statements(sql):
             self.con.execute(statement)
         prio = self.binding.ident(cn["priority"])
@@ -672,12 +656,8 @@ class EngineTests:
         return self.binding.ident(named(self.ctx, relation)["key_columns"][0])
 
     def register(self, relation, values, sql=None):
-        """Insert a catalogue row the way registration does, through the shared insert macro."""
-        env = environment(self.binding, self.ctx)
-        text = env.from_string("{% import 'patterns/temporal-lifecycle-metadata/00-macros.sql.j2' as m with context %}"
-                               "{{ m.insert(rel, values, sql) }}").render(
-            **dict(self.ctx, rel=named(self.ctx, relation), values=values, sql=sql or {}))
-        self.con.execute(text)
+        """Insert a catalogue row the way registration does, through the dialect's insert."""
+        self.con.execute(dialect_for(self.ctx).insert(named(self.ctx, relation), values, sql or {}))
 
     def contract_check(self, name):
         return next(c for c in self.manifest["checks"] if c["check"] == name)
@@ -1028,17 +1008,18 @@ TERADATA_DSN = os.environ.get("TERADATA_TEST_DSN")
 TEST_PREFIX = "anptest"
 
 
-def isolated(text, prefix):
-    """The example profile with every container it creates, and every principal, under a prefix
-    the tests own. It uses the profile's own environment mechanism: phases share one system,
-    and each container name carries the phase. The test login deploys, so it is the profile's
-    `Deploying user`."""
-    text = re.sub(r"Environments: -\n(?:  .*\n)+",
-                  f"Environments: -\n  Phases:             {prefix}\n  Isolation:          container\n"
-                  f"  Container template: {{environment}}_{{container}}\n", text.replace("\r\n", "\n"))
-    text = re.sub(r"(  ROLE_\w+:\s+)create (\S+)", rf"\1create {prefix}_\2", text)
-    return (text.rstrip("\n") + "\n\n## Binding Settings\n\n```\nSettings: -\n"
-            f"  Deploying user: {json.loads(TERADATA_DSN)['user']}\n```\n")
+def isolated(prefix):
+    """A change putting every container the example target creates, and every principal, under
+    a prefix the tests own. It uses the configuration's own environment mechanism: phases share
+    one system, and each container name carries the phase. The test login deploys, so it is the
+    target's `deploying_user`."""
+    def change(data, target):
+        data["environments"] = {"phases": [prefix], "isolation": "container",
+                                "container_template": "{environment}_{container}"}
+        target["principals"] = {k: re.sub(r"^create (\S+)", rf"create {prefix}_\1", v) if isinstance(v, str) else v
+                                for k, v in target["principals"].items()}
+        target["settings"] = {"deploying_user": json.loads(TERADATA_DSN)["user"]}
+    return change
 
 
 @unittest.skipUnless(teradatasql and TERADATA_DSN and "teradata" in PLATFORMS,
@@ -1058,7 +1039,6 @@ class Teradata(EngineTests, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.con = engine("teradata").connect(TERADATA_DSN)
-        cls.profiles = tempfile.TemporaryDirectory()
         cls.drop_test_objects()
 
     @classmethod
@@ -1067,7 +1047,6 @@ class Teradata(EngineTests, unittest.TestCase):
             cls.drop_test_objects()
         finally:
             cls.con.close()
-            cls.profiles.cleanup()
 
     @classmethod
     def drop_test_objects(cls):
@@ -1145,10 +1124,10 @@ class Teradata(EngineTests, unittest.TestCase):
     def adopting_context(self, spec, entity, target):
         """Under a prefix of its own, so this product's databases and roles do not collide with
         the shared deployment of the same specification; still dropped with the rest."""
-        path = Path(self.profiles.name) / "adopting.md"
-        path.write_text(adopting(isolated(profile("teradata").read_text(encoding="utf-8"), f"{TEST_PREFIX}_adopt"),
-                                 entity, target), encoding="utf-8")
-        ctx, findings = build_context.resolve(Path(spec), path, f"{TEST_PREFIX}_adopt")
+        def change(data, target_):
+            isolated(f"{TEST_PREFIX}_adopt")(data, target_)
+            adopting(entity, target)(data, target_)
+        ctx, findings = build_context.resolve(Path(spec), edited("teradata", change), f"{TEST_PREFIX}_adopt")
         assert not findings, [str(f) for f in findings]
         return ctx
 
@@ -1157,9 +1136,7 @@ class Teradata(EngineTests, unittest.TestCase):
 
     # ---- deployment ------------------------------------------------------------------
     def context(self, spec):
-        path = Path(self.profiles.name) / "teradata.md"
-        path.write_text(isolated(profile("teradata").read_text(encoding="utf-8"), TEST_PREFIX), encoding="utf-8")
-        ctx, findings = build_context.resolve(Path(spec), path, TEST_PREFIX)
+        ctx, findings = build_context.resolve(Path(spec), edited("teradata", isolated(TEST_PREFIX)), TEST_PREFIX)
         assert not findings, [str(f) for f in findings]
         return ctx
 
@@ -1212,15 +1189,14 @@ class Teradata(EngineTests, unittest.TestCase):
         check sees them, and they go when the session ends. Each is declared from the context's
         columns with the binding's own character set, since CREATE TABLE AS refuses a source
         with an identity column."""
-        macros = environment(self.binding, self.ctx).get_template(
-            "patterns/temporal-lifecycle-metadata/00-macros.sql.j2").make_module(self.ctx)
+        dialect = dialect_for(self.ctx)
         taken, start = [], sum(len(s) for s in self.snapshots.values())
         for i, x in enumerate(persisted(self.ctx), start):
             table = self.binding.qualified(x["objects"]["table"]["container"], x["objects"]["table"]["name"])
             copy = f"{TEST_PREFIX}_snapshot_{i}"
             cols = ", ".join(self.binding.ident(c["physical_name"]) for c in x["columns"])
             self.con.execute(f"CREATE VOLATILE TABLE {copy} ("
-                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{macros.unicode(c)}"
+                             + ", ".join(f"{self.binding.ident(c['physical_name'])} {c['physical_type']}{dialect.unicode(c)}"
                                          for c in x["columns"])
                              + ") ON COMMIT PRESERVE ROWS")
             self.con.execute(f"INSERT INTO {copy} ({cols}) SELECT {cols} FROM {table}")

@@ -20,6 +20,7 @@ from design_lint import (  # noqa: E402
     platform_names,
     find_sql_violations,
     find_invariant_violations,
+    find_dialect_name_violations,
     find_prohibited_name_violations,
     load_prohibited_names,
     mask_sql_noise,
@@ -126,8 +127,9 @@ class PlatformNameRule(unittest.TestCase):
     def test_every_binding_directory_and_known_platform_is_a_platform_name(self):
         names = platform_names()
         for platform in (p.name for p in (Path(__file__).resolve().parents[3] / "implementation").iterdir()
-                         if p.is_dir()):
+                         if (p / "binding.toml").is_file()):
             self.assertIn(platform, names)
+        self.assertNotIn("portable", names)
         self.assertLessEqual(set(KNOWN_PLATFORMS), set(names))
 
     def test_a_platform_named_in_prose_a_path_or_a_table_is_reported(self):
@@ -258,13 +260,23 @@ class ProhibitedTemporalNames(unittest.TestCase):
         self.assertEqual(find_prohibited_name_violations(ddl, "x.sql", self.names), [])
 
     def test_prose_in_comments_not_flagged(self):
-        # How a template explains which spelling it replaced, and how a keymap header
+        # How a header explains which spelling it replaced, and how a keymap header
         # names the prohibited form. Neither is a column.
         art = ("-- created_at is a prohibited spelling of created_dts.\n"
-               "{# valid_from and valid_to are prohibited everywhere. #}\n"
                "/* was: created_timestamp */\n"
                "CREATE TABLE x (created_dts TIMESTAMP(6));\n")
-        self.assertEqual(find_prohibited_name_violations(art, "x.sql.j2", self.names), [])
+        self.assertEqual(find_prohibited_name_violations(art, "x.sql", self.names), [])
+
+    def test_the_sql_a_dialect_writes_is_checked_and_its_prose_is_not(self):
+        dialect = ('"""A dialect. valid_from is prohibited."""\n'
+                   'class D:\n'
+                   '    def phase_x(self):\n'
+                   '        """Writes created_dts, never created_at."""\n'
+                   '        return """CREATE TABLE t (\n'
+                   '  id INTEGER,\n'
+                   '  valid_from DATE);"""\n')
+        found = find_dialect_name_violations(dialect, "dialect.py", self.names)
+        self.assertEqual([(f.line, f.rule) for f in found], [(7, "tlm-04")])
 
     def test_string_literal_not_flagged(self):
         # The catalogue conformance query scans *for* these names.

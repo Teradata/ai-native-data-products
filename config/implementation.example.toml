@@ -1,0 +1,277 @@
+# Implementation configuration: IT Service Desk example organisation
+#
+# How this organisation builds, one entry per deployment target under [targets]. A table at the
+# top level holds for every target; a target's own table of the same name replaces it.
+#
+# Keys are the Organisation Profile Standard's field names in snake_case
+# (design/core/ORGANISATION_PROFILE.md); your own names - container keys, object roles,
+# tiers, classes, entities - are written as they are.
+
+[environments]
+phases = ['development', 'test', 'production']
+isolation = 'system'
+
+[targets.duckdb]
+platform = 'duckdb'
+platform_version = '1.4'
+
+# DuckDB, where the container is a schema within the product's database file. DuckDB has no
+# roles, so each access tier says how it is enforced outside the database.
+[targets.duckdb.platform_terms]
+container_term = 'SCHEMA'
+principal_term = 'ROLE'
+namespace = 'flat'
+max_name_length = 120
+name_characters = 'lower-case letters, digits and underscore'
+reserved_words = ['main', 'information_schema', 'pg_catalog', 'temp']
+
+# One schema per module and one access schema holding every consumer view.
+[targets.duckdb.containers]
+memory = '{product_code|lower}_{module}'
+semantic = '{product_code|lower}_{module}'
+domain = '{product_code|lower}_{module}'
+observability = '{product_code|lower}_{module}'
+search = '{product_code|lower}_{module}'
+prediction = '{product_code|lower}_{module}'
+access = '{product_code|lower}_access'
+
+# Lower snake case. A table and its consumer view share a name and are told apart by schema;
+# point-in-time macros carry `at_`, similarity macros `similar_`, and key sequences `_seq`. The
+# discovery and trust views keep their logical names in snake case.
+[targets.duckdb.naming]
+attributes = '{attribute}'
+
+[targets.duckdb.naming.objects]
+table = '{entity|snake}'
+consumer_view = '{entity|snake}'
+function = 'at_{entity|snake}'
+'function search' = 'similar_{entity|snake}'
+sequence = '{entity|snake}_seq'
+
+[targets.duckdb.naming.standard_names]
+ColumnCatalogue = 'column_catalogue'
+DataProductManifest = 'data_product_manifest'
+RelationshipPaths = 'relationship_paths'
+LineageGraph = 'lineage_graph'
+LineageRunLatest = 'lineage_run_latest'
+TrustMap = 'trust_map'
+
+[targets.duckdb.placement]
+
+[targets.duckdb.placement.rules]
+table = 'module'
+consumer_view = 'access'
+function = 'module'
+sequence = 'module'
+
+[targets.duckdb.separation]
+policy = 'STRICT_SEPARATION'
+object_naming = 'container-discriminated'
+
+[targets.duckdb.derivation]
+product_code = 'ITSD'
+examples = [
+  'table domain Ticket History -> itsd_domain.ticket',
+  'consumer_view domain Ticket History -> itsd_access.ticket',
+  'table semantic EntityMetadata -> itsd_semantic.entity_metadata',
+  'consumer_view observability TrustMap -> itsd_access.trust_map',
+]
+
+# No tier is a database principal: the binding creates no roles and issues no grants, and the
+# build records each tier's enforcement as stated here.
+[targets.duckdb.principals]
+role_read = 'outside read-only file access to the database'
+role_agent = "outside the agent runtime's own connection, writing runtime Memory and agent outcomes"
+role_admin = "outside the product owner's write access to the database file"
+grant_level = 'object'
+
+[targets.postgres]
+platform = 'postgres'
+platform_version = '16'
+
+# PostgreSQL, where the container is a schema within the product's database.
+[targets.postgres.platform_terms]
+container_term = 'SCHEMA'
+principal_term = 'ROLE'
+namespace = 'flat'
+max_name_length = 63
+name_characters = 'lower-case letters, digits and underscore'
+reserved_words = ['pg_catalog', 'information_schema', 'public']
+
+# One schema per module and one access schema holding every consumer view.
+[targets.postgres.containers]
+memory = '{product_code|lower}_{module}'
+semantic = '{product_code|lower}_{module}'
+domain = '{product_code|lower}_{module}'
+observability = '{product_code|lower}_{module}'
+search = '{product_code|lower}_{module}'
+prediction = '{product_code|lower}_{module}'
+access = '{product_code|lower}_access'
+
+# Lower snake case. A table and its consumer view share a name and are told apart by schema;
+# point-in-time functions carry `at_`, and similarity functions `similar_`. The discovery and
+# trust views keep their logical names in snake case.
+[targets.postgres.naming]
+attributes = '{attribute}'
+
+[targets.postgres.naming.objects]
+table = '{entity|snake}'
+consumer_view = '{entity|snake}'
+function = 'at_{entity|snake}'
+'function search' = 'similar_{entity|snake}'
+
+[targets.postgres.naming.standard_names]
+ColumnCatalogue = 'column_catalogue'
+DataProductManifest = 'data_product_manifest'
+RelationshipPaths = 'relationship_paths'
+LineageGraph = 'lineage_graph'
+LineageRunLatest = 'lineage_run_latest'
+TrustMap = 'trust_map'
+
+[targets.postgres.placement]
+
+[targets.postgres.placement.rules]
+table = 'module'
+consumer_view = 'access'
+function = 'module'
+
+[targets.postgres.separation]
+policy = 'STRICT_SEPARATION'
+object_naming = 'container-discriminated'
+
+[targets.postgres.derivation]
+product_code = 'ITSD'
+examples = [
+  'table domain Ticket History -> itsd_domain.ticket',
+  'consumer_view domain Ticket History -> itsd_access.ticket',
+  'table semantic EntityMetadata -> itsd_semantic.entity_metadata',
+  'consumer_view observability TrustMap -> itsd_access.trust_map',
+]
+
+[targets.postgres.principals]
+role_read = 'create {product_code|lower}_role_read'
+role_agent = 'create {product_code|lower}_role_agent'
+role_admin = 'create {product_code|lower}_role_admin'
+grant_level = 'object'
+
+[targets.teradata]
+platform = 'teradata'
+platform_version = '17.20'
+
+# Teradata, where the container is a `DATABASE` and the namespace is flat (`database.object`).
+# Names are alphanumeric and underscore only; system databases are reserved.
+[targets.teradata.platform_terms]
+container_term = 'DATABASE'
+principal_term = 'ROLE'
+namespace = 'flat'
+max_name_length = 30
+name_characters = 'letters, digits and underscore'
+reserved_words = ['DBC', 'SYSLIB', 'SYSBAR', 'TDSTATS', 'TDWM']
+
+# Child containers only: one database per module, plus a views-only access database and the
+# organisation's shared `governance` database, where the catalogue registration of every product
+# lives (catalogue-interface pattern). Environments are separate Teradata systems, so container
+# names carry no environment marker.
+[targets.teradata.containers]
+memory = '{product_code}_{module|abbrev}'
+semantic = '{product_code}_{module|abbrev}'
+domain = '{product_code}_{module|abbrev}'
+observability = '{product_code}_{module|abbrev}'
+search = '{product_code}_{module|abbrev}'
+prediction = '{product_code}_{module|abbrev}'
+access = '{product_code}_ACC'
+governance = 'governance'
+
+# Containers are `{product_code}_{module abbreviation}`, the abbreviations below. Objects take
+# the entity name; a versioned Domain entity's table carries `_History`, every governed view
+# carries `_Current`, the consumer view takes the bare entity name, and a similarity procedure
+# carries `_Similar`. Attributes keep the specification's names. The validation pattern's
+# relations keep their logical snake-case names, which this organisation's conformance tooling
+# expects.
+[targets.teradata.naming]
+attributes = '{attribute}'
+graph_key = 'LIN_{product_code}'
+
+[targets.teradata.naming.objects]
+table = '{entity}'
+'table domain History' = '{entity}_History'
+base_view = '{entity}_Current'
+consumer_view = '{entity}'
+procedure = '{entity}_Similar'
+
+[targets.teradata.naming.standard_names]
+ValidationRun = 'validation_run'
+ValidationArea = 'validation_area'
+LineageGraph = 'lineage_graph'
+LineageRunLatest = 'lineage_run_latest'
+
+[targets.teradata.naming.abbreviations]
+memory = 'MEM'
+semantic = 'SEM'
+domain = 'DOM'
+observability = 'OBS'
+search = 'SCH'
+prediction = 'PRD'
+
+# Tables, governed views and procedures sit in their module's database; every consumer view sits
+# in the access database; functions sit with Domain. The product's own registry stays in its
+# Semantic database like every other discovery relation; the shared governance database holds
+# only the catalogue's registration, a projection of it. The lineage discovery views sit with
+# Semantic, so agents find lineage where they find everything else.
+[targets.teradata.placement]
+
+[targets.teradata.placement.rules]
+table = 'module'
+base_view = 'module'
+consumer_view = 'access'
+procedure = 'module'
+function = 'domain'
+LineageGraph = 'semantic'
+LineageRunLatest = 'semantic'
+
+# Strict separation: consumer views sit in the access database, which holds no tables, so a grant
+# on that database never exposes a base table. The governed views that carry history sit with
+# their tables and are granted to consumers one by one.
+[targets.teradata.separation]
+policy = 'STRICT_SEPARATION'
+object_naming = 'container-discriminated'
+exceptions = 'Governed _Current views live in module databases beside their tables; consumers reach them by per-view grants only.'
+
+# The resolver derives every container and object name from Sections 2 to 4. These worked
+# examples are re-derived on every check, so they cannot drift from the rules.
+[targets.teradata.derivation]
+product_code = 'ITSD'
+examples = [
+  'table domain Ticket History -> ITSD_DOM.Ticket_History',
+  'base_view domain Ticket History -> ITSD_DOM.Ticket_Current',
+  'consumer_view domain Ticket History -> ITSD_ACC.Ticket',
+  'table search EntityEmbedding History -> ITSD_SCH.EntityEmbedding',
+  'table domain Category Reference -> ITSD_DOM.Category',
+  'table memory AgentSession -> ITSD_MEM.AgentSession',
+  'table semantic DataProductRegistry -> ITSD_SEM.DataProductRegistry',
+  'table observability ValidationRun -> ITSD_OBS.validation_run',
+]
+
+# Role-based and granted at database level. Each tier is a role created for the product. The
+# grant matrix itself is the access-layer pattern's; the implied grants the access database needs
+# to compile its views are derived by the binding from the placement above.
+[targets.teradata.principals]
+role_read = 'create {product_code}_ROLE_READ'
+role_agent = 'create {product_code}_ROLE_AGENT'
+role_admin = 'create {product_code}_ROLE_ADMIN'
+grant_level = 'container'
+
+# The shared governance database already exists; products register into it and never create it.
+[targets.teradata.adoption]
+
+[targets.teradata.adoption.containers]
+governance = 'governance'
+
+# The organisation's catalogue reads the registry live and uses its advocated lifecycle states.
+[targets.teradata.catalogue]
+projection = 'live'
+
+[targets.teradata.catalogue.layers]
+table = 'BASE'
+base_view = 'GOVERNED'
+consumer_view = 'CONSUMER'

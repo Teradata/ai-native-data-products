@@ -8,15 +8,15 @@ A modular library of data design patterns for building **AI-Native Data Products
 | Line | Section | Covers |
 |---:|---|---|
 | 22 | [The design / implementation split](#the-design--implementation-split) | What `design/` and `implementation/` each hold, and the rule between them |
-| 57 | [As an agent skill](#as-an-agent-skill) | Installing the repository as a skill, the ZIP and the file limit, the four roles and their starters, verifying the package |
-| 100 | [Compositions: one library, many patterns](#compositions-one-library-many-patterns) | How modules compose by what they provide and require |
-| 115 | [The six modules](#the-six-modules) | Domain, Search, Prediction, Observability, Semantic, Memory: one line each |
-| 128 | [The five patterns](#the-five-patterns) | The cross-cutting patterns modules apply |
-| 142 | [Deployment order](#deployment-order) | Which module deploys first, and why that differs from design order |
-| 156 | [Tooling](#tooling) | The linters, catalogue, skill check and binding tools, with their commands |
-| 190 | [Key principles](#key-principles) | The principles the standards hold to |
-| 201 | [Learn More](#learn-more) | Blogs and further reading |
-| 215 | [License](#license) | Licence and authorship |
+| 59 | [As an agent skill](#as-an-agent-skill) | Installing the repository as a skill, the ZIP and the file limit, the four roles and their starters, verifying the package |
+| 102 | [Compositions: one library, many patterns](#compositions-one-library-many-patterns) | How modules compose by what they provide and require |
+| 117 | [The six modules](#the-six-modules) | Domain, Search, Prediction, Observability, Semantic, Memory: one line each |
+| 130 | [The five patterns](#the-five-patterns) | The cross-cutting patterns modules apply |
+| 144 | [Deployment order](#deployment-order) | Which module deploys first, and why that differs from design order |
+| 158 | [Tooling](#tooling) | The linters, catalogue, skill check and binding tools, with their commands |
+| 192 | [Key principles](#key-principles) | The principles the standards hold to |
+| 203 | [Learn More](#learn-more) | Blogs and further reading |
+| 217 | [License](#license) | Licence and authorship |
 <!-- index:end -->
 
 ## The design / implementation split
@@ -38,14 +38,16 @@ ai-native-data-products/
 │   └── patterns/               temporal-lifecycle-metadata · object-placement ·
 │                               physical-storage · validation · access-layer
 ├── implementation/
-│   ├── teradata/               README (one section per module and pattern), PLATFORM_PROFILE, templates
-│   ├── duckdb/                 reusable Jinja bindings for a portable file engine
-│   └── postgres/               reusable Jinja bindings, native grants and history constraints
+│   ├── portable/               the portable dialect every binding extends
+│   ├── teradata/               README (a section per module and pattern), PLATFORM_PROFILE, binding.toml, dialect.py
+│   ├── duckdb/                 reusable binding for a portable file engine
+│   └── postgres/               reusable binding, native grants and history constraints
 ├── tooling/
 │   ├── validation/             the design linter (+ tests)
 │   ├── catalogue/              generates corpus navigation from frontmatter
 │   ├── evals/                  validates a product design against the standards
 │   └── skill/                  verifies the skill package and its routing
+├── config/                     example organisation configuration (design and implementation TOML)
 ├── examples/                   worked products: fixed inputs for an end-to-end run
 └── prompts/                    intake templates for starting a conversation
 ```

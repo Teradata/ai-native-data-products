@@ -1,0 +1,89 @@
+# Teradata binding declarations: Platform Implementation Authoring Standard §5.1.
+# The resolver and renderer read this file; physical-design guidance is in PLATFORM_PROFILE.md.
+
+[binding]
+identifier_quote = '"'
+literal_quote = "'"
+principals = 'native'
+runtime_scope = 'unsupported'
+
+# Gaps no check can detect; the conformance report lists them.
+gaps = [
+  { area = 'Composition', gap = 'only the two reference compositions, each with all six modules, are engine-tested; smaller compositions are not shown to deploy' },
+  { area = 'Adoption', gap = "the reference mode is engine-tested (an entity bound to an existing table, which the build neither creates nor changes, wraps in its views, registers and checks, leaving the container's other objects alone); presenting canonical names over an adopted entity's column aliases, wrapping and migration are not rendered" },
+  { area = 'Maintenance', gap = 'only the bitemporal path of the maintenance statement is engine-tested, not the SCD2 path; no change planner is shipped and no change event is emitted' },
+  { area = 'Historical references', gap = 'the reference check covers current surfaces only' },
+  { area = 'Cookbook recipes', gap = 'cross-module recipes for module pairs with no relationship fall back to catalogue lookups over entity metadata, not a working join' },
+  { area = 'Embedding, model and operations', gap = 'no encoder, feature pipeline, trained model, retrieval quality, backup, durability or performance evidence; structural evidence never substitutes for these' },
+  { area = 'Temporal enforcement', gap = 'Teradata enforces neither one open version per identity nor non-overlapping intervals in its schema; the temporal check finds both after the fact' },
+  { area = 'Point-in-time call', gap = 'no table functions, so no parameterised point-in-time call; consumers apply the temporal predicates to the governed views they are granted' },
+  { area = 'Adopted databases', gap = "the implied grant on an adopted database is emitted by the build, so the deploying user needs its owner's rights; the access-layer pattern has the owner provision it and the build report it as outstanding, which is not rendered" },
+  { area = 'Deployment', gap = "DDL commits per statement, so a failed deployment cannot be rolled back; it is cleared by dropping the product's databases" },
+  { area = 'Concurrency', gap = 'no lock serialises concurrent maintenance writers, and no concurrent-writer test exists' },
+  { area = 'Principals and membership', gap = 'roles carry rights only; users, memberships and passwords are operator work' },
+  { area = 'Graph lineage and catalogue interface', gap = 'not bound; their generator code was retired, and a build that asks for either reports it as a gap' },
+]
+
+# Object roles emitted beyond table and consumer_view, and what each is emitted for.
+[binding.emits]
+base_view = ['all']
+procedure = ['embedding']
+
+# Settings an organisation's configuration may set for this platform.
+[binding.settings]
+container_space = { values = 'bytes of permanent space per database that holds objects', default = '1000000000' }
+deploying_user = { values = 'the user that runs the deployment, granted CREATE PROCEDURE on each database that holds a procedure, or none where it already holds that right', default = 'none' }
+
+# The physical type for each logical type. {p} and {s} are a Decimal's precision and scale,
+# {dim} a Vector's dimension and {dim*n} that dimension times n.
+[types]
+Identifier = 'BIGINT'
+Reference = 'BIGINT'
+NaturalKey = 'VARCHAR(100)'
+Code = 'VARCHAR(50)'
+ShortText = 'VARCHAR(200)'
+Text = 'VARCHAR(4000)'
+LongText = 'CLOB'
+Json = 'JSON'
+Enum = 'VARCHAR(50)'
+Integer = 'INTEGER'
+Decimal = 'DECIMAL({p},{s})'
+Timestamp = 'TIMESTAMP(6) WITH TIME ZONE'
+Date = 'DATE'
+Flag = 'BYTEINT'
+Vector = 'VARBYTE({dim*8})'
+
+# The SQL fragment for each expression function: {0}, {1} ... are rendered arguments and
+# {args} all of them. A name may carry an arity, as name/2.
+[functions]
+sum = 'SUM({0})'
+avg = 'AVG({0})'
+min = 'MIN({0})'
+max = 'MAX({0})'
+count = 'COUNT({0})'
+count_distinct = 'COUNT(DISTINCT {0})'
+count_rows = 'COUNT(*)'
+ratio = '({0}) / NULLIF({1}, 0)'
+'completeness/1' = 'AVG(CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END)'
+'completeness/2' = 'AVG(CASE WHEN {1} THEN CASE WHEN {0} IS NOT NULL THEN 1.0 ELSE 0.0 END END)'
+validity = 'AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)'
+consistency = 'AVG(CASE WHEN {0} THEN 1.0 ELSE 0.0 END)'
+'map/2' = 'CASE {0} {cases} ELSE NULL END'
+'map case' = 'WHEN {key} THEN {value}'
+when = 'CASE WHEN {0} THEN {1} ELSE {2} END'
+coalesce = 'COALESCE({args})'
+is_null = '({0} IS NULL)'
+is_not_null = '({0} IS NOT NULL)'
+null = 'NULL'
+'concat/2' = "TRIM(COALESCE({0}, '') || COALESCE(' ' || {1}, ''))"
+'concat/3' = "TRIM(COALESCE({0}, '') || COALESCE(' ' || {1}, '') || COALESCE(' ' || {2}, ''))"
+length = 'CHARACTER_LENGTH({0})'
+hours_between = "((CAST(({1} AT TIME ZONE 'GMT') AS DATE) - CAST(({0} AT TIME ZONE 'GMT') AS DATE)) * 86400.0 + (EXTRACT(HOUR FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(HOUR FROM ({0} AT TIME ZONE 'GMT'))) * 3600.0 + (EXTRACT(MINUTE FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(MINUTE FROM ({0} AT TIME ZONE 'GMT'))) * 60.0 + (EXTRACT(SECOND FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(SECOND FROM ({0} AT TIME ZONE 'GMT')))) / 3600.0"
+days_between = "((CAST(({1} AT TIME ZONE 'GMT') AS DATE) - CAST(({0} AT TIME ZONE 'GMT') AS DATE)) * 86400.0 + (EXTRACT(HOUR FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(HOUR FROM ({0} AT TIME ZONE 'GMT'))) * 3600.0 + (EXTRACT(MINUTE FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(MINUTE FROM ({0} AT TIME ZONE 'GMT'))) * 60.0 + (EXTRACT(SECOND FROM ({1} AT TIME ZONE 'GMT')) - EXTRACT(SECOND FROM ({0} AT TIME ZONE 'GMT')))) / 86400.0"
+hour_of_day = "EXTRACT(HOUR FROM {0} AT TIME ZONE 'GMT')"
+day_of_week = '((TD_DAY_OF_WEEK(CAST({0} AS DATE)) + 5) MOD 7)'
+as_flag = 'CASE WHEN {0} THEN 1 ELSE 0 END'
+duration = "INTERVAL '{n}' {unit}"
+true = '1'
+false = '0'
+'flag test' = '({0} = 1)'

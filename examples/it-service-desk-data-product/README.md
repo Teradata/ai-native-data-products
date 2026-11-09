@@ -11,18 +11,18 @@ Everything in this directory is input. Running the example produces a design spe
 |---:|---|---|
 | 28 | [What the product does](#what-the-product-does) | The product's purpose and its four entities |
 | 34 | [What is supplied](#what-is-supplied) | The brief, design output, profiles and source data in this folder |
-| 50 | [What it deliberately exercises](#what-it-deliberately-exercises) | The departures and choices the example tests |
-| 60 | [Before you start](#before-you-start) | What you need: Python, a Teradata system, privileges |
-| 74 | [Step 0. Install the standards as a skill](#step-0-install-the-standards-as-a-skill) | Installing the skill |
-| 91 | [Step 1. Set up the product repository](#step-1-set-up-the-product-repository) | Creating the product repository and copying the inputs |
-| 104 | [Step 2. Design](#step-2-design) | Running the design role from the brief |
-| 120 | [Step 3. Build](#step-3-build) | Running the build role and its physical design |
-| 144 | [Step 4. Review](#step-4-review) | Running the review role to produce the trust map |
-| 152 | [Step 5. Use it](#step-5-use-it) | Querying the deployed product as a consumer |
-| 156 | [Re-running](#re-running) | Tearing down and redeploying without an agent |
-| 166 | [What to record after a run](#what-to-record-after-a-run) | Classifying each defect a run finds |
-| 176 | [What the brief settles, and what it leaves to the standards](#what-the-brief-settles-and-what-it-leaves-to-the-standards) | Where the brief stops and the standards take over |
-| 188 | [Deliberate departures](#deliberate-departures) | The two recorded departures a reviewer should accept |
+| 49 | [What it deliberately exercises](#what-it-deliberately-exercises) | The departures and choices the example tests |
+| 59 | [Before you start](#before-you-start) | What you need: Python, a Teradata system, privileges |
+| 73 | [Step 0. Install the standards as a skill](#step-0-install-the-standards-as-a-skill) | Installing the skill |
+| 90 | [Step 1. Set up the product repository](#step-1-set-up-the-product-repository) | Creating the product repository and copying the inputs |
+| 103 | [Step 2. Design](#step-2-design) | Running the design role from the brief |
+| 119 | [Step 3. Build](#step-3-build) | Running the build role and its physical design |
+| 143 | [Step 4. Review](#step-4-review) | Running the review role to produce the trust map |
+| 151 | [Step 5. Use it](#step-5-use-it) | Querying the deployed product as a consumer |
+| 155 | [Re-running](#re-running) | Tearing down and redeploying without an agent |
+| 165 | [What to record after a run](#what-to-record-after-a-run) | Classifying each defect a run finds |
+| 175 | [What the brief settles, and what it leaves to the standards](#what-the-brief-settles-and-what-it-leaves-to-the-standards) | Where the brief stops and the standards take over |
+| 187 | [Deliberate departures](#deliberate-departures) | The two recorded departures a reviewer should accept |
 <!-- index:end -->
 
 ## What the product does
@@ -36,9 +36,8 @@ Four entities. `Ticket`, `Agent` and `Customer` are `History` entities on the bi
 | File | What it is |
 |---|---|
 | [`ITSD_Reference_Brief.md`](ITSD_Reference_Brief.md) | The fixed input. Intake blocks for each phase, every catalogued decision pre-settled with its reason, the entity and feature models, the physical design, and the deployment sequence. |
-| [`profiles/teradata.md`](profiles/teradata.md) | The organisation profile for Teradata: the eight object-placement sections, `STRICT_SEPARATION`, seven `ITSD_*` databases and three roles, plus classification and environments, as rules the build-context resolver executes. The build refuses to invent containers, so a profile is a hard prerequisite. |
-| [`profiles/teradata-type-grouped.md`](profiles/teradata-type-grouped.md) | A contrasting Teradata profile for the portability test: type-grouped placement, snake-case names, mapped column names, an adopted entity and container-isolated environments. |
-| [`profiles/postgres.md`](profiles/postgres.md), [`profiles/duckdb.md`](profiles/duckdb.md) | The same organisation's profiles for PostgreSQL (a schema per module, created roles) and DuckDB (a schema per module, sequences, access enforced outside the database). Any profile here builds the same specification. |
+| [`config/design.example.toml`](../../config/design.example.toml), [`config/implementation.example.toml`](../../config/implementation.example.toml) | The example organisation's configuration, which is also the template an organisation copies. The design file holds its classification; the implementation file holds one target per platform. Target `teradata` places seven `ITSD_*` databases under `STRICT_SEPARATION` with three created roles; `postgres` has a schema per module and created roles; `duckdb` a schema per module, sequences and access enforced outside the database. The build refuses to invent containers, so a target is a hard prerequisite. |
+| [`contrasting/`](contrasting/) | A second organisation's configuration, for the portability test: one Teradata target with type-grouped placement, snake-case names, mapped column names, an adopted entity, object storage and container-isolated environments. The same specification builds under it with no shared physical name. |
 | [`design-output/design_specification.md`](design-output/design_specification.md) | The reference design specification: what the design phase should produce from the brief, and the build input every platform binding must build. Validated by `spec_lint`. |
 | `data/tickets.csv` | 150 tickets, June to July 2026. Open, in-progress, resolved and closed, with nulls on resolution time, closure time, resolution notes and satisfaction score where the lifecycle has not reached them. |
 | `data/agents.csv` | 12 agents across three teams, L1 to L3. `email` is `[pii]`. |
@@ -59,7 +58,7 @@ The nulls and the hierarchy are there for a reason. A fixture where every column
 
 ## Before you start
 
-You will need Python 3.8 or later for the linters. They are stdlib-only. `jinja2` is needed only if you want to render the DDL templates locally.
+You will need Python 3.8 or later for the linters. They are stdlib-only, as is rendering the DDL locally, which needs Python 3.11 or later.
 
 You will need a Teradata system you can create databases and roles on. Role creation needs elevated privilege, so confirm it before you begin. The build starter asks you to check this early rather than discover it two phases later:
 
@@ -95,8 +94,8 @@ Create the repository and copy the inputs across:
 ```bash
 mkdir -p itsd-data-product/{data,standards,design,build,review,validation,logs}
 cp examples/it-service-desk-data-product/data/*.csv          itsd-data-product/data/
-cp examples/it-service-desk-data-product/profiles/teradata.md \
-   itsd-data-product/standards/organisation-profile.md
+cp config/design.example.toml          itsd-data-product/standards/design.toml
+cp config/implementation.example.toml  itsd-data-product/standards/implementation.toml
 ```
 
 Add `.env.example` with `TD_HOST`, `TD_USER`, `TD_PASS`. Keep real credentials out of the repository.

@@ -22,7 +22,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tooling" / "skill"))
 
-from verify_skill import ROLES, SKILL_NAME, check_package, verify  # noqa: E402
+from verify_skill import MAX_DOCUMENT_LINES, MAX_PACKAGE_FILES, ROLES, SKILL_NAME, check_package, verify  # noqa: E402
 
 DESCRIPTION = (
     "Design, build, review, or access an AI-Native Data Product. Load when modelling a "
@@ -131,11 +131,11 @@ class VerifySkillTest(unittest.TestCase):
     def test_placeholder_route_resolves_when_one_expansion_exists(self):
         impl = self.pkg.root / "implementation" / "teradata" / "modules" / "domain"
         impl.mkdir(parents=True)
-        (impl.parents[1] / "PLATFORM_PROFILE.md").write_text("# Profile\n", encoding="utf-8")
-        (impl / "validation.sql.j2").write_text("SELECT 1;\n", encoding="utf-8")
+        (impl.parents[1] / "binding.toml").write_text("[binding]\n", encoding="utf-8")
+        (impl / "validation.sql").write_text("SELECT 1;\n", encoding="utf-8")
         self.pkg.write_role(
             "build",
-            "# Build\n\nRun `implementation/{platform}/modules/{module}/validation.sql.j2`.\n")
+            "# Build\n\nRun `implementation/{platform}/modules/{module}/validation.sql`.\n")
         self.assertNotIn("dangling-route", self.pkg.rules())
 
     def test_placeholder_route_with_no_expansion_is_reported(self):
@@ -146,7 +146,7 @@ class VerifySkillTest(unittest.TestCase):
     def test_a_platform_route_must_resolve_on_every_binding(self):
         for platform in ("alpha", "beta"):
             (self.pkg.root / "implementation" / platform).mkdir(parents=True)
-            (self.pkg.root / "implementation" / platform / "PLATFORM_PROFILE.md").write_text("# P\n", encoding="utf-8")
+            (self.pkg.root / "implementation" / platform / "binding.toml").write_text("[binding]\n", encoding="utf-8")
         (self.pkg.root / "implementation" / "alpha" / "README.md").write_text("# A\n", encoding="utf-8")
         self.pkg.write_role("build", "# Build\n\nRead `implementation/{platform}/README.md`.\n")
         self.assertIn("implementation/beta/README.md", "\n".join(str(f) for f in verify(self.pkg.root)))
@@ -181,6 +181,21 @@ class VerifySkillTest(unittest.TestCase):
         self.commit("/build/", "*.duckdb")
         self.assertEqual([(f.rule, f.where) for f in check_package(self.pkg.root)],
                          [("package-ignored", "build/deploy.sql")])
+
+    def test_a_package_over_its_file_budget_fails(self):
+        filler = self.pkg.root / "examples" / "filler"
+        filler.mkdir(parents=True)
+        for i in range(MAX_PACKAGE_FILES):
+            (filler / f"{i}.md").write_text("x\n", encoding="utf-8")
+        self.commit()
+        found = check_package(self.pkg.root)
+        self.assertEqual([f.rule for f in found], ["package-budget"])
+        self.assertIn("examples/filler", found[0].message)
+
+    def test_an_oversized_design_document_is_reported(self):
+        path = self.pkg.root / "design" / "core" / "LONG.md"
+        path.write_text("# Long\n" + "line\n" * MAX_DOCUMENT_LINES, encoding="utf-8")
+        self.assertIn(("too-long", "design/core/LONG.md"), [(f.rule, f.where) for f in verify(self.pkg.root)])
 
     def test_outside_a_checkout_no_package_is_claimed(self):
         self.assertEqual([f.rule for f in check_package(self.pkg.root)], ["package"])

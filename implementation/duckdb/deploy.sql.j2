@@ -1,8 +1,0 @@
-{# One transaction: every phase applies or none does. #}
-BEGIN;
-SET TimeZone = 'UTC';
-{% for phase in phases %}
--- {{ phase.file }}
-{{ phase.sql }}
-{% endfor %}
-COMMIT;

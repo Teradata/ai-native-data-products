@@ -1,8 +1,0 @@
-{# Statistics on the columns the optimiser joins and filters on (PLATFORM_PROFILE section 6):
-   the key and versioning columns and the temporal predicates of every persisted relation. #}
-{% for x in entities + relations if x.relation == 'table' and (x.defined|default(true)) and not (x.adopted|default(false)) %}
-{% set cn = x.column_names %}
-{% set stats = (x.key_columns + x.version_columns)|unique|list %}
-{% for name in ('is_current', 'is_deleted', 'valid_from_dts', 'transaction_from_dts') if name in cn %}{% set _ = stats.append(cn[name]) %}{% endfor %}
-COLLECT STATISTICS {% for c in stats %}COLUMN ({{ c|ident }}){% if not loop.last %}, {% endif %}{% endfor %} ON {{ x.objects.table|qualified }};
-{%- endfor %}
